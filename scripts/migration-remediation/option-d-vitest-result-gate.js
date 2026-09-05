@@ -7,7 +7,6 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { execFileSync } = require("child_process");
 
 const PR312_COMMIT = "f65730b3d38e9cb3b192e54f62c798c74a07a1c2";
 const PR312_SUITE_PATH =
@@ -154,6 +153,33 @@ function evaluateVitestStructuredResult(report, opts = {}) {
     });
   }
 
+  const titleCounts = new Map();
+  for (const t of tests) {
+    const key = t.title || "";
+    titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+  }
+  const duplicates = [...titleCounts.entries()]
+    .filter(([, n]) => n > 1)
+    .map(([title, count]) => ({ title, count }));
+  if (duplicates.length) {
+    failures.push({ rule: "duplicate_test_titles", duplicates });
+  }
+
+  const expectedSet = new Set(expectedTitles);
+  const unexpected = tests
+    .map((t) => t.title)
+    .filter(
+      (title) =>
+        title &&
+        !expectedSet.has(title) &&
+        !String(title).includes("BLOCKED:"),
+    );
+  // Allow only expected titles (+ optional BLOCKED sentinel). Any other title is unexpected.
+  const unexpectedUnique = [...new Set(unexpected)];
+  if (unexpectedUnique.length) {
+    failures.push({ rule: "unexpected_test_titles", unexpected: unexpectedUnique });
+  }
+
   if (counts.passed < expectedTitles.length) {
     failures.push({
       rule: "insufficient_passed_count",
@@ -165,6 +191,13 @@ function evaluateVitestStructuredResult(report, opts = {}) {
   // All-skipped / partial: explicit
   if (counts.skipped > 0 && counts.passed === 0) {
     failures.push({ rule: "all_skipped_cannot_pass" });
+  }
+  if (counts.passed > 0 && counts.passed < expectedTitles.length && missing.length) {
+    failures.push({
+      rule: "partial_pass_insufficient",
+      passed: counts.passed,
+      required: expectedTitles.length,
+    });
   }
 
   const ok = failures.length === 0;
@@ -238,10 +271,14 @@ function evaluateVitestRunGate(run) {
   const processExitCode = run?.processExitCode;
 
   if (run?.error) {
+    const detail = String(run.error.message || run.error).slice(0, 300);
     failures.push({
       rule: "vitest_spawn_error",
-      detail: String(run.error.message || run.error).slice(0, 300),
+      detail,
     });
+    if (/EINVAL/i.test(detail)) {
+      failures.push({ rule: "vitest_spawn_einval", detail });
+    }
   }
   if (run?.timedOut === true) {
     failures.push({ rule: "vitest_timeout" });

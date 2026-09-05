@@ -52,6 +52,7 @@ const {
   sha256Buffer,
 } = require("./option-d-git-blob-authority");
 const { fingerprintPlatformWorkdir } = require("./option-d-platform-bootstrap");
+const { launchLocalVitest } = require("./option-d-vitest-launcher");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
@@ -309,24 +310,52 @@ function runPr312Vitest(dbUrl) {
       structured: null,
       stderr: "",
       suiteMaterialization: suiteMat,
+      launcher: null,
+    };
+  }
+
+  // Re-verify materialized bytes match the pinned Git blob before launch.
+  const liveSha = sha256Buffer(fs.readFileSync(suiteMat.tempFile));
+  if (liveSha !== suiteMat.sha256 || suiteMat.gitBlobId !== PR312_SUITE_BLOB) {
+    if (suiteMat.tempDir) {
+      cleanupMaterialization(suiteMat.tempDir);
+      applyMetrics.lastPr312Materialization = null;
+    }
+    return {
+      processExitCode: null,
+      signal: null,
+      error: "pr312_suite_blob_mismatch_before_launch",
+      gate: {
+        ok: false,
+        reason: "pr312_suite_blob_mismatch_before_launch",
+        failures: [
+          {
+            rule: "exact_suite_blob_mismatch",
+            expectedBlobId: PR312_SUITE_BLOB,
+            observedBlobId: suiteMat.gitBlobId,
+            expectedSha256: suiteMat.sha256,
+            temporaryFileSha256: liveSha,
+          },
+        ],
+      },
+      structured: null,
+      stderr: "",
+      suiteMaterialization: suiteMat,
+      launcher: null,
     };
   }
 
   const outFile = path.join(os.tmpdir(), `option-d-vitest-${Date.now()}.json`);
-  const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-  const r = spawnSync(
-    npx,
-    ["vitest", "run", suiteMat.tempFile, "--reporter=json", `--outputFile=${outFile}`],
-    {
-      cwd: ROOT,
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL: dbUrl,
-      },
-      timeout: 600_000,
+  const launched = launchLocalVitest({
+    suitePath: suiteMat.tempFile,
+    outputFile: outFile,
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL: dbUrl,
     },
-  );
+    timeoutMs: 600_000,
+  });
 
   let report = null;
   if (fs.existsSync(outFile)) {
@@ -343,10 +372,10 @@ function runPr312Vitest(dbUrl) {
   }
 
   const gate = evaluateVitestRunGate({
-    processExitCode: r.status,
-    error: r.error || null,
-    signal: r.signal || null,
-    timedOut: r.signal === "SIGTERM" && r.status === null,
+    processExitCode: launched.processExitCode,
+    error: launched.error || null,
+    signal: launched.signal || null,
+    timedOut: launched.timedOut === true,
     report,
   });
 
@@ -356,18 +385,24 @@ function runPr312Vitest(dbUrl) {
   }
 
   return {
-    processExitCode: r.status,
-    signal: r.signal || null,
-    error: r.error ? String(r.error.message || r.error).slice(0, 300) : null,
+    processExitCode: launched.processExitCode,
+    signal: launched.signal || null,
+    error: launched.error
+      ? String(launched.error.message || launched.error).slice(0, 300)
+      : launched.failures?.length
+        ? launched.failures[0].rule
+        : null,
     gate,
     structured: gate.structured,
-    stderr: (r.stderr || "").slice(0, 1000),
+    stderr: (launched.stderr || "").slice(0, 1000),
+    launcher: launched.launcher,
     suiteMaterialization: {
       ok: true,
       gitBlobId: suiteMat.gitBlobId,
       sha256: suiteMat.sha256,
       byteLength: suiteMat.byteLength,
       authority: suiteMat.authority,
+      temporaryFileSha256BeforeLaunch: liveSha,
     },
   };
 }
@@ -730,6 +765,8 @@ async function main() {
         signal: vitestRun.signal,
         error: vitestRun.error,
         gate: vitestRun.gate,
+        launcher: vitestRun.launcher || null,
+        suiteMaterialization: vitestRun.suiteMaterialization || null,
       },
       pr312Provenance,
       targetRedacted: redactUrl(dbUrl),
@@ -750,6 +787,8 @@ async function main() {
       signal: vitestRun.signal,
       error: vitestRun.error,
       gate: vitestRun.gate,
+      launcher: vitestRun.launcher || null,
+      suiteMaterialization: vitestRun.suiteMaterialization || null,
     },
     pr312Provenance,
     targetRedacted: redactUrl(dbUrl),

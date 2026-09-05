@@ -71,8 +71,9 @@ describe("Option D assembled Git-blob regeneration", () => {
     expect(auth.ok).toBe(true);
     expect(auth.authority).toBe("git_cat_file_blob");
     expect(auth.observedManifestSha256).toBe(pin.sha256);
+    // Worktree may differ (CRLF smudge OR assemble rewriting generatedAt/LF metadata).
+    // Authority must still be the Git blob, never disk bytes.
     if (diskSha !== pin.sha256) {
-      expect(disk.includes(0x0d)).toBe(true);
       expect(auth.observedManifestSha256).not.toBe(diskSha);
     }
   });
