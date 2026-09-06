@@ -8,17 +8,17 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const PR312_COMMIT = "3a2f2efc69b17499c8885c18081f6f3ef550d6c1";
+const PR312_COMMIT = "633bdebda51c9c2321ffba6bf0a146dc81243e5d";
 const PR312_SUITE_PATH =
   "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts";
-const PR312_SUITE_BLOB = "f9ce85410c19cc96c7105ed0bf1f94405b93c519";
+const PR312_SUITE_BLOB = "b647f3b165d7b0699bbba58c76be5ef0bd3277b4";
 const PR312_JE_REUSE_RESOLVER_PATH =
   "lib/journal-entry-governance/__tests__/je-reuse-pg-client-config.js";
 const PR312_JE_REUSE_RESOLVER_BLOB = "5178894fc6811d9f9fef84b10fb9294504b4679e";
 const PR312_JE_REUSE_SEED_HELPER_PATH =
   "lib/journal-entry-governance/__tests__/je-reuse-seed-operations.js";
 const PR312_JE_REUSE_SEED_HELPER_BLOB =
-  "ccaa60cf4747f601a1c3a58d28a235b0635b7df1";
+  "88ee0df67005f6b104c6ca6030e9d8a509fd0dcd";
 
 /** Titles that must execute when DB URL is present (SETUP + 12 governed behaviors). */
 const EXPECTED_PR312_TEST_TITLES = [
