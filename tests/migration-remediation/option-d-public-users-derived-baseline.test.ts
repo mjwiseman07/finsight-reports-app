@@ -201,7 +201,7 @@ describe("Option D public.users derived baseline", () => {
     expect(derived).toBeDefined();
     expect(consumer).toBeDefined();
     expect(derived.order).toBeLessThan(consumer.order);
-    expect(manifest.counts.totalAssembled).toBe(150);
+    expect(manifest.counts.totalAssembled).toBe(151);
     expect(manifest.counts.derivedPublicUsersBaseline).toBe(1);
   });
 

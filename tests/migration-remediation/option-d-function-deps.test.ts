@@ -136,7 +136,7 @@ describe("Option D function dependency order", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
     execFileSync(process.execPath, [AUDIT], { cwd: ROOT, stdio: "pipe" });
     const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-    expect(manifest.counts.totalAssembled).toBe(150);
+    expect(manifest.counts.totalAssembled).toBe(151);
     expect(manifest.counts.recoveredRequiredOriginals).toBe(9);
 
     const orderOf = (name: string) =>

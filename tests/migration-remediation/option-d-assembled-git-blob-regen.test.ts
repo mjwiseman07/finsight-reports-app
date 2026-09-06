@@ -78,10 +78,10 @@ describe("Option D assembled Git-blob regeneration", () => {
     }
   });
 
-  it("records 150 entries, 7 substitutions, and committed assembled artifacts", () => {
+  it("records 151 entries, 7 substitutions, and committed assembled artifacts", () => {
     const pin = currentManifestPin();
     const entries = pin.manifest.entries;
-    expect(entries).toHaveLength(150);
+    expect(entries).toHaveLength(151);
     const subst = entries.filter(
       (e: { replacementSource?: string | null }) => !!e.replacementSource,
     );
@@ -142,7 +142,7 @@ describe("Option D assembled Git-blob regeneration", () => {
     });
     if (mat.tempDir) tempDirs.push(mat.tempDir);
     expect(mat.ok).toBe(true);
-    expect(mat.artifacts).toHaveLength(150);
+    expect(mat.artifacts).toHaveLength(151);
     for (const art of mat.artifacts!) {
       const live = fs.readFileSync(art.temporaryFile);
       expect(sha256Buffer(live)).toBe(art.sha256);
@@ -255,7 +255,7 @@ describe("Option D assembled Git-blob regeneration", () => {
     // (no assemble lock / no SQL). Full assemble determinism is covered offline
     // under OPTION_D_ASSEMBLE_COMMIT without mutating the suite tree.
     expect(JSON.stringify(pass("first"))).toBe(JSON.stringify(pass("second")));
-    expect(pin.manifest.entries).toHaveLength(150);
+    expect(pin.manifest.entries).toHaveLength(151);
   });
 
   it("generation and validation perform zero SQL application attempts", () => {
