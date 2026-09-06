@@ -8,7 +8,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const PR312_COMMIT = "5e7c2a53c5fd475543c796e8f38e89432d90af58";
+const PR312_COMMIT = "af735758717e41b322e44e4abe174fbe524f3c3d";
 const PR312_SUITE_PATH =
   "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts";
 const PR312_SUITE_BLOB = "cec32b34617afe41187a37ad7de65048040a9f45";
