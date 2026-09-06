@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-06d",
+  "authorizedCommit": "f643c8c1ee87d39fbd38546b176baf52705a712b",
+  "pr312Commit": "da4ff14366d47b906962770b5d4e187a4d1853d0",
+  "pr312SuiteBlob": "4675a74f59e4cd38f677b8ad27dd9437e3a19a0f",
+  "pr312SeedHelperBlob": "ccaa60cf4747f601a1c3a58d28a235b0635b7df1",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "manifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+  "manifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "manifestBytes": 164204,
+  "manifestEntries": 151,
+  "manifestSubstitutions": 7,
+  "scopes": {
+    "candidateReplay": "PASS",
+    "forwardMigrationDigestProof": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "candidateReplay": {
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "pr312_vitest",
+    "firstIndependentFailureTitle": "C. approval_id replay with same binding → reused",
+    "firstIndependentFailureKind": "assertion",
+    "expectedReuseReason": "approval_id",
+    "observedReuseReason": "idempotency_key",
+    "sqlstate": null,
+    "firmClientsCompanyIdNotNullReached": false,
+    "ledgerEventsEngagementFkeyReached": false,
+    "falloutTitles": ["E", "E2", "F", "G", "H", "I", "J"],
+    "falloutClassification": "sqlstate_25P02_after_expected_rejection_D_no_savepoint",
+    "cascadeSourceTitle": "D. binding mismatch on approval_id → fail closed",
+    "vitest": {
+      "passedExpected": 5,
+      "failedExpected": 8,
+      "expectedTotal": 13
+    }
+  },
+  "diagnostics": {
+    "path": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-f643c8c1-1788727014195.json",
+    "sha256": "f08a991bc2345ef88a498342fe0e987d153e0bc3b7ff8c4edbd2158dc953011c",
+    "complete": true,
+    "credentialsIncluded": false
+  },
+  "residualAfterRollback": {
+    "total": 0,
+    "authUsers": 0
+  },
+  "cleanup": {
+    "suiteDatabasesDropped": true,
+    "supabaseStopped": true,
+    "workdirRemoved": true,
+    "port54322Open": false,
+    "status": "CLEANUP_DONE"
+  }
+}
