@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "kind": "option_d_pr312_vitest_failure_diagnostics",
+  "generatedAt": "2026-09-06T19:54:03.313Z",
+  "complete": true,
+  "credentialsIncluded": false,
+  "vitestFailed": true,
+  "pr312": {
+    "commit": "f0011f53f2d11de5340ac7f580cad571d983d149",
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "suiteBlob": "4675a74f59e4cd38f677b8ad27dd9437e3a19a0f",
+    "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+    "testRoot": "lib/journal-entry-governance/__tests__"
+  },
+  "process": {
+    "exitCode": 1,
+    "signal": null,
+    "timedOut": false,
+    "reporterComplete": true
+  },
+  "counts": {
+    "expected": 13,
+    "accounted": 13,
+    "passed": 0,
+    "failed": 13,
+    "skipped": 0,
+    "todo": 0,
+    "pending": 0,
+    "absent": 0
+  },
+  "tests": [
+    {
+      "title": "SETUP: disposable database preparation",
+      "status": "failed",
+      "durationMs": 8.192700000000002,
+      "sanitizedMessage": "AssertionError: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint: expected false to be true // Object.is equality\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:216:7\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anonymous>)\n    at runWithCancel ([redacted-temp-pat…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": null,
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 216,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "migration compile: reservation + transition RPCs exist",
+      "status": "failed",
+      "durationMs": 2.6598000000000184,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:222:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 222,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "A. first reservation inserts row + execution_requested receipt",
+      "status": "failed",
+      "durationMs": 0.5715000000000146,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:240:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 240,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "B. exact idempotency replay → reused, no duplicate receipt",
+      "status": "failed",
+      "durationMs": 0.5271000000000186,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:273:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 273,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "C. approval_id replay with same binding → reused",
+      "status": "failed",
+      "durationMs": 0.48270000000002256,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:296:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 296,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "D. binding mismatch on approval_id → fail closed",
+      "status": "failed",
+      "durationMs": 0.5191999999999553,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:305:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 305,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
+      "status": "failed",
+      "durationMs": 0.6461999999999648,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:316:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 316,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "E2. Patent #6 chain adjacency for requested → ready receipts",
+      "status": "failed",
+      "durationMs": 0.5108999999999924,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:367:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 367,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "F. state_version conflict on transition → rejected",
+      "status": "failed",
+      "durationMs": 0.6972000000000094,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:387:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 387,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
+      "status": "failed",
+      "durationMs": 0.7736999999999625,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:416:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 416,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "H. concurrent approval_id reservation attempts converge to one execution",
+      "status": "failed",
+      "durationMs": 0.5495999999999981,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:473:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 473,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "I. zero provider-attempt rows for execution reservation path",
+      "status": "failed",
+      "durationMs": 0.255299999999977,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:501:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 501,
+          "column": 20
+        }
+      ]
+    },
+    {
+      "title": "J. never touches staged production execution custody id",
+      "status": "failed",
+      "durationMs": 0.32450000000000045,
+      "sanitizedMessage": "Error: JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502: null value in column \"company_id\" of relation \"firm_clients\" violates not-null constraint\n    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:512:20\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at [redacted-temp-path]\n    at new Promise (<anony…[truncated]",
+      "messageTruncated": true,
+      "sqlstate": "23502",
+      "namedSetupPhase": "seed_firm_clients",
+      "constraint": "at",
+      "table": "firm_clients",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js",
+          "line": 203,
+          "column": 15
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 512,
+          "column": 20
+        }
+      ]
+    }
+  ],
+  "hooks": [],
+  "redaction": {
+    "applied": true,
+    "markers": [
+      "[redacted-url]",
+      "[redacted-password]",
+      "[redacted-token]",
+      "[redacted-env]",
+      "[redacted-temp-path]",
+      "[redacted-uuid]",
+      "[redacted-hex64]",
+      "[redacted-param]",
+      "[redacted-fixture]",
+      "[truncated]"
+    ]
+  },
+  "stderrSanitized": null,
+  "persistedRelativePath": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-ce6f5b35-1788724443308.json"
+}
