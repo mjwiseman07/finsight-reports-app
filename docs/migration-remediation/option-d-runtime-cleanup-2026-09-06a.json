@@ -1,0 +1,48 @@
+{
+  "runId": "2026-09-06a",
+  "authorizedCommit": "f9cfc5a175f809ebad330ff17d84b2547a101758",
+  "pr312Commit": "5e7c2a53c5fd475543c796e8f38e89432d90af58",
+  "pr312SuiteBlob": "cec32b34617afe41187a37ad7de65048040a9f45",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "manifestBlob": "ddabefe12573bbfd073464a7d220a1e5275ad2c8",
+  "manifestSha256": "04cd991347959c684293f372418ad6538d2a7ad8715c98caefb760d8789b39ae",
+  "manifestBytes": 163141,
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "pr312_vitest",
+    "firstFailureTitle": "A. first reservation inserts row + execution_requested receipt",
+    "firstFailureSignal": "function digest(bytea, unknown) does not exist",
+    "falloutTitles": ["B", "C", "D", "E", "E2", "F", "G", "H", "I", "J"],
+    "falloutClassification": "transaction_abort_cascade_unless_proven_otherwise",
+    "vitest": {
+      "passedExpected": 2,
+      "failedExpected": 11,
+      "expectedTotal": 13,
+      "processExitCode": 1
+    }
+  },
+  "diagnostics": {
+    "complete": true,
+    "path": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-f9cfc5a1-1788720001472.json",
+    "sha256": "54db556b183f67ed959ce253a8e753567eecb7b6a1ccf0c97ff9a8c6b146d0a2",
+    "credentialsIncluded": false,
+    "rawReportDeleted": true
+  },
+  "residualAfterRollback": { "applicationRowTotal": 0, "authUsers": 0 },
+  "cleanup": {
+    "status": "CLEANUP_DONE",
+    "port54322Open": false,
+    "workdirRemoved": true,
+    "suiteDatabaseDropped": true
+  },
+  "credentialsIncludedInEvidence": false,
+  "remediationInThisAuthorization": false,
+  "aclGrantsOmittedNotEstablishedCausal": true
+}
