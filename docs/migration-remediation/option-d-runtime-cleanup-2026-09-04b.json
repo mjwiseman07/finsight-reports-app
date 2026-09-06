@@ -1,0 +1,17 @@
+{
+  "date": "2026-09-04",
+  "commit": "e39d24c7c497a74eb1b11df33197a0a1c8db5cb7",
+  "manifestSha256": "5a66815352f4879b68a49d2cef3182d9637a20eb2a3a7617ed0bb979406dba0c",
+  "manifestBytes": 115488,
+  "supabaseCliVersion": "2.116.0",
+  "platformWorkdir": "C:\\Users\\mattj\\tmp-option-d-platform-only-e39d24c7",
+  "actions": {
+    "supabaseStopNoBackup": true,
+    "workdirRemoved": true,
+    "dburlFileRemoved": true,
+    "pr312MaterializedRemovedIfPresent": true,
+    "tcp54322Closed": true
+  },
+  "stopMessage": "Stopped supabase local development setup.",
+  "writtenAt": "2026-09-04T21:44:30.000Z"
+}

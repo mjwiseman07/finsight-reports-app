@@ -1,0 +1,40 @@
+﻿{
+    "sqlApplicationAttempts":  0,
+    "noProduction":  true,
+    "harnessExitCode":  2,
+    "scopes":  {
+                   "candidateReplay":  "FAIL",
+                   "securityImmutabilityChecks":  "BLOCKED",
+                   "pr312RpcValidation":  "BLOCKED",
+                   "productionDashboardReplayParity":  "unresolved"
+               },
+    "noRemediation":  true,
+    "overall":  "BLOCKED",
+    "firstFailure":  {
+                         "rule":  "manifest_sha256_mismatch",
+                         "observedManifestSha256":  "1bf72919ada7414b6803978cf950b00096f1f0ad5386dfaf45f0c7e749b650ba",
+                         "note":  "Preflight HEAD:blob matched expected pin; harness hashes on-disk working-tree file which differed. Aborted with sqlApplicationAttempts:0. No remediation.",
+                         "observedByteLength":  117826,
+                         "expectedSha256":  "5a66815352f4879b68a49d2cef3182d9637a20eb2a3a7617ed0bb979406dba0c",
+                         "headBlobByteLength":  115488
+                     },
+    "reason":  "manifest_authorization_failed",
+    "platform":  {
+                     "workdir":  "C:\\Users\\mattj\\tmp-option-d-platform-only-07a356e5",
+                     "dbPort":  54322,
+                     "cliVersion":  "2.116.0"
+                 },
+    "runId":  "07a356e5-platform-only-c",
+    "applyResult":  null,
+    "authorizedCommit":  "07a356e5ad51d48324cc3a07b3737ddd0102c119",
+    "date":  "2026-09-04",
+    "cleanup":  {
+                    "pr312TempSuiteMaterialized":  false,
+                    "workdirRemoved":  true,
+                    "dburlFileRemoved":  true,
+                    "tcp54322Closed":  true,
+                    "supabaseStop":  true,
+                    "supabaseStopExit":  0,
+                    "completedAt":  "2026-09-04T22:11:08.2542239Z"
+                }
+}

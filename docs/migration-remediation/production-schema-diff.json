@@ -1,0 +1,1203 @@
+{
+  "generatedAt": "2026-09-02T01:10:13.293Z",
+  "g1Verdict": "PASS",
+  "g1DependencyOrderNote": "G1 schema-definition comparison PASS. G1 dependency-order claim INVALIDATED by first G2 replay (42P01 companies); remediated via dependency manifest in subsequent commit.",
+  "g2FirstReplay": {
+    "status": "FAILED_FIRST_ATTEMPT_REMEDIATED",
+    "sqlstate": "42P01",
+    "failedBlobSha256": "4b955a1d48a0b6d07d2fa6c27e3f6f2dea784f91",
+    "branchDeleted": true,
+    "productionUntouched": true
+  },
+  "comparisonModel": "hardened_baseline → recovered_phase1 → remaining_authoritative_migration_lineage → expected_final → production_contract",
+  "contractManifestSha256": "461C94A36E9CB0B9193DE526AED284E3DBBA854FAA7D200F90692CF6D1246577",
+  "summary": {
+    "tablesCompared": 47,
+    "allTablesInDraft": true,
+    "missingInDraft": [],
+    "extraInDraft": [],
+    "viewMatch": true,
+    "classificationCounts": {
+      "expected_later_migration_change": 48
+    },
+    "unexplainedTableCount": 0,
+    "unexplainedTables": []
+  },
+  "baselineValidation": {
+    "singleTransaction": true,
+    "companyRolesSeedOnly": true,
+    "backfillExcluded": true,
+    "foundationPrerequisitesInDraft": true,
+    "phase1PrerequisitesInDraft": true
+  },
+  "securityFindings": [
+    {
+      "severity": "advisory",
+      "classification": "phase1_exposure_window",
+      "object": "subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events",
+      "note": "Recovered production phase1 migrations 1–3 create subscription tables before migration 4 enables RLS. Current production has RLS on all five. New lineage should enable RLS at CREATE where feasible."
+    },
+    {
+      "severity": "info",
+      "classification": "environment_specific_expected",
+      "object": "company_roles.authenticated_users_can_read_company_roles",
+      "note": "Intentional reference-data read for authenticated; seed DML is only allowlisted baseline INSERT"
+    },
+    {
+      "severity": "info",
+      "classification": "environment_specific_expected",
+      "object": "prevent_company_memory_append_only_mutation, prevent_company_memory_record_unsafe_mutation, prevent_company_memory_version_unsafe_mutation, prevent_memory_payload_update, prevent_si_snapshot_child_mutation_when_parent_locked, prevent_si_snapshot_metadata_mutation",
+      "note": "Memory/SI immutability trigger functions present in production contract"
+    }
+  ],
+  "unresolvedGaps": [
+    {
+      "classification": "production_only_migration_missing_from_git",
+      "count": 79,
+      "note": "79 production migrations have no exact git filename match; 4 phase1 recovered; remainder need cumulative SQL for full replay proof"
+    },
+    {
+      "classification": "repository_migration_missing_from_production_lineage",
+      "count": 63,
+      "note": "63 local migrations including 34 pre-phase1 squashed into baseline draft"
+    },
+    {
+      "classification": "unresolved_timestamp_semantic_drift",
+      "count": 106,
+      "note": "106 semantic name pairs with version timestamp drift; column-level drift flagged per table above"
+    }
+  ],
+  "curatedLaterChanges": [
+    {
+      "table": "subscriptions",
+      "column": "first_paid_charge_at",
+      "classification": "expected_later_migration_change",
+      "migration": "refund_requests",
+      "note": "ALTER subscriptions ADD first_paid_charge_at"
+    },
+    {
+      "table": "subscription_seats",
+      "column": "billing_period_anchor",
+      "classification": "expected_later_migration_change",
+      "migration": "tcp1_w1_seat_idempotency"
+    },
+    {
+      "table": "subscription_seats",
+      "column": "stripe_usage_event_id",
+      "classification": "expected_later_migration_change",
+      "migration": "tcp1_w1_seat_idempotency"
+    },
+    {
+      "table": "companies",
+      "column": "xero_tenant_id",
+      "classification": "expected_later_migration_change",
+      "migration": "companies_tenant_identity_columns"
+    },
+    {
+      "table": "companies",
+      "column": "qbo_realm_id",
+      "classification": "expected_later_migration_change",
+      "migration": "companies_tenant_identity_columns"
+    },
+    {
+      "table": "companies",
+      "column": "je_activation_demo_role",
+      "classification": "expected_later_migration_change",
+      "migration": "je3d_sandbox_activation_identity"
+    },
+    {
+      "table": "companies",
+      "column": "account_type",
+      "classification": "expected_later_migration_change",
+      "migration": "add_account_type_onboarding (baseline source, may post-date squash)"
+    },
+    {
+      "table": "companies",
+      "column": "practice_id",
+      "classification": "expected_later_migration_change",
+      "migration": "company/practice linkage migrations"
+    },
+    {
+      "table": "companies",
+      "column": "industry_type",
+      "classification": "expected_later_migration_change",
+      "migration": "add_industry_intelligence_onboarding"
+    },
+    {
+      "table": "firm_clients",
+      "column": "industry_vertical",
+      "classification": "expected_later_migration_change",
+      "migration": "d0_identity_and_memory_activation"
+    },
+    {
+      "table": "firm_clients",
+      "column": "accounting_method",
+      "classification": "expected_later_migration_change",
+      "migration": "d0_identity_and_memory_activation"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_write_enabled_by_user_id",
+      "classification": "expected_later_migration_change",
+      "migration": "d1_qbo_write_readiness"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_write_enabled_at",
+      "classification": "expected_later_migration_change",
+      "migration": "d1_qbo_write_readiness"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_last_health_check_at",
+      "classification": "expected_later_migration_change",
+      "migration": "d1_qbo_write_readiness"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_last_health_check_status",
+      "classification": "expected_later_migration_change",
+      "migration": "d1_qbo_write_readiness"
+    },
+    {
+      "table": "firms",
+      "column": "purge_scheduled_at",
+      "classification": "expected_later_migration_change",
+      "migration": "gap2_subscription_lifecycle_purge"
+    },
+    {
+      "table": "firms",
+      "column": "purge_grace_until",
+      "classification": "expected_later_migration_change",
+      "migration": "gap2_subscription_lifecycle_purge"
+    },
+    {
+      "table": "firms",
+      "column": "purge_completed_at",
+      "classification": "expected_later_migration_change",
+      "migration": "gap2_subscription_lifecycle_purge"
+    },
+    {
+      "table": "firms",
+      "column": "purge_schedule_id",
+      "classification": "expected_later_migration_change",
+      "migration": "gap2_subscription_lifecycle_purge"
+    },
+    {
+      "table": "firms",
+      "column": "legal_hold_reason",
+      "classification": "expected_later_migration_change",
+      "migration": "gap2_subscription_lifecycle_purge"
+    },
+    {
+      "table": "stripe_webhook_events",
+      "column": "received_at",
+      "classification": "expected_later_migration_change",
+      "migration": "d_entitlements",
+      "note": "Table recreated with d_entitlements schema; phase1 columns superseded"
+    },
+    {
+      "table": "stripe_webhook_events",
+      "column": "processing_status",
+      "classification": "expected_later_migration_change",
+      "migration": "d_entitlements"
+    },
+    {
+      "table": "stripe_webhook_events",
+      "column": "processing_error",
+      "classification": "expected_later_migration_change",
+      "migration": "d_entitlements"
+    },
+    {
+      "table": "stripe_webhook_events",
+      "column": "raw_payload",
+      "classification": "expected_later_migration_change",
+      "migration": "d_entitlements"
+    }
+  ],
+  "localAddColumnScan": [
+    {
+      "table": "firm_clients",
+      "column": "vertical_rules_enabled",
+      "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "version": "20260703"
+    },
+    {
+      "table": "subscription_seats",
+      "column": "billing_period_anchor",
+      "file": "20260708200000_tcp1_w1_seat_idempotency.sql",
+      "version": "20260708200000"
+    },
+    {
+      "table": "firm_clients",
+      "column": "company_id",
+      "file": "20260708_00_d0_identity_and_memory_activation.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "industry_vertical",
+      "file": "20260708_00_d0_identity_and_memory_activation.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "accounting_method",
+      "file": "20260708_00_d0_identity_and_memory_activation.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_write_enabled",
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_write_enabled_by_user_id",
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_write_enabled_at",
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_last_health_check_at",
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "qbo_last_health_check_status",
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708"
+    },
+    {
+      "table": "firm_clients",
+      "column": "timezone",
+      "file": "20260714_00_d5_recurring_templates.sql",
+      "version": "20260714"
+    },
+    {
+      "table": "firm_clients",
+      "column": "recurring_auto_post_enabled",
+      "file": "20260714_00_d5_recurring_templates.sql",
+      "version": "20260714"
+    },
+    {
+      "table": "firm_clients",
+      "column": "slug",
+      "file": "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+      "version": "20260716"
+    },
+    {
+      "table": "firm_memberships",
+      "column": "can_approve",
+      "file": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "version": "20260717060000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "home_currency",
+      "file": "20260718010000_mc1_home_currency.sql",
+      "version": "20260718010000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "qbo_edition",
+      "file": "20260718040000_q7_qbo_edition.sql",
+      "version": "20260718040000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "qbo_subscription_status",
+      "file": "20260718040000_q7_qbo_edition.sql",
+      "version": "20260718040000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "qbo_realm_id",
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "version": "20260718200000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "last_intuit_tid",
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "version": "20260718200000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "workflow_context",
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "version": "20260718200000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "correlation_id",
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "version": "20260718200000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "auto_filed",
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "auto_file_dedupe_key",
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "auto_file_count",
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "error_class",
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000"
+    },
+    {
+      "table": "support_tickets",
+      "column": "parent_ticket_id",
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000"
+    },
+    {
+      "table": "firms",
+      "column": "purge_scheduled_at",
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000"
+    },
+    {
+      "table": "firms",
+      "column": "purge_grace_until",
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000"
+    },
+    {
+      "table": "firms",
+      "column": "purge_completed_at",
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000"
+    },
+    {
+      "table": "firms",
+      "column": "purge_schedule_id",
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000"
+    },
+    {
+      "table": "firms",
+      "column": "legal_hold_reason",
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000"
+    },
+    {
+      "table": "companies",
+      "column": "xero_tenant_id",
+      "file": "20260809083000_companies_tenant_identity_columns.sql",
+      "version": "20260809083000"
+    },
+    {
+      "table": "companies",
+      "column": "qbo_realm_id",
+      "file": "20260809083000_companies_tenant_identity_columns.sql",
+      "version": "20260809083000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "superseded_by_connection_id",
+      "file": "20260813220000_accounting_connection_supersession.sql",
+      "version": "20260813220000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "credentials_cleared_at",
+      "file": "20260814060000_accounting_superseded_credential_retirement.sql",
+      "version": "20260814060000"
+    },
+    {
+      "table": "accounting_connections",
+      "column": "provider_environment",
+      "file": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "version": "20260822200000"
+    },
+    {
+      "table": "companies",
+      "column": "je_activation_demo_role",
+      "file": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "version": "20260822200000"
+    }
+  ],
+  "tableDiffs": [
+    {
+      "table": "accounting_connections",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 22,
+      "columnCountDraftPhase1Boundary": 16,
+      "prodOnlyColumns": [
+        {
+          "column": "home_currency",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_edition",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_subscription_status",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "superseded_by_connection_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "credentials_cleared_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "provider_environment",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "accounting_syncs",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 14,
+      "columnCountDraftPhase1Boundary": 14,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "advisory_package_queue",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "advisory_recommendations",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "advisory_signals",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 18,
+      "columnCountDraftPhase1Boundary": 18,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "audit_logs",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 12,
+      "columnCountDraftPhase1Boundary": 12,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "background_jobs",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 11,
+      "columnCountDraftPhase1Boundary": 11,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "client_briefing_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 6,
+      "columnCountDraftPhase1Boundary": 6,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "client_briefing_settings",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 12,
+      "columnCountDraftPhase1Boundary": 12,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "client_briefings",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 16,
+      "columnCountDraftPhase1Boundary": 16,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "companies",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 17,
+      "prodOnlyColumns": [
+        {
+          "column": "xero_tenant_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_realm_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "je_activation_demo_role",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_invitations",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_record_audit",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 19,
+      "columnCountDraftPhase1Boundary": 19,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_record_lineage",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 20,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_record_retention_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 18,
+      "columnCountDraftPhase1Boundary": 18,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_record_sources",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 24,
+      "columnCountDraftPhase1Boundary": 24,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_record_versions",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 11,
+      "columnCountDraftPhase1Boundary": 11,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_memory_records",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 55,
+      "columnCountDraftPhase1Boundary": 55,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_roles",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 5,
+      "columnCountDraftPhase1Boundary": 5,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_settings",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 7,
+      "columnCountDraftPhase1Boundary": 7,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "company_users",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 8,
+      "columnCountDraftPhase1Boundary": 8,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "delivery_settings",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "entitlements",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 12,
+      "columnCountDraftPhase1Boundary": 12,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "firm_clients",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 34,
+      "columnCountDraftPhase1Boundary": 22,
+      "prodOnlyColumns": [
+        {
+          "column": "company_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "industry_vertical",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "accounting_method",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_write_enabled",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_write_enabled_by_user_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_write_enabled_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_last_health_check_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "qbo_last_health_check_status",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "timezone",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "recurring_auto_post_enabled",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "vertical_rules_enabled",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "slug",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "firm_memberships",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 8,
+      "columnCountDraftPhase1Boundary": 7,
+      "prodOnlyColumns": [
+        {
+          "column": "can_approve",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "firms",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 16,
+      "columnCountDraftPhase1Boundary": 11,
+      "prodOnlyColumns": [
+        {
+          "column": "purge_scheduled_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "purge_grace_until",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "purge_completed_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "purge_schedule_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "legal_hold_reason",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "free_review_leads",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 17,
+      "columnCountDraftPhase1Boundary": 17,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "healthcare_operational_stats",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 18,
+      "columnCountDraftPhase1Boundary": 18,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "onboarding_progress",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 7,
+      "columnCountDraftPhase1Boundary": 7,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "pdf_package_customizations",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 20,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "practice_accounts",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 12,
+      "columnCountDraftPhase1Boundary": 12,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "pulse_conversation_memory",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "pulse_historical_snapshots",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 20,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "pulse_insight_memory",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 20,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "pulse_usage_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 9,
+      "columnCountDraftPhase1Boundary": 9,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_historical_snapshots",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 26,
+      "columnCountDraftPhase1Boundary": 26,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_snapshot_audit",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 18,
+      "columnCountDraftPhase1Boundary": 18,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_snapshot_backfill_runs",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 18,
+      "columnCountDraftPhase1Boundary": 18,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_snapshot_payloads",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 20,
+      "columnCountDraftPhase1Boundary": 20,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_snapshot_retention_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 12,
+      "columnCountDraftPhase1Boundary": 12,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "si_snapshot_retrieval_log",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 16,
+      "columnCountDraftPhase1Boundary": 16,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "stripe_webhook_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 8,
+      "columnCountDraftPhase1Boundary": 10,
+      "prodOnlyColumns": [
+        {
+          "column": "received_at",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "processing_status",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "processing_error",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "raw_payload",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [
+        {
+          "column": "api_version",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "subscription_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "processing_ms",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "status",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "error_message",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "payload",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "subscription_items",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 13,
+      "columnCountDraftPhase1Boundary": 13,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "subscription_seats",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 11,
+      "columnCountDraftPhase1Boundary": 10,
+      "prodOnlyColumns": [
+        {
+          "column": "billing_period_anchor",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "subscriptions",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 16,
+      "columnCountDraftPhase1Boundary": 15,
+      "prodOnlyColumns": [
+        {
+          "column": "first_paid_charge_at",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "support_tickets",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 33,
+      "columnCountDraftPhase1Boundary": 24,
+      "prodOnlyColumns": [
+        {
+          "column": "qbo_realm_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "last_intuit_tid",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "workflow_context",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "correlation_id",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "auto_filed",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "auto_file_dedupe_key",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "auto_file_count",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "error_class",
+          "classification": "expected_later_migration_change"
+        },
+        {
+          "column": "parent_ticket_id",
+          "classification": "expected_later_migration_change"
+        }
+      ],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    },
+    {
+      "table": "time_to_first_value_events",
+      "existsInDraft": true,
+      "rls_enabled_production": true,
+      "columnCountProduction": 10,
+      "columnCountDraftPhase1Boundary": 10,
+      "prodOnlyColumns": [],
+      "draftOnlyColumns": [],
+      "unexplainedCount": 0,
+      "status": "explained"
+    }
+  ],
+  "extensions": {
+    "production": [
+      "pg_stat_statements",
+      "pgcrypto",
+      "plpgsql",
+      "supabase_vault",
+      "uuid-ossp",
+      "vector"
+    ],
+    "baselineRequires": [
+      "pgcrypto",
+      "vector"
+    ],
+    "note": "plpgsql, pg_stat_statements, supabase_vault, uuid-ossp are platform-managed"
+  },
+  "publicTypes": [
+    {
+      "name": "refund_path",
+      "type_kind": "e",
+      "enum_labels": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    {
+      "name": "refund_request_status",
+      "type_kind": "e",
+      "enum_labels": [
+        "submitted",
+        "pending_review",
+        "approved",
+        "denied",
+        "executing",
+        "completed",
+        "execution_failed",
+        "withdrawn"
+      ]
+    }
+  ]
+}

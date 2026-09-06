@@ -1,0 +1,50 @@
+{
+  "ver": "17.6",
+  "schemas": [
+    "auth",
+    "extensions",
+    "public",
+    "storage"
+  ],
+  "regs": {
+    "buckets": "storage.buckets",
+    "objects": "storage.objects",
+    "mig": null,
+    "users": "auth.users"
+  },
+  "pub": 0,
+  "con": [
+    {
+      "type": "CHECK",
+      "columns": "{NULL}",
+      "typeofColumns": "string",
+      "isArray": false
+    },
+    {
+      "type": "CHECK",
+      "columns": "{NULL}",
+      "typeofColumns": "string",
+      "isArray": false
+    },
+    {
+      "type": "CHECK",
+      "columns": "{NULL}",
+      "typeofColumns": "string",
+      "isArray": false
+    },
+    {
+      "type": "FOREIGN KEY",
+      "columns": "{bucket_id}",
+      "typeofColumns": "string",
+      "isArray": false
+    },
+    {
+      "type": "PRIMARY KEY",
+      "columns": "{id}",
+      "typeofColumns": "string",
+      "isArray": false
+    }
+  ],
+  "sqlApplicationAttempts": 0,
+  "preflightCrash": "evaluatePlatformBootstrap TypeError: (c.columns || []).map is not a function"
+}

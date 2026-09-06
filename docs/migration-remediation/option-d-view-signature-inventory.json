@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-09-04T03:58:54.163Z",
+  "mechanism": "option_d_view_signature_inventory",
+  "testedFailure": {
+    "pr313EvidenceHead": "bf2092b0ccdfb49daff329775972fd0a4ae1fde9",
+    "evidenceCommit": "70096c27344864b47b4eaa4d8694a2abbd3cc93e",
+    "failedAt": "20260720170000_ar_tieout2_runs_and_variances.sql",
+    "order": 89,
+    "sqlState": "42P16",
+    "error": "cannot change name of view column \"tie_out_state\" to \"last_tie_out_run_id\""
+  },
+  "view": "public.audit_ready_tie_out_summary",
+  "classification": "historically_invalid_create_or_replace_view_column_insertion_plus_git_production_divergence",
+  "rootCause": "Git migration uses CREATE OR REPLACE VIEW inserting last_tie_out_* columns before tie_out_state. PostgreSQL CREATE OR REPLACE VIEW is append-only for existing columns. Production schema_migrations already adapted to DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW.",
+  "creators": [
+    {
+      "orderRole": "prior",
+      "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "mode": "create_or_replace_view",
+      "columns": [
+        "pbc_request_id",
+        "engagement_id",
+        "request_number",
+        "request_description",
+        "assertion_tags",
+        "tie_out_kind",
+        "tie_out_kind_confidence",
+        "tie_out_kind_classifier",
+        "tie_out_kind_classified_at",
+        "pbc_status",
+        "tie_out_state",
+        "policy_mode",
+        "auto_reconcile_max_dollar",
+        "auto_reconcile_max_percent",
+        "kickout_min_dollar",
+        "kickout_min_percent",
+        "authoritative_comparison"
+      ],
+      "securityInvoker": true
+    },
+    {
+      "orderRole": "failing_git",
+      "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "mode": "create_or_replace_view",
+      "insertsBefore": "tie_out_state",
+      "insertedColumns": [
+        "last_tie_out_run_id",
+        "last_tie_out_status",
+        "last_tie_out_at"
+      ],
+      "incompatibleWithPrior": true
+    },
+    {
+      "orderRole": "authoritative_production",
+      "productionVersion": "20260720212538",
+      "productionName": "ar_tieout2_runs_and_variances",
+      "mode": "drop_view_if_exists_then_create_view",
+      "dropCascade": false,
+      "securityInvoker": true,
+      "statementsBytes": 8474,
+      "statementsMd5": "867ea82859717c3bc8dfe98e71be518b",
+      "statementsSha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
+      "statementCount": 1,
+      "containsCredentials": false,
+      "containsTenantRows": false
+    }
+  ],
+  "gitOriginal": {
+    "path": "supabase/migrations/20260720170000_ar_tieout2_runs_and_variances.sql",
+    "bytes": 11230,
+    "sha256": "a230b10c8ae67b727189784d7160208d40e8f1b433b197f0e4badd3f9ad385bd",
+    "md5": "351a7f1a91fc6ef7cc0ea90e578e7282"
+  },
+  "substitution": {
+    "path": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260720170000_ar_tieout2_runs_and_variances.sql",
+    "bytes": 8474,
+    "sha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
+    "md5": "867ea82859717c3bc8dfe98e71be518b",
+    "matchesProductionStatements": true
+  },
+  "policy": {
+    "admit": "production DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW + security_invoker",
+    "reject": [
+      "unconditional_drop_view_cascade",
+      "create_or_replace_with_column_insert_or_reorder",
+      "security_invoker_weakening",
+      "placeholder_view"
+    ]
+  }
+}

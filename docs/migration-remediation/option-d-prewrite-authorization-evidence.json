@@ -1,0 +1,16 @@
+{
+  "kind": "option_d_prewrite_authorization_evidence",
+  "immutable": true,
+  "writtenAt": "2026-09-05T03:44:01.919Z",
+  "authorizedCommit": "e4f71d4e52a04c0ed368680a85a7b4d2cceaf73d",
+  "currentHead": "e4f71d4e52a04c0ed368680a85a7b4d2cceaf73d",
+  "manifestPath": "docs/migration-remediation/option-d-replay-manifest.json",
+  "expectedManifestSha256": "04cd991347959c684293f372418ad6538d2a7ad8715c98caefb760d8789b39ae",
+  "actualManifestSha256": "04cd991347959c684293f372418ad6538d2a7ad8715c98caefb760d8789b39ae",
+  "byteLength": 163141,
+  "gitBlobId": "ddabefe12573bbfd073464a7d220a1e5275ad2c8",
+  "authority": "git_cat_file_blob",
+  "sqlApplicationAttempts": 0,
+  "authorizationOk": true,
+  "failures": []
+}

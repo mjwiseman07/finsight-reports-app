@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "description": "Seed overrides for Option D dependency ordering. Regenerated fields (dependencyOrder, sources, unresolved) are written by assemble-option-d-replay.js / option-d-dependency-order.js.",
+  "explicitDependsOn": {
+    "20260703_1200_d6_0_vertical_rule_foundation.sql": [
+      "20260714_00_d5_recurring_templates.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
+    ],
+    "20260706130000_d_entitlements.sql": [
+      "20260704024059_d_entitlements_legacy_stripe_rename.sql"
+    ],
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": [
+      "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
+    ],
+    "20260707130000_d_assertions_part_2_coverage_projection.sql": [
+      "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+    ],
+    "20260707140000_d_assertions_part_3_coverage_statement.sql": [
+      "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+    ],
+    "20260707150000_d_assertions_part_4_je_propagation.sql": [
+      "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+    ],
+    "20260707160000_d_assertions_part_5_gap_review_items.sql": [
+      "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+    ],
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql": [
+      "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "20260707130000_d_assertions_part_2_coverage_projection.sql"
+    ],
+    "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql": [
+      "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql"
+    ],
+    "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql": [
+      "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql"
+    ],
+    "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql": [
+      "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql"
+    ],
+    "20260805005320_pilot_lifecycle_anchors.sql": [
+      "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "20260804234230_lifecycle_issues.sql"
+    ]
+  },
+  "semanticConstraints": [
+    {
+      "before": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "after": "20260706130000_d_entitlements.sql",
+      "reason": "Rename existing stripe_webhook_events to _legacy before CREATE of the replacement table."
+    },
+    {
+      "before": "20260708_00_d0_identity_and_memory_activation.sql",
+      "after": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
+    },
+    {
+      "before": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "after": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "reason": "Runtime 23503 at order 36: rule_assertion_coverage FK requires vertical foundation reference seeds (e.g. gen.accrual_reversal_check) before Part 1 backfill."
+    },
+    {
+      "before": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "after": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "reason": "D-Assertions Part 1 before Part 2 (catalog + constraint widenings required by Part 2 RAISE checks)."
+    },
+    {
+      "before": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "after": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "reason": "D-Assertions Part 2 creates close_assertion_coverage before Part 3 DO-block RAISE prerequisite (runtime P0001 at order 13)."
+    },
+    {
+      "before": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "after": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "reason": "Preserve numbered D-Assertions sequence Part 3 → Part 4."
+    },
+    {
+      "before": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "after": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "reason": "Preserve numbered D-Assertions sequence Part 4 → Part 5."
+    },
+    {
+      "before": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "after": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "reason": "Preserve numbered D-Assertions sequence Part 5 → Part 6."
+    },
+    {
+      "before": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "after": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "reason": "First CREATE of hash-chain functions before OR REPLACE digest fix."
+    },
+    {
+      "before": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "after": "20260805005320_pilot_lifecycle_anchors.sql",
+      "reason": "chain_seq column/function replacements before anchor batch RPC that consumes the hardened events table."
+    }
+  ],
+  "optionalExternalTables": ["pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
+  "platformProvidedTables": [],
+  "notes": [
+    "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
+    "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added.",
+    "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE.",
+    "Recovered hash-chain function originals must stay in production statement order before major_1_rpc_lockdown. Do not drop REVOKE/ALTER FUNCTION lockdown statements to pass replay.",
+    "D0 + d6_0 vertical foundation curated_rules_registry INSERTs are immutable reference seed required for clean replay. They must precede D-Assertions Part 1 rule_assertion_coverage backfill (FK rule_assertion_coverage_rule_id_fkey). Do not invent placeholder rules, disable the FK, or admit d6_2a–d operational activations as reference seed.",
+    "Never treat bare `users` as platform-provided. Platform Auth is only auth.users; application public.users requires an in-set CREATE (foundations/baseline or recovered original). Order-107 42P01 proved the prior conflation."
+  ]
+}

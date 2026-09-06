@@ -1,0 +1,56 @@
+{
+  "warning": "These files are recovered production migration evidence — NOT approved executable migrations.",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_table": "supabase_migrations.schema_migrations",
+  "retrieval_mode": "read-only",
+  "retrieval_date": "2026-09-01",
+  "contains_data_rows": false,
+  "contains_credentials": false,
+  "statement_storage": "Each production row stores exactly one SQL string in schema_migrations.statements[1]",
+  "migrations": [
+    {
+      "version": "20260701043602",
+      "name": "phase1_subscriptions_core",
+      "filename": "20260701043602_phase1_subscriptions_core.sql",
+      "database_md5_utf8": "5992414bde50c4562925b60361721b44",
+      "local_file_md5_utf8": "4fe90fd168b2f8205ce3f14467faf498",
+      "sql_body_md5_utf8": "5992414bde50c4562925b60361721b44",
+      "statement_count": 1,
+      "byte_length": 6231,
+      "contains_data_rows": false
+    },
+    {
+      "version": "20260701043707",
+      "name": "phase1_subscription_seats_and_entitlements",
+      "filename": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "database_md5_utf8": "60a5d243a32814c9975bd0e1b90e6cee",
+      "local_file_md5_utf8": "85bfc82392267bfa11547da771ce1b5e",
+      "sql_body_md5_utf8": "60a5d243a32814c9975bd0e1b90e6cee",
+      "statement_count": 1,
+      "byte_length": 5371,
+      "contains_data_rows": false
+    },
+    {
+      "version": "20260701043911",
+      "name": "phase1_backward_compat_view",
+      "filename": "20260701043911_phase1_backward_compat_view.sql",
+      "database_md5_utf8": "6d7ed2de4528c1380dcb0221fc14af39",
+      "local_file_md5_utf8": "977db08bba9689437cd176591199a689",
+      "sql_body_md5_utf8": "6d7ed2de4528c1380dcb0221fc14af39",
+      "statement_count": 1,
+      "byte_length": 1515,
+      "contains_data_rows": false
+    },
+    {
+      "version": "20260701043931",
+      "name": "phase1_entitlement_rls_policies",
+      "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+      "database_md5_utf8": "d13c0dc54794fe2f0d47dfa43c86ad3e",
+      "local_file_md5_utf8": "c0ff98ebaad4ee794fe7e210b470473c",
+      "sql_body_md5_utf8": "d13c0dc54794fe2f0d47dfa43c86ad3e",
+      "statement_count": 1,
+      "byte_length": 3478,
+      "contains_data_rows": false
+    }
+  ]
+}

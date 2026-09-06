@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-09-02",
+  "scope": "partial_branch_24_migrations_recorded",
+  "views": [
+    {
+      "name": "company_billing_compat",
+      "provenance": {
+        "productionVersion": "20260701043911",
+        "productionName": "phase1_backward_compat_view",
+        "replayOrder": 3,
+        "gitOrEvidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043911_phase1_backward_compat_view.sql",
+        "createLines": "14-43",
+        "inFoundationsBaseline": false
+      },
+      "securityAtPartialBranch": {
+        "security_invoker": false,
+        "advisorClassification": "SECURITY DEFINER view",
+        "expected": true
+      },
+      "productionFinalFix": {
+        "migration": "d65_p2_block7a2_prepilot_security",
+        "productionVersionApprox": "20260708020447",
+        "replayOrderApprox": 78,
+        "sql": "ALTER VIEW public.company_billing_compat SET (security_invoker = true)"
+      }
+    },
+    {
+      "name": "qbo_connections_unified",
+      "provenance": {
+        "productionVersion": "20260703002615",
+        "productionName": "d1_qbo_write_readiness",
+        "replayOrder": 18,
+        "gitFile": "supabase/migrations/20260708_01_d1_qbo_write_readiness.sql",
+        "createLines": "31-73",
+        "inFoundationsBaseline": false,
+        "note": "NOT migration 87+; created before d6_2a failure"
+      },
+      "securityAtPartialBranch": {
+        "security_invoker": false,
+        "advisorClassification": "SECURITY DEFINER view",
+        "expected": true
+      },
+      "productionFinalFix": [
+        {
+          "migration": "d65_p2_block7a2_prepilot_security",
+          "replayOrderApprox": 78,
+          "sql": "ALTER VIEW public.qbo_connections_unified SET (security_invoker = true)"
+        },
+        {
+          "migration": "q8a_qbo_view_security_invoker",
+          "replayOrderApprox": 86,
+          "sql": "Re-assert after tcp1 CREATE OR REPLACE VIEW dropped reloptions"
+        }
+      ]
+    }
+  ]
+}

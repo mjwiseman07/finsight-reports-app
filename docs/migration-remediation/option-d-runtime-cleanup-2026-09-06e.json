@@ -1,0 +1,63 @@
+{
+  "runId": "2026-09-06e",
+  "authorizedCommit": "4f4b9309e0eca2f8a15ec38ea5fbb439c330103e",
+  "pr312Commit": "3a2f2efc69b17499c8885c18081f6f3ef550d6c1",
+  "pr312SuiteBlob": "f9ce85410c19cc96c7105ed0bf1f94405b93c519",
+  "pr312SeedHelperBlob": "ccaa60cf4747f601a1c3a58d28a235b0635b7df1",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "pr312DisposableSetupBlob": "1635517aa6876e59eb2aa6b619ff55523fd368ad",
+  "manifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+  "manifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "manifestBytes": 164204,
+  "manifestEntries": 151,
+  "manifestSubstitutions": 7,
+  "scopes": {
+    "candidateReplay": "PASS",
+    "forwardMigrationDigestProof": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "candidateReplay": {
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "pr312_vitest",
+    "firstIndependentFailureTitle": "E2. Patent #6 chain adjacency for requested → ready receipts",
+    "firstIndependentFailureKind": "independent_assertion",
+    "additionalIndependentFailures": [
+      "F. state_version conflict on transition → rejected",
+      "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt"
+    ],
+    "falloutTitles": ["H", "I", "J"],
+    "falloutClassification": "sqlstate_25P02_after_uncontained_G_23514",
+    "cascadeSourceTitle": "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
+    "approvalIdReuseValidated": true,
+    "dSavepointContainmentValidated": true,
+    "vitest": {
+      "passedExpected": 7,
+      "failedExpected": 6,
+      "expectedTotal": 13
+    }
+  },
+  "diagnostics": {
+    "path": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-4f4b9309-1788729242390.json",
+    "sha256": "ee8e33537012d4b40b08e05d63afd63740d823587268ef33a591c0dd96192215",
+    "complete": true,
+    "credentialsIncluded": false
+  },
+  "residualAfterRollback": {
+    "total": 0,
+    "authUsers": 0
+  },
+  "cleanup": {
+    "suiteDatabasesDropped": true,
+    "supabaseStopped": true,
+    "workdirRemoved": true,
+    "port54322Open": false,
+    "status": "CLEANUP_DONE"
+  }
+}

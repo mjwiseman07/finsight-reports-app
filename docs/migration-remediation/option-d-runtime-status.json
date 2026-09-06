@@ -1,0 +1,140 @@
+{
+  "overall": "PASS_RUNTIME",
+  "reason": null,
+  "writtenAt": "2026-09-06T22:56:00.000Z",
+  "authorizedCommit": "317e36e5d03b9277d7c9d7b067eb41c48d3f21ec",
+  "evidenceRunId": "2026-09-06f",
+  "evidencePath": "docs/migration-remediation/option-d-runtime-evidence-2026-09-06f.md",
+  "cleanupPath": "docs/migration-remediation/option-d-runtime-cleanup-2026-09-06f.json",
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "PASS",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overallGate": {
+    "ok": true,
+    "overall": "PASS_RUNTIME",
+    "applicable": {
+      "candidateReplay": "PASS",
+      "securityImmutabilityChecks": "PASS",
+      "pr312RpcValidation": "PASS"
+    },
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "applyResult": {
+    "applied": true,
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151,
+    "authority": "git_cat_file_blob",
+    "materializationArtifactCount": 151
+  },
+  "forwardMigrationDigestProof": {
+    "ok": true,
+    "hasExtensionsDigest": true,
+    "hasTypedSha256": true,
+    "hasUnqualifiedDigest": false,
+    "searchPathPinned": true
+  },
+  "security": {
+    "ok": true,
+    "status": "PASS",
+    "failures": []
+  },
+  "pr312Setup": {
+    "ok": true,
+    "suiteDatabase": "option_d_pr312_rpc_65a8b0ee71c4",
+    "applicationRows": 0,
+    "authUsers": 0
+  },
+  "vitest": {
+    "processExitCode": 0,
+    "signal": null,
+    "error": null,
+    "gate": {
+      "ok": true,
+      "status": "PASS",
+      "reason": "vitest_process_and_structured_pass",
+      "counts": {
+        "total": 13,
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "todo": 0,
+        "pending": 0
+      },
+      "diagnostics": {
+        "complete": true,
+        "failureArtifactExpected": false,
+        "rawReportDeleted": true
+      }
+    }
+  },
+  "pr312Provenance": {
+    "present": true,
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "sourceCommit": "633bdebda51c9c2321ffba6bf0a146dc81243e5d",
+    "pinnedBlob": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+    "gitBlobId": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+    "seedHelperBlob": "88ee0df67005f6b104c6ca6030e9d8a509fd0dcd",
+    "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+    "disposableSetupBlob": "5f6ff5be0541e6f7935c6f0e7e0b4b4d09908f5c",
+    "matchesPinnedCommitContent": true,
+    "authority": "git_cat_file_blob"
+  },
+  "manifest": {
+    "blob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+    "sha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+    "bytes": 164204,
+    "entries": 151,
+    "substitutions": 7
+  },
+  "residualAfterRollback": {
+    "total": 0,
+    "authUsers": 0
+  },
+  "cleanup": {
+    "status": "CLEANUP_DONE",
+    "port54322Open": false
+  },
+  "priorStatusHistory": [
+    {
+      "writtenAt": "2026-09-05T03:44:32.484Z",
+      "overall": "BLOCKED",
+      "reason": "pr312_env_handoff_or_provenance_failed",
+      "scopes": {
+        "candidateReplay": "PASS",
+        "securityImmutabilityChecks": "PASS",
+        "pr312RpcValidation": "FAIL",
+        "productionDashboardReplayParity": "unresolved"
+      },
+      "note": "Retained from pre-PASS_RUNTIME status artifact; SSL handoff failure on suite postgres URL."
+    },
+    {
+      "evidenceRunId": "2026-09-06e",
+      "overall": "FAIL",
+      "scopes": {
+        "candidateReplay": "PASS",
+        "securityImmutabilityChecks": "PASS",
+        "pr312RpcValidation": "FAIL",
+        "productionDashboardReplayParity": "unresolved"
+      },
+      "note": "First independent E2; independent F/G; H–J 25P02 fallout. See option-d-runtime-evidence-2026-09-06e.md."
+    }
+  ],
+  "note": "PASS_RUNTIME is scoped to Option D isolated clean-replay + PR #312 disposable Postgres suite. Production dashboard replay parity remains unresolved and is not implied by this status.",
+  "parityDesignDecision": {
+    "path": "docs/migration-remediation/production-dashboard-parity-decision-2026-09-06.md",
+    "writtenAgainstPr313Head": "05004e1e8e70da1d74da2c47c75a1448404701c2",
+    "productionMainHead": "bff6b637506d7323cba1035104e491e7ea79333c",
+    "nearTerm": "option_d_tooling_only_merge_posture",
+    "eventualParityMechanism": "option_a_targeted_statements_recording",
+    "rejectedAsPrimaryParity": [
+      "github_integrated_preview_alone",
+      "squash_as_first_choice",
+      "migration_repair_alone",
+      "later_git_file_without_same_version_recording"
+    ],
+    "productionDashboardReplayParity": "unresolved"
+  }
+}

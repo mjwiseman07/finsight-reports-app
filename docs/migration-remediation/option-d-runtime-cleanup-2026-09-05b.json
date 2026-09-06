@@ -1,0 +1,43 @@
+{
+  "runId": "2026-09-05b",
+  "authorizedCommit": "f67eae1eb1a1ffced77c2ac556b6b0f5a3d2b699",
+  "pr312Commit": "5972a70782549950db23fc46d84c6f85b87affe6",
+  "pr312SuiteBlob": "5a565871ee0508ecc6b5afd59928250874b45154",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "manifestBlob": "ddabefe12573bbfd073464a7d220a1e5275ad2c8",
+  "manifestSha256": "04cd991347959c684293f372418ad6538d2a7ad8715c98caefb760d8789b39ae",
+  "manifestBytes": 163141,
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "seed_fixture_rows",
+    "namedDetail": "parameterized multi-statement seed",
+    "sqlstate": "42601",
+    "message": "cannot insert multiple commands into a prepared statement",
+    "vitest": { "passed": 0, "failed": 13, "skipped": 0, "processExitCode": 1 }
+  },
+  "residualAfterRollback": {
+    "applicationRowTotal": 0,
+    "authUsers": 0,
+    "journalEntryExecutions": 0,
+    "providerAttempts": 0,
+    "approvals": 0,
+    "proposals": 0,
+    "ledgerEvents": 0
+  },
+  "cleanup": {
+    "dropSuitesExit": 0,
+    "supabaseStopExit": 0,
+    "workdirRemoved": true,
+    "port54322Open": false,
+    "status": "CLEANUP_DONE"
+  },
+  "credentialsIncludedInEvidence": false,
+  "remediationInThisAuthorization": false
+}

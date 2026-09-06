@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-09-05T02:38:06.727Z",
+  "pin": "b1a9c80f",
+  "authorizedCommit": "b1a9c80fa4085eb568aefe8d3f49b3ff1c9714b0",
+  "workdir": "C:\\\\Users\\\\mattj\\\\tmp-option-d-platform-only-b1a9c80f",
+  "workdirRemoved": true,
+  "dburlFileRemoved": true,
+  "tcp54322Open": false,
+  "matchingContainers": [],
+  "matchingVolumes": [],
+  "cleanedTempDirs": [],
+  "supabaseStopExit": 0,
+  "head": "b1a9c80fa4085eb568aefe8d3f49b3ff1c9714b0",
+  "harnessOverall": "BLOCKED",
+  "harnessReason": "vitest_nonzero_exit",
+  "applyResult": {
+    "applied": true,
+    "migrationsApplied": 150,
+    "sqlApplicationAttempts": 150,
+    "authority": "git_cat_file_blob",
+    "materializationArtifactCount": 150
+  },
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "vitestLauncher": {
+    "npxUsed": false,
+    "cwd": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
+    "configPath": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree\\vitest.config.ts",
+    "vitestRoot": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
+    "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <canonicalSuiteRel> --reporter=json --outputFile=<tmpJson> --config <worktree/vitest.config.ts> --root <worktree>",
+    "processExitCode": 1,
+    "elapsedMs": 927
+  },
+  "pr312Gate": {
+    "reason": "vitest_nonzero_exit",
+    "structuredReason": "skipped_present",
+    "counts": {
+      "total": 12,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 12,
+      "todo": 0,
+      "pending": 0,
+      "unknown": 0
+    },
+    "passed": 0,
+    "skipped": 12,
+    "required": 12,
+    "worktreeModel": true,
+    "authority": "preparePr312IsolatedContext / git_worktree_detach_pr312_commit"
+  },
+  "memoryProbeReached": true,
+  "memoryAndSecurityImmutability": "PASS",
+  "pr312BlockedSolelyBecause": "all_12_tests_skipped_skipped_present",
+  "remediationNeeded": true,
+  "remediationNote": "Candidate replay PASS (150/150) and security/SI/Memory PASS. PR312 used preparePr312IsolatedContext worktree (npxUsed=false) but structured gate failed: skipped_present (12/12 skipped, 0 passed). Not remediated in this authorized runtime run.",
+  "secretsPresent": false
+}

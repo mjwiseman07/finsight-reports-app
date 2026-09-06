@@ -1,0 +1,46 @@
+{
+  "document": "option-d-manifest-hash-explanation",
+  "testedHead": "6e24a5aa3558298a926e23344215bf3eeea2729b",
+  "neverAbbreviate": true,
+  "hashes": [
+    {
+      "sha256": "ff4c5ff1656b5d253b61397e63bb3d8dad946821d8cf9d23df0638089dd8fecb",
+      "role": "authorization_expected_manifest_sha256",
+      "artifact": "Working-tree bytes of docs/migration-remediation/option-d-replay-manifest.json as hashed during the assertion-order remediation agent report (pre-commit assemble output). Exact bytes were not committed and are not recoverable from git history at 6e24a5aa3558298a926e23344215bf3eeea2729b.",
+      "sourceCitation": "Agent remediation completion message on draft PR #313 that reported Manifest 149 files with this SHA-256; later copied into the runtime authorization text.",
+      "presentInGitAtTestedHead": false
+    },
+    {
+      "sha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
+      "role": "committed_manifest_content_sha256",
+      "artifact": "Exact file bytes of docs/migration-remediation/option-d-replay-manifest.json at commit 6e24a5aa3558298a926e23344215bf3eeea2729b",
+      "howComputed": "SHA-256 over git cat-file blob 6e24a5aa3558298a926e23344215bf3eeea2729b:docs/migration-remediation/option-d-replay-manifest.json (113084 bytes; generatedAt=2026-09-04T01:17:33.868Z)",
+      "presentInGitAtTestedHead": true
+    },
+    {
+      "sha1GitBlobOid": "d14c56dc289062df6376266a5424beaa12d7f641",
+      "role": "git_blob_oid_not_authorization",
+      "artifact": "Git object id for the same path at 6e24a5aa3558298a926e23344215bf3eeea2729b",
+      "note": "Must never substitute for authorized Manifest SHA-256"
+    }
+  ],
+  "whyTheyDiffer": {
+    "summary": "The authorization string hashed a non-committed assemble-time manifest file. The commit that landed on HEAD wrote a different whole-file serialization of option-d-replay-manifest.json. Whole-file SHA-256 includes generatedAt and the full JSON document; it is not equal to per-entry assembledSha256 verification, Git blob OID, or a later re-assemble output.",
+    "ruledOut": [
+      "Not the Git blob OID (SHA-1 d14c56dc289062df6376266a5424beaa12d7f641)",
+      "Not recoverable as generatedAt-only mutation of the committed bytes within +/- 1 hour of committed generatedAt",
+      "Not SHA-256 of sibling remediation JSON artifacts at the same commit (dependency-manifest, ordering-changelog, replay-gate, procedural audit, unresolved classification, overrides)"
+    ],
+    "processDefect": "Runtime proceeded after observing authorization SHA-256 != committed content SHA-256, treating zero entry-hash failures as sufficient. That override is forbidden."
+  },
+  "authorizationRuleGoingForward": {
+    "requiredEnv": "OPTION_D_EXPECTED_MANIFEST_SHA256",
+    "compareAgainst": "SHA-256 of exact on-disk bytes of docs/migration-remediation/option-d-replay-manifest.json (must be the reviewed committed bytes for the pinned HEAD)",
+    "abortBefore": ["assemble when apply-bound", "any SQL application"],
+    "disallowedSubstitutes": [
+      "git blob OID",
+      "re-assemble whole-file hash with new generatedAt",
+      "per-entry assembledSha256 match counts"
+    ]
+  }
+}

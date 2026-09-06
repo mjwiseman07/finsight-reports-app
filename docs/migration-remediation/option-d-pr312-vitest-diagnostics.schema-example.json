@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "kind": "option_d_pr312_vitest_failure_diagnostics",
+  "generatedAt": "2026-09-05T00:00:00.000Z",
+  "complete": true,
+  "credentialsIncluded": false,
+  "vitestFailed": true,
+  "pr312": {
+    "commit": "633bdebda51c9c2321ffba6bf0a146dc81243e5d",
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "suiteBlob": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+    "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+    "seedHelperBlob": "88ee0df67005f6b104c6ca6030e9d8a509fd0dcd",
+    "testRoot": "lib/journal-entry-governance/__tests__"
+  },
+  "process": {
+    "exitCode": 1,
+    "signal": null,
+    "timedOut": false,
+    "reporterComplete": true
+  },
+  "counts": {
+    "expected": 13,
+    "accounted": 13,
+    "passed": 2,
+    "failed": 11,
+    "skipped": 0,
+    "todo": 0,
+    "pending": 0,
+    "absent": 0
+  },
+  "tests": [
+    {
+      "title": "SETUP: disposable database preparation",
+      "status": "passed",
+      "durationMs": 12.5,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null,
+      "column": null
+    },
+    {
+      "title": "migration compile: reservation + transition RPCs exist",
+      "status": "passed",
+      "durationMs": 3.1,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null,
+      "column": null
+    },
+    {
+      "title": "A. first reservation inserts row + execution_requested receipt",
+      "status": "failed",
+      "durationMs": 0.5,
+      "sanitizedMessage": "Error: JE_REUSE RPC failed sqlstate=42501: permission denied for function reserve_journal_entry_execution\n    at runCase (lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:243:20)",
+      "messageTruncated": false,
+      "sqlstate": "42501",
+      "namedSetupPhase": null,
+      "constraint": null,
+      "table": null,
+      "functionOrRpc": "reserve_journal_entry_execution",
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 243,
+          "column": 20
+        }
+      ],
+      "failureKind": "sql_error",
+      "column": null
+    }
+  ],
+  "hooks": [],
+  "redaction": {
+    "applied": true,
+    "markers": [
+      "[redacted-url]",
+      "[redacted-password]",
+      "[redacted-token]",
+      "[redacted-env]",
+      "[redacted-temp-path]",
+      "[redacted-uuid]",
+      "[redacted-hex64]",
+      "[redacted-param]",
+      "[redacted-fixture]",
+      "[truncated]"
+    ]
+  },
+  "stderrSanitized": null,
+  "note": "Illustrative sanitized example only — not runtime evidence from 2026-09-05d. Remaining expected titles omitted for brevity in this schema sample; live artifacts always include all 13."
+}

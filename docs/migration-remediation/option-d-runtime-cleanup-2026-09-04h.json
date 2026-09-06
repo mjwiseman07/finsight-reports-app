@@ -1,0 +1,28 @@
+{
+  "runId": "2026-09-04h",
+  "authorizedCommit": "e4f71d4e52a04c0ed368680a85a7b4d2cceaf73d",
+  "cleanedAt": "2026-09-05T03:45:30.000Z",
+  "supabaseStop": {
+    "command": "npx --yes supabase@2.116.0 stop --no-backup",
+    "workdir": "C:\\Users\\mattj\\tmp-option-d-platform-only-e4f71d4e",
+    "exitCode": 0
+  },
+  "workdirRemoved": true,
+  "dbUrlFileRemoved": true,
+  "tcp54322OpenAfterCleanup": false,
+  "leftoverPr312Worktrees": 0,
+  "matchingContainersVolumes": "none observed after stop",
+  "leftIntact": [
+    "docs/migration-remediation/option-d-runtime-status.json",
+    "installed Docker / Node / Supabase CLI tooling"
+  ],
+  "scopesAtStop": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "blockReason": "suite_mirrored_pg_connect_failed",
+  "blockDetail": "The server does not support SSL connections",
+  "remediationNote": "Candidate replay PASS (150/150) and security/SI/Memory PASS. PR312 blocked before Vitest by suite-mirrored pg probe (SSL). Not remediated in this authorized runtime run."
+}

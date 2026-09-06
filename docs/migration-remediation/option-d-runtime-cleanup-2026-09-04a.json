@@ -1,0 +1,24 @@
+{
+  "cleanupAt": "2026-09-04T04:15:00.000Z",
+  "runId": "2026-09-04a",
+  "authorizedCommit": "3be1765c0d7bda50913b55421541aa8e55cf9c11",
+  "reason": "apply_failed_order_107",
+  "sqlApplicationAttempts": 107,
+  "completedCount": 106,
+  "failedAt": "20260727000100_users_auth_trigger_single_writer.sql",
+  "sqlState": "42P01",
+  "error": "relation \"public.users\" does not exist",
+  "actions": [
+    "supabase stop --workdir <ephemeral> --no-backup (status 0)",
+    "Deleted ephemeral workdir C:\\Users\\mattj\\tmp-option-d-platform-only-3be1765c",
+    "Removed temporary PR #312 suite materialization",
+    "Removed .tmp-option-d-dburl-3be1765c.txt"
+  ],
+  "confirmed": {
+    "workdirExists": false,
+    "suiteExists": false,
+    "matchingContainerNames": [],
+    "port54322": "CLOSED"
+  },
+  "note": "View order-89 remediation held through order 106; new stop is public.users missing at order 107."
+}

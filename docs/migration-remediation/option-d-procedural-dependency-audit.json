@@ -1,0 +1,826 @@
+{
+  "generatedAt": "2026-09-04T01:16:20.376Z",
+  "classificationCounts": {
+    "required_prerequisite": 5,
+    "intentionally_verifies_absence": 0,
+    "safe_conditional": 12,
+    "postcondition_assertion": 67
+  },
+  "findingCount": 84,
+  "findings": [
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "order": 1,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.prevent_si_snapshot_metadata_mutation() returns trigger language plpgsql as $$ begin if tg_op = 'DELETE' then if old.snapshot_status in ('finalize"
+    },
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "order": 1,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.prevent_si_snapshot_child_mutation_when_parent_locked() returns trigger language plpgsql as $$ declare parent_status text; begin select snapshot_s"
+    },
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "order": 1,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.prevent_company_memory_record_unsafe_mutation() returns trigger language plpgsql as $$ begin if tg_op = 'DELETE' then if old.legal_hold = true the"
+    },
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "order": 1,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.prevent_company_memory_append_only_mutation() returns trigger language plpgsql as $$ begin raise exception 'Company memory %.% rows are append-onl"
+    },
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "order": 1,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.prevent_company_memory_version_unsafe_mutation() returns trigger language plpgsql as $$ begin if tg_op = 'DELETE' then raise exception 'Company me"
+    },
+    {
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "order": 27,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "erp_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ DECLARE base_sql text := $view$ SELECT 'accounting_connections'::text AS source_table, ac.id AS connection_id, ac.user_id, ac.access_token, ac.refresh_token, ac.tenant_or_rea"
+    },
+    {
+      "file": "20260709_00_d2_safe_je_posting.sql",
+      "order": 30,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION prevent_je_audit_update() RETURNS trigger AS $$ BEGIN IF TG_OP = 'UPDATE' OR TG_OP = 'DELETE' THEN RAISE EXCEPTION 'je_posting_audit is append-only'; END"
+    },
+    {
+      "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 32,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.ledger_events_prevent_mutation() RETURNS TRIGGER AS $$ BEGIN RAISE EXCEPTION 'ledger_events is append-only; UPDATE/DELETE is forbidden'; END; $$ L"
+    },
+    {
+      "file": "20260706130000_d_entitlements.sql",
+      "order": 33,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.entitlement_check_audit_no_mutation() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'entitlement_check_audit is append-only; % bloc"
+    },
+    {
+      "file": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 37,
+      "classification": "required_prerequisite",
+      "objectKind": "constraint",
+      "identity": "ai_action_log_action_category_check",
+      "evidence": "pg_constraint_check_then_raise",
+      "snippet": "do $$ declare cur_def text; begin select pg_get_constraintdef(oid) into cur_def from pg_constraint where conname = 'ai_action_log_action_category_check'; if cur_def is null or cur_"
+    },
+    {
+      "file": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 37,
+      "classification": "required_prerequisite",
+      "objectKind": "constraint",
+      "identity": "ledger_events_event_category_check",
+      "evidence": "pg_constraint_check_then_raise",
+      "snippet": "do $$ declare cur_def text; begin select pg_get_constraintdef(oid) into cur_def from pg_constraint where conname = 'ledger_events_event_category_check'; if cur_def is null or cur_d"
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "close_assertion_coverage",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "assertion_gap_root_causes",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "assertions_catalog",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    },
+    {
+      "file": "20260710_00_d3_memory_indexes.sql",
+      "order": 39,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.prevent_company_memory_record_unsafe_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ begin if tg_op = 'DELETE' then if old.legal_hold = true the"
+    },
+    {
+      "file": "20260710_00_d3_memory_indexes.sql",
+      "order": 39,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.prevent_memory_payload_update() RETURNS trigger LANGUAGE plpgsql AS $$ begin if new.memory_type in ('vendor_gl_mapping', 'recurring_pattern', 'amo"
+    },
+    {
+      "file": "20260713_00_d4_uncategorized_proposals.sql",
+      "order": 40,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.prevent_proposal_decision_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.status IN ('accepted','rejected','modified','skipped') TH"
+    },
+    {
+      "file": "20260714_00_d5_recurring_templates.sql",
+      "order": 41,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.guard_recurring_fire_immutability() RETURNS trigger AS $$ BEGIN IF OLD.status IN ('posted','skipped','rejected','cash_basis') THEN IF NEW.status I"
+    },
+    {
+      "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "order": 42,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function curated_rule_fires_immutable() returns trigger language plpgsql as $$ begin if ( new.fire_id is distinct from old.fire_id or new.firm_client_id is distin"
+    },
+    {
+      "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "order": 44,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.pre_close_review_items_je_draft_check() returns trigger language plpgsql as $$ declare line_count integer; total_dr numeric; total_cr numeric; edi"
+    },
+    {
+      "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "order": 44,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.pre_close_review_items_immutable() returns trigger language plpgsql as $$ begin if ( new.id is distinct from old.id or new.fire_id is distinct fro"
+    },
+    {
+      "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "order": 45,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.engagement_posting_policy_preset_consistency() returns trigger language plpgsql as $$ begin if new.advisacor_preset is null then return new; end i"
+    },
+    {
+      "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "order": 45,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.pre_close_review_items_immutable() returns trigger language plpgsql as $$ begin if ( new.id is distinct from old.id or new.fire_id is distinct fro"
+    },
+    {
+      "file": "20260715180000_mfa_enrollment.sql",
+      "order": 50,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.mfa_audit_log_prevent_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF (TG_OP = 'UPDATE' OR TG_OP = 'DELETE') T"
+    },
+    {
+      "file": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "order": 51,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.user_webauthn_credentials_prevent_column_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF NEW.credential_id IS "
+    },
+    {
+      "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 67,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.preset_pack_registry_immutable() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RAISE EXCEPTION 'preset_pack_registry is im"
+    },
+    {
+      "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 67,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.observation_events_immutable() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RAISE EXCEPTION 'observation_events is append"
+    },
+    {
+      "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 67,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.drafted_amendments_terminal_immutable() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF OLD.status IN ('applied','rejecte"
+    },
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "order": 68,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "erp_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_c"
+    },
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "order": 68,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "erp_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN CREATE INDEX IF NOT EXISTS erp_connections_disconnected_at_idx ON public.erp_connections (disconnected_at) WHE"
+    },
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "order": 68,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "erp_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ DECLARE base_sql text := $view$ SELECT 'accounting_connections'::text AS source_table, ac.id AS connection_id, ac.user_id, ac.access_token, ac.refresh_token, ac.tenant_or_rea"
+    },
+    {
+      "file": "20260718000000_intuit_webhook_events.sql",
+      "order": 69,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.qbo_webhook_events_enforce_append_only() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$ BEGIN -- Immuta"
+    },
+    {
+      "file": "20260718000000_intuit_webhook_events.sql",
+      "order": 69,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.qbo_webhook_events_block_delete() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$ BEGIN RAISE EXCEPTION "
+    },
+    {
+      "file": "20260718010000_mc1_home_currency.sql",
+      "order": 70,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "accounting_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.accounting_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name ="
+    },
+    {
+      "file": "20260718020000_mc3_je_posting_audit_currency.sql",
+      "order": 71,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "je_posting_audit",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.je_posting_audit') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'je_p"
+    },
+    {
+      "file": "20260718040000_q7_qbo_edition.sql",
+      "order": 73,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "accounting_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.accounting_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name ="
+    },
+    {
+      "file": "20260718180000_q8a_qbo_view_security_invoker.sql",
+      "order": 74,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "qbo_connections_unified",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.qbo_connections_unified') IS NOT NULL THEN ALTER VIEW public.qbo_connections_unified SET (security_invoker = true); END IF; END $$"
+    },
+    {
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "order": 77,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "support_tickets",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.support_tickets') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'suppo"
+    },
+    {
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "order": 80,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "support_tickets",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.support_tickets') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='support_t"
+    },
+    {
+      "file": "20260719050000_gap3_je_approval_flow.sql",
+      "order": 81,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.gap3_pre_close_ri_sod_before_update() returns trigger language plpgsql set search_path = public as $$ begin if new.decision in ('approved','edit_a"
+    },
+    {
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "order": 82,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "create or replace function public.gap2_audit_append_only() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$ begin raise exception 'subscrip"
+    },
+    {
+      "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "order": 109,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_before_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$ DECLARE v_slot_co"
+    },
+    {
+      "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "order": 109,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_reject_mutations() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'pilot_lifecycle_events is append-only. Cor"
+    },
+    {
+      "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "order": 109,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_verify_chain( p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ) RETURNS TABLE ( first_broken_event_id uuid, fir"
+    },
+    {
+      "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "order": 110,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_before_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$ DECLARE v_slot_co"
+    },
+    {
+      "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "order": 110,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_verify_chain( p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ) RETURNS TABLE ( first_broken_event_id uuid, fir"
+    },
+    {
+      "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "order": 111,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_before_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$ DECLA"
+    },
+    {
+      "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "order": 111,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_verify_chain( p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ) RETURNS TABLE ( first_broken_event_id uuid, fir"
+    },
+    {
+      "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "order": 112,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_before_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$ DECLA"
+    },
+    {
+      "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "order": 112,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.pilot_lifecycle_events_verify_chain( p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ) RETURNS TABLE ( first_broken_event_id uuid, fir"
+    },
+    {
+      "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "order": 130,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ DECLARE v_engagemen"
+    },
+    {
+      "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "order": 130,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_audit_ready_recon_bridge( p_run_id uuid, p_items jsonb, p_identified_items_total_cents bigint, p_unidentified_residual_cents bigint, p_rec"
+    },
+    {
+      "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "order": 130,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.clear_audit_ready_recon_bridge( p_run_id uuid ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ DECLARE v_exists boo"
+    },
+    {
+      "file": "20260815120000_urm3_universal_evidence_spine.sql",
+      "order": 131,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.trg_arte_stamp_run_identity() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ DECLARE v_run_id uuid; v_engagement"
+    },
+    {
+      "file": "20260815130000_urm3_hash_normalization_order.sql",
+      "order": 132,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.trg_arte_stamp_run_identity() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ DECLARE v_run_id uuid; v_engagement"
+    },
+    {
+      "file": "20260818020716_accounting_measurement_snapshots.sql",
+      "order": 134,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.accounting_measurement_snapshots_deny_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'accounting_measurement_snapshots rows"
+    },
+    {
+      "file": "20260819045253_continuous_close_runs.sql",
+      "order": 137,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.continuous_close_runs_deny_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RAISE EXCEPTION 'continuous_close_runs"
+    },
+    {
+      "file": "20260820233219_journal_entry_proposals.sql",
+      "order": 138,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.journal_entry_proposals_deny_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RAISE EXCEPTION 'journal_entry_propo"
+    },
+    {
+      "file": "20260821042800_journal_entry_approvals.sql",
+      "order": 139,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.journal_entry_approvals_deny_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RAISE EXCEPTION 'journal_entry_appro"
+    },
+    {
+      "file": "20260821042800_journal_entry_approvals.sql",
+      "order": 139,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_journal_entry_approval( p_row jsonb, p_event_type text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_clie"
+    },
+    {
+      "file": "20260821183525_journal_entry_executions.sql",
+      "order": 140,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.journal_entry_executions_guard_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF current_setting('advisacor.je_e"
+    },
+    {
+      "file": "20260821183525_journal_entry_executions.sql",
+      "order": 140,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_journal_entry_execution_reservation( p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id "
+    },
+    {
+      "file": "20260821183525_journal_entry_executions.sql",
+      "order": 140,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.transition_journal_entry_execution( p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_new_status text, p_patch json"
+    },
+    {
+      "file": "20260821212020_journal_entry_provider_attempts.sql",
+      "order": 141,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.journal_entry_provider_attempts_guard_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF current_setting('advisac"
+    },
+    {
+      "file": "20260821212020_journal_entry_provider_attempts.sql",
+      "order": 141,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_journal_entry_provider_attempt( p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid,"
+    },
+    {
+      "file": "20260821212020_journal_entry_provider_attempts.sql",
+      "order": 141,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.patch_journal_entry_provider_attempt( p_attempt_id uuid, p_expected_status text, p_patch jsonb ) RETURNS TABLE(attempt jsonb) LANGUAGE plpgsql SEC"
+    },
+    {
+      "file": "20260821212020_journal_entry_provider_attempts.sql",
+      "order": 141,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.transition_journal_entry_execution( p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_new_status text, p_patch json"
+    },
+    {
+      "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "order": 142,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.patch_journal_entry_provider_attempt( p_attempt_id uuid, p_expected_status text, p_patch jsonb ) RETURNS TABLE(attempt jsonb) LANGUAGE plpgsql SEC"
+    },
+    {
+      "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "order": 142,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_commit_discovered( p_attempt_id uuid, p_expected_status text, p_qbo_je_id text, p_provider_response_hash text, p_disc"
+    },
+    {
+      "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "order": 142,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_not_found_confirmed( p_attempt_id uuid, p_expected_status text, p_discovery_summary jsonb, p_event_payload jsonb, p_e"
+    },
+    {
+      "file": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+      "order": 143,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.patch_journal_entry_provider_attempt( p_attempt_id uuid, p_expected_status text, p_patch jsonb ) RETURNS TABLE(attempt jsonb) LANGUAGE plpgsql SEC"
+    },
+    {
+      "file": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+      "order": 144,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_journal_entry_provider_attempt( p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid,"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "order": 145,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.patch_journal_entry_provider_attempt( p_attempt_id uuid, p_expected_status text, p_patch jsonb ) RETURNS TABLE(attempt jsonb) LANGUAGE plpgsql SEC"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "order": 145,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_dispatch_started( p_attempt_id uuid, p_expected_status text, p_event_payload jsonb, p_event_payload_canonical text, p"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "order": 145,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_posted( p_attempt_id uuid, p_expected_status text, p_qbo_je_id text, p_intuit_tid text, p_provider_response_hash text"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "order": 145,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_post_unknown( p_attempt_id uuid, p_expected_status text, p_intuit_tid text, p_provider_error_code text, p_provider_er"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "order": 145,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_provider_precommit_failed( p_attempt_id uuid, p_expected_status text, p_provider_error_code text, p_provider_error_message tex"
+    },
+    {
+      "file": "20260822050000_journal_entry_verified_readback.sql",
+      "order": 146,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.patch_journal_entry_provider_attempt( p_attempt_id uuid, p_expected_status text, p_patch jsonb ) RETURNS TABLE(attempt jsonb) LANGUAGE plpgsql SEC"
+    },
+    {
+      "file": "20260822050000_journal_entry_verified_readback.sql",
+      "order": 146,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_verified( p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_attempt_id uuid, p_expected_attempt"
+    },
+    {
+      "file": "20260822050000_journal_entry_verified_readback.sql",
+      "order": 146,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.apply_journal_entry_verification_mismatch( p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_attempt_id uuid, p_exp"
+    },
+    {
+      "file": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "order": 147,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "accounting_connections",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.accounting_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name ="
+    },
+    {
+      "file": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "order": 147,
+      "classification": "safe_conditional",
+      "objectKind": "table",
+      "identity": "companies",
+      "evidence": "to_regclass_is_not_null_guard",
+      "snippet": "DO $$ BEGIN IF to_regclass('public.companies') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'companies' "
+    },
+    {
+      "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+      "order": 148,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.je_publish_posting_started_from_ready( p_execution public.journal_entry_executions, p_event_payload jsonb, p_event_payload_canonical text, p_firm_"
+    },
+    {
+      "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+      "order": 148,
+      "classification": "postcondition_assertion",
+      "objectKind": "function_or_trigger_body",
+      "identity": null,
+      "evidence": "raise_inside_create_function_or_trigger",
+      "snippet": "CREATE OR REPLACE FUNCTION public.persist_journal_entry_provider_attempt( p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid,"
+    }
+  ],
+  "assertionOrders": {
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": 36,
+    "20260707130000_d_assertions_part_2_coverage_projection.sql": 37,
+    "20260707140000_d_assertions_part_3_coverage_statement.sql": 38,
+    "20260707150000_d_assertions_part_4_je_propagation.sql": 47,
+    "20260707160000_d_assertions_part_5_gap_review_items.sql": 48,
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql": 49
+  },
+  "part2BeforePart3": true,
+  "part2Order": 37,
+  "part3Order": 38,
+  "requiredPrerequisiteFindings": [
+    {
+      "file": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 37,
+      "classification": "required_prerequisite",
+      "objectKind": "constraint",
+      "identity": "ai_action_log_action_category_check",
+      "evidence": "pg_constraint_check_then_raise",
+      "snippet": "do $$ declare cur_def text; begin select pg_get_constraintdef(oid) into cur_def from pg_constraint where conname = 'ai_action_log_action_category_check'; if cur_def is null or cur_"
+    },
+    {
+      "file": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 37,
+      "classification": "required_prerequisite",
+      "objectKind": "constraint",
+      "identity": "ledger_events_event_category_check",
+      "evidence": "pg_constraint_check_then_raise",
+      "snippet": "do $$ declare cur_def text; begin select pg_get_constraintdef(oid) into cur_def from pg_constraint where conname = 'ledger_events_event_category_check'; if cur_def is null or cur_d"
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "close_assertion_coverage",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "assertion_gap_root_causes",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 38,
+      "classification": "required_prerequisite",
+      "objectKind": "table",
+      "identity": "assertions_catalog",
+      "evidence": "information_schema.tables_not_exists_then_raise",
+      "snippet": "do $$ begin if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='close_assertion_coverage') then raise exception 'D-Assertions Part 2 "
+    }
+  ]
+}

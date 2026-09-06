@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-06c",
+  "authorizedCommit": "ce6f5b3536c6c415f60fba690e8f7b3465f0eecb",
+  "pr312Commit": "f0011f53f2d11de5340ac7f580cad571d983d149",
+  "pr312SuiteBlob": "4675a74f59e4cd38f677b8ad27dd9437e3a19a0f",
+  "pr312SeedHelperBlob": "9cfcc441738986c574bcdef7d4c7edf983dbfd7c",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "manifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+  "manifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "manifestBytes": 164204,
+  "manifestEntries": 151,
+  "manifestSubstitutions": 7,
+  "scopes": {
+    "candidateReplay": "PASS",
+    "forwardMigrationDigestProof": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "candidateReplay": {
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "pr312_setup_seed",
+    "firstFailureTitle": "SETUP: disposable database preparation",
+    "namedSetupPhase": "seed_firm_clients",
+    "sqlstate": "23502",
+    "table": "firm_clients",
+    "column": "company_id",
+    "signal": "null value in column company_id violates not-null constraint",
+    "ledgerEventsEngagementFkeyReached": false,
+    "falloutTitles": ["migration compile", "A", "B", "C", "D", "E", "E2", "F", "G", "H", "I", "J"],
+    "falloutClassification": "setup_requireJeReuseSetup_cascade",
+    "vitest": {
+      "passedExpected": 0,
+      "failedExpected": 13,
+      "expectedTotal": 13,
+      "processExitCode": 1
+    }
+  },
+  "diagnostics": {
+    "complete": true,
+    "path": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-ce6f5b35-1788724443308.json",
+    "sha256": "fb0c296ecad7ac9d5e8af13c86076bf801d85a94de5da1210fa79f5b380f8ef3",
+    "credentialsIncluded": false,
+    "rawReportDeleted": true,
+    "note": "constraint field incorrectly showed 'at' in this artifact (stack-frame false positive); remediated in subsequent PR #313 diagnostics extractor fix"
+  },
+  "residualAfterRollback": { "applicationRowTotal": 0, "authUsers": 0 },
+  "cleanup": {
+    "status": "CLEANUP_DONE",
+    "port54322Open": false,
+    "workdirRemoved": true,
+    "suiteDatabaseDropped": true
+  },
+  "credentialsIncludedInEvidence": false,
+  "remediationInThisAuthorization": false
+}
