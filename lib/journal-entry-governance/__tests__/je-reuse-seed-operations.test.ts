@@ -42,6 +42,7 @@ const SAMPLE_CTX = {
 describe("JE_REUSE seed operations (non-database)", () => {
   it("defines ordered dependency seed phases", () => {
     expect(JE_REUSE_SEED_PHASE_NAMES).toEqual([
+      "seed_ledger_chain_head",
       "seed_auth_users",
       "seed_companies",
       "seed_firms",
@@ -89,6 +90,18 @@ describe("JE_REUSE seed operations (non-database)", () => {
         "seed_engagements",
       ]),
     );
+  });
+
+  it("seeds Patent #6 ledger_chain_head singleton before any publishes", () => {
+    const head = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_ledger_chain_head",
+    );
+    expect(head).toBeTruthy();
+    expect(JE_REUSE_SEED_PHASE_NAMES[0]).toBe("seed_ledger_chain_head");
+    expect(head.sql).toMatch(/INSERT INTO public\.ledger_chain_head\b/);
+    expect(head.sql).toMatch(/VALUES\s*\(\s*1\s*,\s*-1\s*,\s*NULL\s*\)/i);
+    expect(head.params(SAMPLE_CTX)).toEqual([]);
+    expect(countSqlPlaceholders(head.sql)).toBe(0);
   });
 
   it("binds firm_clients.company_id to synthetic company after seed_companies", () => {
@@ -182,7 +195,7 @@ describe("JE_REUSE seed operations (non-database)", () => {
     const calls = [];
     const query = vi.fn(async (sql, params) => {
       calls.push({ sql, params });
-      if (calls.length === 3) {
+      if (calls.length === 4) {
         const err = new Error("forced");
         err.code = "23505";
         throw err;
@@ -195,10 +208,15 @@ describe("JE_REUSE seed operations (non-database)", () => {
       code: "23505",
       jeReuseSeedPhase: "seed_firms",
     });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
     expect(
-      JE_REUSE_SEED_OPERATIONS.slice(0, 3).map((o) => o.name),
-    ).toEqual(["seed_auth_users", "seed_companies", "seed_firms"]);
+      JE_REUSE_SEED_OPERATIONS.slice(0, 4).map((o) => o.name),
+    ).toEqual([
+      "seed_ledger_chain_head",
+      "seed_auth_users",
+      "seed_companies",
+      "seed_firms",
+    ]);
   });
 
   it("named seed failure fails closed with phase; rollback leaves zero residual expectation", async () => {

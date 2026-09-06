@@ -14,6 +14,7 @@ import {
   requireJeReuseSetup,
   runJeReuseDisposableSetup,
   runExpectedSqlFailureInSavepoint,
+  probeJeReuseTransactionHealth,
 } from "./je-reuse-disposable-setup.js";
 import { runJeReuseSeedOperations, JE_REUSE_SEED_IDEMPOTENCY_KEYS } from "./je-reuse-seed-operations.js";
 
@@ -328,6 +329,41 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     );
   });
 
+  it("F. state_version conflict on transition → rejected", async () => {
+    // Isolate version conflict while status is still RESERVED (before E advances it).
+    // Authoritative RPC order: status concurrency check precedes state_version.
+    const client = requireJeReuseSetup(setup);
+    const payload = reservationEventPayload("READY_TO_POST");
+    const contained = await runExpectedSqlFailureInSavepoint(
+      client,
+      "je_reuse_expect_f",
+      () =>
+        client.query(
+          `SELECT *
+             FROM public.transition_journal_entry_execution(
+               $1::uuid, 'RESERVED', 99, 'READY_TO_POST',
+               '{}'::jsonb,
+               'journal_entry.execution_ready',
+               $2::jsonb,
+               $3::text,
+               $4::uuid, $5::uuid, $6::uuid, NULL, $7
+             )`,
+          [
+            IDS.execution,
+            JSON.stringify(payload),
+            canonicalPayloadJson(payload),
+            IDS.firm,
+            IDS.firmClient,
+            IDS.engagement,
+            IDS.user,
+          ],
+        ),
+    );
+    expect(String((contained.error as { message?: string }).message || "")).toMatch(
+      /state_version concurrency conflict/i,
+    );
+  });
+
   it("E. transition RESERVED → READY_TO_POST + execution_ready receipt", async () => {
     const client = requireJeReuseSetup(setup);
     const readyPayload = {
@@ -399,45 +435,13 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     }
   });
 
-  it("F. state_version conflict on transition → rejected", async () => {
-    const client = requireJeReuseSetup(setup);
-    const payload = reservationEventPayload("READY_TO_POST");
-    const contained = await runExpectedSqlFailureInSavepoint(
-      client,
-      "je_reuse_expect_f",
-      () =>
-        client.query(
-          `SELECT *
-             FROM public.transition_journal_entry_execution(
-               $1::uuid, 'RESERVED', 1, 'READY_TO_POST',
-               '{}'::jsonb,
-               'journal_entry.execution_ready',
-               $2::jsonb,
-               $3::text,
-               $4::uuid, $5::uuid, $6::uuid, NULL, $7
-             )`,
-          [
-            IDS.execution,
-            JSON.stringify(payload),
-            canonicalPayloadJson(payload),
-            IDS.firm,
-            IDS.firmClient,
-            IDS.engagement,
-            IDS.user,
-          ],
-        ),
-    );
-    expect(String((contained.error as { message?: string }).message || "")).toMatch(
-      /state_version concurrency conflict/i,
-    );
-  });
-
   it("G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt", async () => {
     const client = requireJeReuseSetup(setup);
     const row = executionRow({
       id: IDS.execution2,
       approval_id: IDS.approval2,
-      idempotency_key: `${"h".repeat(64)}`,
+      // Valid lowercase hex × 64 ("h" is outside [a-f0-9] and fails CHECK 23514).
+      idempotency_key: `${"0".repeat(64)}`,
       correlation_marker: "ADVJE:exec-precheck-failed-test",
     });
     const reservedPayload = reservationEventPayload("RESERVED");
@@ -487,6 +491,8 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     );
     expect(rows[0]?.execution.status).toBe("PRECHECK_FAILED");
     expect(rows[0]?.ledger_event_id).toBeTruthy();
+    // Success-path health probe: H–J must not inherit an aborted transaction.
+    await expect(probeJeReuseTransactionHealth(client)).resolves.toBe(true);
   });
 
   it("H. concurrent approval_id reservation attempts converge to one execution", async () => {

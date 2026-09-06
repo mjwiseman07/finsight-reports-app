@@ -137,9 +137,8 @@ describe("JE_REUSE disposable setup (non-database)", () => {
   });
 
   it("expected SQL failures use SAVEPOINT containment for D and F (and H)", async () => {
-    const { runExpectedSqlFailureInSavepoint } = await import(
-      "./je-reuse-disposable-setup.js"
-    );
+    const { runExpectedSqlFailureInSavepoint, probeJeReuseTransactionHealth } =
+      await import("./je-reuse-disposable-setup.js");
     const fs = await import("node:fs");
     const suiteSrc = fs.readFileSync(
       new URL("./execution-reservation.postgres.integration.test.ts", import.meta.url),
@@ -149,11 +148,16 @@ describe("JE_REUSE disposable setup (non-database)", () => {
     expect(suiteSrc).toContain("je_reuse_expect_d");
     expect(suiteSrc).toContain("je_reuse_expect_f");
     expect(suiteSrc).toContain("je_reuse_expect_h");
+    expect(suiteSrc).toContain("probeJeReuseTransactionHealth");
     expect(suiteSrc).toMatch(
       /D\. binding mismatch[\s\S]*runExpectedSqlFailureInSavepoint[\s\S]*je_reuse_expect_d/,
     );
     expect(suiteSrc).toMatch(
       /F\. state_version conflict[\s\S]*runExpectedSqlFailureInSavepoint[\s\S]*je_reuse_expect_f/,
+    );
+    // F must run while still RESERVED (before E advances status).
+    expect(suiteSrc.indexOf('it("F. state_version')).toBeLessThan(
+      suiteSrc.indexOf('it("E. transition RESERVED'),
     );
 
     const queries: string[] = [];
@@ -186,9 +190,7 @@ describe("JE_REUSE disposable setup (non-database)", () => {
     expect(queries.some((q) => /RELEASE SAVEPOINT je_reuse_expect_d/.test(q))).toBe(true);
     expect(queries.some((q) => /SELECT 1::int AS ok/.test(q))).toBe(true);
 
-    // Simulate a follow-on test after D: health probe already proved txn usable.
-    const followOn = await client.query("SELECT 1::int AS ok");
-    expect(followOn.rows[0].ok).toBe(1);
+    await expect(probeJeReuseTransactionHealth(client)).resolves.toBe(true);
   });
 
   it("savepoint helper fail-closes when expected rejection does not occur", async () => {
