@@ -2,7 +2,7 @@
 /**
  * Fail-closed JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL handoff for PR #312 Vitest.
  *
- * Pinned suite contract (633bdebd… / suite blob 4675a74f…):
+ * Pinned suite contract (633bdebd… / suite blob b647f3b1…):
  *   const TEST_DB_URL = process.env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
  *   const describeIf = TEST_DB_URL ? describe : describe.skip;
  *   // SETUP + 12 governed titles under describeIf
