@@ -15,8 +15,8 @@ const LOCAL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 describe("Option D PR312 suite-database plan", () => {
   it("pins the PR #312 commit used by the suite DB plan", () => {
-    expect(PR312_COMMIT).toBe("da4ff14366d47b906962770b5d4e187a4d1853d0");
-    expect(PR312_SUITE_BLOB).toBe("4675a74f59e4cd38f677b8ad27dd9437e3a19a0f");
+    expect(PR312_COMMIT).toBe("3a2f2efc69b17499c8885c18081f6f3ef550d6c1");
+    expect(PR312_SUITE_BLOB).toBe("f9ce85410c19cc96c7105ed0bf1f94405b93c519");
   });
 
   it("builds unique scoped suite database names", () => {

@@ -12,6 +12,7 @@ import {
   INCOMPLETE_REASON,
   sanitizeDiagnosticText,
   extractSqlSignals,
+  classifyFailureKind,
   buildSanitizedVitestFailureDiagnostics,
   persistSanitizedVitestDiagnosticsArtifact,
   captureVitestDiagnosticsBeforeCleanup,
@@ -171,6 +172,34 @@ describe("Option D Vitest failure diagnostics", () => {
       sqlstate: "25P02",
       constraint: null,
     });
+  });
+
+  it("classifies independent assertion vs 25P02 cascade vs expected rejection signals", () => {
+    expect(
+      classifyFailureKind({
+        status: "failed",
+        sqlstate: null,
+        sanitizedMessage:
+          "AssertionError: expected 'idempotency_key' to be 'approval_id'",
+      }),
+    ).toBe("independent_assertion");
+    expect(
+      classifyFailureKind({
+        status: "failed",
+        sqlstate: "25P02",
+        sanitizedMessage:
+          "error: current transaction is aborted, commands ignored until end of transaction block",
+      }),
+    ).toBe("sqlstate_25P02_cascade");
+    expect(
+      classifyFailureKind({
+        status: "failed",
+        sqlstate: "P0001",
+        sanitizedMessage:
+          "je_execution_binding_conflict: approval_id already reserved under a different immutable binding",
+      }),
+    ).toBe("expected_rejection_signal");
+    expect(classifyFailureKind({ status: "passed" })).toBeNull();
   });
 
   it("accounts for all 13 expected titles across multiple failures", () => {

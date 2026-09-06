@@ -6,9 +6,9 @@
   "credentialsIncluded": false,
   "vitestFailed": true,
   "pr312": {
-    "commit": "da4ff14366d47b906962770b5d4e187a4d1853d0",
+    "commit": "3a2f2efc69b17499c8885c18081f6f3ef550d6c1",
     "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
-    "suiteBlob": "4675a74f59e4cd38f677b8ad27dd9437e3a19a0f",
+    "suiteBlob": "f9ce85410c19cc96c7105ed0bf1f94405b93c519",
     "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
     "seedHelperBlob": "ccaa60cf4747f601a1c3a58d28a235b0635b7df1",
     "testRoot": "lib/journal-entry-governance/__tests__"
@@ -42,7 +42,9 @@
       "table": null,
       "functionOrRpc": null,
       "hookFailure": false,
-      "stackFrames": []
+      "stackFrames": [],
+      "failureKind": null,
+      "column": null
     },
     {
       "title": "migration compile: reservation + transition RPCs exist",
@@ -56,7 +58,9 @@
       "table": null,
       "functionOrRpc": null,
       "hookFailure": false,
-      "stackFrames": []
+      "stackFrames": [],
+      "failureKind": null,
+      "column": null
     },
     {
       "title": "A. first reservation inserts row + execution_requested receipt",
@@ -76,7 +80,9 @@
           "line": 243,
           "column": 20
         }
-      ]
+      ],
+      "failureKind": "sql_error",
+      "column": null
     }
   ],
   "hooks": [],

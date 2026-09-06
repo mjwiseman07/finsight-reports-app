@@ -322,6 +322,35 @@ function mapStatus(status) {
 }
 
 /**
+ * Classify a failed title for Option D triage.
+ * - independent_assertion: Vitest assertion failure (not SQL abort)
+ * - expected_rejection_signal: message looks like an intentional governed reject
+ * - sqlstate_25P02_cascade: transaction aborted cascade
+ * - sql_error: other SQL failure with sqlstate
+ * - null: passed / no failure
+ */
+function classifyFailureKind(entry) {
+  if (!entry || entry.status !== "failed") return null;
+  const sqlstate = entry.sqlstate ? String(entry.sqlstate).toUpperCase() : null;
+  const msg = String(entry.sanitizedMessage || "");
+  if (sqlstate === "25P02" || /current transaction is aborted/i.test(msg)) {
+    return "sqlstate_25P02_cascade";
+  }
+  if (
+    /je_execution_binding_conflict|state_version concurrency conflict/i.test(msg) &&
+    !/AssertionError/i.test(msg)
+  ) {
+    return "expected_rejection_signal";
+  }
+  if (/AssertionError|expected .* to (be|equal|match)/i.test(msg) && !sqlstate) {
+    return "independent_assertion";
+  }
+  if (sqlstate) return "sql_error";
+  if (msg) return "independent_assertion";
+  return "unknown_failure";
+}
+
+/**
  * Build sanitized diagnostics for a Vitest run. Does not write disk.
  *
  * @returns {{
@@ -405,6 +434,7 @@ function buildSanitizedVitestFailureDiagnostics(input = {}) {
         table: null,
         functionOrRpc: null,
         hookFailure: false,
+        failureKind: null,
         stackFrames: [],
       });
       incompleteReasons.push({ rule: "expected_title_absent_from_report", title });
@@ -431,6 +461,8 @@ function buildSanitizedVitestFailureDiagnostics(input = {}) {
       hookFailure: isHookFailureMessage(rawMsg),
       stackFrames: rawMsg ? sanitizeStackFrames(rawMsg, sanitizeOpts) : [],
     };
+    entry.failureKind =
+      status === "failed" ? classifyFailureKind(entry) : null;
     if (status === "failed" && !entry.sanitizedMessage) {
       incompleteReasons.push({ rule: "failed_title_missing_message", title });
     }
@@ -758,6 +790,7 @@ module.exports = {
   DEFAULT_MAX_STACK_FRAMES,
   sanitizeDiagnosticText,
   extractSqlSignals,
+  classifyFailureKind,
   sanitizeStackFrames,
   buildSanitizedVitestFailureDiagnostics,
   persistSanitizedVitestDiagnosticsArtifact,
