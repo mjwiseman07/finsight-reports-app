@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "kind": "option_d_pr312_vitest_failure_diagnostics",
+  "generatedAt": "2026-09-06T21:14:02.397Z",
+  "complete": true,
+  "credentialsIncluded": false,
+  "vitestFailed": true,
+  "pr312": {
+    "commit": "3a2f2efc69b17499c8885c18081f6f3ef550d6c1",
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "suiteBlob": "f9ce85410c19cc96c7105ed0bf1f94405b93c519",
+    "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+    "testRoot": "lib/journal-entry-governance/__tests__"
+  },
+  "process": {
+    "exitCode": 1,
+    "signal": null,
+    "timedOut": false,
+    "reporterComplete": true
+  },
+  "counts": {
+    "expected": 13,
+    "accounted": 13,
+    "passed": 7,
+    "failed": 6,
+    "skipped": 0,
+    "todo": 0,
+    "pending": 0,
+    "absent": 0
+  },
+  "tests": [
+    {
+      "title": "SETUP: disposable database preparation",
+      "status": "passed",
+      "durationMs": 1.3104000000000156,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "migration compile: reservation + transition RPCs exist",
+      "status": "passed",
+      "durationMs": 2.9735000000000014,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "A. first reservation inserts row + execution_requested receipt",
+      "status": "passed",
+      "durationMs": 9.547900000000027,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "B. exact idempotency replay → reused, no duplicate receipt",
+      "status": "passed",
+      "durationMs": 4.569099999999992,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "C. approval_id replay with same binding → reused",
+      "status": "passed",
+      "durationMs": 1.8473000000000184,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "D. binding mismatch on approval_id → fail closed",
+      "status": "passed",
+      "durationMs": 5.430299999999988,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
+      "status": "passed",
+      "durationMs": 5.042500000000018,
+      "sanitizedMessage": null,
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [],
+      "failureKind": null
+    },
+    {
+      "title": "E2. Patent #6 chain adjacency for requested → ready receipts",
+      "status": "failed",
+      "durationMs": 6.867400000000032,
+      "sanitizedMessage": "AssertionError: expected null to be 'f892a8434445cf17e1a1219f70680d15fc8ae…' // Object.is equality\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:396:40\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 396,
+          "column": 40
+        },
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        }
+      ],
+      "failureKind": "independent_assertion"
+    },
+    {
+      "title": "F. state_version conflict on transition → rejected",
+      "status": "failed",
+      "durationMs": 6.125399999999956,
+      "sanitizedMessage": "AssertionError: expected 'journal_entry_execution status concur…' to match /state_version concurrency conflict/i\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:430:77\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": null,
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 430,
+          "column": 77
+        },
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        }
+      ],
+      "failureKind": "independent_assertion"
+    },
+    {
+      "title": "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
+      "status": "failed",
+      "durationMs": 2.8771999999999593,
+      "sanitizedMessage": "error: new row for relation \"journal_entry_executions\" violates check constraint \"journal_entry_executions_idempotency_key_check\"\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:448:22\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": "23514",
+      "namedSetupPhase": null,
+      "constraint": "journal_entry_executions_idempotency_key_check",
+      "column": null,
+      "table": "journal_entry_executions",
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 448,
+          "column": 22
+        }
+      ],
+      "failureKind": "sql_error"
+    },
+    {
+      "title": "H. concurrent approval_id reservation attempts converge to one execution",
+      "status": "failed",
+      "durationMs": 1.9704000000000406,
+      "sanitizedMessage": "error: current transaction is aborted, commands ignored until end of transaction block\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:505:19\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": "25P02",
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 505,
+          "column": 19
+        }
+      ],
+      "failureKind": "sqlstate_25P02_cascade"
+    },
+    {
+      "title": "I. zero provider-attempt rows for execution reservation path",
+      "status": "failed",
+      "durationMs": 1.308499999999981,
+      "sanitizedMessage": "error: current transaction is aborted, commands ignored until end of transaction block\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:528:22\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": "25P02",
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 528,
+          "column": 22
+        }
+      ],
+      "failureKind": "sqlstate_25P02_cascade"
+    },
+    {
+      "title": "J. never touches staged production execution custody id",
+      "status": "failed",
+      "durationMs": 1.2829000000000406,
+      "sanitizedMessage": "error: current transaction is aborted, commands ignored until end of transaction block\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts:539:22\n    at [redacted-temp-path]",
+      "messageTruncated": false,
+      "sqlstate": "25P02",
+      "namedSetupPhase": null,
+      "constraint": null,
+      "column": null,
+      "table": null,
+      "functionOrRpc": null,
+      "hookFailure": false,
+      "stackFrames": [
+        {
+          "path": "node:internal/process/task_queues",
+          "line": 105,
+          "column": 5
+        },
+        {
+          "path": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "line": 539,
+          "column": 22
+        }
+      ],
+      "failureKind": "sqlstate_25P02_cascade"
+    }
+  ],
+  "hooks": [],
+  "redaction": {
+    "applied": true,
+    "markers": [
+      "[redacted-url]",
+      "[redacted-password]",
+      "[redacted-token]",
+      "[redacted-env]",
+      "[redacted-temp-path]",
+      "[redacted-uuid]",
+      "[redacted-hex64]",
+      "[redacted-param]",
+      "[redacted-fixture]",
+      "[truncated]"
+    ]
+  },
+  "stderrSanitized": null,
+  "persistedRelativePath": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-4f4b9309-1788729242390.json"
+}
