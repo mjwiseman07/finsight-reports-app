@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-04T22:47:34.037Z",
+  "generatedAt": "2026-09-06T18:50:34.066Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
     "pr313EvidenceHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
@@ -274,6 +274,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "lexicographicOrder": [
@@ -426,6 +427,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "sources": {
@@ -3324,6 +3326,24 @@
         "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)"
       ]
     },
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260717050000_d65_p2_block5_anomaly_score_merkle.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "ledger_chain_head",
+        "ledger_events"
+      ],
+      "createsFunctionIdentities": [
+        "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)"
+      ],
+      "consumesFunctionIdentities": [
+        "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)"
+      ]
+    },
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql": {
       "dependsOn": [
         "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql"
@@ -3524,7 +3544,7 @@
     }
   ],
   "unresolvedClassification": {
-    "generatedAt": "2026-09-04T22:47:34.036Z",
+    "generatedAt": "2026-09-06T18:50:34.066Z",
     "occurrenceCount": 1,
     "requiredCount": 0,
     "requiredDependenciesResolved": true,

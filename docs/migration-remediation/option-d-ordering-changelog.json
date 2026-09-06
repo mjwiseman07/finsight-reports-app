@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-04T22:47:34.032Z",
+  "generatedAt": "2026-09-06T18:50:34.060Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
-  "candidateCount": 144,
+  "candidateCount": 145,
   "lexicographicOrder": [
     "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
@@ -152,6 +152,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "dependencyOrder": [
@@ -304,6 +305,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "movedCount": 45,
@@ -590,7 +592,7 @@
       "d6_0": 40
     }
   },
-  "edgeCount": 426,
+  "edgeCount": 429,
   "sampleEdges": [
     {
       "from": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
@@ -786,6 +788,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "postPhase1LexicographicOrder": [
@@ -932,6 +935,7 @@
     "20260822050000_journal_entry_verified_readback.sql",
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "ruleSeedRegression": {
