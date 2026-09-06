@@ -120,6 +120,15 @@ describe("Option D Vitest failure diagnostics", () => {
     expect(signals.functionOrRpc).toBe("reserve_journal_entry_execution");
   });
 
+  it("infers SQLSTATE 23503 from foreign key violation text when driver omits code", () => {
+    const signals = extractSqlSignals(
+      'error: insert or update on table "ledger_events" violates foreign key constraint "ledger_events_engagement_id_fkey"',
+    );
+    expect(signals.sqlstate).toBe("23503");
+    expect(signals.constraint).toBe("ledger_events_engagement_id_fkey");
+    expect(signals.table).toBe("ledger_events");
+  });
+
   it("accounts for all 13 expected titles across multiple failures", () => {
     const built = buildSanitizedVitestFailureDiagnostics({
       report: multiFailReport(),

@@ -102,11 +102,18 @@ function sanitizeDiagnosticText(input, opts = {}) {
 
 function extractSqlSignals(message) {
   const raw = String(message || "");
-  const sqlstate =
+  let sqlstate =
     (raw.match(/\bsqlstate\s*=\s*([0-9A-Z]{5})\b/i) ||
       raw.match(/\bSQLSTATE:\s*([0-9A-Z]{5})\b/i) ||
       raw.match(/\bcode:\s*['"]?([0-9A-Z]{5})['"]?/i) ||
       [])[1] || null;
+  // Authoritative Postgres class for FK violations when drivers omit SQLSTATE text.
+  if (
+    !sqlstate &&
+    /violates foreign key constraint/i.test(raw)
+  ) {
+    sqlstate = "23503";
+  }
   const namedSetupPhase =
     (raw.match(/\bphase\s*=\s*([a-z0-9_]+)/i) ||
       raw.match(/\bjeReuseSeedPhase[=:\s]+([a-z0-9_]+)/i) ||
@@ -121,7 +128,7 @@ function extractSqlSignals(message) {
       [])[1] || null;
   const functionOrRpc =
     (raw.match(
-      /\b((?:public\.)?(?:reserve_journal_entry_execution|transition_journal_entry_execution)[a-z0-9_]*)\b/i,
+      /\b((?:public\.)?(?:reserve_journal_entry_execution|transition_journal_entry_execution|persist_journal_entry_execution_reservation|publish_ledger_event)[a-z0-9_]*)\b/i,
     ) ||
       raw.match(/\bfunction\s+((?:[a-z_][a-z0-9_]*\.)?[a-z_][a-z0-9_]*)\b/i) ||
       [])[1] || null;
