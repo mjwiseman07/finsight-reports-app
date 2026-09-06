@@ -1,0 +1,63 @@
+{
+  "runId": "2026-09-06b",
+  "authorizedCommit": "18b0bb3db75a100767901564e5b302313d155c05",
+  "pr312Commit": "af735758717e41b322e44e4abe174fbe524f3c3d",
+  "pr312SuiteBlob": "cec32b34617afe41187a37ad7de65048040a9f45",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "manifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+  "manifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "manifestBytes": 164204,
+  "manifestEntries": 151,
+  "manifestSubstitutions": 7,
+  "forwardMigrationOrder150": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+  "scopes": {
+    "candidateReplay": "PASS",
+    "forwardMigrationDigestProof": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "candidateReplay": {
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151
+  },
+  "forwardMigrationDigestProof": {
+    "hasExtensionsDigest": true,
+    "hasTypedSha256": true,
+    "hasUnqualifiedDigest": false,
+    "searchPathPinned": true
+  },
+  "overall": "FAIL",
+  "stoppedOn": {
+    "phase": "pr312_vitest",
+    "firstFailureTitle": "A. first reservation inserts row + execution_requested receipt",
+    "firstFailureSignal": "ledger_events_engagement_id_fkey",
+    "firstFailureSqlstateClass": "23503",
+    "falloutTitles": ["B", "C", "D", "E", "E2", "F", "G", "H", "I", "J"],
+    "falloutClassification": "transaction_abort_cascade_unless_proven_otherwise",
+    "vitest": {
+      "passedExpected": 2,
+      "failedExpected": 11,
+      "expectedTotal": 13,
+      "processExitCode": 1
+    }
+  },
+  "diagnostics": {
+    "complete": true,
+    "path": "docs/migration-remediation/option-d-pr312-vitest-diagnostics-session-18b0bb3d-1788722257826.json",
+    "sha256": "28b33c2a4ac5f0b6ef7c8b1b6ea811f5a48788cd4ca9bb6979a8729cfc5107bb",
+    "credentialsIncluded": false,
+    "rawReportDeleted": true
+  },
+  "residualAfterRollback": { "applicationRowTotal": 0, "authUsers": 0 },
+  "cleanup": {
+    "status": "CLEANUP_DONE",
+    "port54322Open": false,
+    "workdirRemoved": true,
+    "suiteDatabaseDropped": true
+  },
+  "credentialsIncludedInEvidence": false,
+  "remediationInThisAuthorization": false,
+  "aclGrantsOmittedNotEstablishedCausal": true
+}
