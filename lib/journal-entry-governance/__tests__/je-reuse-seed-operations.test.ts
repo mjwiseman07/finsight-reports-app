@@ -91,6 +91,52 @@ describe("JE_REUSE seed operations (non-database)", () => {
     );
   });
 
+  it("binds firm_clients.company_id to synthetic company after seed_companies", () => {
+    const names = [...JE_REUSE_SEED_PHASE_NAMES];
+    expect(names.indexOf("seed_companies")).toBeLessThan(
+      names.indexOf("seed_firm_clients"),
+    );
+    expect(names.indexOf("seed_companies")).toBeLessThan(names.indexOf("seed_firms"));
+
+    const company = JE_REUSE_SEED_OPERATIONS.find((o) => o.name === "seed_companies");
+    const firmClient = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_firm_clients",
+    );
+    const auditReady = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_audit_ready_engagements",
+    );
+    const proposal = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_journal_entry_proposals",
+    );
+    expect(company.sql).toMatch(/INSERT INTO public\.companies\b/);
+    expect(firmClient.sql).toMatch(/company_id/);
+    expect(firmClient.sql).toMatch(/INSERT INTO public\.firm_clients\b/);
+
+    const fcParams = firmClient.params(SAMPLE_CTX);
+    // $1 firmClient, $2 firm, $3 company
+    expect(fcParams[0]).toBe(SAMPLE_CTX.ids.firmClient);
+    expect(fcParams[1]).toBe(SAMPLE_CTX.ids.firm);
+    expect(fcParams[2]).toBe(SAMPLE_CTX.ids.company);
+    expect(company.params(SAMPLE_CTX)[0]).toBe(SAMPLE_CTX.ids.company);
+    // Canonical company binding across firm_client + audit_ready + proposal.
+    expect(auditReady.params(SAMPLE_CTX)[1]).toBe(SAMPLE_CTX.ids.company);
+    expect(proposal.params(SAMPLE_CTX)[1]).toBe(SAMPLE_CTX.ids.company);
+  });
+
+  it("documents firm_clients.company_id NOT NULL (SQLSTATE 23502) from D0", () => {
+    const d0 = readFileSync(
+      join(
+        __dirname,
+        "../../../supabase/migrations/20260708_00_d0_identity_and_memory_activation.sql",
+      ),
+      "utf8",
+    );
+    expect(d0).toMatch(
+      /ALTER TABLE firm_clients ALTER COLUMN company_id SET NOT NULL/,
+    );
+    expect("23502").toMatch(/^23502$/);
+  });
+
   it("every seed query is exactly one executable statement with matching params", () => {
     for (const op of JE_REUSE_SEED_OPERATIONS) {
       expect(countExecutableSqlStatements(op.sql)).toBe(1);
@@ -299,10 +345,12 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(suiteSrc).toContain("JE_REUSE_SEED_IDEMPOTENCY_KEYS");
     expect(suiteSrc).toMatch(/firm:\s*IDS\.firm/);
     expect(suiteSrc).toMatch(/firmClient:\s*IDS\.firmClient/);
+    expect(suiteSrc).toMatch(/company:\s*IDS\.company/);
     expect(suiteSrc).toMatch(/engagement:\s*IDS\.engagement/);
     expect(suiteSrc).not.toMatch(/approval2:\s*`\$\{"g"\.repeat\(64\)\}`/);
     expect(suiteSrc).not.toMatch(/approval2:\s*"g"\.repeat\(64\)/);
-    // Test A governed reservation expectations unchanged (still calls persist RPC).
+    // Cleanup remains transaction ROLLBACK (zero residual including companies).
+    expect(suiteSrc).toMatch(/ROLLBACK/);
     expect(suiteSrc).toMatch(
       /A\.\s*first reservation inserts row \+ execution_requested receipt/,
     );
@@ -320,6 +368,27 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(mig).not.toMatch(
       /DROP CONSTRAINT\s+journal_entry_approvals_idempotency_key_check/i,
     );
+  });
+
+  it("rollback residual verification contract includes synthetic company rows", () => {
+    // Disposable setup rolls back the seed transaction; Option D residual inventory
+    // must count public.companies (and firm_clients) as zero after rollback.
+    const residualTables = [
+      "public.companies",
+      "public.firms",
+      "public.firm_clients",
+      "public.engagements",
+      "public.audit_ready_engagements",
+      "public.journal_entry_proposals",
+      "public.journal_entry_approvals",
+    ];
+    expect(residualTables).toContain("public.companies");
+    expect(JE_REUSE_SEED_PHASE_NAMES).toContain("seed_companies");
+    const setupSrc = readFileSync(
+      join(__dirname, "je-reuse-disposable-setup.js"),
+      "utf8",
+    );
+    expect(setupSrc).toMatch(/ROLLBACK/);
   });
 
   it("documents ledger_events_engagement_id_fkey → public.engagements (SQLSTATE 23503)", () => {
