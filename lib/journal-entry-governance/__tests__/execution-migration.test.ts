@@ -62,6 +62,32 @@ describe("JE-3A execution migration contract", () => {
     );
   });
 
+  it("immutable binding excludes idempotency_key; lookup is key-first then approval_id", () => {
+    const fnStart = src.indexOf(
+      "CREATE OR REPLACE FUNCTION public.je_execution_immutable_binding_matches",
+    );
+    const fnEnd = src.indexOf("$$;", fnStart);
+    const bindingFn = src.slice(fnStart, fnEnd);
+    expect(bindingFn).toContain("proposal_hash");
+    expect(bindingFn).toContain("execution_hash");
+    expect(bindingFn).not.toMatch(/p_existing\.idempotency_key\s*=/);
+
+    const rpcStart = src.indexOf(
+      "CREATE OR REPLACE FUNCTION public.persist_journal_entry_execution_reservation",
+    );
+    const rpcBody = src.slice(rpcStart, rpcStart + 3500);
+    const keyLookup = rpcBody.indexOf(
+      "WHERE idempotency_key = p_row->>'idempotency_key'",
+    );
+    const approvalLookup = rpcBody.indexOf(
+      "WHERE approval_id = (p_row->>'approval_id')::uuid",
+    );
+    expect(keyLookup).toBeGreaterThan(0);
+    expect(approvalLookup).toBeGreaterThan(keyLookup);
+    expect(rpcBody).toContain("reuse_reason := 'idempotency_key'");
+    expect(rpcBody).toContain("reuse_reason := 'approval_id'");
+  });
+
   it("JE-3A transition RPC couples state to Patent #6 event and payload status", () => {
     expect(src).toContain("invalid journal entry execution transition/event pairing");
     expect(src).toContain("event payload status mismatch");

@@ -135,4 +135,76 @@ describe("JE_REUSE disposable setup (non-database)", () => {
     // beforeAll must not throw setup errors (stores result instead)
     expect(suiteSrc).toMatch(/setup = await runJeReuseDisposableSetup/);
   });
+
+  it("expected SQL failures use SAVEPOINT containment for D and F (and H)", async () => {
+    const { runExpectedSqlFailureInSavepoint } = await import(
+      "./je-reuse-disposable-setup.js"
+    );
+    const fs = await import("node:fs");
+    const suiteSrc = fs.readFileSync(
+      new URL("./execution-reservation.postgres.integration.test.ts", import.meta.url),
+      "utf8",
+    );
+    expect(suiteSrc).toContain("runExpectedSqlFailureInSavepoint");
+    expect(suiteSrc).toContain("je_reuse_expect_d");
+    expect(suiteSrc).toContain("je_reuse_expect_f");
+    expect(suiteSrc).toContain("je_reuse_expect_h");
+    expect(suiteSrc).toMatch(
+      /D\. binding mismatch[\s\S]*runExpectedSqlFailureInSavepoint[\s\S]*je_reuse_expect_d/,
+    );
+    expect(suiteSrc).toMatch(
+      /F\. state_version conflict[\s\S]*runExpectedSqlFailureInSavepoint[\s\S]*je_reuse_expect_f/,
+    );
+
+    const queries: string[] = [];
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        queries.push(String(sql));
+        if (String(sql).includes("SAVEPOINT")) return { rows: [] };
+        if (String(sql).includes("ROLLBACK TO")) return { rows: [] };
+        if (String(sql).includes("RELEASE")) return { rows: [] };
+        if (String(sql).includes("SELECT 1")) return { rows: [{ ok: 1 }] };
+        throw Object.assign(new Error("je_execution_binding_conflict: test"), {
+          code: "P0001",
+        });
+      }),
+    };
+    const result = await runExpectedSqlFailureInSavepoint(
+      client,
+      "je_reuse_expect_d",
+      async () => {
+        await client.query("SELECT boom");
+      },
+    );
+    expect(result.contained).toBe(true);
+    expect(result.transactionHealthy).toBe(true);
+    expect(String((result.error as Error).message)).toMatch(/je_execution_binding_conflict/);
+    expect(queries.some((q) => /SAVEPOINT je_reuse_expect_d/.test(q))).toBe(true);
+    expect(queries.some((q) => /ROLLBACK TO SAVEPOINT je_reuse_expect_d/.test(q))).toBe(
+      true,
+    );
+    expect(queries.some((q) => /RELEASE SAVEPOINT je_reuse_expect_d/.test(q))).toBe(true);
+    expect(queries.some((q) => /SELECT 1::int AS ok/.test(q))).toBe(true);
+
+    // Simulate a follow-on test after D: health probe already proved txn usable.
+    const followOn = await client.query("SELECT 1::int AS ok");
+    expect(followOn.rows[0].ok).toBe(1);
+  });
+
+  it("savepoint helper fail-closes when expected rejection does not occur", async () => {
+    const { runExpectedSqlFailureInSavepoint } = await import(
+      "./je-reuse-disposable-setup.js"
+    );
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (String(sql).includes("SELECT 1")) return { rows: [{ ok: 1 }] };
+        return { rows: [] };
+      }),
+    };
+    await expect(
+      runExpectedSqlFailureInSavepoint(client, "je_reuse_expect_f", async () => {
+        /* no throw */
+      }),
+    ).rejects.toThrow(/expected_sql_failure_did_not_occur/);
+  });
 });

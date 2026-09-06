@@ -13,6 +13,7 @@ import {
   SETUP_TEST_TITLE,
   requireJeReuseSetup,
   runJeReuseDisposableSetup,
+  runExpectedSqlFailureInSavepoint,
 } from "./je-reuse-disposable-setup.js";
 import { runJeReuseSeedOperations, JE_REUSE_SEED_IDEMPOTENCY_KEYS } from "./je-reuse-seed-operations.js";
 
@@ -24,6 +25,10 @@ const MIGRATION = join(
 const TEST_DB_URL = process.env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
 const HASH = "a".repeat(64);
 const HASH_B = "b".repeat(64);
+/** A/B exact-idempotency key (must remain distinct from C's approval-replay key). */
+const IDEMPOTENCY_KEY_A = "c".repeat(64);
+/** C approval-id replay: distinct valid key, same approval + business binding as A. */
+const IDEMPOTENCY_KEY_APPROVAL_REPLAY = "d".repeat(64);
 
 const IDS = {
   user: "aaaaaaaa-0101-4101-8101-000000000101",
@@ -59,7 +64,7 @@ function executionRow(overrides: Record<string, unknown> = {}) {
     approval_policy_hash: HASH_B,
     execution_policy_hash: HASH,
     execution_hash: HASH,
-    idempotency_key: `${"c".repeat(64)}`,
+    idempotency_key: IDEMPOTENCY_KEY_A,
     status: "RESERVED",
     correlation_marker: "ADVJE:exec-reservation-test",
     execution_policy_snapshot: {
@@ -90,7 +95,7 @@ function reservationEventPayload(status = "RESERVED") {
     approval_policy_hash: HASH_B,
     execution_policy_hash: HASH,
     execution_hash: HASH,
-    idempotency_key: `${"c".repeat(64)}`,
+    idempotency_key: IDEMPOTENCY_KEY_A,
     correlation_marker: "ADVJE:exec-reservation-test",
     status,
     preflight_eligible: null,
@@ -294,11 +299,17 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
 
   it("C. approval_id replay with same binding → reused", async () => {
     const client = requireJeReuseSetup(setup);
-    const row = executionRow({ id: "aaaaaaaa-0111-4111-8111-000000000111" });
-    const { rows } = await persistReservation(client, row);
+    const row = executionRow({
+      id: "aaaaaaaa-0111-4111-8111-000000000111",
+      idempotency_key: IDEMPOTENCY_KEY_APPROVAL_REPLAY,
+    });
+    const payload = reservationEventPayload();
+    payload.idempotency_key = IDEMPOTENCY_KEY_APPROVAL_REPLAY;
+    const { rows } = await persistReservation(client, row, payload);
     expect(rows[0]?.reused).toBe(true);
     expect(rows[0]?.reuse_reason).toBe("approval_id");
     expect(rows[0]?.ledger_event_id).toBeNull();
+    expect(rows[0]?.execution?.id).toBe(IDS.execution);
   });
 
   it("D. binding mismatch on approval_id → fail closed", async () => {
@@ -307,9 +318,14 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
       id: "aaaaaaaa-0113-4113-8113-000000000113",
       proposal_hash: `${"z".repeat(64)}`,
     });
-    await expect(persistReservation(client, row)).rejects.toMatchObject({
-      message: expect.stringMatching(/je_execution_binding_conflict/i),
-    });
+    const contained = await runExpectedSqlFailureInSavepoint(
+      client,
+      "je_reuse_expect_d",
+      () => persistReservation(client, row),
+    );
+    expect(String((contained.error as { message?: string }).message || "")).toMatch(
+      /je_execution_binding_conflict/i,
+    );
   });
 
   it("E. transition RESERVED → READY_TO_POST + execution_ready receipt", async () => {
@@ -386,30 +402,34 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   it("F. state_version conflict on transition → rejected", async () => {
     const client = requireJeReuseSetup(setup);
     const payload = reservationEventPayload("READY_TO_POST");
-    await expect(
-      client.query(
-        `SELECT *
-           FROM public.transition_journal_entry_execution(
-             $1::uuid, 'RESERVED', 1, 'READY_TO_POST',
-             '{}'::jsonb,
-             'journal_entry.execution_ready',
-             $2::jsonb,
-             $3::text,
-             $4::uuid, $5::uuid, $6::uuid, NULL, $7
-           )`,
-        [
-          IDS.execution,
-          JSON.stringify(payload),
-          canonicalPayloadJson(payload),
-          IDS.firm,
-          IDS.firmClient,
-          IDS.engagement,
-          IDS.user,
-        ],
-      ),
-    ).rejects.toMatchObject({
-      message: expect.stringMatching(/state_version concurrency conflict/i),
-    });
+    const contained = await runExpectedSqlFailureInSavepoint(
+      client,
+      "je_reuse_expect_f",
+      () =>
+        client.query(
+          `SELECT *
+             FROM public.transition_journal_entry_execution(
+               $1::uuid, 'RESERVED', 1, 'READY_TO_POST',
+               '{}'::jsonb,
+               'journal_entry.execution_ready',
+               $2::jsonb,
+               $3::text,
+               $4::uuid, $5::uuid, $6::uuid, NULL, $7
+             )`,
+          [
+            IDS.execution,
+            JSON.stringify(payload),
+            canonicalPayloadJson(payload),
+            IDS.firm,
+            IDS.firmClient,
+            IDS.engagement,
+            IDS.user,
+          ],
+        ),
+    );
+    expect(String((contained.error as { message?: string }).message || "")).toMatch(
+      /state_version concurrency conflict/i,
+    );
   });
 
   it("G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt", async () => {
@@ -484,9 +504,15 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     });
     const first = await persistReservation(client, rowA);
     expect(first.rows[0]?.reused).toBe(true);
-    await expect(persistReservation(client, rowB)).rejects.toMatchObject({
-      message: expect.stringMatching(/je_execution_binding_conflict/i),
-    });
+    expect(first.rows[0]?.reuse_reason).toBe("approval_id");
+    const contained = await runExpectedSqlFailureInSavepoint(
+      client,
+      "je_reuse_expect_h",
+      () => persistReservation(client, rowB),
+    );
+    expect(String((contained.error as { message?: string }).message || "")).toMatch(
+      /je_execution_binding_conflict/i,
+    );
 
     const { rows } = await client.query(
       `SELECT count(*)::int AS c

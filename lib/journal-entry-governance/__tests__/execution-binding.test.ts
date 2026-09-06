@@ -30,6 +30,16 @@ describe("JE-3A immutable execution binding", () => {
     expect(jeExecutionBindingsEqual(a, b)).toBe(true);
   });
 
+  it("distinct idempotency keys do not affect business binding equality", () => {
+    const a = extractJeExecutionImmutableBinding(base as never);
+    const b = extractJeExecutionImmutableBinding({
+      ...base,
+      idempotency_key: "f".repeat(64),
+    } as never);
+    expect(jeExecutionBindingsEqual(a, b)).toBe(true);
+    expect(a).not.toHaveProperty("idempotency_key");
+  });
+
   it("policy / connection / hash divergence is conflict", () => {
     const existing = extractJeExecutionImmutableBinding(base as never);
     expect(() =>
