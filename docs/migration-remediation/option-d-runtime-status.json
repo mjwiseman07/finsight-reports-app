@@ -1,163 +1,126 @@
 {
-  "overall": "BLOCKED",
-  "reason": "pr312_env_handoff_or_provenance_failed",
+  "overall": "PASS_RUNTIME",
+  "reason": null,
+  "writtenAt": "2026-09-06T22:56:00.000Z",
+  "authorizedCommit": "317e36e5d03b9277d7c9d7b067eb41c48d3f21ec",
+  "evidenceRunId": "2026-09-06f",
+  "evidencePath": "docs/migration-remediation/option-d-runtime-evidence-2026-09-06f.md",
+  "cleanupPath": "docs/migration-remediation/option-d-runtime-cleanup-2026-09-06f.json",
   "scopes": {
     "candidateReplay": "PASS",
     "securityImmutabilityChecks": "PASS",
-    "pr312RpcValidation": "FAIL",
+    "pr312RpcValidation": "PASS",
     "productionDashboardReplayParity": "unresolved"
   },
   "overallGate": {
-    "ok": false,
-    "overall": "BLOCKED",
+    "ok": true,
+    "overall": "PASS_RUNTIME",
     "applicable": {
       "candidateReplay": "PASS",
       "securityImmutabilityChecks": "PASS",
-      "pr312RpcValidation": "FAIL"
+      "pr312RpcValidation": "PASS"
     },
     "productionDashboardReplayParity": "unresolved"
   },
   "applyResult": {
     "applied": true,
-    "migrationsApplied": 150,
-    "sqlApplicationAttempts": 150,
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151,
     "authority": "git_cat_file_blob",
-    "materializationArtifactCount": 150
+    "materializationArtifactCount": 151
+  },
+  "forwardMigrationDigestProof": {
+    "ok": true,
+    "hasExtensionsDigest": true,
+    "hasTypedSha256": true,
+    "hasUnqualifiedDigest": false,
+    "searchPathPinned": true
   },
   "security": {
     "ok": true,
     "status": "PASS",
-    "alignment": {
-      "ok": true,
-      "failures": []
-    },
-    "schemaRls": {
-      "ok": true,
-      "failures": [],
-      "requiredCount": 10
-    },
-    "views": {
-      "ok": true,
-      "failures": [],
-      "requiredCount": 2
-    },
-    "immutability": {
-      "ok": true,
-      "failures": [],
-      "triggers": {
-        "ok": true,
-        "failures": [],
-        "requiredCount": 4
-      },
-      "behavior": {
-        "ok": true,
-        "failures": []
-      },
-      "requiredCount": 4
-    },
-    "functions": {
-      "ok": true,
-      "failures": []
-    },
     "failures": []
   },
+  "pr312Setup": {
+    "ok": true,
+    "suiteDatabase": "option_d_pr312_rpc_65a8b0ee71c4",
+    "applicationRows": 0,
+    "authUsers": 0
+  },
   "vitest": {
-    "processExitCode": null,
+    "processExitCode": 0,
     "signal": null,
-    "error": "pr312_env_handoff_or_provenance_failed",
+    "error": null,
     "gate": {
-      "ok": false,
-      "reason": "pr312_env_handoff_or_provenance_failed",
-      "failures": [
-        {
-          "rule": "suite_mirrored_pg_connect_failed",
-          "code": null,
-          "message": "The server does not support SSL connections"
-        }
-      ]
-    },
-    "launcher": null,
-    "suiteMaterialization": {
       "ok": true,
-      "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-      "sha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-      "authority": "git_worktree_detach_pr312_commit"
-    },
-    "envHandoff": {
-      "ok": false,
-      "skipContract": {
-        "suiteCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-        "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
-        "mechanismDescribeSkip": "describeIf = TEST_DB_URL ? describe : describe.skip",
-        "mechanismBeforeAllSkip": "beforeAll client.connect() failure → Vitest marks suite tests status=skipped (not failed)",
-        "expectedTitlesUnderDescribeIf": 12,
-        "blockedSentinelWhenUrlFalsy": "BLOCKED: JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL unavailable",
-        "suiteClientSsl": {
-          "rejectUnauthorized": false
-        },
-        "signatureUrlAbsent": {
-          "total": 13,
-          "skipped": 12,
-          "passed": 1,
-          "blockedPassed": true,
-          "processExitCode": 0,
-          "numFailedTestSuites": 0
-        },
-        "signatureBeforeAllConnectFail": {
-          "total": 12,
-          "skipped": 12,
-          "passed": 0,
-          "blockedPassed": false,
-          "processExitCode": 1,
-          "numFailedTestSuites": 2
-        }
+      "status": "PASS",
+      "reason": "vitest_process_and_structured_pass",
+      "counts": {
+        "total": 13,
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "todo": 0,
+        "pending": 0
       },
-      "failures": [
-        {
-          "rule": "suite_mirrored_pg_connect_failed",
-          "code": null,
-          "message": "The server does not support SSL connections"
-        }
-      ],
-      "handoff": {
-        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
-        "setExplicitly": true,
-        "inheritedValueRejected": false,
-        "inheritedWasPresent": false,
-        "allowlistKeyCount": 23,
-        "redacted": "host=127.0.0.1;port=54322;db=postgres",
-        "fingerprint": "cf6453a9f9e48b2d",
-        "hostname": "127.0.0.1",
-        "port": 54322,
-        "database": "postgres",
-        "credentialsIncludedInEvidence": false
-      },
-      "connectivity": {
-        "tcpOk": true,
-        "pgOk": false,
-        "hostname": "127.0.0.1",
-        "port": 54322,
-        "suiteMirroredSsl": true
-      },
-      "urlCheck": {
-        "redacted": "host=127.0.0.1;port=54322;db=postgres",
-        "fingerprint": "cf6453a9f9e48b2d"
+      "diagnostics": {
+        "complete": true,
+        "failureArtifactExpected": false,
+        "rawReportDeleted": true
       }
-    },
-    "isolatedContext": null
+    }
   },
   "pr312Provenance": {
     "present": true,
     "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
-    "sourceCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-    "pinnedBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-    "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-    "contentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-    "pinnedContentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+    "sourceCommit": "633bdebda51c9c2321ffba6bf0a146dc81243e5d",
+    "pinnedBlob": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+    "gitBlobId": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+    "seedHelperBlob": "88ee0df67005f6b104c6ca6030e9d8a509fd0dcd",
+    "resolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+    "disposableSetupBlob": "5f6ff5be0541e6f7935c6f0e7e0b4b4d09908f5c",
     "matchesPinnedCommitContent": true,
     "authority": "git_cat_file_blob"
   },
-  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-05T03:44:32.484Z"
+  "manifest": {
+    "blob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+    "sha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+    "bytes": 164204,
+    "entries": 151,
+    "substitutions": 7
+  },
+  "residualAfterRollback": {
+    "total": 0,
+    "authUsers": 0
+  },
+  "cleanup": {
+    "status": "CLEANUP_DONE",
+    "port54322Open": false
+  },
+  "priorStatusHistory": [
+    {
+      "writtenAt": "2026-09-05T03:44:32.484Z",
+      "overall": "BLOCKED",
+      "reason": "pr312_env_handoff_or_provenance_failed",
+      "scopes": {
+        "candidateReplay": "PASS",
+        "securityImmutabilityChecks": "PASS",
+        "pr312RpcValidation": "FAIL",
+        "productionDashboardReplayParity": "unresolved"
+      },
+      "note": "Retained from pre-PASS_RUNTIME status artifact; SSL handoff failure on suite postgres URL."
+    },
+    {
+      "evidenceRunId": "2026-09-06e",
+      "overall": "FAIL",
+      "scopes": {
+        "candidateReplay": "PASS",
+        "securityImmutabilityChecks": "PASS",
+        "pr312RpcValidation": "FAIL",
+        "productionDashboardReplayParity": "unresolved"
+      },
+      "note": "First independent E2; independent F/G; H–J 25P02 fallout. See option-d-runtime-evidence-2026-09-06e.md."
+    }
+  ],
+  "note": "PASS_RUNTIME is scoped to Option D isolated clean-replay + PR #312 disposable Postgres suite. Production dashboard replay parity remains unresolved and is not implied by this status."
 }

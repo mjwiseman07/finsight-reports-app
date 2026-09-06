@@ -1,0 +1,69 @@
+{
+  "runId": "2026-09-06f",
+  "authorizedCommit": "317e36e5d03b9277d7c9d7b067eb41c48d3f21ec",
+  "pr312Commit": "633bdebda51c9c2321ffba6bf0a146dc81243e5d",
+  "pr312SuiteBlob": "b647f3b165d7b0699bbba58c76be5ef0bd3277b4",
+  "pr312SeedHelperBlob": "88ee0df67005f6b104c6ca6030e9d8a509fd0dcd",
+  "pr312ResolverBlob": "5178894fc6811d9f9fef84b10fb9294504b4679e",
+  "pr312DisposableSetupBlob": "5f6ff5be0541e6f7935c6f0e7e0b4b4d09908f5c",
+  "manifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+  "manifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "manifestBytes": 164204,
+  "manifestEntries": 151,
+  "manifestSubstitutions": 7,
+  "supabaseCli": "2.116.0",
+  "orchestratorArtifact": {
+    "sourceBasename": ".tmp-option-d-orchestrator-317e36e5.json",
+    "sha256": "5629bad17cee85634d88691409c676aee5b6b3ace8b7308fa40a5021fe9615ef",
+    "bytes": 5284,
+    "committed": false
+  },
+  "scopes": {
+    "candidateReplay": "PASS",
+    "forwardMigrationDigestProof": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312SuiteSchemaPreparation": "PASS",
+    "pr312RpcValidation": "PASS",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "candidateReplay": {
+    "migrationsApplied": 151,
+    "sqlApplicationAttempts": 151,
+    "authority": "git_cat_file_blob"
+  },
+  "pr312Setup": {
+    "suiteDatabase": "option_d_pr312_rpc_65a8b0ee71c4",
+    "mechanism": "pg_dump_schema_only_no_owner_no_privileges_sanitized_session_sets_then_psql_restore",
+    "publicRelations": 229,
+    "publicPolicies": 415,
+    "applicationRows": 0,
+    "authUsers": 0
+  },
+  "pr312Vitest": {
+    "passedExpected": 13,
+    "failedExpected": 0,
+    "expectedTotal": 13,
+    "actualOrderNote": "F before E",
+    "processExitCode": 0
+  },
+  "diagnostics": {
+    "failureArtifactExpected": false,
+    "failureArtifactPath": null,
+    "rawReportDeleted": true,
+    "complete": true,
+    "credentialsIncluded": false,
+    "reason": "vitest_passed_no_failure_diagnostic_persisted"
+  },
+  "overall": "PASS_RUNTIME",
+  "residualAfterRollback": {
+    "total": 0,
+    "authUsers": 0
+  },
+  "cleanup": {
+    "suiteDatabasesDropped": true,
+    "supabaseStopped": true,
+    "workdirRemoved": true,
+    "port54322Open": false,
+    "status": "CLEANUP_DONE"
+  }
+}
