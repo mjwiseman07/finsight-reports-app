@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-06T14:51:13-04:00",
+  "generatedAt": "2026-09-06T14:56:10-04:00",
   "assembleAuthority": {
     "kind": "git_cat_file_blob",
-    "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+    "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
     "note": "Per-entry hashes and assembled SQL bytes are derived exclusively from git cat-file blob at sourceCommit; working-tree smudge is not authority."
   },
   "mechanism": "option_d_isolated_git_replay",
@@ -549,7 +549,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "961810f4d1a73c96c0d98e69fdb0b90d4f8824029f94edf7cca479786e93c0a7",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043598_public_users_derived_baseline.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Schema/security-only derived baseline for public.users; original CREATE unavailable in git/statements[]."
     },
     {
@@ -565,7 +565,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "50d607160fb384bb88e1528ed7e4007ec5ac801c6d2f0b0a278b4b77bfa38985",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043599_foundations_baseline.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Reviewed hardened baseline covering pre-phase1 foundation DDL."
     },
     {
@@ -581,7 +581,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "aba6930091eeb2d1d295ff81b070e915e2c53822d0c48193b636c378f03355a6",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043602_phase1_subscriptions_core.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production phase1 SQL (subscriptions + RLS)."
     },
     {
@@ -597,7 +597,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "9ceaf77ec32e1d402a5d9c05ad5355817cd00c63bafe99f0969470802e00944b",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043707_phase1_subscription_seats_and_entitlements.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production phase1 SQL (subscriptions + RLS)."
     },
     {
@@ -613,7 +613,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "824b84a69ef44352e14da0186441ad1a40d515c018172500b555f31825c33bc0",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043911_phase1_backward_compat_view.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production phase1 SQL (subscriptions + RLS)."
     },
     {
@@ -629,7 +629,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "71371e1493179efdbd30d3870ad0ec42dd51642e43519ec17e413434ada0ec3c",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701043931_phase1_entitlement_rls_policies.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production phase1 SQL (subscriptions + RLS)."
     },
     {
@@ -645,7 +645,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "444cfd26f79dee7b08b93b564bc17d1c4ab791fcee44457bc1ad5a221e99c0ec",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260701_refund_requests.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -661,7 +661,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "20105fe0eacc3ac4f806a14cf4d876fd9e2f9b95ab2b4861f846b8d47100172c",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260702041259_add_received_at_to_stripe_webhook_events.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -677,7 +677,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a9b4d20795294d46dbec691868bd53ce1f9e74129759b8633e04ce44e77253bb",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260702_create_mfg_waitlist.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -693,7 +693,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "141a4ddaf803556bbdf3f85ef83fdd45f9fa9f73c87926a57a643c1dfbd4fd04",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_00_create_close_ledger.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -709,7 +709,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "2b2f220896401b79f051a654cd41d47df0bfc5c0f9ce835732922126cea6f5e5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_01_create_checklist_system.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -725,7 +725,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "dd1d230b43a7d71c01c7407da9f9189c2268154c2a21aaff9db367653e14c923",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260704024059_d_entitlements_legacy_stripe_rename.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -741,7 +741,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5a7cbd7a89c6696e12b94c8f65ea397e8bdbd7dacd06a5d22981d7580335c8a9",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707_create_close_packet_system.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -757,7 +757,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "908e96872c802126c02542ae8d48cef15189e1033db777db22ff515254e59ec7",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707_01_variance_config_unique.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -773,7 +773,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "d579372dbcb74094967944a4684b493e3fe89a17c55d9dbc701e56699f499155",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707_02_section_manual_edit_flag.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -789,7 +789,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "c517bd46e16ad233a255da3a6d8c17853c0e75deeb1f03b0bfb031df6e45fbb2",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707_03_close_packet_share.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -805,7 +805,7 @@
       "replacementGitBlobId": "0f48207fb66b9c090ad12fbfa1e796beb8fa8a6e",
       "assembledSha256": "27090d7d5bbcbdc2114b7bda4f2b7fdfc00fb028d5c0816ae816f8f3b87acb40",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Schema/RLS/function retained; complimentary pilot_slots seed guarded via companies existence."
     },
     {
@@ -821,7 +821,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1a0b42af6f6ed813900499eb810c31595c642d995bcb46eaf2de1ca3fa0ffef7",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -837,7 +837,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "54abf14a0df8e4cc45873d23f086b912a42ccf418d543e1f8b3d33cf525abb59",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -853,7 +853,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "eff88519ab7f3ea98ba366180a699bf654889439d1e596f54376c3a404976016",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708200000_tcp1_w1_seat_idempotency.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -869,7 +869,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "8ec84346f54d0fe3b6012db66f1ad717b5c40ae885d6fde7144d1e03fe408c1d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708_00_d0_identity_and_memory_activation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -885,7 +885,7 @@
       "replacementGitBlobId": "cee5530e27268f7dbdbf15880cd3d0405dacf70e",
       "assembledSha256": "037021afaab5dbb3bd8687ae91e4d26aa816c1d321dc851cd4e23fe36423aeee",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_2000_d6_2a_test_client_activation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Unconditional client_active_rules VALUES insert fails FK on data-less branch; guarded via firm_clients SELECT."
     },
     {
@@ -901,7 +901,7 @@
       "replacementGitBlobId": "86ec0b33afeba4a9ecb033ff8c8a1154302e2204",
       "assembledSha256": "4c2ab4ada3bba3fd9377fa51f8594d2152d3a327b8e0529021b3982d960bff82",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_2200_d6_2b_mfg_activation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
@@ -917,7 +917,7 @@
       "replacementGitBlobId": "08c659039bd4e9d3f9631dffdee707468129eda2",
       "assembledSha256": "48430bf74138644066823e178f2f7243bc9c1fe2bf083b1b9624b5d4db28e9c5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_2300_d6_2c_retail_activation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
@@ -933,7 +933,7 @@
       "replacementGitBlobId": "b4abf9416c001bde77f1643cae73b3d62da759f1",
       "assembledSha256": "5bd9be56d1cac1e5be8d89ae195d7f2e7b1c330098e41725df49fada9fa3d1cc",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_2400_d6_2d_ps_activation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
@@ -949,7 +949,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a9a9948089faab84096ba5f3b5d986ac18382d78d633d75c83fb6ba753fbbf40",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -965,7 +965,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "11db1853921e867ad388da15f0d46574cba636b295f689a18ec9c9685b094d0b",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706_d67_p2_layer2_layer4.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -981,7 +981,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "e011ab0cff20b8775cef25d46fadf97d32a61b859a7afe87ea96c623fd6325ed",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708_01_d1_qbo_write_readiness.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -997,7 +997,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "7c8539f69eccfacb07093951a77bbd149b39307f9f5808498f237fe3263dd1d1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260708_02_d1_1_owner_user_id_backfill.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1013,7 +1013,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b986968f9e6c4e131614814d5779d9e1dc367d52e4b2d7fd1066a48bdaa750a2",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1029,7 +1029,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b1673ac48e5bb9f7a46b03e83e48093527302963299d42c723ef57c05baff5c9",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260709_00_d2_safe_je_posting.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1045,7 +1045,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "8a5b52ce463c1247f2b8c9c3535cfa430738dd1d21fefaad4c2bf814b1e43649",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1061,7 +1061,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4df0bbed957db56f2592615dba46404991d1ef95437fc6d71ef7dcc5b55da367",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706120000_d_platform_event_sourced_foundation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1077,7 +1077,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f48a58a1051200168d6adc685bfff37fb0eae517a48e0c5befd189ecf2a20499",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706130000_d_entitlements.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1093,7 +1093,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f75f05d3ee84f21af82c9df0251fb2b6fad98dcff80df9b810c5adb02a674a7b",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706140000_d_entitlements_followup.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1109,7 +1109,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "c998034987b1c30902d504f65dd54da467fcba22ecf7009ee152d636a6afac8e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707000000_d6_5_part1_universal_intake.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1125,7 +1125,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1a61a68c15eb1e0054270399cd06747db2383b02b428faa7bfc168dc79bcb8b1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260710_00_d3_memory_indexes.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1141,7 +1141,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "36aed746c8577ad08d644da58500c5df5181f50a235b7c048ed14a4c986f6556",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260713_00_d4_uncategorized_proposals.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1157,7 +1157,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1da818b2c2aa4d71451d2a5a1a0eef8b37b3dc10b853e11c85c395761e6a1970",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260714_00_d5_recurring_templates.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1173,7 +1173,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "6a90116350c85ecf8372360bc4a2d4f6625619db21f084a18f3c21305ed875da",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_1200_d6_0_vertical_rule_foundation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1189,7 +1189,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4fab5a7599988ab578b43fbef286efbdeea189854098b9658a5b156a16472088",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1205,7 +1205,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "92c9ee88d8f3207777b0eebdbbe5c8d8127faee4e31d623c348495d8a0b78949",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706150000_d6_4c_1_pre_close_review_queue.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1221,7 +1221,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "280967099e4ed7eead61faecd636e4ef2ee81aba08a9a48fd2e26decaca57017",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1237,7 +1237,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a719b16fe62455550d872d115673d61073a7e31c72f9d6a4bd9ef32ab66ecac4",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1253,7 +1253,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "dbddc26f4d0a8a18684a0788fde63da4054f2078ff20e5f3f777a0a1a96c48e7",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1269,7 +1269,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4c6913b9f0837bf68c00d13f7c86ac846b7b2892ae7dffcdebb08222907856b9",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1285,7 +1285,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f0329648371a52d5191c7f62f2231913566dc6922b173f9aeb610311241709db",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1301,7 +1301,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5549aa9da8bc23f02fba467e22b1c261183c3720ace1a1c123d0d1e4d34faeae",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707150000_d_assertions_part_4_je_propagation.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1317,7 +1317,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "490a33c6510bb2633d6c6b5e5e9520e7b434b3a98a5f0dd909b612829a498cb8",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707160000_d_assertions_part_5_gap_review_items.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1333,7 +1333,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1d8931a31fdde3205166968491f5b625344676899ec3117a585c2ec026afd92d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707170000_d_assertions_part_6_manual_test_evidence.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1349,7 +1349,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f3fd21c8ac5804c0cfe9809f80741430ec81c82fd3c340c949e70961ea747ee3",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260715180000_mfa_enrollment.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1365,7 +1365,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "34c7502961d1c2097a9ba60e8a5c4ac51a62d447fac3b0684c12b274f4fc7c44",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260715190000_mfa_webauthn_and_trusted_devices.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1381,7 +1381,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "6ce5b0ff4f043873652e940ef21e3e1abb4ba9ec31f0fb60c96a6f5565fbaaf3",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1397,7 +1397,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "847bb4b15858d4f28c32b2df4378c440c53516fce9ad6878cce8c12e307767bc",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260716010000_add_qbo_cdc_tables.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1413,7 +1413,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "cf8f84e5745d547e9e4a67e7c15e684c3ec047e1e20efbb9fc335f575abf01d9",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260716_00_d6_5_part1_1_firm_clients_slug.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1429,7 +1429,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "fcf3927cb49464692818fe8d437a6a7fd5157e785ab921f8dc8611dbbdf699c0",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717010000_d65_p2_block1_visual_fingerprint.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1445,7 +1445,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "6db2a3b12be9b24dd42002922ad5f3e9e83eac97541ca6265ec2ac4f290376b6",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260707214500_d65_p2_block7a2_prepilot_security.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1461,7 +1461,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5e64e9f8a65921570d60c28c29242bf6908e28c54f88bccfa03248d600b3398a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717020000_d65_p2_block2_vendor_mirror.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1477,7 +1477,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "6a56ac8a141c93309f764bcddb91cb981d21d88f56498f94c281af60a2b43421",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717030000_d65_p2_block3_quarantine_l3.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1493,7 +1493,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "ada4ae6f7fbde48bd5e717ec5e24a5bb2ef5038a35a7f8f168c7c02bc3182d03",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717040000_d65_p2_block4_duplicate_detection.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1509,7 +1509,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "ac47c4df18d1217152040c137d6c1f2dd51c3431a7bcbb076bec869db5b8688a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1525,7 +1525,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "754b7d838aea9233d3dbe6dd248991e6e2853df8395ed490c77c6398da934902",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1541,7 +1541,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1bf0d700d3c6f036e9472758da37021540712d7cc70aef8ce64b9c256dc380ba",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1557,7 +1557,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4f1bb48f17d49713aec6b717f5cbdcbbaaec36770201c5a249bbdebea37a2fe7",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1573,7 +1573,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "70ac1b0f4f2ff25ee018e22495cc392e433811b2fd980470c2a23dbd30b2c6c8",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717090000_d65_p2_block7a_credits_prepayment.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1589,7 +1589,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b203c38fdaba039dec4b3b645d410e2eb467f194fe83884b981720467ff970a5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717100000_d65_p2_block7b_multimodal_inbox.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1605,7 +1605,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "d6333979266b3c1671ebd8bfc36cb9a29d594a276393728ba8a6cf89ebecc55c",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717110000_d65_p2_block8a_interlock_rails.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1621,7 +1621,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5afbc421fec6547e1fa428b62e12ae56bb5f2de5e22713d852d6b9f22a36ef08",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717120000_d65_p2_block8b_presets_selfgov.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1637,7 +1637,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "3fdde5ed05541f6f84f09908f5437240b5af1d8eadca4ef8e2e3c9dcc494ff9d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1653,7 +1653,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "64769761cf17f867654b375b026a2a752d9f751f77e9fd3be5c2ae250c5bb51e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718000000_intuit_webhook_events.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1669,7 +1669,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "ecf625db686b107d9a9e2084b2a56fc1fa1fa88b6039f034afab74a2001a5471",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718010000_mc1_home_currency.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1685,7 +1685,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "83829fe71d99a7c5a9d26ea8f6de31fe606a5e802b31cd0f78326da384b9d4dd",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718020000_mc3_je_posting_audit_currency.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1701,7 +1701,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "bfcb98521e468bc6461a696c19882855efa896b06a4b9ecfb7d10073cea40024",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718030000_mc4c_payment_batch_lines_currency.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1717,7 +1717,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f88c20493fef03d1a049f3fd3699b2c3d2e473c77c0180bcd1e6d330f0fa6395",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718040000_q7_qbo_edition.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1733,7 +1733,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "0927c424b345079a583deef317412d8162419edb5f23d18974d23d8c080204bc",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718180000_q8a_qbo_view_security_invoker.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1749,7 +1749,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f334d4225800c09746327ed210cbd3c838256ea41a486e082e584822936c5522",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718190000_q8b_function_search_path_lockdown.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1765,7 +1765,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "97fb3c5fa7ac1bd6d07b10ce5acc3103f8b428b312a0a4748a78d09d5ba6ee82",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718200000_q8c_security_definer_rpc_revoke.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1781,7 +1781,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "0f005153e9a58743b9197c1c9283d27bbc7b11986e5486503bc640ad1d5b16ba",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718200000_support_ticket_intuit_context.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1797,7 +1797,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "50ca777a849e478b8872de5f56ac96cf5bfee5461a356a15e1f628809832883a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718210000_q8d_vector_schema_move.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1813,7 +1813,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "34835e50622cf22d5041a4031c582fb4124d867021bc5e34607a8e9601724f2d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260718220000_q8e_rls_service_role_policies.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1829,7 +1829,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5887573f2955d5a2e53f823300514b2fc472eb695e08780ae3005437244bc0c3",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260719000000_support_auto_file_engine.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1845,7 +1845,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "1fe716c5241b8fc664d70a213158fce7767f95e717ca08a1144b23a472994e87",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260719050000_gap3_je_approval_flow.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1861,7 +1861,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "7f9209e9701011966f9dec8220c0bd06794f5873e2537735fc867502f5da4ea2",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260719060000_gap2_subscription_lifecycle_purge.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1877,7 +1877,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "ddbaaa81d754eef1b9a7658fd8b2ad2e80e51c78d6c2ec12185f95f75f8c60b8",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720000000_v1_5_audit_ready_engagement_state.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1893,7 +1893,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "223e99d66cd5122cba9a3398eb3a82ae65d37ba7788386849399a61faff5a9a0",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1909,7 +1909,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f3498a57bcadde7cc49634905a40e588d3f33dfd2cafc6d6b92925d0e1b49e0a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1925,7 +1925,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a61ba037c0bbe3eb433d4d4b738c4b29d410b7b71023fd85f6bfb971594f831f",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1941,7 +1941,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "d39acf048039bb5a184621da55ff094fb1f115f49d22fc31e1874bee14189730",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720150000_pulse_je_reliability_basis.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1957,7 +1957,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "67dd5b66c04ed59c7921668446eca01e2d69ec55dc9e5d3fc4c0031bd4f0b52e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720160000_ar_tieout1_policy_and_kind.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -1973,7 +1973,7 @@
       "replacementGitBlobId": "b5619499e1416bef7a2d47f363877a1caacc7f82",
       "assembledSha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720170000_ar_tieout2_runs_and_variances.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Git CREATE OR REPLACE VIEW inserts columns before tie_out_state (42P16). Exact production schema_migrations 20260720212538 statements[1] uses DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW + security_invoker=true."
     },
     {
@@ -1989,7 +1989,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "fefac34d5e8e04c22da5aadd6f0d29cf131d3980144b1d628ab6d4e6ad59ba1d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260720180000_tieout3_grni_binding.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2005,7 +2005,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a89a35b9775d4c814ce8870cd261cb75ed1ad9c7647bd7dcf7b2b574f0886a09",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260721000000_audit_ready_tie_out_variance_evidence.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2021,7 +2021,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "275fca7222db52579b8bec3875770f060d0a6c7f423adee38c70f17b1c7f9b40",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2037,7 +2037,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "0a48773841aba9f985319541577988737a49a68f130ceec6ff079fd1ef51d836",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2053,7 +2053,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "606b05402d4a36cc1ce9c4e3f68b65f7380f66f973e9e6ba9c7e67d70b1debb6",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260721160000_ar_tieout4b3_bs_recon_summary.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2069,7 +2069,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b19b2cfdc366534e2c1731a8aee8595a63cda80eea85e7643628b3233123046d",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2085,7 +2085,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "901334922fb847ed945a5c753a5e1a29c5b059c8098424492925cb010c67c1a8",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2101,7 +2101,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "7df93c134532dcc28764aa1bc546a9b5c5734a062d49646aea3f17781f1c88b0",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2117,7 +2117,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a01fbaf194d42ff9a49251b7bee474250f3ea8441d0d0094097e2934daf6845b",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260723050000_audit_ready_cron_runs.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2133,7 +2133,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b1112f879ff08fee45df1ef4e1829bec4ac0d556fe21270c52c45fb9d210e105",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260724010000_kickout_investigations.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2149,7 +2149,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "02d80492889f6367d8bac5b99b4bbab20becf594f8f64076e182e7a7ed837542",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260724020000_kickout_dedupe_rpcs.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2165,7 +2165,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "d1c99b5b7ccf15f75a54f00c7d1267ee16de186a90243cf1e20c926db56dccde",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260724030000_ar_tieout412a_kind_reconcile.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2181,7 +2181,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "e0b36b21b3f17ca9e72374bc4ceb56b55e4e49845ce8c47af0960de1d95490f4",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260724030100_ar_tieout412a_run_artifacts.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2197,7 +2197,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "484e4b4715263b094b6228c48f114b2e6fe4d738ef600224fafc5e096c1d9706",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260724220000_ar_tieout412b_raw_qbo_payload.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2213,7 +2213,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "bf1f662226baed5cc6d418ec37f75719b22c60c025b1af2e23cdaae189916f0e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260725050000_ar_tieout420a_resolution_code.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2229,7 +2229,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "0f7b172a907f1272b2da8b7468957634bf3cd2b706516f9e362c39086affa800",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2245,7 +2245,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "dd2dea8a3305614e2b7a1ca2613ee3a2190c8dd8fd08b900c4c015c9cfc9ff9c",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260725060000_ar_tieout42_memory_events.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2261,7 +2261,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "dbcfb1b04746d089fbf278404a1834a3ecb0429aea91a82be2858dcd06948caa",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260727000100_users_auth_trigger_single_writer.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2277,7 +2277,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "16b05d18d0592d42c672a189e562a3c10d8689b5d28760039b83408ae5f9358a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804213003_pilot_lifecycle_events.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2293,7 +2293,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "009933a8089b5de1f36b7911f742fc314738653eff60a89bca6914396cb51f2e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2309,7 +2309,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a5b9ae8ac157fd87749bdb6e6fcb2205cd7b6b1e47218c81c3a256a1e4944c47",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2325,7 +2325,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f2c2de7e507ad632f5d2ff15c65fe97d609569db9946ddecdfa6d27aba4139a5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2341,7 +2341,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "03d3b6f9dbab92225c458ffc140e4ab4e09544d7fa86b61a084c888751bdf391",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2357,7 +2357,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "925299e3be1dafe4b1001bf3b162d3769b2b851fa1d52609feff128d6a4feb63",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260804234230_lifecycle_issues.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2373,7 +2373,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "71efb943b4f58f34d70624acc7ca7da7bd951861becc862bd903735e0172285f",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260805005320_pilot_lifecycle_anchors.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
@@ -2389,7 +2389,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "63c36b1ee9693f957914c1e5d480da9e390a383a54a1823165bbc2d0c122893e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260805041500_major_1_rpc_lockdown.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2405,7 +2405,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "59ab909e124eefc3d71c3adb3e573964a80032e60295717b2ea055e76357ccd4",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260805054000_schema_drift_issue_policies.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2421,7 +2421,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "52d9c0053a63802cce7de0545a4159bb6c92f0b1f34f5d8a0602c15726a53c04",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260805210000_schema_drift_scanner_issue_kinds.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2437,7 +2437,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "25644fdc2af8e289f57e6c6b99c3dc4da3a9a6925a89adcf1be565e09b249f95",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260805211000_sp_list_public_columns_jsonb.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2453,7 +2453,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "59b89c9b6c3ad18341d671f22f45ed2ba667760350e4443495306980b8415ffd",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2469,7 +2469,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b839ee715d2f2306d478e233e9ed5add40f004be0907b84d5287fa9a136300ea",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260806032000_lifecycle_issues_schema_drift_checks.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2485,7 +2485,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "9ea300b92453382d4c08e21038002a467688ec6300a38985376a6dcd9dfd271a",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260806040000_major_2_3_block_a_assertion_linkage.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2501,7 +2501,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4e97d141c6434738a54d9582126fe329063b4fbb2ec3895e8f5b7364e88e2cf1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260806042000_major_2_3_block_a_1_research_revision.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2517,7 +2517,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "599506ca555a059d765d896c60b630af27ef0651f62cc24671b7b244a3e88d81",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260809083000_companies_tenant_identity_columns.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2533,7 +2533,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f0890ba1309cbb6663159549bb8eb85e6aeac3cd3890735ed184bac60efb5a98",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260810070000_dash_1c_a_accuracy_contract_cache.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2549,7 +2549,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "70e9d6023e42e3e6b6a22b46c5b992d92321cc3f3281415a8f630c1b601b4c61",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260810070050_dash_1c_a_widen_provenance.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2565,7 +2565,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "72004b606b1daa582f7bc3a4740f05bcdd228004ba4f2fe76ff1e56a1a10fb75",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2581,7 +2581,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "ece1e95ff54d1f1a3e539124e4af5e420804ecaec4d33c0e04acc389808fa582",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260813220000_accounting_connection_supersession.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2597,7 +2597,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "6e999f9f0c9f816fc4e00ed623bcb8761f6d9081849f692bf93a73a8521879b8",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260814060000_accounting_superseded_credential_retirement.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2613,7 +2613,7 @@
       "replacementGitBlobId": "ddfebca20c83efe04384bb24e3f41460e4b174b5",
       "assembledSha256": "37ea392a70211bdb93dae25079490b264802f74ab57427afe61697cbbc1c6e9c",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260814221500_accounting_canonical_connected_grant.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": "Prod Demo Xero RAISE/UPDATE body omitted for data-less replay; partial UNIQUE connected-grant index retained."
     },
     {
@@ -2629,7 +2629,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "c8bbc1204e7cd208f47245673d2d6953f1a2339113306be9988c79f5d55da3c5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260815000000_urm2_reconciling_items_persistence.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2645,7 +2645,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "61e3b1ea2165030c35f9f6087907aedcca46391da5b095fb9e452d0377df4c74",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260815120000_urm3_universal_evidence_spine.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2661,7 +2661,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "5c8f88dde1a4a9012ec3e9d11646da42a7c889e948b800679486181c6aa04474",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260815130000_urm3_hash_normalization_order.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2677,7 +2677,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "b95a5d6ec68a4108a6cb935838fd16f61367c264584282354e32aa8684a621f1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260815140000_urm3_storage_requires_hash_not_null.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2693,7 +2693,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4716f6411d8fdfc1f97df02240cb83928dae3f84709921bcd13ca67a2c928f34",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260818020716_accounting_measurement_snapshots.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2709,7 +2709,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f71c2fcb7e6c7c13d80b6b70cbec5afa3211e36278e04d38487fe144d7c98fea",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2725,7 +2725,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "8e3295230d9d9212671ea9c2b7ea4724a689d7d2864d91fbc062539a94295b2b",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2741,7 +2741,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "af33032eef23611a6da54a4713e6a88e8cd4d4f0b6247d5e4323bdeeeddbd058",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260819045253_continuous_close_runs.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2757,7 +2757,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "16da54e9a972aa0f832efba8d65e052309aee10943030e2548b1539680927967",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260820233219_journal_entry_proposals.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2773,7 +2773,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "39698066bf22bf440b2774e5b32f0c2a409fafbe6b511d0b3a83044d8ba4aa13",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821042800_journal_entry_approvals.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2789,7 +2789,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "3212b9994574d27844cdf3dbde6997a951d0d91f455a40c3b9323eeabab4c4d3",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821183525_journal_entry_executions.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2805,7 +2805,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "e9ae0929589c78648311355cddbad04ff7e2d85f70694e50ab24a01ff9e22cd1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821212020_journal_entry_provider_attempts.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2821,7 +2821,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "a944edfc18d48e0818df5216d40128da4a711a6186ffa49a358c54395379217f",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821220646_journal_entry_provider_discovery_receipts.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2837,7 +2837,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "9f4a8b7bf4b878c041d31760aebf66259ce1d18365a9d29688254cd9a2ee26fc",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2853,7 +2853,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "602af5130222d534622887a2de03e97cb3a690716d6931f10d54d41964e2a5c1",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260821222342_journal_entry_provider_attempt_initial_custody.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2869,7 +2869,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4026f972e25168fdd0573e4279616e795102d2c1b46ff4a57b0d90d9f79c3ab2",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2885,7 +2885,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "008d0380e5b4ee1dc6120d2fa4c3811f03985364c4f233552e973c9a5d9b0abc",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260822050000_journal_entry_verified_readback.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2901,7 +2901,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "df2056c0496c9c3b2d5b7cd11ff5163e4a08c82adb28664c07bf8ec619c658ce",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260822200000_je3d_sandbox_activation_identity.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2917,7 +2917,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "f288de68b35819f4ae31ba16588e13d689d2f5f72c9ecbfdd679639660ab7fb5",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2933,7 +2933,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "4f9d11b7bb6efe66fc744f450057366c38294e8ff88cf7aff1da608b0d69c82e",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     },
     {
@@ -2949,7 +2949,7 @@
       "replacementGitBlobId": null,
       "assembledSha256": "0aa6d802717b29df0f84c689d5e646a037da62f6f2caaff75bc171cc6c6d13b2",
       "assembledRepoPath": "supabase/migrations-draft/option-d-isolated-replay/assembled/2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
-      "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc",
+      "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
       "justification": null
     }
   ],

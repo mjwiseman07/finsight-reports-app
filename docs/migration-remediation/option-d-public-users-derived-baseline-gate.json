@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T18:55:46.703Z",
+  "generatedAt": "2026-09-06T18:56:40.299Z",
   "gate": "option_d_public_users_derived_baseline",
   "ok": true,
   "failureCount": 0,
@@ -10,5 +10,5 @@
   "unresolvedCount": 0,
   "authority": "git_cat_file_blob",
   "gitBlobId": "a6a0198d054f099d4912235a66b83e4999f9ba8b",
-  "sourceCommit": "459974869b72afd88db994c7c9ed7bd3272f77bc"
+  "sourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4"
 }

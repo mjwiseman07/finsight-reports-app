@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T22:26:22.160Z",
+  "generatedAt": "2026-09-06T18:53:53.135Z",
   "g2SecondReplay": {
     "status": "FAILED_AT_MIGRATION_25",
     "migrationsRecorded": 25,
@@ -15,12 +15,12 @@
     "jeStackReached": false
   },
   "summary": {
-    "localMigrationCount": 169,
+    "localMigrationCount": 170,
     "productionMigrationCount": 185,
     "classificationCounts": {
       "schema": 83,
       "mixed": 69,
-      "reference_seed": 4,
+      "reference_seed": 5,
       "backfill": 12,
       "operational_data_activation": 1
     },
@@ -31,7 +31,7 @@
       "skip_on_empty_guarded": 1,
       "prod_tenant_backfill_noop_on_empty": 1,
       "prod_only_operational": 1,
-      "required_reference_seed": 3
+      "required_reference_seed": 4
     },
     "blockersCount": 6,
     "firstCleanReplayBlocker": {
@@ -1693,6 +1693,15 @@
       "filename": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
       "version": "20260826043000",
       "name": "journal_entry_provider_attempt_reuse_posting_started",
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+      "version": "20260906184500",
+      "name": "publish_ledger_event_extensions_digest_qualify",
       "classification": "reference_seed",
       "cleanReplayPolicy": "required_reference_seed",
       "tenantUuids": []

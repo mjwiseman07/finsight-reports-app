@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T20:41:56.127Z",
+  "generatedAt": "2026-09-06T18:54:15.130Z",
   "replayTrack": "option_d_isolated_candidate",
   "ok": true,
   "mergeReady": true,
@@ -26,7 +26,7 @@
   "prMergeReady": false,
   "violationCount": 0,
   "blockingViolations": [],
-  "assembledCount": 150,
+  "assembledCount": 151,
   "substitutions": 7,
   "scopes": {
     "isolatedCandidateLineage": "PASS_STATIC",

@@ -1,5 +1,5 @@
 {
-  "consumeCount": 215,
+  "consumeCount": 216,
   "createIdentityCount": 95,
   "requiredMissingCount": 0,
   "uniqueRequiredMissingIdentities": [],
@@ -721,6 +721,11 @@
           "file": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
           "role": "post_phase1_local",
           "order": 61
+        },
+        {
+          "file": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+          "role": "post_phase1_local",
+          "order": 150
         }
       ]
     },
