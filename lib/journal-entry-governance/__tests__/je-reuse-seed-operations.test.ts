@@ -24,6 +24,8 @@ const SAMPLE_CTX = {
   ids: {
     user: "aaaaaaaa-0101-4101-8101-000000000101",
     company: "aaaaaaaa-0103-4103-8103-000000000103",
+    firm: "aaaaaaaa-0102-4102-8102-000000000102",
+    firmClient: "aaaaaaaa-0112-4112-8112-000000000112",
     engagement: "aaaaaaaa-0104-4104-8104-000000000104",
     connection: "aaaaaaaa-0105-4105-8105-000000000105",
     sync: "aaaaaaaa-0106-4106-8106-000000000106",
@@ -42,6 +44,9 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(JE_REUSE_SEED_PHASE_NAMES).toEqual([
       "seed_auth_users",
       "seed_companies",
+      "seed_firms",
+      "seed_firm_clients",
+      "seed_engagements",
       "seed_audit_ready_engagements",
       "seed_accounting_connections",
       "seed_accounting_syncs",
@@ -53,6 +58,37 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(JE_REUSE_SEED_OPERATIONS.map((o) => o.name)).toEqual([
       ...JE_REUSE_SEED_PHASE_NAMES,
     ]);
+  });
+
+  it("seeds ledger engagements parent before audit_ready / proposal / approval / RPC use", () => {
+    const names = [...JE_REUSE_SEED_PHASE_NAMES];
+    const ledgerEngagementIdx = names.indexOf("seed_engagements");
+    const auditReadyIdx = names.indexOf("seed_audit_ready_engagements");
+    const proposalIdx = names.indexOf("seed_journal_entry_proposals");
+    const approvalIdx = names.indexOf("seed_journal_entry_approval_primary");
+    expect(names.indexOf("seed_firms")).toBeLessThan(names.indexOf("seed_firm_clients"));
+    expect(names.indexOf("seed_firm_clients")).toBeLessThan(ledgerEngagementIdx);
+    expect(ledgerEngagementIdx).toBeGreaterThan(-1);
+    expect(ledgerEngagementIdx).toBeLessThan(auditReadyIdx);
+    expect(auditReadyIdx).toBeLessThan(proposalIdx);
+    expect(proposalIdx).toBeLessThan(approvalIdx);
+
+    const eng = JE_REUSE_SEED_OPERATIONS.find((o) => o.name === "seed_engagements");
+    const ar = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_audit_ready_engagements",
+    );
+    expect(eng.params(SAMPLE_CTX)[0]).toBe(SAMPLE_CTX.ids.engagement);
+    expect(ar.params(SAMPLE_CTX)[0]).toBe(SAMPLE_CTX.ids.engagement);
+    expect(eng.sql).toMatch(/INSERT INTO public\.engagements\b/);
+    expect(ar.sql).toMatch(/INSERT INTO public\.audit_ready_engagements\b/);
+    // FK prerequisites for ledger_events scope (firm + firm_client + engagement).
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "seed_firms",
+        "seed_firm_clients",
+        "seed_engagements",
+      ]),
+    );
   });
 
   it("every seed query is exactly one executable statement with matching params", () => {
@@ -111,16 +147,62 @@ describe("JE_REUSE seed operations (non-database)", () => {
       runJeReuseSeedOperations({}, SAMPLE_CTX, { query }),
     ).rejects.toMatchObject({
       code: "23505",
-      jeReuseSeedPhase: "seed_audit_ready_engagements",
+      jeReuseSeedPhase: "seed_firms",
     });
     expect(calls).toHaveLength(3);
     expect(
       JE_REUSE_SEED_OPERATIONS.slice(0, 3).map((o) => o.name),
-    ).toEqual([
-      "seed_auth_users",
-      "seed_companies",
-      "seed_audit_ready_engagements",
-    ]);
+    ).toEqual(["seed_auth_users", "seed_companies", "seed_firms"]);
+  });
+
+  it("named seed failure fails closed with phase; rollback leaves zero residual expectation", async () => {
+    const client = {
+      connect: vi.fn(async () => {}),
+      query: vi.fn(async (sql) => {
+        if (String(sql).includes("BEGIN")) return { rows: [] };
+        if (String(sql).toUpperCase().includes("CREATE")) return { rows: [] };
+        if (String(sql).includes("ROLLBACK")) return { rows: [] };
+        return { rows: [] };
+      }),
+      end: vi.fn(async () => {}),
+    };
+    const seedErr = Object.assign(new Error("dup"), {
+      code: "23505",
+      jeReuseSeedPhase: "seed_engagements",
+    });
+    const result = await runJeReuseDisposableSetup({
+      databaseUrl: "postgresql://u:p@127.0.0.1:54322/postgres?sslmode=disable",
+      migrationPath: "/tmp/fake.sql",
+      Client: function FakeClient() {
+        return client;
+      },
+      resolveConfig: async () => ({
+        ok: true,
+        config: {
+          connectionString:
+            "postgresql://u:p@127.0.0.1:54322/postgres?sslmode=disable",
+          ssl: false,
+          transport: "plaintext_loopback",
+        },
+      }),
+      readFileSync: () => "CREATE TABLE IF NOT EXISTS t(id int);",
+      seedFixture: async () => {
+        throw seedErr;
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.phase).toBe("seed_engagements");
+    expect(result.sqlstate).toBe("23505");
+    expect(result.rolledBackOnFailure).toBe(true);
+    expect(result.client).toBeNull();
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+    expect(() => requireJeReuseSetup(result)).toThrow(/seed_engagements/);
+    try {
+      requireJeReuseSetup(result);
+    } catch (e) {
+      expect(String(e.message)).not.toMatch(/skipped/i);
+      expect(e.code).toBe("23505");
+    }
   });
 
   it("setup failure records named seed phase, rolls back, and cannot appear as skipped", async () => {
@@ -209,14 +291,22 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(values[7]).not.toBe(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval);
   });
 
-  it("suite seedFixture uses JE_REUSE_SEED_IDEMPOTENCY_KEYS (no g-repeat)", () => {
+  it("suite seedFixture passes firm/firmClient and uses JE_REUSE_SEED_IDEMPOTENCY_KEYS (no g-repeat)", () => {
     const suiteSrc = readFileSync(
       join(__dirname, "execution-reservation.postgres.integration.test.ts"),
       "utf8",
     );
     expect(suiteSrc).toContain("JE_REUSE_SEED_IDEMPOTENCY_KEYS");
+    expect(suiteSrc).toMatch(/firm:\s*IDS\.firm/);
+    expect(suiteSrc).toMatch(/firmClient:\s*IDS\.firmClient/);
+    expect(suiteSrc).toMatch(/engagement:\s*IDS\.engagement/);
     expect(suiteSrc).not.toMatch(/approval2:\s*`\$\{"g"\.repeat\(64\)\}`/);
     expect(suiteSrc).not.toMatch(/approval2:\s*"g"\.repeat\(64\)/);
+    // Test A governed reservation expectations unchanged (still calls persist RPC).
+    expect(suiteSrc).toMatch(
+      /A\.\s*first reservation inserts row \+ execution_requested receipt/,
+    );
+    expect(suiteSrc).toMatch(/persist_journal_entry_execution_reservation/);
     const mig = readFileSync(
       join(
         __dirname,
@@ -230,6 +320,27 @@ describe("JE_REUSE seed operations (non-database)", () => {
     expect(mig).not.toMatch(
       /DROP CONSTRAINT\s+journal_entry_approvals_idempotency_key_check/i,
     );
+  });
+
+  it("documents ledger_events_engagement_id_fkey → public.engagements (SQLSTATE 23503)", () => {
+    const foundation = readFileSync(
+      join(
+        __dirname,
+        "../../../supabase/migrations/20260706120000_d_platform_event_sourced_foundation.sql",
+      ),
+      "utf8",
+    );
+    expect(foundation).toMatch(
+      /engagement_id\s+UUID\s+REFERENCES\s+public\.engagements\(id\)\s+ON DELETE RESTRICT/,
+    );
+    // Postgres foreign_key_violation class — used when parent engagements row is absent.
+    expect("23503").toMatch(/^23503$/);
+    const seedSrc = readFileSync(
+      join(__dirname, "je-reuse-seed-operations.js"),
+      "utf8",
+    );
+    expect(seedSrc).toMatch(/ledger_events_engagement_id_fkey/);
+    expect(seedSrc).toMatch(/public\.engagements/);
   });
 
   it("invalid seeded key fails closed before SQL and remains a SETUP failure with rollback", async () => {

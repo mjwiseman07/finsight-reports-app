@@ -54,8 +54,12 @@ describe("publish_ledger_event pgcrypto digest qualification (static)", () => {
       /CREATE\s+(OR\s+REPLACE\s+)?FUNCTION\s+public\.digest\b/i,
     );
     // Unqualified digest call must not remain in the remediated body.
+    // Strip qualified calls first so substring "digest(" inside extensions.digest
+    // cannot false-match (EXT_DIGEST / lookbehind-i pitfalls).
     const body = src.slice(src.indexOf("AS $fn$"), src.indexOf("$fn$;"));
-    expect(body).not.toMatch(/(?<!extensions\.)digest\s*\(/);
+    const withoutQualified = body.replace(/extensions\.digest\s*\(/gi, "");
+    expect(withoutQualified).not.toMatch(/\bdigest\s*\(/i);
+    expect(body).toMatch(/extensions\.digest\s*\(/);
   });
 
   it("fail-closed contract: remediation depends on extensions.digest existing", () => {

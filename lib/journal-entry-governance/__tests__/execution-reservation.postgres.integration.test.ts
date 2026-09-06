@@ -114,6 +114,8 @@ async function seedFixture(client: pg.Client) {
     ids: {
       user: IDS.user,
       company: IDS.company,
+      firm: IDS.firm,
+      firmClient: IDS.firmClient,
       engagement: IDS.engagement,
       connection: IDS.connection,
       sync: IDS.sync,
