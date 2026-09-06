@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  prepareGovernedJournalEntryExecution,
-  type PrepareJeExecutionDeps,
-} from "../execution-service";
+  createDefaultJeExecutionInternalDeps,
+  prepareGovernedJournalEntryExecutionInternal,
+  type PrepareJeExecutionInternalDeps,
+} from "../execution-prepare-internal";
+import { prepareGovernedJournalEntryExecution } from "../execution-service";
 import {
   DEFAULT_JE_EXECUTION_POLICY,
   JE_EXECUTION_ERROR,
@@ -131,13 +133,13 @@ function accountsMap() {
   ]);
 }
 
-function makeDeps(over: Partial<PrepareJeExecutionDeps> = {}): PrepareJeExecutionDeps {
+function makeDeps(over: Partial<PrepareJeExecutionInternalDeps> = {}): PrepareJeExecutionInternalDeps {
   const proposal = baseProposal();
   const approval = baseApproval();
   let reserved: JournalEntryExecutionRow | null = null;
   let transitioned: JournalEntryExecutionRow | null = null;
 
-  const deps: PrepareJeExecutionDeps = {
+  const deps: PrepareJeExecutionInternalDeps = {
     loadProposal: async () => proposal,
     loadApproval: async () => approval,
     resolveActor: async ({ userId }) => ({
@@ -263,9 +265,9 @@ function makeDeps(over: Partial<PrepareJeExecutionDeps> = {}): PrepareJeExecutio
   };
 
   // expose for assertions
-  (deps as PrepareJeExecutionDeps & { _getReserved: () => JournalEntryExecutionRow | null })._getReserved =
+  (deps as PrepareJeExecutionInternalDeps & { _getReserved: () => JournalEntryExecutionRow | null })._getReserved =
     () => reserved;
-  (deps as PrepareJeExecutionDeps & { _getTransitioned: () => JournalEntryExecutionRow | null })._getTransitioned =
+  (deps as PrepareJeExecutionInternalDeps & { _getTransitioned: () => JournalEntryExecutionRow | null })._getTransitioned =
     () => transitioned;
   return deps;
 }
@@ -276,7 +278,7 @@ const policy: JeExecutionPolicy = { ...DEFAULT_JE_EXECUTION_POLICY };
 describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   it("happy path → READY_TO_POST with events and null provider_journal_id", async () => {
     const deps = makeDeps();
-    const result = await prepareGovernedJournalEntryExecution(
+    const result = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -302,7 +304,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         );
       },
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "missing", approvalId: "appr-1" },
       ctx,
       policy,
@@ -340,7 +342,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
           return approval;
         },
       });
-      const r = await prepareGovernedJournalEntryExecution(
+      const r = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -352,7 +354,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
   it("6-8. caller cannot override company/connection/realm", async () => {
     const deps = makeDeps();
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       {
         proposalId: "prop-1",
         approvalId: "appr-1",
@@ -370,7 +372,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   // --- APPROVAL VALIDITY ---
   it("9. valid approval accepted", async () => {
     const deps = makeDeps();
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -395,7 +397,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
           },
         }),
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -432,7 +434,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         );
       },
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -461,7 +463,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         );
       },
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -473,14 +475,14 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   // --- EXECUTOR AUTH ---
   it("15-16. verified user required; system principal denied", async () => {
     const deps = makeDeps();
-    const noUser = await prepareGovernedJournalEntryExecution(
+    const noUser = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       { principal: { type: "user", userId: "" } },
       policy,
       deps,
     );
     expect(noUser.ok).toBe(false);
-    const system = await prepareGovernedJournalEntryExecution(
+    const system = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       { principal: { type: "system" as never, userId: EXECUTOR } },
       policy,
@@ -501,7 +503,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         scope: "firm",
       }),
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -512,7 +514,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   });
 
   it("19-20. executor same as proposer/approver denied by default", async () => {
-    const asProposer = await prepareGovernedJournalEntryExecution(
+    const asProposer = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       { principal: { type: "user", userId: PROPOSER } },
       policy,
@@ -526,7 +528,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
       ).toBe("FAIL");
     }
 
-    const asApprover = await prepareGovernedJournalEntryExecution(
+    const asApprover = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       { principal: { type: "user", userId: APPROVER } },
       policy,
@@ -544,7 +546,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
       requireExecutorDifferentFromProposer: false,
       requireExecutorDifferentFromApprover: false,
     };
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       { principal: { type: "user", userId: PROPOSER } },
       relaxed,
@@ -565,7 +567,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         );
       },
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -582,7 +584,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         resolvedVia: "firm" as const,
       }),
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -593,7 +595,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
   // --- CONNECTION ---
   it("26-30. canonical connection; wrong/unhealthy/non-qbo rejected", async () => {
-    const bad = await prepareGovernedJournalEntryExecution(
+    const bad = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -608,7 +610,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
     );
     expect(bad.ok).toBe(false);
 
-    const provider = await prepareGovernedJournalEntryExecution(
+    const provider = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       { ...policy, provider: "xero" as never },
@@ -621,7 +623,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   it("31-38. precheck gates", async () => {
     const cases: Array<{
       name: string;
-      over: Partial<PrepareJeExecutionDeps>;
+      over: Partial<PrepareJeExecutionInternalDeps>;
       failCode: string;
     }> = [
       {
@@ -732,7 +734,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
       if (c.name === "origin") {
         // already set
       }
-      const r = await prepareGovernedJournalEntryExecution(
+      const r = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         c.name === "origin"
@@ -754,14 +756,14 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
   // --- IDEMPOTENCY ---
   it("47-49. duplicate prepare returns existing; no second event", async () => {
     const deps = makeDeps();
-    const first = await prepareGovernedJournalEntryExecution(
+    const first = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
       deps,
     );
     expect(first.ok).toBe(true);
-    const second = await prepareGovernedJournalEntryExecution(
+    const second = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -778,7 +780,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
     const EXEC_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     const EXEC_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
-    function makeReuseDeps(over: Partial<PrepareJeExecutionDeps> = {}) {
+    function makeReuseDeps(over: Partial<PrepareJeExecutionInternalDeps> = {}) {
       let call = 0;
       return makeDeps({
         newId: () => {
@@ -791,7 +793,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
     it("1-6. exact duplicate returns EXEC-A marker/preview; not discarded EXEC-B", async () => {
       const deps = makeReuseDeps();
-      const first = await prepareGovernedJournalEntryExecution(
+      const first = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -808,7 +810,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         `ADVJE:${EXEC_B}`,
       );
 
-      const second = await prepareGovernedJournalEntryExecution(
+      const second = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -839,7 +841,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
     it("7. same approval + changed execution policy → binding conflict", async () => {
       const deps = makeReuseDeps();
-      const first = await prepareGovernedJournalEntryExecution(
+      const first = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -851,7 +853,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         ...policy,
         maxExecutionAmountCents: 999,
       };
-      const second = await prepareGovernedJournalEntryExecution(
+      const second = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         changed,
@@ -864,14 +866,14 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
     it("8-10. same approval + changed connection → binding conflict", async () => {
       const shared = makeReuseDeps();
-      const a = await prepareGovernedJournalEntryExecution(
+      const a = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
         shared,
       );
       expect(a.ok).toBe(true);
-      const b = await prepareGovernedJournalEntryExecution(
+      const b = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -887,13 +889,13 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
 
     it("11. same approval cannot create second execution row", async () => {
       const deps = makeReuseDeps();
-      const first = await prepareGovernedJournalEntryExecution(
+      const first = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
         deps,
       );
-      const second = await prepareGovernedJournalEntryExecution(
+      const second = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -907,13 +909,13 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
     it("12. concurrent exact same logical → one row / reuse existing binding", async () => {
       const deps = makeReuseDeps();
       const [r1, r2] = await Promise.all([
-        prepareGovernedJournalEntryExecution(
+        prepareGovernedJournalEntryExecutionInternal(
           { proposalId: "prop-1", approvalId: "appr-1" },
           ctx,
           policy,
           deps,
         ),
-        prepareGovernedJournalEntryExecution(
+        prepareGovernedJournalEntryExecutionInternal(
           { proposalId: "prop-1", approvalId: "appr-1" },
           ctx,
           policy,
@@ -936,7 +938,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
       const sharedStore: { reserved: JournalEntryExecutionRow | null } = {
         reserved: null,
       };
-      const persist: PrepareJeExecutionDeps["persistReservation"] = async (
+      const persist: PrepareJeExecutionInternalDeps["persistReservation"] = async (
         input,
       ) => {
         if (
@@ -980,14 +982,14 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
           connection({ id: "conn-race-other" }) as never,
       });
 
-      const first = await prepareGovernedJournalEntryExecution(
+      const first = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
         depsA,
       );
       expect(first.ok).toBe(true);
-      const second = await prepareGovernedJournalEntryExecution(
+      const second = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -1041,14 +1043,14 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
           };
         },
       });
-      const first = await prepareGovernedJournalEntryExecution(
+      const first = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
         deps2,
       );
       expect(first.ok).toBe(true);
-      const second = await prepareGovernedJournalEntryExecution(
+      const second = await prepareGovernedJournalEntryExecutionInternal(
         { proposalId: "prop-1", approvalId: "appr-1" },
         ctx,
         policy,
@@ -1132,7 +1134,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
       return { row, ledgerEventId: "evt-ready" };
     };
 
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -1190,7 +1192,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         };
       },
     });
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       policy,
@@ -1233,7 +1235,7 @@ describe("JE-3A no provider write / no Memory / no auto-governed principal", () 
   });
 
   it("policy required — no silent production default in service", async () => {
-    const r = await prepareGovernedJournalEntryExecution(
+    const r = await prepareGovernedJournalEntryExecutionInternal(
       { proposalId: "prop-1", approvalId: "appr-1" },
       ctx,
       null as never,

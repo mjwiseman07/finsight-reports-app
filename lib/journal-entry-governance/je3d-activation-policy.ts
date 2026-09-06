@@ -12,7 +12,8 @@ export const JE_3D_ACTIVATION_MODE = "CONTROLLED_SANDBOX" as const;
 
 export type Je3dActivationCapability =
   | "CREATE_SANDBOX_JE"
-  | "VERIFY_SANDBOX_JE";
+  | "VERIFY_SANDBOX_JE"
+  | "PREPARE_SANDBOX_JE";
 
 /**
  * Authoritative activation policy. Capabilities default OFF.
@@ -25,6 +26,7 @@ export const JE_3D_ACTIVATION_POLICY = {
   capabilities: {
     CREATE_SANDBOX_JE: false as const,
     VERIFY_SANDBOX_JE: false as const,
+    PREPARE_SANDBOX_JE: false as const,
   },
   /** Default-deny until resolved from database authority. */
   allowedCompanyIds: [] as readonly string[],
@@ -46,6 +48,7 @@ export const JE_3D_ACTIVATION_ERROR = {
   ACTIVATION_DISABLED: "je_3d_activation_disabled",
   CREATE_CAPABILITY_OFF: "je_3d_create_capability_off",
   VERIFY_CAPABILITY_OFF: "je_3d_verify_capability_off",
+  PREPARE_CAPABILITY_OFF: "je_3d_prepare_capability_off",
   KILL_SWITCH_ACTIVE: "je_3d_sandbox_dispatch_kill_switch",
   SANDBOX_ENV_REQUIRED: "je_3d_sandbox_env_required",
   PRODUCTION_ENV_FORBIDDEN: "je_3d_production_env_forbidden",
@@ -81,6 +84,7 @@ export type Je3dActivationPolicyView = {
   capabilities: {
     CREATE_SANDBOX_JE: boolean;
     VERIFY_SANDBOX_JE: boolean;
+    PREPARE_SANDBOX_JE: boolean;
   };
   allowedCompanyIds: readonly string[];
   canonicalSandboxConnectionId: string | null;
@@ -102,6 +106,12 @@ export function isJe3dVerifyCapabilityEnabled(
   policy: Je3dActivationPolicyView = JE_3D_ACTIVATION_POLICY,
 ): boolean {
   return Boolean(policy.capabilities.VERIFY_SANDBOX_JE);
+}
+
+export function isJe3dPrepareCapabilityEnabled(
+  policy: Je3dActivationPolicyView = JE_3D_ACTIVATION_POLICY,
+): boolean {
+  return Boolean(policy.capabilities.PREPARE_SANDBOX_JE);
 }
 
 export function assertJe3dMemoryWriteNotEnabled(): never {

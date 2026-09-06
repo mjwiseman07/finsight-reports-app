@@ -12,6 +12,7 @@ import {
   JE_3D_ACTIVATION_ERROR,
   Je3dActivationError,
   isJe3dCreateCapabilityEnabled,
+  isJe3dPrepareCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
 } from "./je3d-activation-policy";
 import {
@@ -115,12 +116,14 @@ export function resolveSandboxCockpitCapabilityState(): SandboxCockpitCapability
   return {
     create_sandbox_je: isJe3dCreateCapabilityEnabled(policy),
     verify_sandbox_je: isJe3dVerifyCapabilityEnabled(policy),
+    prepare_sandbox_je: isJe3dPrepareCapabilityEnabled(policy),
     memory: policy.memoryWriteAllowed,
     worker: policy.workerAllowed,
     governed_auto: policy.governedAutoAllowed,
     dispatch_kill_switch_engaged: policy.sandboxDispatchKillSwitch,
     post_disabled: true,
     verify_disabled: true,
+    execution_prepare_disabled: !isJe3dPrepareCapabilityEnabled(policy),
   };
 }
 

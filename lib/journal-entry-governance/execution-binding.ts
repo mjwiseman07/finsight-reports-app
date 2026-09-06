@@ -1,12 +1,16 @@
 /**
  * JE-3A — Immutable execution binding comparison.
  * Status is mutable; these fields are not.
+ *
+ * idempotency_key is intentionally excluded: it is a UNIQUE lookup identity
+ * (key-first reuse). Approval-level reuse compares business binding only so a
+ * distinct valid key with the same approval/binding yields reuse_reason=approval_id.
  */
 
 import type { JournalEntryExecutionRow } from "./execution-types";
 import { JE_EXECUTION_ERROR } from "./execution-types";
 
-/** Fields that define the logical execution identity (immutable after insert). */
+/** Fields that define the logical execution business identity (immutable after insert). */
 export type JeExecutionImmutableBinding = {
   proposal_id: string;
   approval_id: string;
@@ -20,7 +24,6 @@ export type JeExecutionImmutableBinding = {
   approval_policy_hash: string;
   execution_policy_hash: string;
   execution_hash: string;
-  idempotency_key: string;
 };
 
 export function extractJeExecutionImmutableBinding(
@@ -38,7 +41,6 @@ export function extractJeExecutionImmutableBinding(
     | "approval_policy_hash"
     | "execution_policy_hash"
     | "execution_hash"
-    | "idempotency_key"
   >,
 ): JeExecutionImmutableBinding {
   return {
@@ -54,7 +56,6 @@ export function extractJeExecutionImmutableBinding(
     approval_policy_hash: String(row.approval_policy_hash),
     execution_policy_hash: String(row.execution_policy_hash),
     execution_hash: String(row.execution_hash),
-    idempotency_key: String(row.idempotency_key),
   };
 }
 
@@ -74,8 +75,7 @@ export function jeExecutionBindingsEqual(
     a.proposal_hash === b.proposal_hash &&
     a.approval_policy_hash === b.approval_policy_hash &&
     a.execution_policy_hash === b.execution_policy_hash &&
-    a.execution_hash === b.execution_hash &&
-    a.idempotency_key === b.idempotency_key
+    a.execution_hash === b.execution_hash
   );
 }
 

@@ -34,6 +34,7 @@ export type Patent6ChainReceiptEvent = {
 export type SandboxCockpitCapabilityState = {
   create_sandbox_je: boolean;
   verify_sandbox_je: boolean;
+  prepare_sandbox_je: boolean;
   memory: boolean;
   worker: boolean;
   governed_auto: boolean;
@@ -41,6 +42,7 @@ export type SandboxCockpitCapabilityState = {
   dispatch_kill_switch_engaged: boolean;
   post_disabled: true;
   verify_disabled: true;
+  execution_prepare_disabled: boolean;
 };
 
 /** Unambiguous cockpit label — engaged means dispatch is blocked. */

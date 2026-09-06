@@ -50,6 +50,10 @@ import {
 } from "./sandbox-je-proposal-source";
 import type { JeApprovalPolicy } from "./approval-types";
 import type { JeProposalPolicy } from "./types";
+import {
+  resolveSandboxJeExecutionCustodyForApproval,
+  SandboxJeExecutionCustodyError,
+} from "./sandbox-je-execution-custody";
 
 export class SandboxJeProposalApiError extends Error {
   code: string;
@@ -97,6 +101,7 @@ export const SANDBOX_JE_PROPOSAL_POLICY: JeProposalPolicy = {
 const LOCKED_CAPABILITIES = {
   create_sandbox_je: false,
   verify_sandbox_je: false,
+  prepare_sandbox_je: false,
   memory: false,
   worker: false,
   governed_auto: false,
@@ -225,7 +230,7 @@ async function loadApprovalsForProposal(
   );
 }
 
-function mapProposalRowToSafeResponse(args: {
+async function mapProposalRowToSafeResponse(args: {
   proposal: {
     id: string;
     status: string;
@@ -251,7 +256,7 @@ function mapProposalRowToSafeResponse(args: {
   clientMutationId: string | null;
   events: Patent6ChainReceiptEvent[];
   approvals: SafeSandboxApprovalSummary[];
-}): SafeSandboxProposalResponse {
+}): Promise<SafeSandboxProposalResponse> {
   const debit = args.proposal.lines.find((l) => l.debitCents > 0);
   const credit = args.proposal.lines.find((l) => l.creditCents > 0);
   if (
@@ -301,7 +306,36 @@ function mapProposalRowToSafeResponse(args: {
       events: args.events,
     },
     approvals: args.approvals,
+    execution_custody: await resolveExecutionCustodyForApprovals({
+      proposalId: args.proposal.id,
+      approvals: args.approvals,
+    }),
   };
+}
+
+async function resolveExecutionCustodyForApprovals(args: {
+  proposalId: string;
+  approvals: SafeSandboxApprovalSummary[];
+}): Promise<SafeSandboxProposalResponse["execution_custody"]> {
+  const approved = args.approvals.find((a) => a.decision === "APPROVED");
+  if (!approved) {
+    return {
+      has_execution: false,
+      execution_id: null,
+      execution_status: null,
+    };
+  }
+  try {
+    return await resolveSandboxJeExecutionCustodyForApproval({
+      approvalId: approved.approval_id,
+      proposalId: args.proposalId,
+    });
+  } catch (err) {
+    if (err instanceof SandboxJeExecutionCustodyError) {
+      throw new SandboxJeProposalApiError(err.code, err.message, 500);
+    }
+    throw err;
+  }
 }
 
 export function parseSandboxJeProposalBody(body: unknown): {

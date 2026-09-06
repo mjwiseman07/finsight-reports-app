@@ -196,7 +196,10 @@ CREATE POLICY journal_entry_executions_select
 GRANT SELECT ON public.journal_entry_executions TO authenticated;
 GRANT ALL ON public.journal_entry_executions TO service_role;
 
--- Immutable binding equality for reservation reuse (excludes id/marker/status).
+-- Immutable business binding for reservation reuse.
+-- Excludes id/marker/status and idempotency_key: the key is a UNIQUE lookup
+-- identity (key-first reuse), not part of approval-level business binding.
+-- Distinct key + same approval + same business fields → reuse_reason=approval_id.
 CREATE OR REPLACE FUNCTION public.je_execution_immutable_binding_matches(
   p_existing public.journal_entry_executions,
   p_row jsonb
@@ -218,8 +221,7 @@ BEGIN
     AND p_existing.proposal_hash = p_row->>'proposal_hash'
     AND p_existing.approval_policy_hash = p_row->>'approval_policy_hash'
     AND p_existing.execution_policy_hash = p_row->>'execution_policy_hash'
-    AND p_existing.execution_hash = p_row->>'execution_hash'
-    AND p_existing.idempotency_key = p_row->>'idempotency_key';
+    AND p_existing.execution_hash = p_row->>'execution_hash';
 END;
 $$;
 

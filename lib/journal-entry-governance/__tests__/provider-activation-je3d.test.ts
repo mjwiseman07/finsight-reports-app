@@ -11,6 +11,7 @@ import {
   JE_3D_SANDBOX_QBO_API_BASE,
   isJe3dCreateCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
+  isJe3dPrepareCapabilityEnabled,
 } from "../je3d-activation-policy";
 import {
   classifyQbEnvironment,
@@ -26,6 +27,7 @@ import {
 import {
   assertJe3dCreateActivationPolicy,
   assertJe3dVerifyActivationPolicy,
+  assertJe3dPrepareActivationPolicy,
 } from "../je3d-activation-guards";
 import {
   resolveJe3dActivationPolicy,
@@ -58,6 +60,7 @@ function enabledCreatePolicy(): Je3dActivationPolicyView {
     capabilities: {
       CREATE_SANDBOX_JE: true,
       VERIFY_SANDBOX_JE: false,
+      PREPARE_SANDBOX_JE: false,
     },
     sandboxDispatchKillSwitch: false,
   };
@@ -69,6 +72,7 @@ function enabledVerifyPolicy(): Je3dActivationPolicyView {
     capabilities: {
       CREATE_SANDBOX_JE: false,
       VERIFY_SANDBOX_JE: true,
+      PREPARE_SANDBOX_JE: false,
     },
     sandboxDispatchKillSwitch: false,
   };
@@ -588,6 +592,21 @@ describe("JE-3D capability gates", () => {
   it("13 verification capability OFF", () => {
     expect(() => assertJe3dVerifyActivationPolicy()).toThrow(/VERIFY_SANDBOX_JE/);
     expect(isJe3dVerifyCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(false);
+  });
+
+  it("13b prepare capability OFF while kill switch ON (custody-only gate)", () => {
+    expect(() => assertJe3dPrepareActivationPolicy()).toThrow(/PREPARE_SANDBOX_JE/);
+    expect(isJe3dPrepareCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(false);
+    const policy: Je3dActivationPolicyView = {
+      ...resolveJe3dActivationPolicy(),
+      capabilities: {
+        CREATE_SANDBOX_JE: false,
+        VERIFY_SANDBOX_JE: false,
+        PREPARE_SANDBOX_JE: true,
+      },
+      sandboxDispatchKillSwitch: true,
+    };
+    expect(() => assertJe3dPrepareActivationPolicy(policy)).not.toThrow();
   });
 
   it("24 kill switch blocks new dispatch when create capability enabled", () => {
