@@ -1,7 +1,8 @@
 # Clean replay architecture (corrected after independent review)
 
-**Status:** PR #313 INDEPENDENT REVIEW — **CHANGES REQUIRED**  
-**Do not authorize a third paid Supabase branch until this architecture is reviewed.**
+**Status:** PR #313 design — Option D tooling proven **PASS_RUNTIME**; production dashboard parity **unresolved**.  
+**2026-09-06 decision:** see `production-dashboard-parity-decision-2026-09-06.md` (near-term Option D tooling merge; eventual Option A targeted `statements[]` recording).  
+**Do not authorize a third paid Supabase branch until Option A/B is separately authorized and rehearsed.**
 
 ## Critical correction: later guarded git migrations cannot repair dashboard replay
 

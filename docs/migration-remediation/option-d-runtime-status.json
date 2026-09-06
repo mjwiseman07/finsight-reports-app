@@ -122,5 +122,19 @@
       "note": "First independent E2; independent F/G; H–J 25P02 fallout. See option-d-runtime-evidence-2026-09-06e.md."
     }
   ],
-  "note": "PASS_RUNTIME is scoped to Option D isolated clean-replay + PR #312 disposable Postgres suite. Production dashboard replay parity remains unresolved and is not implied by this status."
+  "note": "PASS_RUNTIME is scoped to Option D isolated clean-replay + PR #312 disposable Postgres suite. Production dashboard replay parity remains unresolved and is not implied by this status.",
+  "parityDesignDecision": {
+    "path": "docs/migration-remediation/production-dashboard-parity-decision-2026-09-06.md",
+    "writtenAgainstPr313Head": "05004e1e8e70da1d74da2c47c75a1448404701c2",
+    "productionMainHead": "bff6b637506d7323cba1035104e491e7ea79333c",
+    "nearTerm": "option_d_tooling_only_merge_posture",
+    "eventualParityMechanism": "option_a_targeted_statements_recording",
+    "rejectedAsPrimaryParity": [
+      "github_integrated_preview_alone",
+      "squash_as_first_choice",
+      "migration_repair_alone",
+      "later_git_file_without_same_version_recording"
+    ],
+    "productionDashboardReplayParity": "unresolved"
+  }
 }
