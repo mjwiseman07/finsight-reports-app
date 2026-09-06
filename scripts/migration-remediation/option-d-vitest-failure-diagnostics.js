@@ -107,35 +107,81 @@ function extractSqlSignals(message) {
       raw.match(/\bSQLSTATE:\s*([0-9A-Z]{5})\b/i) ||
       raw.match(/\bcode:\s*['"]?([0-9A-Z]{5})['"]?/i) ||
       [])[1] || null;
-  // Authoritative Postgres class for FK violations when drivers omit SQLSTATE text.
-  if (
-    !sqlstate &&
-    /violates foreign key constraint/i.test(raw)
-  ) {
+  // Authoritative Postgres classes when drivers omit SQLSTATE text.
+  if (!sqlstate && /violates foreign key constraint/i.test(raw)) {
     sqlstate = "23503";
   }
+  if (
+    !sqlstate &&
+    (/violates not-null constraint/i.test(raw) ||
+      /null value in column/i.test(raw))
+  ) {
+    sqlstate = "23502";
+  }
+  if (!sqlstate && /violates check constraint/i.test(raw)) {
+    sqlstate = "23514";
+  }
+  if (
+    !sqlstate &&
+    (/violates unique constraint/i.test(raw) || /duplicate key value/i.test(raw))
+  ) {
+    sqlstate = "23505";
+  }
+  if (
+    !sqlstate &&
+    /current transaction is aborted/i.test(raw)
+  ) {
+    sqlstate = "25P02";
+  }
+
   const namedSetupPhase =
     (raw.match(/\bphase\s*=\s*([a-z0-9_]+)/i) ||
       raw.match(/\bjeReuseSeedPhase[=:\s]+([a-z0-9_]+)/i) ||
       [])[1] || null;
-  const constraint =
-    (raw.match(/constraint\s+"?([a-z0-9_]+)"?/i) ||
-      raw.match(/\bviolates check constraint "?([a-z0-9_]+)"?/i) ||
+
+  // Only accept real Postgres constraint identifiers — never stack-frame "at"
+  // after "violates not-null constraint\n    at require…".
+  let constraint =
+    (raw.match(
+      /\bviolates\s+(?:foreign key|check|unique)\s+constraint\s+"([a-z_][a-z0-9_]*)"/i,
+    ) ||
+      raw.match(/\bconstraint\s+"([a-z_][a-z0-9_]*)"/i) ||
       [])[1] || null;
+  if (
+    constraint &&
+    /^(at|expected|true|false|null|undefined|error)$/i.test(constraint)
+  ) {
+    constraint = null;
+  }
+  // NOT NULL violations typically have no named constraint identifier.
+  if (/violates not-null constraint/i.test(raw)) {
+    const namedNn = raw.match(
+      /violates not-null constraint\s+"([a-z_][a-z0-9_]*)"/i,
+    );
+    constraint = namedNn ? namedNn[1] : null;
+  }
+
+  const column =
+    (raw.match(/null value in column "([a-z_][a-z0-9_]*)"/i) || [])[1] || null;
+
   const table =
     (raw.match(/relation\s+"([a-z0-9_]+)"/i) ||
+      raw.match(/\bon table\s+"([a-z0-9_]+)"/i) ||
       raw.match(/\btable\s+"([a-z0-9_]+)"/i) ||
       [])[1] || null;
+
   const functionOrRpc =
     (raw.match(
       /\b((?:public\.)?(?:reserve_journal_entry_execution|transition_journal_entry_execution|persist_journal_entry_execution_reservation|publish_ledger_event)[a-z0-9_]*)\b/i,
     ) ||
       raw.match(/\bfunction\s+((?:[a-z_][a-z0-9_]*\.)?[a-z_][a-z0-9_]*)\b/i) ||
       [])[1] || null;
+
   return {
     sqlstate: sqlstate ? String(sqlstate).toUpperCase() : null,
     namedSetupPhase: namedSetupPhase || null,
     constraint: constraint || null,
+    column: column || null,
     table: table || null,
     functionOrRpc: functionOrRpc || null,
   };
@@ -355,6 +401,7 @@ function buildSanitizedVitestFailureDiagnostics(input = {}) {
         sqlstate: null,
         namedSetupPhase: null,
         constraint: null,
+        column: null,
         table: null,
         functionOrRpc: null,
         hookFailure: false,
@@ -378,6 +425,7 @@ function buildSanitizedVitestFailureDiagnostics(input = {}) {
       sqlstate: signals.sqlstate || null,
       namedSetupPhase: signals.namedSetupPhase || null,
       constraint: signals.constraint || null,
+      column: signals.column || null,
       table: signals.table || null,
       functionOrRpc: signals.functionOrRpc || null,
       hookFailure: isHookFailureMessage(rawMsg),

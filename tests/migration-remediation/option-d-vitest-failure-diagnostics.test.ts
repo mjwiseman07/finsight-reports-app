@@ -127,6 +127,50 @@ describe("Option D Vitest failure diagnostics", () => {
     expect(signals.sqlstate).toBe("23503");
     expect(signals.constraint).toBe("ledger_events_engagement_id_fkey");
     expect(signals.table).toBe("ledger_events");
+    expect(signals.column).toBeNull();
+  });
+
+  it("extracts NOT NULL 23502 with column/table and does not invent constraint 'at'", () => {
+    const signals = extractSqlSignals(
+      [
+        'JE_REUSE setup failed at phase=seed_firm_clients sqlstate=23502:',
+        'null value in column "company_id" of relation "firm_clients" violates not-null constraint',
+        "    at requireJeReuseSetup (lib/journal-entry-governance/__tests__/je-reuse-disposable-setup.js:203:15)",
+      ].join("\n"),
+    );
+    expect(signals.sqlstate).toBe("23502");
+    expect(signals.namedSetupPhase).toBe("seed_firm_clients");
+    expect(signals.column).toBe("company_id");
+    expect(signals.table).toBe("firm_clients");
+    expect(signals.constraint).toBeNull();
+  });
+
+  it("extracts CHECK, UNIQUE, and transaction-aborted classes without bogus constraints", () => {
+    expect(
+      extractSqlSignals(
+        'new row for relation "t" violates check constraint "t_check"',
+      ),
+    ).toMatchObject({
+      sqlstate: "23514",
+      constraint: "t_check",
+      table: "t",
+    });
+    expect(
+      extractSqlSignals(
+        'duplicate key value violates unique constraint "t_pkey"',
+      ),
+    ).toMatchObject({
+      sqlstate: "23505",
+      constraint: "t_pkey",
+    });
+    expect(
+      extractSqlSignals(
+        "error: current transaction is aborted, commands ignored until end of transaction block",
+      ),
+    ).toMatchObject({
+      sqlstate: "25P02",
+      constraint: null,
+    });
   });
 
   it("accounts for all 13 expected titles across multiple failures", () => {
