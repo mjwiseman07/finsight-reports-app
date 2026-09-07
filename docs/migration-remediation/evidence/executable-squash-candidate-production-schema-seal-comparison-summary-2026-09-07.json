@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-09-07T16:59:48.524Z",
+  "pins": {
+    "candidateAncestor": "c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6",
+    "packageSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "packageBytes": 1191852,
+    "modules": 12,
+    "expectedSealMatch": true
+  },
+  "dumps": {
+    "authoritativeSha256": "0eee4dc3b803db3e632443ac7f45b740345279f4c9171ff25ad6f310592a6cd4",
+    "portableSha256": "b745ecfc25965f70ffe19b8fd0b92c3257407eccd8ba02bc07e3e33078512b0c",
+    "authoritativeBytes": 904746,
+    "portableBytes": 786947
+  },
+  "noData": {
+    "copy": 0,
+    "insert": 0,
+    "jwt": 0,
+    "privateKey": 0,
+    "connectionUri": 0
+  },
+  "table": {
+    "prod": 226,
+    "cand": 220,
+    "inter": 220,
+    "prodOnly": 6,
+    "candOnly": 0,
+    "prodOnlyList": [
+      "pilot_lifecycle_coverage_downloads",
+      "pulse_je_submissions",
+      "qbo_accounts_cache",
+      "quickbooks_connections",
+      "stripe_webhook_events_legacy",
+      "xero_accounts_cache"
+    ],
+    "candOnlyList": []
+  },
+  "function": {
+    "prod": 96,
+    "cand": 95,
+    "inter": 94,
+    "prodOnly": 2,
+    "candOnly": 1,
+    "prodOnlyList": [
+      "platform_integrity_chain_status",
+      "sp_write_pilot_slot_and_event"
+    ],
+    "candOnlyList": [
+      "_d651_slugify_name"
+    ]
+  },
+  "view": {
+    "prod": 9,
+    "cand": 7,
+    "inter": 7,
+    "prodOnly": 2,
+    "candOnly": 0,
+    "prodOnlyList": [
+      "qbo_connections_unified",
+      "v_platform_integrity_current"
+    ],
+    "candOnlyList": []
+  },
+  "policy": {
+    "prod": 424,
+    "cand": 172,
+    "inter": 169,
+    "prodOnly": 255,
+    "candOnly": 3
+  },
+  "trigger": {
+    "prod": 65,
+    "cand": 63,
+    "inter": 62,
+    "prodOnly": 3,
+    "candOnly": 1,
+    "prodOnlyList": [
+      "firm_intake_handlers_touch_updated_at",
+      "firm_intake_settings_touch_updated_at",
+      "intake_messages_touch_updated_at"
+    ],
+    "candOnlyList": [
+      "on_auth_user_created"
+    ]
+  },
+  "type": {
+    "prod": 2,
+    "cand": 2,
+    "inter": 2,
+    "prodOnly": 0,
+    "candOnly": 0,
+    "prodOnlyList": [],
+    "candOnlyList": []
+  },
+  "forward": {
+    "markers": [
+      "20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+    ],
+    "mainAfterProdMax": [
+      {
+        "file": "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+        "ver": "20260906184500"
+      }
+    ],
+    "digestOnMain": [
+      "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+    ],
+    "mainForwardMeta": {
+      "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql": {
+        "bytes": 4048,
+        "sha256": "4f9d11b7bb6efe66fc744f450057366c38294e8ff88cf7aff1da608b0d69c82e",
+        "hasExtDigest": true
+      }
+    },
+    "prodHasExtDigest": false,
+    "candHasExtDigest": true
+  },
+  "platformOk": true
+}
