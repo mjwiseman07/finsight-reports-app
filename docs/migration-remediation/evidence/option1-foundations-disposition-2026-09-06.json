@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-09-07T01:35:00.000Z",
+  "authorization": "design-only foundations-gap disposition and byte-level candidate review - no production mutation",
+  "bound": {
+    "projectRef": "jzmdgwwiestcmmeuhhkr",
+    "mainHead": "9d8a01d37422179ddd68bbd181a8815d8a893577",
+    "inventoryPr314HeadAtReviewStart": "9c0b00e35f8ce691e1f68755f16bde2ef4c826b7",
+    "optionDManifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+    "optionDManifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+    "cliVersion": "2.116.0"
+  },
+  "pr314Review": {
+    "verdict": "PASS_READ_ONLY_INVENTORY",
+    "draftRequired": true,
+    "scope": "docs/evidence/scripts/tests only",
+    "defaultMutationPossible": false,
+    "testsPassed": "23/23 option1-prod-inventory+review-gate",
+    "secretScanHits": 0
+  },
+  "cliBehavior": {
+    "repairAppliedExecutesSql": false,
+    "repairAppliedWritesStatementsFromLocalFiles": true,
+    "repairDocsSayTrackingOnlyNoSqlApply": true,
+    "squashOmitsDml": true,
+    "squashRewritesProductionHistory": false,
+    "dashboardReplaysProductionStatements": true,
+    "githubPreviewReplaysGitMigrations": true
+  },
+  "recommendation": {
+    "primaryPath": "executable_squash_baseline",
+    "rejectPrimary": "foundations_insert_20260701043599",
+    "rejectRationale": "Preserves 185 production-only vs 109 git-only split permanently; does not converge dashboard and GitHub authorities; still requires later body replacements",
+    "mutationAuthorized": false,
+    "fullParityFeasible": true,
+    "fullParityReady": false
+  },
+  "d6ByteReviews": [
+    {
+      "version": "20260703182655",
+      "name": "d6_2a_test_client_activation",
+      "verdict": "APPROVE_GUARDED_CANDIDATE",
+      "prod": {
+        "bytes": 1002,
+        "sha256": "4ff9251055f2af8a3b4314409c198f61a0d2597a0f7b44819d6ccb5f3ac044bb",
+        "md5": "94914d3ef889f1ca1a002f6c8b0404b0",
+        "hasSelectGuard": false,
+        "hasBeginCommit": false,
+        "hasFixtureUuid": true
+      },
+      "candidate": {
+        "path": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260703_2000_d6_2a_test_client_activation.sql",
+        "gitBlob": "cee5530e27268f7dbdbf15880cd3d0405dacf70e",
+        "sha256": "037021afaab5dbb3bd8687ae91e4d26aa816c1d321dc851cd4e23fe36423aeee",
+        "md5": "5fcba729a6b2eccd81c25906a6b8cdb8",
+        "bytes": 1332,
+        "hasSelectGuard": true,
+        "hasBeginCommit": true
+      }
+    },
+    {
+      "version": "20260703184839",
+      "name": "d6_2b_mfg_activation",
+      "verdict": "APPROVE_GUARDED_CANDIDATE",
+      "prod": {
+        "bytes": 1446,
+        "sha256": "fc53cb1efe54eea106ebfed71d724ccde51573ad148151e77989d924c4f9988e",
+        "md5": "d28ab0c40e3abb20d602bf1842b8146e"
+      },
+      "candidate": {
+        "path": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260703_2200_d6_2b_mfg_activation.sql",
+        "gitBlob": "86ec0b33afeba4a9ecb033ff8c8a1154302e2204",
+        "sha256": "4c2ab4ada3bba3fd9377fa51f8594d2152d3a327b8e0529021b3982d960bff82",
+        "md5": "fe68d378577a3e63a03b38d25a6138ea",
+        "bytes": 1530
+      }
+    },
+    {
+      "version": "20260703190541",
+      "name": "d6_2c_retail_activation",
+      "verdict": "APPROVE_GUARDED_CANDIDATE",
+      "prod": {
+        "bytes": 1099,
+        "sha256": "5daaf4fd08488b42796f4acfa3c567bc81a1a5205d4700ec998ea3787b4e0a6a",
+        "md5": "f14b10c683b74cb93f13283c0986ac4c"
+      },
+      "candidate": {
+        "path": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260703_2300_d6_2c_retail_activation.sql",
+        "gitBlob": "08c659039bd4e9d3f9631dffdee707468129eda2",
+        "sha256": "48430bf74138644066823e178f2f7243bc9c1fe2bf083b1b9624b5d4db28e9c5",
+        "md5": "183bd7652c217306f49170642cd5501e",
+        "bytes": 1349
+      }
+    },
+    {
+      "version": "20260703192608",
+      "name": "d6_2d_ps_activation",
+      "verdict": "APPROVE_GUARDED_CANDIDATE",
+      "prod": {
+        "bytes": 1103,
+        "sha256": "f1b7ec4eb94c37730ff7cef1b5be27f1861d2df06a11ef5d2251e3d4a4546ab5",
+        "md5": "5ad9bc5d6d6c256054ce3f32980eacb6"
+      },
+      "candidate": {
+        "path": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260703_2400_d6_2d_ps_activation.sql",
+        "gitBlob": "b4abf9416c001bde77f1643cae73b3d62da759f1",
+        "sha256": "5bd9be56d1cac1e5be8d89ae195d7f2e7b1c330098e41725df49fada9fa3d1cc",
+        "md5": "957219e565cdc46756ed4d5779522b26",
+        "bytes": 1349
+      }
+    }
+  ],
+  "provenance": [
+    {
+      "version": "20260708051526",
+      "name": "tcp1_w1_solo_bk_pilot_slots",
+      "verdict": "DIVERGENT_IMPLEMENTATION",
+      "sameVersionReplaceSafe": false,
+      "note": "Prod deferred complimentary pilot_slots INSERT; Option D candidate adds guarded INSERT and uses different filename timestamp",
+      "prodSha256": "de02eba76e8dc969c13ade60f136f4dfb949c7742253d060aac0ee46d7532010",
+      "prodBytes": 6288,
+      "candidateSha256": "27090d7d5bbcbdc2114b7bda4f2b7fdfc00fb028d5c0816ae816f8f3b87acb40",
+      "candidateBytes": 8373
+    },
+    {
+      "version": "20260814023005",
+      "name": "accounting_canonical_connected_grant",
+      "verdict": "DIVERGENT_PROD_OMIT_FOR_CLEAN_REPLAY",
+      "sameVersionReplaceSafe": false,
+      "note": "Prod includes LOCK/RAISE/Demo Xero/UPDATE path; Option D retains unique index only",
+      "prodSha256": "1beca937fcd335f6fae1778f3c0aaa315db893cbb00f63a9ce1e90ab50b8ac86",
+      "prodBytes": 7870,
+      "candidateSha256": "37ea392a70211bdb93dae25079490b264802f74ab57427afe61697cbbc1c6e9c",
+      "candidateBytes": 1226
+    }
+  ],
+  "securityFindings": {
+    "dmlInApprovedD6Candidates": true,
+    "d6GuardedNoOpWhenFirmClientMissing": true,
+    "grantCandidateOmitsOperationalUpdate": true,
+    "partialReplayRlsRisk": "medium_until_squash_short_chain",
+    "customerRowValuesInArtifacts": false
+  },
+  "nextBoundedAuthorization": "Authorize executable baseline package authoring (sealed schema dump + guarded module decisions for tcp1/grant) and/or disposable local rehearsal — still no production history mutation and no paid dashboard branch until hash-sealed review"
+}
