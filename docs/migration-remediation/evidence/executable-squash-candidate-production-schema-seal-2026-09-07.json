@@ -29,7 +29,9 @@
     "productionMutated": false,
     "dryRunPasswordPrintedToConsole": true,
     "dryRunArtifactDeleted": true,
-    "credentialRotationRecommended": true
+    "credentialRotationRecommended": false,
+    "credentialExposureClassification": "EPHEMERAL_CLI_LOGIN_ROLE_PASSWORD",
+    "credentialTriageSupersededBy": "docs/migration-remediation/executable-squash-candidate-eight-object-provenance-disposition-2026-09-07.md"
   },
   "dumps": {
     "authoritativeSha256": "0eee4dc3b803db3e632443ac7f45b740345279f4c9171ff25ad6f310592a6cd4",

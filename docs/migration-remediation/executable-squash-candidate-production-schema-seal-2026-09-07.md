@@ -29,7 +29,7 @@ User-pasted seal typo `…fbd1d5f18…` / abbreviated candidate text: **rejected
 - Workspace showed `linked: false`; project pin enforced via `--project-ref` (exact ref).
 - Session-level `default_transaction_read_only` / custom statement/lock timeouts: **not exposed** by CLI dump wrapper; not applied beyond CLI defaults. Dump preamble contains `SET statement_timeout = 0` / `SET lock_timeout = 0` (pg_dump boilerplate).
 - Docker limited to short-lived CLI `pg_dump` helper; no local Supabase stack; no persistent dump containers remain after completion.
-- **Note:** `--dry-run` printed an ephemeral CLI login role password to the console. Dry-run artifact deleted immediately. Recommend rotating the project DB password / CLI login role in the Supabase dashboard. No token/password/URL committed.
+- **Note:** `--dry-run` printed an ephemeral `cli_login_postgres` role password to the local console. Dry-run artifact deleted immediately. **Superseded triage (2026-09-07):** classify as ephemeral CLI login-role credential — do **not** rotate the persistent project DB password for this event; clear local terminal history only. See eight-object provenance disposition report. No token/password/URL committed.
 
 ## Dump hashes (LF-normalized SHA-256)
 
