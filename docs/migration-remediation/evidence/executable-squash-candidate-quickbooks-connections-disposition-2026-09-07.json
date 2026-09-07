@@ -1,0 +1,148 @@
+{
+  "verdict": "CONTROLLED_OMIT_AFTER_CALLER_MIGRATION",
+  "object": "public.quickbooks_connections",
+  "completedAt": "2026-09-07T17:35:00.000Z",
+  "authorization": "product/security disposition design only; no candidate SQL; no production SQL; no row access",
+  "pins": {
+    "pr314HeadAtStart": "10a92062f50f82b3663d35b637420609200fca20",
+    "originMain": "9d8a01d37422179ddd68bbd181a8815d8a893577",
+    "candidateAncestor": "c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6",
+    "candidateSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "credentialEvent": "EPHEMERAL_CLI_LOGIN_ROLE_PASSWORD",
+    "credentialRotationRequired": false
+  },
+  "schemaContract": {
+    "source": "prior_read_only_catalog_in_eight_object_provenance",
+    "owner": "postgres",
+    "rls": true,
+    "rlsForced": false,
+    "columnsInOrder": [
+      {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()"},
+      {"name": "user_id", "type": "uuid", "nullable": true},
+      {"name": "realm_id", "type": "text", "nullable": false},
+      {"name": "access_token", "type": "text", "nullable": false, "secretBearing": true},
+      {"name": "refresh_token", "type": "text", "nullable": false, "secretBearing": true},
+      {"name": "token_expiry", "type": "timestamptz", "nullable": true},
+      {"name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()"},
+      {"name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()"}
+    ],
+    "primaryKey": "quickbooks_connections_pkey(id)",
+    "foreignKeys": ["user_id -> auth.users(id)"],
+    "indexes": ["quickbooks_connections_pkey"],
+    "triggers": [],
+    "policies": [
+      {
+        "name": "Users can access own QB connection",
+        "roles": ["public"],
+        "cmd": "ALL"
+      }
+    ],
+    "aclRoles": ["postgres", "anon", "authenticated", "service_role"],
+    "inboundFks": [],
+    "createInProdStatements": false,
+    "createInGit": false,
+    "rowCountMetadataOnly": 4,
+    "rowContentsAccessed": false
+  },
+  "callers": [
+    {
+      "path": "lib/erp-adapters/quickbooks-adapter.js",
+      "ops": ["read", "insert", "update"],
+      "writesPlaintextTokens": true,
+      "role": "server_service_role",
+      "prodReachable": true,
+      "absentTableHandling": "fallback_from_erp_connections"
+    },
+    {
+      "path": "lib/erp/quickbooks/token-resolver.ts",
+      "ops": ["read", "update"],
+      "writesPlaintextTokens": true,
+      "role": "server_admin",
+      "prodReachable": true,
+      "absentTableHandling": "null_on_missing_relation"
+    },
+    {
+      "path": "lib/integrations/quickbooks/promote-legacy-grant-execute.ts",
+      "ops": ["read"],
+      "writesPlaintextTokens": false,
+      "role": "server_ops",
+      "prodReachable": false,
+      "note": "writes to accounting_connections/companies only"
+    },
+    {
+      "path": "scripts/verify-accounting-connections.js",
+      "ops": ["read"],
+      "writesPlaintextTokens": false,
+      "role": "cli",
+      "prodReachable": false
+    },
+    {
+      "path": "tests/integrations/quickbooks/promote-legacy-grant.test.ts",
+      "ops": ["fixture"],
+      "prodReachable": false
+    },
+    {
+      "path": "tests/migration-remediation/review-gate.test.ts",
+      "ops": ["assert_absent_from_baseline_sql"],
+      "prodReachable": false
+    },
+    {
+      "path": "supabase/migrations/20260531_create_accounting_connections.sql",
+      "ops": ["historical_backfill_select"],
+      "prodReachable": false
+    },
+    {
+      "path": "supabase/migrations/20260531_backfill_accounting_connections_from_quickbooks.sql",
+      "ops": ["historical_backfill_select"],
+      "prodReachable": false
+    }
+  ],
+  "canonicalReplacement": {
+    "primary": "accounting_connections",
+    "optionalPeer": "erp_connections",
+    "unifiedViewIncludesQuickbooksConnections": false,
+    "qboTokenEncryptionAtRest": false,
+    "xeroTokenEncryptionAtRest": true,
+    "encryptionHelper": "lib/integrations/accounting/token-encryption.ts",
+    "secureTokenForStorageEncryptsOnlyXero": true
+  },
+  "tokenSecurity": {
+    "legacyPlaintextColumns": ["access_token", "refresh_token"],
+    "livePlaintextWritesStillPossible": true,
+    "publicAllPolicy": true,
+    "anonTableAcl": true,
+    "exactAclReplicationAllowed": false,
+    "seedProductionRowsAllowed": false
+  },
+  "options": {
+    "A_controlled_omit": {
+      "safeInCandidateAfterCallerRemediation": true,
+      "requiresAppPR": true
+    },
+    "B_restricted_compatibility_table": {
+      "safeIfPlaintextTokenColumnsRetained": false,
+      "classificationIfTokenColumnsRetained": "UNSAFE_PERMITS_FUTURE_PLAINTEXT_WRITES",
+      "recommended": false
+    },
+    "C_secure_view_or_rpc": {
+      "canHideTokensFromBrowser": true,
+      "stillRequiresWritePathMigration": true,
+      "recommended": false
+    }
+  },
+  "recommendedDisposition": "CONTROLLED_OMIT_AFTER_CALLER_MIGRATION",
+  "sevenHardenIncludeObjectsMayProceedIndependently": true,
+  "sevenObjects": [
+    "public.pilot_lifecycle_coverage_downloads",
+    "public.pulse_je_submissions",
+    "public.qbo_accounts_cache",
+    "public.xero_accounts_cache",
+    "public.platform_integrity_chain_status(p_firm_id uuid)",
+    "public.sp_write_pilot_slot_and_event(p_slot_op text, p_slot_payload jsonb, p_event jsonb)",
+    "public.v_platform_integrity_current"
+  ],
+  "nextAuthorization": "Application-only PR to remove quickbooks_connections fallbacks from adapter and token-resolver (plus tests). Optionally parallel: candidate remediation for the seven harden-include objects with quickbooks_connections omitted.",
+  "candidateSqlModified": false,
+  "productionMutated": false,
+  "rowsOrTokensRead": false
+}
