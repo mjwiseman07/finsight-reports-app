@@ -34,8 +34,9 @@ Read-only production `pg_dump --schema-only` seal did **not** complete. Producti
 Sanitized live catalog probes via Supabase MCP `execute_sql` (read SELECT only; no DDL/DML):
 
 - `supabase_migrations.schema_migrations`: **185** rows; min `20260701043602`; max `20260827030454`
-
-(Object-count probes were requested; if the MCP returns only the last statement, treat migration totals above as authoritative for this blocked attempt.)
+- `public` tables: **226**
+- `public` policies: **424**
+- `public` routines (functions/procedures): **96**
 
 ## Why BLOCKED (Part A tooling/credentials)
 

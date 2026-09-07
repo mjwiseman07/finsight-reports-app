@@ -24,7 +24,10 @@
     "currentDatabase": "postgres",
     "schemaMigrationsCount": 185,
     "schemaMigrationsMinVersion": "20260701043602",
-    "schemaMigrationsMaxVersion": "20260827030454"
+    "schemaMigrationsMaxVersion": "20260827030454",
+    "publicTables": 226,
+    "publicPolicies": 424,
+    "publicRoutines": 96
   },
   "tooling": {
     "supabaseCliVersion": "2.116.0",
