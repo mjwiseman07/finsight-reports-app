@@ -1,13 +1,20 @@
 /**
  * QBO Token Resolver (Doc D1) — canonical accounting_connections only.
  *
- * Selection is company-scoped:
- *   firm_client → company_id → companies.qbo_realm_id → grant for that realm
- * Never picks "latest connected row for the owner" across unrelated realms.
+ * Selection is company-scoped via hard relational authority:
+ *   firm_client → company_id → companies.qbo_realm_id → tenant_or_realm_id
+ *
+ * Schema note: public.accounting_connections has no company_id or firm_client_id
+ * column. Company / firm-client authority is therefore enforced only through
+ * companies.qbo_realm_id → accounting_connections.tenant_or_realm_id. Missing
+ * realm when companyId is present fails closed (schema prerequisite documented
+ * in cutover readiness). metadata_json is never used for authority.
+ *
  * Never reads or writes public.quickbooks_connections or erp_connections.
  *
  * Fail-closed on zero/multiple usable matches, inactive/superseded rows,
- * missing token material, and provider_environment mismatch when persisted.
+ * missing token material, missing/invalid server QB_ENVIRONMENT, and
+ * null/mismatched provider_environment.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
@@ -18,6 +25,38 @@ import {
 } from "@/lib/erp/quickbooks/persisted-provider-environment";
 
 export type QBOTokenSource = "accounting_connections";
+
+export type QboTokenAuthorityErrorCode =
+  | "missing_server_environment"
+  | "invalid_server_environment"
+  | "null_provider_environment"
+  | "provider_environment_mismatch"
+  | "missing_realm_authority"
+  | "realm_mismatch"
+  | "company_requires_realm"
+  | "wrong_provider"
+  | "inactive_connection"
+  | "superseded_connection"
+  | "credentials_cleared"
+  | "missing_token_material"
+  | "ambiguous_connection"
+  | "no_usable_connection"
+  | "stale_connection_state"
+  | "refresh_persist_failed";
+
+/**
+ * Typed authority / concurrency failure. Messages must never include tokens,
+ * realm IDs, company IDs, emails, or connection IDs.
+ */
+export class QboTokenAuthorityError extends Error {
+  readonly code: QboTokenAuthorityErrorCode;
+
+  constructor(code: QboTokenAuthorityErrorCode, message: string) {
+    super(message);
+    this.name = "QboTokenAuthorityError";
+    this.code = code;
+  }
+}
 
 export interface QBOTokenBundle {
   accessToken: string;
@@ -105,18 +144,47 @@ interface RawConnection {
   status: string;
   supersededBy: string | null;
   credentialsClearedAt: string | null;
-  metadataCompanyId: string | null;
+  /** ISO concurrency token from updated_at — never a token value. */
+  concurrencyToken: string;
+  provider: string;
 }
 
 const ACCOUNTING_SELECT =
-  "id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json, status, provider, provider_environment, superseded_by_connection_id, credentials_cleared_at, updated_at";
+  "id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, status, provider, provider_environment, superseded_by_connection_id, credentials_cleared_at, updated_at";
+
+/**
+ * Authoritative expected QBO environment from server config.
+ * Fail closed when absent or invalid — never infer from client input.
+ */
+export function requireExpectedProviderEnvironment(
+  envValue: string | undefined = process.env.QB_ENVIRONMENT,
+): PersistedQboProviderEnvironment {
+  const raw = String(envValue ?? "").trim();
+  if (!raw) {
+    throw new QboTokenAuthorityError(
+      "missing_server_environment",
+      "QuickBooks server environment is not configured",
+    );
+  }
+  try {
+    return resolvePersistedQboProviderEnvironment(raw);
+  } catch {
+    throw new QboTokenAuthorityError(
+      "invalid_server_environment",
+      "QuickBooks server environment is invalid",
+    );
+  }
+}
 
 function rowToAccountingConnection(data: Record<string, unknown>): RawConnection {
   const realmId =
-    (data.tenant_or_realm_id as string) ||
-    String(data.external_entity_id || "").replace(/^qbo:/, "") ||
-    null;
-  const meta = (data.metadata_json || {}) as Record<string, unknown>;
+    typeof data.tenant_or_realm_id === "string" && data.tenant_or_realm_id.trim()
+      ? data.tenant_or_realm_id
+      : null;
+  const envRaw = data.provider_environment;
+  const providerEnvironment =
+    typeof envRaw === "string" && envRaw.trim() ? envRaw.trim() : null;
+
   return {
     tokenSource: "accounting_connections",
     storageTable: "accounting_connections",
@@ -128,42 +196,81 @@ function rowToAccountingConnection(data: Record<string, unknown>): RawConnection
     grantedScopes: Array.isArray(data.scopes) && data.scopes.length > 0
       ? (data.scopes as string[])
       : [QBO_SCOPE],
-    providerEnvironment: (data.provider_environment as string) ?? null,
+    providerEnvironment,
     status: String(data.status || ""),
     supersededBy: (data.superseded_by_connection_id as string) ?? null,
     credentialsClearedAt: (data.credentials_cleared_at as string) ?? null,
-    metadataCompanyId: meta.company_id ? String(meta.company_id) : null,
+    concurrencyToken: String(data.updated_at || ""),
+    provider: String(data.provider || ""),
   };
 }
 
-function expectedProviderEnvironment(): PersistedQboProviderEnvironment | null {
-  try {
-    return resolvePersistedQboProviderEnvironment(process.env.QB_ENVIRONMENT);
-  } catch {
-    return null;
-  }
-}
-
-function isUsableCanonical(conn: RawConnection, scope: FirmClientQboScope): boolean {
-  if (conn.status !== "connected") return false;
-  if (conn.supersededBy) return false;
-  if (conn.credentialsClearedAt) return false;
-  if (!hasTokenMaterial(conn.accessToken, conn.refreshToken)) return false;
-  if (!conn.realmId) return false;
-
-  if (scope.realmId && conn.realmId !== scope.realmId) return false;
-  if (scope.companyId && conn.metadataCompanyId && conn.metadataCompanyId !== scope.companyId) {
+/**
+ * Usability + authority gate. Throws typed errors for hard failures when
+ * throwOnReject is true (refresh path); otherwise returns false for filtering.
+ */
+export function evaluateCanonicalAuthority(
+  conn: RawConnection,
+  scope: FirmClientQboScope,
+  expectedEnv: PersistedQboProviderEnvironment,
+  options?: { throwOnReject?: boolean },
+): boolean {
+  const fail = (code: QboTokenAuthorityErrorCode, message: string): false => {
+    if (options?.throwOnReject) throw new QboTokenAuthorityError(code, message);
     return false;
+  };
+
+  if (conn.provider !== "quickbooks") {
+    return fail("wrong_provider", "Connection provider is not QuickBooks");
+  }
+  if (conn.status !== "connected") {
+    return fail("inactive_connection", "Connection is not in connected status");
+  }
+  if (conn.supersededBy) {
+    return fail("superseded_connection", "Connection has been superseded");
+  }
+  if (conn.credentialsClearedAt) {
+    return fail("credentials_cleared", "Connection credentials have been cleared");
+  }
+  if (!hasTokenMaterial(conn.accessToken, conn.refreshToken)) {
+    return fail("missing_token_material", "Connection is missing required token material");
+  }
+  if (!conn.concurrencyToken) {
+    return fail("stale_connection_state", "Connection concurrency token is missing");
   }
 
-  const expectedEnv = expectedProviderEnvironment();
-  if (
-    expectedEnv &&
-    conn.providerEnvironment &&
-    isPersistedQboProviderEnvironment(conn.providerEnvironment) &&
-    conn.providerEnvironment !== expectedEnv
-  ) {
-    return false;
+  if (!conn.providerEnvironment || !isPersistedQboProviderEnvironment(conn.providerEnvironment)) {
+    return fail(
+      "null_provider_environment",
+      "Connection provider environment is missing or invalid",
+    );
+  }
+  if (conn.providerEnvironment !== expectedEnv) {
+    return fail(
+      "provider_environment_mismatch",
+      "Connection provider environment does not match server configuration",
+    );
+  }
+
+  // accounting_connections has no company_id column. Company scope requires
+  // companies.qbo_realm_id → tenant_or_realm_id hard equality.
+  if (scope.companyId && !scope.realmId) {
+    return fail(
+      "company_requires_realm",
+      "Company scope requires an authoritative realm binding",
+    );
+  }
+  if (!scope.realmId) {
+    return fail(
+      "missing_realm_authority",
+      "Realm authority is required to select a QuickBooks connection",
+    );
+  }
+  if (!conn.realmId) {
+    return fail("missing_realm_authority", "Connection realm binding is missing");
+  }
+  if (conn.realmId !== scope.realmId) {
+    return fail("realm_mismatch", "Connection realm does not match authorized scope");
   }
 
   return true;
@@ -171,91 +278,70 @@ function isUsableCanonical(conn: RawConnection, scope: FirmClientQboScope): bool
 
 /**
  * Load exactly one usable connected QBO accounting grant for the firm_client scope.
- * Fail-closed: zero or multiple usable matches → null.
+ * Fail-closed: zero or multiple usable matches → null (or throw when requested).
  */
 export async function loadAccountingConnectionForScope(
   supabase: Supabase,
   scope: FirmClientQboScope,
+  options?: { throwOnReject?: boolean },
 ): Promise<RawConnection | null> {
-  const ownerUserId = scope.ownerUserId;
+  const expectedEnv = requireExpectedProviderEnvironment();
 
-  if (scope.realmId) {
-    const { data, error } = await supabase
-      .from("accounting_connections")
-      .select(ACCOUNTING_SELECT)
-      .eq("user_id", ownerUserId)
-      .eq("provider", "quickbooks")
-      .eq("tenant_or_realm_id", scope.realmId)
-      .order("updated_at", { ascending: false })
-      .limit(10);
-    if (error) {
-      if (error.code === "PGRST205" || error.code === "42P01") return null;
-      throw new Error(`accounting_connections lookup failed: ${error.message}`);
+  if (scope.companyId && !scope.realmId) {
+    if (options?.throwOnReject) {
+      throw new QboTokenAuthorityError(
+        "company_requires_realm",
+        "Company scope requires an authoritative realm binding",
+      );
     }
-    const usable = ((data || []) as Array<Record<string, unknown>>)
-      .map((row) => rowToAccountingConnection(row))
-      .filter((conn) => isUsableCanonical(conn, scope));
-    if (usable.length !== 1) {
-      if (usable.length > 1) {
-        console.warn("[qbo-token-resolver] ambiguous realm-scoped accounting grants; refusing", {
-          ownerUserId,
-          count: usable.length,
-        });
-      }
-      return null;
+    return null;
+  }
+  if (!scope.realmId) {
+    if (options?.throwOnReject) {
+      throw new QboTokenAuthorityError(
+        "missing_realm_authority",
+        "Realm authority is required to select a QuickBooks connection",
+      );
     }
-    return usable[0];
+    return null;
   }
 
-  if (scope.companyId) {
-    const { data, error } = await supabase
-      .from("accounting_connections")
-      .select(ACCOUNTING_SELECT)
-      .eq("user_id", ownerUserId)
-      .eq("provider", "quickbooks")
-      .order("updated_at", { ascending: false })
-      .limit(25);
-    if (error) {
-      if (error.code === "PGRST205" || error.code === "42P01") return null;
-      throw new Error(`accounting_connections lookup failed: ${error.message}`);
-    }
-    const usable = ((data || []) as Array<Record<string, unknown>>)
-      .map((row) => rowToAccountingConnection(row))
-      .filter((conn) => isUsableCanonical(conn, scope))
-      .filter((conn) => conn.metadataCompanyId === scope.companyId);
-    if (usable.length !== 1) {
-      if (usable.length > 1) {
-        console.warn("[qbo-token-resolver] ambiguous company-scoped accounting grants; refusing", {
-          ownerUserId,
-          count: usable.length,
-        });
-      }
-      return null;
-    }
-    return usable[0];
-  }
-
-  // Legacy firm_clients without company_id: fail closed unless exactly one usable grant.
   const { data, error } = await supabase
     .from("accounting_connections")
     .select(ACCOUNTING_SELECT)
-    .eq("user_id", ownerUserId)
+    .eq("user_id", scope.ownerUserId)
     .eq("provider", "quickbooks")
+    .eq("tenant_or_realm_id", scope.realmId)
+    .eq("provider_environment", expectedEnv)
     .order("updated_at", { ascending: false })
     .limit(10);
   if (error) {
     if (error.code === "PGRST205" || error.code === "42P01") return null;
     throw new Error(`accounting_connections lookup failed: ${error.message}`);
   }
+
   const usable = ((data || []) as Array<Record<string, unknown>>)
     .map((row) => rowToAccountingConnection(row))
-    .filter((conn) => isUsableCanonical(conn, scope));
-  if (usable.length !== 1) {
-    if (usable.length > 1) {
-      console.warn("[qbo-token-resolver] ambiguous unscoped accounting grants; refusing", {
-        ownerUserId,
-        count: usable.length,
-      });
+    .filter((conn) => evaluateCanonicalAuthority(conn, scope, expectedEnv));
+
+  if (usable.length === 0) {
+    if (options?.throwOnReject) {
+      throw new QboTokenAuthorityError(
+        "no_usable_connection",
+        "No usable QuickBooks accounting connection matched authority",
+      );
+    }
+    return null;
+  }
+  if (usable.length > 1) {
+    console.warn("[qbo-token-resolver] ambiguous realm-scoped accounting grants; refusing", {
+      count: usable.length,
+    });
+    if (options?.throwOnReject) {
+      throw new QboTokenAuthorityError(
+        "ambiguous_connection",
+        "Multiple QuickBooks accounting connections matched authority",
+      );
     }
     return null;
   }
@@ -310,23 +396,60 @@ async function postRefresh(refreshToken: string): Promise<{
   return payload as { access_token: string; refresh_token?: string; expires_in?: number };
 }
 
-async function persistRefreshedToken(
+/**
+ * Atomic conditional persist. Constrains by id + provider + environment + realm +
+ * status + not superseded + credentials not cleared + original updated_at.
+ * Requires exactly one updated row.
+ */
+export async function persistRefreshedTokenConditional(
   supabase: Supabase,
   conn: RawConnection,
   accessToken: string,
   refreshToken: string,
   expiresAt: string,
-): Promise<void> {
-  const { error } = await supabase
+  expectedEnv: PersistedQboProviderEnvironment,
+): Promise<string> {
+  if (!conn.realmId) {
+    throw new QboTokenAuthorityError(
+      "missing_realm_authority",
+      "Connection realm binding is missing",
+    );
+  }
+
+  const nextUpdatedAt = new Date().toISOString();
+  const { data, error } = await supabase
     .from("accounting_connections")
     .update({
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
+      updated_at: nextUpdatedAt,
     })
-    .eq("id", conn.connectionId);
-  if (error) throw new Error(`failed to persist accounting_connections token: ${error.message}`);
+    .eq("id", conn.connectionId)
+    .eq("provider", "quickbooks")
+    .eq("provider_environment", expectedEnv)
+    .eq("tenant_or_realm_id", conn.realmId)
+    .eq("status", "connected")
+    .is("superseded_by_connection_id", null)
+    .is("credentials_cleared_at", null)
+    .eq("updated_at", conn.concurrencyToken)
+    .select("id");
+
+  if (error) {
+    throw new QboTokenAuthorityError(
+      "refresh_persist_failed",
+      "Failed to persist refreshed QuickBooks credentials",
+    );
+  }
+
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  if (rows.length !== 1) {
+    throw new QboTokenAuthorityError(
+      "stale_connection_state",
+      "Connection state changed before credentials could be persisted",
+    );
+  }
+  return nextUpdatedAt;
 }
 
 function toBundle(conn: RawConnection, ownerUserId: string): QBOTokenBundle {
@@ -346,17 +469,34 @@ async function refreshConnectionInPlace(
   supabase: Supabase,
   conn: RawConnection,
   ownerUserId: string,
+  expectedEnv: PersistedQboProviderEnvironment,
 ): Promise<QBOTokenBundle> {
   if (!conn.refreshToken) {
-    throw new Error(`connection ${conn.connectionId} has no refresh_token`);
+    throw new QboTokenAuthorityError(
+      "missing_token_material",
+      "Connection is missing required token material",
+    );
   }
   const token = await postRefresh(conn.refreshToken);
   const accessToken = token.access_token;
   const refreshToken = token.refresh_token || conn.refreshToken;
   const expiresAt = tokenExpiryFromResponse(token);
-  await persistRefreshedToken(supabase, conn, accessToken, refreshToken, expiresAt);
+  const nextConcurrency = await persistRefreshedTokenConditional(
+    supabase,
+    conn,
+    accessToken,
+    refreshToken,
+    expiresAt,
+    expectedEnv,
+  );
   return toBundle(
-    { ...conn, accessToken, refreshToken, expiresAt },
+    {
+      ...conn,
+      accessToken,
+      refreshToken,
+      expiresAt,
+      concurrencyToken: nextConcurrency,
+    },
     ownerUserId,
   );
 }
@@ -376,6 +516,7 @@ export async function resolveQBOTokenForAccountingConnection(
   if (!accountingConnectionId) {
     throw new Error("accountingConnectionId is required");
   }
+  const expectedEnv = requireExpectedProviderEnvironment();
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("accounting_connections")
@@ -395,13 +536,13 @@ export async function resolveQBOTokenForAccountingConnection(
   const conn = rowToAccountingConnection(data as Record<string, unknown>);
   const scope: FirmClientQboScope = {
     ownerUserId,
-    companyId: conn.metadataCompanyId,
+    companyId: null,
     realmId: conn.realmId,
   };
-  if (!isUsableCanonical(conn, scope)) return null;
+  if (!evaluateCanonicalAuthority(conn, scope, expectedEnv)) return null;
 
   if (options?.forceRefresh || isExpiredOrExpiring(conn.expiresAt)) {
-    return refreshConnectionInPlace(supabase, conn, ownerUserId);
+    return refreshConnectionInPlace(supabase, conn, ownerUserId, expectedEnv);
   }
   return toBundle(conn, ownerUserId);
 }
@@ -414,6 +555,7 @@ export async function resolveQBOTokenForFirmClient(
   options?: ResolveTokenOptions,
 ): Promise<QBOTokenBundle | null> {
   if (!firmClientId) throw new Error("firmClientId is required");
+  const expectedEnv = requireExpectedProviderEnvironment();
   const supabase = getSupabaseAdmin();
 
   const scope = await loadFirmClientQboScope(supabase, firmClientId);
@@ -423,7 +565,7 @@ export async function resolveQBOTokenForFirmClient(
   if (!conn) return null;
 
   if (options?.forceRefresh || isExpiredOrExpiring(conn.expiresAt)) {
-    return refreshConnectionInPlace(supabase, conn, scope.ownerUserId);
+    return refreshConnectionInPlace(supabase, conn, scope.ownerUserId, expectedEnv);
   }
   return toBundle(conn, scope.ownerUserId);
 }
@@ -439,13 +581,16 @@ export async function refreshQBOToken(
   if (tokenSource !== "accounting_connections") {
     throw new Error("Only accounting_connections token source is supported");
   }
+  const expectedEnv = requireExpectedProviderEnvironment();
   const supabase = getSupabaseAdmin();
 
   const scope = await loadFirmClientQboScope(supabase, firmClientId);
   if (!scope) return null;
 
-  const conn = await loadAccountingConnectionForScope(supabase, scope);
+  const conn = await loadAccountingConnectionForScope(supabase, scope, {
+    throwOnReject: true,
+  });
   if (!conn) return null;
 
-  return refreshConnectionInPlace(supabase, conn, scope.ownerUserId);
+  return refreshConnectionInPlace(supabase, conn, scope.ownerUserId, expectedEnv);
 }

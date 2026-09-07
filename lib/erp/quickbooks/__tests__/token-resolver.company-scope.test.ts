@@ -1,5 +1,5 @@
 /**
- * Canonical-only QBO token resolution — fail-closed contract.
+ * Canonical-only QBO token resolution — hardened fail-closed contract.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
@@ -14,10 +14,14 @@ vi.mock("@/lib/supabase-admin.js", () => ({ getSupabaseAdmin }));
 vi.mock("@/lib/network/quotaguard-proxy", () => ({ getQuotaGuardUndiciDispatcher }));
 
 import {
+  evaluateCanonicalAuthority,
   loadAccountingConnectionForScope,
   loadFirmClientQboScope,
-  resolveQBOTokenForFirmClient,
+  persistRefreshedTokenConditional,
+  QboTokenAuthorityError,
   refreshQBOToken,
+  requireExpectedProviderEnvironment,
+  resolveQBOTokenForFirmClient,
 } from "@/lib/erp/quickbooks/token-resolver";
 
 type Row = Record<string, unknown>;
@@ -25,14 +29,24 @@ type Row = Record<string, unknown>;
 function createQueryBuilder(result: { data: unknown; error: unknown }) {
   const builder: Record<string, unknown> = {};
   const self = () => builder;
-  for (const method of ["select", "eq", "order", "limit", "in", "is", "neq", "filter"]) {
-    builder[method] = vi.fn(self);
+  const filters: Record<string, unknown> = {};
+  for (const method of ["select", "eq", "order", "limit", "in", "is", "neq", "filter", "not", "update"]) {
+    builder[method] = vi.fn((...args: unknown[]) => {
+      if (method === "eq" && typeof args[0] === "string") {
+        filters[args[0]] = args[1];
+      }
+      if (method === "is" && typeof args[0] === "string") {
+        filters[`is:${args[0]}`] = args[1];
+      }
+      return builder;
+    });
   }
   builder.maybeSingle = vi.fn(async () => {
     const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
     return { data: rows[0] ?? null, error: result.error };
   });
   Object.assign(builder, {
+    __filters: filters,
     then(
       onfulfilled?: ((value: unknown) => unknown) | null,
       onrejected?: ((reason: unknown) => unknown) | null,
@@ -45,8 +59,8 @@ function createQueryBuilder(result: { data: unknown; error: unknown }) {
 
 const usableProd: Row = {
   id: "acct-prod",
-  access_token: "at-prod",
-  refresh_token: "rt-prod",
+  access_token: "at-synthetic",
+  refresh_token: "rt-synthetic",
   tenant_or_realm_id: "9341454381415870",
   token_expires_at: "2099-01-01T00:00:00.000Z",
   scopes: ["com.intuit.quickbooks.accounting"],
@@ -59,6 +73,34 @@ const usableProd: Row = {
   credentials_cleared_at: null,
   updated_at: "2099-01-01T00:00:00.000Z",
 };
+
+describe("requireExpectedProviderEnvironment", () => {
+  it("rejects missing server environment", () => {
+    delete process.env.QB_ENVIRONMENT;
+    expect(() => requireExpectedProviderEnvironment(undefined)).toThrow(QboTokenAuthorityError);
+    try {
+      requireExpectedProviderEnvironment(undefined);
+    } catch (err) {
+      expect(err).toBeInstanceOf(QboTokenAuthorityError);
+      expect((err as QboTokenAuthorityError).code).toBe("missing_server_environment");
+      expect(String(err)).not.toMatch(/at-synthetic|rt-synthetic|9341454381415870/);
+    }
+  });
+
+  it("rejects invalid server environment", () => {
+    expect(() => requireExpectedProviderEnvironment("staging")).toThrow(QboTokenAuthorityError);
+    try {
+      requireExpectedProviderEnvironment("staging");
+    } catch (err) {
+      expect((err as QboTokenAuthorityError).code).toBe("invalid_server_environment");
+    }
+  });
+
+  it("accepts sandbox and production", () => {
+    expect(requireExpectedProviderEnvironment("sandbox")).toBe("sandbox");
+    expect(requireExpectedProviderEnvironment("production")).toBe("production");
+  });
+});
 
 describe("loadFirmClientQboScope", () => {
   it("resolves owner + company realm", async () => {
@@ -138,7 +180,19 @@ describe("loadAccountingConnectionForScope fail-closed", () => {
       companyId: "co-prod",
       realmId: "9341454381415870",
     });
-    // Query filters by realm; returned row with wrong realm still fails usability if slipped through
+    expect(conn).toBeNull();
+  });
+
+  it("fails closed on null provider_environment", async () => {
+    const nullEnv = { ...usableProd, provider_environment: null };
+    const supabase = {
+      from: vi.fn(() => createQueryBuilder({ data: [nullEnv], error: null })),
+    };
+    const conn = await loadAccountingConnectionForScope(supabase as never, {
+      ownerUserId: "user-1",
+      companyId: "co-prod",
+      realmId: "9341454381415870",
+    });
     expect(conn).toBeNull();
   });
 
@@ -155,15 +209,9 @@ describe("loadAccountingConnectionForScope fail-closed", () => {
     expect(conn).toBeNull();
   });
 
-  it("fails closed on company metadata mismatch", async () => {
-    const otherCo = {
-      ...usableProd,
-      metadata_json: { company_id: "co-other" },
-      tenant_or_realm_id: null,
-      external_entity_id: null,
-    };
+  it("fails closed when company scope lacks realm (schema has no company_id column)", async () => {
     const supabase = {
-      from: vi.fn(() => createQueryBuilder({ data: [otherCo], error: null })),
+      from: vi.fn(() => createQueryBuilder({ data: [usableProd], error: null })),
     };
     const conn = await loadAccountingConnectionForScope(supabase as never, {
       ownerUserId: "user-1",
@@ -171,6 +219,46 @@ describe("loadAccountingConnectionForScope fail-closed", () => {
       realmId: null,
     });
     expect(conn).toBeNull();
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when realm authority is missing", async () => {
+    const supabase = {
+      from: vi.fn(() => createQueryBuilder({ data: [usableProd], error: null })),
+    };
+    const conn = await loadAccountingConnectionForScope(supabase as never, {
+      ownerUserId: "user-1",
+      companyId: null,
+      realmId: null,
+    });
+    expect(conn).toBeNull();
+  });
+
+  it("fails closed on wrong provider", async () => {
+    const xero = { ...usableProd, provider: "xero" };
+    expect(
+      evaluateCanonicalAuthority(
+        {
+          tokenSource: "accounting_connections",
+          storageTable: "accounting_connections",
+          connectionId: "acct-prod",
+          accessToken: "at-synthetic",
+          refreshToken: "rt-synthetic",
+          realmId: "9341454381415870",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          grantedScopes: [],
+          providerEnvironment: "production",
+          status: "connected",
+          supersededBy: null,
+          credentialsClearedAt: null,
+          concurrencyToken: "2099-01-01T00:00:00.000Z",
+          provider: "xero",
+        },
+        { ownerUserId: "user-1", companyId: "co-prod", realmId: "9341454381415870" },
+        "production",
+      ),
+    ).toBe(false);
+    void xero;
   });
 
   it("fails closed on inactive status", async () => {
@@ -199,6 +287,22 @@ describe("loadAccountingConnectionForScope fail-closed", () => {
     expect(conn).toBeNull();
   });
 
+  it("fails closed on credentials cleared", async () => {
+    const cleared = {
+      ...usableProd,
+      credentials_cleared_at: "2099-01-01T00:00:00.000Z",
+    };
+    const supabase = {
+      from: vi.fn(() => createQueryBuilder({ data: [cleared], error: null })),
+    };
+    const conn = await loadAccountingConnectionForScope(supabase as never, {
+      ownerUserId: "user-1",
+      companyId: "co-prod",
+      realmId: "9341454381415870",
+    });
+    expect(conn).toBeNull();
+  });
+
   it("fails closed on missing token material", async () => {
     const missing = { ...usableProd, access_token: "", refresh_token: null };
     const supabase = {
@@ -210,6 +314,104 @@ describe("loadAccountingConnectionForScope fail-closed", () => {
       realmId: "9341454381415870",
     });
     expect(conn).toBeNull();
+  });
+
+  it("does not treat metadata company_id as authority", async () => {
+    // Row matches realm; metadata claims a different company — still usable via hard realm.
+    const metaOther = {
+      ...usableProd,
+      metadata_json: { company_id: "co-other" },
+    };
+    const supabase = {
+      from: vi.fn(() => createQueryBuilder({ data: [metaOther], error: null })),
+    };
+    const conn = await loadAccountingConnectionForScope(supabase as never, {
+      ownerUserId: "user-1",
+      companyId: "co-prod",
+      realmId: "9341454381415870",
+    });
+    expect(conn?.connectionId).toBe("acct-prod");
+  });
+});
+
+describe("persistRefreshedTokenConditional", () => {
+  beforeEach(() => {
+    process.env.QB_ENVIRONMENT = "production";
+  });
+
+  it("requires exactly one updated row under authority predicates", async () => {
+    const builders: Array<ReturnType<typeof createQueryBuilder>> = [];
+    const supabase = {
+      from: vi.fn(() => {
+        const b = createQueryBuilder({ data: [{ id: "acct-prod" }], error: null });
+        builders.push(b);
+        return b;
+      }),
+    };
+    const next = await persistRefreshedTokenConditional(
+      supabase as never,
+      {
+        tokenSource: "accounting_connections",
+        storageTable: "accounting_connections",
+        connectionId: "acct-prod",
+        accessToken: "at-old",
+        refreshToken: "rt-old",
+        realmId: "9341454381415870",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        grantedScopes: [],
+        providerEnvironment: "production",
+        status: "connected",
+        supersededBy: null,
+        credentialsClearedAt: null,
+        concurrencyToken: "2099-01-01T00:00:00.000Z",
+        provider: "quickbooks",
+      },
+      "at-new",
+      "rt-new",
+      "2099-06-01T00:00:00.000Z",
+      "production",
+    );
+    expect(typeof next).toBe("string");
+    expect(builders[0].eq).toHaveBeenCalledWith("id", "acct-prod");
+    expect(builders[0].eq).toHaveBeenCalledWith("provider", "quickbooks");
+    expect(builders[0].eq).toHaveBeenCalledWith("provider_environment", "production");
+    expect(builders[0].eq).toHaveBeenCalledWith("tenant_or_realm_id", "9341454381415870");
+    expect(builders[0].eq).toHaveBeenCalledWith("status", "connected");
+    expect(builders[0].eq).toHaveBeenCalledWith("updated_at", "2099-01-01T00:00:00.000Z");
+    expect(builders[0].is).toHaveBeenCalledWith("superseded_by_connection_id", null);
+    expect(builders[0].is).toHaveBeenCalledWith("credentials_cleared_at", null);
+    expect(JSON.stringify(builders)).not.toMatch(/at-new|rt-new/);
+  });
+
+  it("throws stale_connection_state when zero rows update", async () => {
+    const supabase = {
+      from: vi.fn(() => createQueryBuilder({ data: [], error: null })),
+    };
+    await expect(
+      persistRefreshedTokenConditional(
+        supabase as never,
+        {
+          tokenSource: "accounting_connections",
+          storageTable: "accounting_connections",
+          connectionId: "acct-prod",
+          accessToken: "at-old",
+          refreshToken: "rt-old",
+          realmId: "9341454381415870",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          grantedScopes: [],
+          providerEnvironment: "production",
+          status: "connected",
+          supersededBy: null,
+          credentialsClearedAt: null,
+          concurrencyToken: "2099-01-01T00:00:00.000Z",
+          provider: "quickbooks",
+        },
+        "at-new",
+        "rt-new",
+        "2099-06-01T00:00:00.000Z",
+        "production",
+      ),
+    ).rejects.toMatchObject({ code: "stale_connection_state" });
   });
 });
 
@@ -226,14 +428,10 @@ describe("resolveQBOTokenForFirmClient", () => {
     getSupabaseAdmin.mockReturnValue({
       from: (table: string) => {
         tables.push(table);
-        const filters: Record<string, string> = {};
         const builder: Record<string, unknown> = {};
         const self = () => builder;
         builder.select = vi.fn(self);
-        builder.eq = vi.fn((col: string, val: string) => {
-          filters[col] = val;
-          return builder;
-        });
+        builder.eq = vi.fn(self);
         builder.order = vi.fn(self);
         builder.limit = vi.fn(self);
         builder.is = vi.fn(self);
@@ -286,6 +484,19 @@ describe("resolveQBOTokenForFirmClient", () => {
       /Only accounting_connections/,
     );
   });
+
+  it("refresh failure never queries legacy tables", async () => {
+    const tables: string[] = [];
+    getSupabaseAdmin.mockReturnValue({
+      from: (table: string) => {
+        tables.push(table);
+        throw new Error("simulated refresh path failure");
+      },
+    });
+    await expect(refreshQBOToken("fc-1")).rejects.toThrow(/simulated refresh path failure/);
+    expect(tables).not.toContain("quickbooks_connections");
+    expect(tables).not.toContain("erp_connections");
+  });
 });
 
 describe("static legacy coupling", () => {
@@ -303,12 +514,41 @@ describe("static legacy coupling", () => {
     }
   });
 
+  it("promote path does not query erp_connections", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "lib/integrations/quickbooks/promote-legacy-grant-execute.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/\.from\(\s*["']erp_connections["']\s*\)/);
+  });
+
+  it("adapter saveConnection does not use .limit(1) as ambiguity hide", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "lib/erp-adapters/quickbooks-adapter.js"),
+      "utf8",
+    );
+    const saveIdx = src.indexOf("async saveConnection");
+    const getIdx = src.indexOf("async getConnection");
+    const saveBlock = src.slice(saveIdx, getIdx);
+    expect(saveBlock).not.toMatch(/\.limit\(\s*1\s*\)/);
+    expect(saveBlock).toMatch(/\.limit\(\s*2\s*\)/);
+    expect(saveBlock).toMatch(/Multiple QuickBooks accounting connections matched authority/);
+  });
+
   it("token-resolver is server-only (not under app/ client components)", () => {
     const resolver = path.join(process.cwd(), "lib/erp/quickbooks/token-resolver.ts");
     expect(fs.existsSync(resolver)).toBe(true);
     expect(resolver.includes(`${path.sep}app${path.sep}`)).toBe(false);
     const src = fs.readFileSync(resolver, "utf8");
     expect(src).not.toMatch(/["']use client["']/);
+  });
+
+  it("typed authority errors never embed synthetic tokens or realm ids in messages", () => {
+    const err = new QboTokenAuthorityError(
+      "null_provider_environment",
+      "Connection provider environment is missing or invalid",
+    );
+    expect(err.message).not.toMatch(/at-|rt-|9341454381415870|eyJ/);
   });
 
   it("JE-3D capabilities remain OFF and are not flipped by this change", () => {

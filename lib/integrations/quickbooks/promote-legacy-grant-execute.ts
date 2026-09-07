@@ -133,102 +133,13 @@ export async function loadPromoteLegacyGrantContext(args: {
   firmClientId: string;
   explicitCompanyId?: string | null;
 }): Promise<LoadedPromoteContext> {
-  const { admin, legacyConnectionId, expectedRealmId, firmClientId } = args;
-
-  type LegacyRow = {
-    id: string;
-    user_id: string;
-    realm_id: string;
-    access_token: string | null;
-    refresh_token: string | null;
-    token_expiry: string | null;
-  };
-
-  let legacyRow: LegacyRow | null = null;
-  let legacyTable: LegacyQboGrantRef["legacyTable"] = "erp_connections";
-
-  // quickbooks_connections promote is retired (CONTROLLED_OMIT_AFTER_CALLER_MIGRATION).
-  // Do not SELECT/INSERT/UPDATE that table. Optional erp_connections read remains
-  // only when that table already exists — not as a new fallback for missing canonical rows.
-  const { data, error } = await admin
-    .from("erp_connections")
-    .select("id, user_id, realm_id, access_token, refresh_token, token_expiry")
-    .eq("id", legacyConnectionId)
-    .maybeSingle();
-  if (error && error.code !== "PGRST205" && error.code !== "42P01") throw error;
-  if (data) {
-    legacyRow = data as LegacyRow;
-    legacyTable = "erp_connections";
-  }
-
-  if (!legacyRow) {
-    throw new Error(
-      `Legacy connection ${legacyConnectionId} not found (quickbooks_connections promote retired; use accounting_connections)`,
-    );
-  }
-
-  const { data: firmClient, error: fcErr } = await admin
-    .from("firm_clients")
-    .select("id, owner_user_id, company_id")
-    .eq("id", firmClientId)
-    .maybeSingle();
-  if (fcErr) throw new Error(`firm_clients lookup failed: ${fcErr.message}`);
-
-  const companyId = (firmClient?.company_id as string | null) || null;
-  let company: LoadedPromoteContext["company"] = null;
-  if (companyId) {
-    const { data: co, error: coErr } = await admin
-      .from("companies")
-      .select("id, qbo_realm_id, name")
-      .eq("id", companyId)
-      .maybeSingle();
-    if (coErr) throw new Error(`companies lookup failed: ${coErr.message}`);
-    if (co) {
-      company = {
-        id: String(co.id),
-        qboRealmId: (co.qbo_realm_id as string | null) || null,
-        name: (co.name as string | null) || null,
-      };
-    }
-  }
-
-  const { data: realmOwners, error: realmErr } = await admin
-    .from("companies")
-    .select("id, name, qbo_realm_id")
-    .eq("qbo_realm_id", expectedRealmId)
-    .limit(5);
-  if (realmErr) throw new Error(`companies realm ownership lookup failed: ${realmErr.message}`);
-
-  const otherCompanyOwningRealm =
-    (realmOwners || [])
-      .map((row) => ({
-        id: String(row.id),
-        name: (row.name as string | null) || null,
-      }))
-      .find((row) => !companyId || row.id !== companyId) || null;
-
-  return {
-    legacy: {
-      id: legacyRow.id,
-      userId: legacyRow.user_id,
-      realmId: legacyRow.realm_id,
-      legacyTable,
-      hasAccessToken: Boolean(legacyRow.access_token),
-      hasRefreshToken: Boolean(legacyRow.refresh_token),
-      tokenExpiry: legacyRow.token_expiry,
-      accessToken: legacyRow.access_token || "",
-      refreshToken: legacyRow.refresh_token || "",
-    },
-    firmClient: firmClient
-      ? {
-          id: String(firmClient.id),
-          ownerUserId: String(firmClient.owner_user_id || ""),
-          companyId: String(firmClient.company_id || ""),
-        }
-      : null,
-    company,
-    otherCompanyOwningRealm,
-  };
+  // CONTROLLED_OMIT_AFTER_CALLER_MIGRATION: quickbooks_connections promote is
+  // retired. erp_connections is absent in production and must not remain as a
+  // live promotion/fallback source. Do not SELECT legacy tables here.
+  void args;
+  throw new Error(
+    "Legacy connection promote sources are retired; use accounting_connections (quickbooks_connections/erp_connections promote removed)",
+  );
 }
 
 export async function executePromoteLegacyQboGrant(args: {

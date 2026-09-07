@@ -2,13 +2,15 @@
  * Firm-client/company-anchored plan for promoting an already-authorized
  * legacy QBO grant into accounting_connections.
  *
- * Pure planning only — no DB writes. The ops script must not call
- * resolveOrCreateCompanyForProvider for this repair path.
+ * Pure planning only — no DB writes. Live load of erp_connections /
+ * quickbooks_connections is retired; plan unit tests may still construct
+ * synthetic LegacyQboGrantRef values.
  */
 export type LegacyQboGrantRef = {
   id: string;
   userId: string;
   realmId: string;
+  /** Historical label only — live promote load no longer reads this table. */
   legacyTable: "erp_connections";
   hasAccessToken: boolean;
   hasRefreshToken: boolean;
