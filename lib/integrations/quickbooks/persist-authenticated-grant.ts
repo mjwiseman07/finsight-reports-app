@@ -32,6 +32,8 @@ export async function persistAuthenticatedQuickBooksGrant(args: {
     expires_in?: number | string;
   };
   companyProfile?: QuickBooksCompanyProfile | null;
+  /** Verified from signed OAuth state — never from browser input. */
+  verifiedProviderEnvironment?: "sandbox" | "production" | null;
 }): Promise<{
   erpConnectionId: string | null;
   accountingConnectionId: string;
@@ -74,6 +76,7 @@ export async function persistAuthenticatedQuickBooksGrant(args: {
     status: "connected",
     companyId,
     nowIso: now,
+    verifiedProviderEnvironment: args.verifiedProviderEnvironment ?? null,
     extraColumns: {
       home_currency: companyProfile.home_currency || null,
       qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),

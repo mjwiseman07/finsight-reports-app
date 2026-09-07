@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import {
   resolveSuperAdminAccess,
   auditSuperAdminEvent,
@@ -11,6 +10,7 @@ import {
   signHolderUserId,
   HOLDER_USER_ID_COOKIE_NAME,
 } from "@/lib/demo/holder-cookie";
+import { createQboOAuthEnvironmentState } from "@/lib/erp/quickbooks/oauth-environment-state";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,8 +118,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // 4. Build Intuit authorize URL.
-  const state = crypto.randomUUID();
+  // 4. Build Intuit authorize URL with signed environment-bound state.
+  const { state, expectedProviderEnvironment } = createQboOAuthEnvironmentState();
   const adapter = getERPAdapter("quickbooks", null);
   const { url } = adapter.connect({ state });
 
@@ -135,6 +135,7 @@ export async function POST(request: Request) {
         firm_id: firmId,
         firm_name: firm.name,
         state_length: state.length,
+        expected_provider_environment: expectedProviderEnvironment,
       },
     });
   } catch (auditErr) {
