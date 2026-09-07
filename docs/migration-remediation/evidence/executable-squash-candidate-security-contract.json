@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T02:41:10.819Z",
+  "generatedAt": "2026-09-07T03:14:45.488Z",
   "goals": [
     "Eliminate phase1 CREATE-before-RLS window by atomic module",
     "Eliminate former module 4→5 RLS window by merging app schema + security",
@@ -18,8 +18,8 @@
       "assert": "subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events have RLS enabled"
     },
     {
-      "afterModule": "20260907010030",
-      "assert": "zero application tables without RLS; gap2_purge_table_registry and curated_rule_fires protected; sensitive RPCs revoked from anon"
+      "afterModule": "app_slices_and_security",
+      "assert": "each Option-2 slice: exactly one outer txn; zero tables without RLS at slice COMMIT; sensitive RPC revokes when introduced"
     },
     {
       "afterAnyFailure": true,
@@ -44,5 +44,6 @@
     }
   },
   "patent6AndImmutability": "Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)",
-  "partialReplayRlsRisk": "reduced: module 4 is atomic app+security; still requires independent source review before replay"
+  "partialReplayRlsRisk": "reduced via Option 2 per-slice RLS closure; still requires independent source review before replay",
+  "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT"
 }

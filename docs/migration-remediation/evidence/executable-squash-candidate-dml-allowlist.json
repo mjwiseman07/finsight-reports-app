@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T02:41:10.819Z",
+  "generatedAt": "2026-09-07T03:14:45.488Z",
   "dispositions": {
     "d6_2a_through_d6_2d": {
       "verdict": "ALLOW_GUARDED_OPTIONAL_SEED",
@@ -212,224 +212,224 @@
       "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_templates"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_template_items"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_templates"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_template_items"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_templates"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_template_items"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_templates"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "close_checklist_template_items"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "curated_rules_registry"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.ar_cash_app_config"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.firm_llm_config"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "storage.buckets"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.event_projections"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.stripe_webhook_events"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.entitlement_check_audit"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.firm_intake_settings"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.firm_intake_handlers"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.firm_intake_handlers"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "public.firm_intake_handlers"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "INSERT",
       "target": "curated_rules_registry"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.assertions_catalog"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "subscriptions"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.assertion_relevance_matrix"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "founder_decision_"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "or"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "close_packet_share_tokens"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "firm_clients"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "firm_clients"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "close_periods"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "USING"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "USING"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "USING"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "USING"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
-      "file": "20260907010030_esc_application_schema_and_security_atomic.sql",
-      "kind": "INSERT",
-      "target": "public.rule_assertion_coverage"
+      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "UPDATE",
+      "target": "USING"
     }
   ],
   "note": "Full INSERT/UPDATE/DELETE scan is advisory; allowlist policy enforced by dispositions + tests"

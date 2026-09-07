@@ -1,0 +1,348 @@
+{
+  "generatedAt": "2026-09-07T03:07:33.520Z",
+  "module": "20260907010030_esc_application_schema_and_security_atomic",
+  "lexer": "comment_string_dollarquote_aware",
+  "controlCountsByKind": {
+    "BEGIN": 50,
+    "COMMIT": 50,
+    "END": 3
+  },
+  "controlTotal": 103,
+  "nestedPairsApprox": 53,
+  "unpairedBegin": 0,
+  "controlsSample": [
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 31813,
+      "line": 579,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+        "start": 31142,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 31911,
+      "line": 581,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+        "start": 31142,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 39972,
+      "line": 767,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+        "start": 39176,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 41128,
+      "line": 787,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+        "start": 39176,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 41868,
+      "line": 802,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+        "start": 41202,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 43872,
+      "line": 853,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+        "start": 41202,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 90361,
+      "line": 1800,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+        "start": 89367,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 90899,
+      "line": 1822,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+        "start": 89367,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 94969,
+      "line": 1921,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "start": 94339,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 100625,
+      "line": 2044,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "start": 94339,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 100988,
+      "line": 2053,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+        "start": 100700,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 120083,
+      "line": 2383,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+        "start": 100700,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 120639,
+      "line": 2394,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706130000_d_entitlements.sql",
+        "start": 120158,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 129111,
+      "line": 2577,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706130000_d_entitlements.sql",
+        "start": 120158,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 130351,
+      "line": 2599,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706140000_d_entitlements_followup.sql",
+        "start": 129165,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "END",
+      "raw": "END",
+      "index": 131715,
+      "line": 2633,
+      "hasSemicolon": false,
+      "source": {
+        "file": "20260706140000_d_entitlements_followup.sql",
+        "start": 129165,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 135142,
+      "line": 2717,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260706140000_d_entitlements_followup.sql",
+        "start": 129165,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "BEGIN",
+      "index": 157281,
+      "line": 3258,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260714_00_d5_recurring_templates.sql",
+        "start": 156397,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "COMMIT",
+      "raw": "COMMIT",
+      "index": 170664,
+      "line": 3563,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260714_00_d5_recurring_templates.sql",
+        "start": 156397,
+        "type": "begin"
+      }
+    },
+    {
+      "kind": "BEGIN",
+      "raw": "begin",
+      "index": 171853,
+      "line": 3584,
+      "hasSemicolon": true,
+      "source": {
+        "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "start": 170723,
+        "type": "begin"
+      }
+    }
+  ],
+  "pairsBySourceFile": {
+    "20260704024059_d_entitlements_legacy_stripe_rename.sql": 1,
+    "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql": 1,
+    "20260708150000_tcp1_w1_pilot_slots_firm_id.sql": 1,
+    "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql": 1,
+    "20260704_0100_d6_4a_je_evidence_attachments_backup.sql": 1,
+    "20260706120000_d_platform_event_sourced_foundation.sql": 1,
+    "20260706130000_d_entitlements.sql": 1,
+    "20260706140000_d_entitlements_followup.sql": 2,
+    "20260714_00_d5_recurring_templates.sql": 1,
+    "20260703_1200_d6_0_vertical_rule_foundation.sql": 1,
+    "20260706150000_d6_4c_1_pre_close_review_queue.sql": 1,
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": 1,
+    "20260707130000_d_assertions_part_2_coverage_projection.sql": 1,
+    "20260707140000_d_assertions_part_3_coverage_statement.sql": 1,
+    "20260707150000_d_assertions_part_4_je_propagation.sql": 1,
+    "20260707160000_d_assertions_part_5_gap_review_items.sql": 1,
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql": 1,
+    "20260716_00_d6_5_part1_1_firm_clients_slug.sql": 1,
+    "20260707214500_d65_p2_block7a2_prepilot_security.sql": 1,
+    "20260717030000_d65_p2_block3_quarantine_l3.sql": 1,
+    "20260717040000_d65_p2_block4_duplicate_detection.sql": 1,
+    "20260717050000_d65_p2_block5_anomaly_score_merkle.sql": 1,
+    "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql": 1,
+    "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql": 1,
+    "20260717090000_d65_p2_block7a_credits_prepayment.sql": 1,
+    "20260717100000_d65_p2_block7b_multimodal_inbox.sql": 1,
+    "20260717110000_d65_p2_block8a_interlock_rails.sql": 1,
+    "20260717120000_d65_p2_block8b_presets_selfgov.sql": 1,
+    "20260719050000_gap3_je_approval_flow.sql": 1,
+    "20260719060000_gap2_subscription_lifecycle_purge.sql": 1,
+    "20260720000000_v1_5_audit_ready_engagement_state.sql": 1,
+    "20260720120000_ar_week3_pbc_ingest_llm_usage.sql": 1,
+    "20260720170000_ar_tieout2_runs_and_variances.sql": 2,
+    "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql": 1,
+    "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql": 1,
+    "20260721160000_ar_tieout4b3_bs_recon_summary.sql": 1,
+    "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql": 1,
+    "20260806040000_major_2_3_block_a_assertion_linkage.sql": 1,
+    "20260806042000_major_2_3_block_a_1_research_revision.sql": 1,
+    "20260815000000_urm2_reconciling_items_persistence.sql": 1,
+    "20260815120000_urm3_universal_evidence_spine.sql": 1,
+    "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql": 1,
+    "20260703_1400_d6_0_1_rls_curated_rule_fires.sql": 1,
+    "20260706170000_d6_4c_3_posting_policy_and_remediation.sql": 1,
+    "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql": 1,
+    "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql": 1,
+    "20260720130000_ar_week3_block3_1_rpc_lockdown.sql": 1,
+    "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql": 1,
+    "20260720160000_ar_tieout1_policy_and_kind.sql": 2,
+    "20260805041500_major_1_rpc_lockdown.sql": 1
+  },
+  "pairSourceCount": 50,
+  "incompatibleStatements": [
+    {
+      "code": "CREATE_EXTENSION",
+      "match": "CREATE EXTENSION",
+      "index": 101231,
+      "line": 2058
+    },
+    {
+      "code": "CREATE_EXTENSION",
+      "match": "CREATE EXTENSION",
+      "index": 338204,
+      "line": 6387
+    },
+    {
+      "code": "CREATE_EXTENSION",
+      "match": "CREATE EXTENSION",
+      "index": 602926,
+      "line": 12228
+    },
+    {
+      "code": "ALTER_EXTENSION",
+      "match": "ALTER EXTENSION",
+      "index": 932623,
+      "line": 21045
+    }
+  ],
+  "risk": {
+    "utf8Bytes": 979214,
+    "approxStatements": 4511,
+    "beginCount": 50,
+    "commitCount": 50,
+    "incompatibleCount": 4,
+    "singleTxnCompatible": false,
+    "sizeRisk": "HIGH_PAYLOAD_TIMEOUT_LOCK_RISK",
+    "recommendation": "OPTION_2_SECURE_MULTI_VERSION_SPLIT"
+  },
+  "chosenModelHint": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
+  "chosenModelImplemented": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
+  "implementedAt": "2026-09-07T03:13:55.003Z",
+  "implementationNote": "5 app slices (10030-10034) + security atomic (10035); nested markers stripped; one outer txn each; RLS+RPC closures before COMMIT"
+}

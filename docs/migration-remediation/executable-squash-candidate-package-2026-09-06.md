@@ -1,25 +1,20 @@
-# Executable squash/baseline candidate package — remediations 2026-09-06
+# Executable squash/baseline candidate — Option 2 txn remediation 2026-09-06
 
-**Authorization:** candidate remediation only (SQL/manifest/docs/tests).  
-**PR #314:** draft. **Production mutation:** NO. **Docker/branch/SQL exec:** NO.
+**Authorization:** candidate transaction-boundary remediation only.  
+**PR #314:** draft. **Chosen model:** OPTION_2_SECURE_MULTI_VERSION_SPLIT.
 
 ## Bound pins
-- Remediation from PR HEAD: `689ab36b5e82df08dd664f43067788b6902eb86e`
-- Reviewed ancestor: `524ada4933c7d326e79cf69cb69bb88aed7a5c08` (seal `ae85b002…`, 1,132,090 bytes)
-- main: `9d8a01d37422179ddd68bbd181a8815d8a893577`
-- Option D: blob `0d2a39a3…` · SHA-256 `9dc080cf…` · PASS 151/151
+- From PR HEAD: `142fa46ec9cc46de71dee88e2526ffc123d3172b`
+- Candidate ancestor: `9b0c3b1a…` seal `99f556…` / 1,130,762 bytes
+- Option D: SHA-256 `9dc080cf…` · 151 entries
 
-## P0 remediations
-1. Merged former modules 4+5 into atomic `20260907010030_esc_application_schema_and_security_atomic`
-2. Enabled RLS + service_role-only policy on `gap2_purge_table_registry` and `engagement_posting_policy`
-3. Digest qualify retained **only** in forward-tail module 7
-4. Revoked PUBLIC/anon/authenticated EXECUTE on `publish_ledger_event` and `increment_share_token_access` (service_role callers)
+## Compatibility basis
+See `docs/migration-remediation/evidence/executable-squash-candidate-module4-txn-compatibility.json`.
 
-## Package files
-Under `supabase/migrations-draft/executable-squash-candidate/` (7 SQL modules) + `MANIFEST.json`.
+## Marker bookkeeping (138 vs 139)
+- **138** = Option D assembled files in app+security splits
+- **+1** ESC remediation patch begin marker (not an Option D entry)
+- Prior review’s “139” counted both; authoritative OD accounting remains **144+6+1=151**
 
-**Ready for independent source review:** YES (new review required; do not claim PASS_SOURCE_REVIEW yet)  
-**Ready for local replay / production dump / mutation:** NO
-
-## Next authorization
-New independent source review of this remediations package. Do not request production schema dump until that review PASSes boundary/security gates.
+## Next
+Third independent source review. No Docker/SQL/dump until PASS_SOURCE_REVIEW.

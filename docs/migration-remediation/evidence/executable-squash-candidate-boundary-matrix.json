@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-07T02:41:10.819Z",
-  "packageSeal": "99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf",
-  "totalUtf8LfBytes": 1130762,
+  "generatedAt": "2026-09-07T03:14:45.488Z",
+  "packageSeal": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+  "totalUtf8LfBytes": 1139927,
   "matrix": [
     {
       "afterModule": 1,
@@ -39,9 +39,9 @@
     {
       "afterModule": 4,
       "version": "20260907010030",
-      "name": "esc_application_schema_and_security_atomic",
-      "tablesCreatedInModule": 171,
-      "rlsEnabledInModule": 171,
+      "name": "esc_application_schema_slice_1_of_5",
+      "tablesCreatedInModule": 57,
+      "rlsEnabledInModule": 57,
       "unsafeCreatesInModuleWithoutRlsSameModule": [],
       "unsafeCreatesInModuleCount": 0,
       "cumulativeTablesWithoutRlsYet": 0,
@@ -49,6 +49,61 @@
     },
     {
       "afterModule": 5,
+      "version": "20260907010031",
+      "name": "esc_application_schema_slice_2_of_5",
+      "tablesCreatedInModule": 50,
+      "rlsEnabledInModule": 51,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": []
+    },
+    {
+      "afterModule": 6,
+      "version": "20260907010032",
+      "name": "esc_application_schema_slice_3_of_5",
+      "tablesCreatedInModule": 44,
+      "rlsEnabledInModule": 44,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": []
+    },
+    {
+      "afterModule": 7,
+      "version": "20260907010033",
+      "name": "esc_application_schema_slice_4_of_5",
+      "tablesCreatedInModule": 14,
+      "rlsEnabledInModule": 14,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": []
+    },
+    {
+      "afterModule": 8,
+      "version": "20260907010034",
+      "name": "esc_application_schema_slice_5_of_5",
+      "tablesCreatedInModule": 1,
+      "rlsEnabledInModule": 1,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": []
+    },
+    {
+      "afterModule": 9,
+      "version": "20260907010035",
+      "name": "esc_security_rls_grants_hardening_atomic",
+      "tablesCreatedInModule": 5,
+      "rlsEnabledInModule": 8,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": []
+    },
+    {
+      "afterModule": 10,
       "version": "20260907010040",
       "name": "esc_reference_seed_allowlist_contract",
       "tablesCreatedInModule": 0,
@@ -59,7 +114,7 @@
       "sampleCumulativeWithoutRls": []
     },
     {
-      "afterModule": 6,
+      "afterModule": 11,
       "version": "20260907010050",
       "name": "esc_guarded_dataless_safe_initialization",
       "tablesCreatedInModule": 2,
@@ -70,7 +125,7 @@
       "sampleCumulativeWithoutRls": []
     },
     {
-      "afterModule": 7,
+      "afterModule": 12,
       "version": "20260907010060",
       "name": "esc_forward_tail_main_unapplied",
       "tablesCreatedInModule": 0,

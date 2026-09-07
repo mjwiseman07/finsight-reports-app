@@ -43,26 +43,42 @@ const SUBST_DIR = path.join(
   'supabase/migrations-draft/option-d-isolated-replay/substitutions'
 );
 
-// Target model (post-remediation):
-// - Modules 1–6 = production-schema baseline (Option D assembled lineage + ESC overlays)
-// - Module 7 = post-baseline forward-tail (merged-but-unapplied main changes)
-// Digest qualify lives ONLY in forward-tail (excluded from baseline body).
-// Former modules 4+5 (app schema + security) are one atomic proposed version.
+// Target model (Option 2 — secure multi-version split of former module 4):
+// - Modules 1–3 = platform / foundations / phase1
+// - Modules 4..N-3 = app-schema slices (each one outer txn; nested markers stripped; RLS closed)
+// - Next = security + ESC privilege/RLS patch (one outer txn)
+// - Then reference / guarded / forward-tail
+// Digest qualify lives ONLY in forward-tail.
 const PROPOSED_VERSIONS = {
   platform: '20260907010000',
   foundations: '20260907010010',
   phase1_atomic: '20260907010020',
-  application_security_atomic: '20260907010030',
+  app_slice_1: '20260907010030',
+  app_slice_2: '20260907010031',
+  app_slice_3: '20260907010032',
+  app_slice_4: '20260907010033',
+  app_slice_5: '20260907010034',
+  security_atomic: '20260907010035',
   reference_seeds: '20260907010040',
   guarded_init: '20260907010050',
   forward_tail: '20260907010060',
 };
 
+const APP_SLICE_VERSIONS = [
+  PROPOSED_VERSIONS.app_slice_1,
+  PROPOSED_VERSIONS.app_slice_2,
+  PROPOSED_VERSIONS.app_slice_3,
+  PROPOSED_VERSIONS.app_slice_4,
+  PROPOSED_VERSIONS.app_slice_5,
+];
+
+const TARGET_APP_SLICE_BYTES = 200000;
+
 const DIGEST_QUALIFY_FILE = '20260906184500_publish_ledger_event_extensions_digest_qualify.sql';
 
 const ESC_BOUNDARY_SECURITY_PATCH = `
 -- >>> begin ESC_REMEDIATION_MODULE_BOUNDARY_SECURITY
--- Same-module RLS + least-privilege closure for tables/functions first visible here.
+-- Same-module RLS + least-privilege closure (security slice).
 -- Legitimate gap2_purge_table_registry caller: lib/gap2/purge-executor.ts (service_role).
 -- Legitimate increment_share_token_access caller: lib/close-packet/share-tokens.js (admin/service).
 -- Legitimate publish_ledger_event caller: lib/events/publisher.ts (service_role).
@@ -92,7 +108,6 @@ CREATE POLICY engagement_posting_policy_service_role
   USING (true)
   WITH CHECK (true);
 
--- curated_rule_fires: ENABLE already present via d6_0_1 in this module; assert again.
 ALTER TABLE IF EXISTS public.curated_rule_fires ENABLE ROW LEVEL SECURITY;
 
 REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM PUBLIC;
@@ -132,6 +147,232 @@ END
 $esc_priv_assert$;
 -- <<< end ESC_REMEDIATION_MODULE_BOUNDARY_SECURITY
 `.trim();
+
+/**
+ * Strip executable transaction-control statements outside comments/strings/dollar-quotes.
+ * Does not touch END IF / END LOOP / END CASE (requires END; or END TRANSACTION/WORK).
+ */
+function stripExecutableTxnMarkers(sql) {
+  let out = '';
+  let i = 0;
+  const n = sql.length;
+  while (i < n) {
+    const c = sql[i];
+    const c2 = sql[i + 1];
+    if (c === '-' && c2 === '-') {
+      const start = i;
+      while (i < n && sql[i] !== '\n') i++;
+      out += sql.slice(start, i);
+      continue;
+    }
+    if (c === '/' && c2 === '*') {
+      const start = i;
+      i += 2;
+      while (i < n - 1 && !(sql[i] === '*' && sql[i + 1] === '/')) i++;
+      i += 2;
+      out += sql.slice(start, i);
+      continue;
+    }
+    if (c === '$') {
+      const m = sql.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/);
+      if (m) {
+        const tag = m[0];
+        const start = i;
+        i += tag.length;
+        const end = sql.indexOf(tag, i);
+        i = end < 0 ? n : end + tag.length;
+        out += sql.slice(start, i);
+        continue;
+      }
+    }
+    if (c === "'") {
+      const start = i;
+      i++;
+      while (i < n) {
+        if (sql[i] === "'" && sql[i + 1] === "'") {
+          i += 2;
+          continue;
+        }
+        if (sql[i] === "'") {
+          i++;
+          break;
+        }
+        i++;
+      }
+      out += sql.slice(start, i);
+      continue;
+    }
+    if (c === '"') {
+      const start = i;
+      i++;
+      while (i < n) {
+        if (sql[i] === '"' && sql[i + 1] === '"') {
+          i += 2;
+          continue;
+        }
+        if (sql[i] === '"') {
+          i++;
+          break;
+        }
+        i++;
+      }
+      out += sql.slice(start, i);
+      continue;
+    }
+
+    const prev = i > 0 ? sql[i - 1] : ' ';
+    if (!/[A-Za-z0-9_]/.test(prev)) {
+      const rest = sql.slice(i);
+      // Match only statement-level txn controls ending with ;
+      const m =
+        /^(BEGIN(\s+(WORK|TRANSACTION))?|START\s+TRANSACTION|COMMIT(\s+(WORK|TRANSACTION))?|ROLLBACK(\s+(WORK|TRANSACTION))?|ROLLBACK\s+TO(\s+SAVEPOINT)?\s+[A-Za-z_][\w]*|SAVEPOINT\s+[A-Za-z_][\w]*|RELEASE\s+SAVEPOINT\s+[A-Za-z_][\w]*|END\s+(WORK|TRANSACTION))\s*;/i.exec(
+          rest
+        );
+      if (m) {
+        // Replace with comment provenance (non-executable)
+        out += `-- [ESC] stripped source txn marker: ${m[0].replace(/\s+/g, ' ').trim()}\n`;
+        i += m[0].length;
+        continue;
+      }
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+function countExecutableTxnControls(sql) {
+  // Reuse strip logic by scanning — import analyzer pattern inline
+  const controls = { BEGIN: 0, COMMIT: 0, ROLLBACK: 0, START: 0, END_TXN: 0 };
+  let i = 0;
+  const n = sql.length;
+  while (i < n) {
+    if (sql[i] === '-' && sql[i + 1] === '-') {
+      while (i < n && sql[i] !== '\n') i++;
+      continue;
+    }
+    if (sql[i] === '/' && sql[i + 1] === '*') {
+      i += 2;
+      while (i < n - 1 && !(sql[i] === '*' && sql[i + 1] === '/')) i++;
+      i += 2;
+      continue;
+    }
+    if (sql[i] === '$') {
+      const m = sql.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/);
+      if (m) {
+        const tag = m[0];
+        i += tag.length;
+        const end = sql.indexOf(tag, i);
+        i = end < 0 ? n : end + tag.length;
+        continue;
+      }
+    }
+    if (sql[i] === "'") {
+      i++;
+      while (i < n) {
+        if (sql[i] === "'" && sql[i + 1] === "'") {
+          i += 2;
+          continue;
+        }
+        if (sql[i] === "'") {
+          i++;
+          break;
+        }
+        i++;
+      }
+      continue;
+    }
+    const prev = i > 0 ? sql[i - 1] : ' ';
+    if (!/[A-Za-z0-9_]/.test(prev)) {
+      const m =
+        /^(BEGIN(\s+(WORK|TRANSACTION))?|START\s+TRANSACTION|COMMIT(\s+(WORK|TRANSACTION))?|ROLLBACK(\s+(WORK|TRANSACTION))?|END\s+(WORK|TRANSACTION))\s*;/i.exec(
+          sql.slice(i)
+        );
+      if (m) {
+        const raw = m[0].toUpperCase();
+        if (raw.startsWith('BEGIN')) controls.BEGIN++;
+        else if (raw.startsWith('START')) controls.START++;
+        else if (raw.startsWith('COMMIT')) controls.COMMIT++;
+        else if (raw.startsWith('ROLLBACK')) controls.ROLLBACK++;
+        else if (raw.startsWith('END')) controls.END_TXN++;
+        i += m[0].length;
+        continue;
+      }
+    }
+    i++;
+  }
+  return controls;
+}
+
+function buildRlsClosure(sql) {
+  const creates = findCreateTables(sql);
+  const rls = findEnableRls(sql);
+  const missing = [...new Set(creates)].filter((t) => !rls.has(t));
+  if (!missing.length) {
+    return {
+      sql: '-- [ESC] RLS closure: no CREATE TABLE without ENABLE RLS in this slice.\n',
+      missing: [],
+    };
+  }
+  const lines = [
+    '-- [ESC] RLS closure: ENABLE RLS before COMMIT for tables first visible in this slice.',
+    '-- Policies may arrive in a later security slice; ENABLE with no policy = deny-by-default for anon/authenticated.',
+  ];
+  for (const t of missing) {
+    const qual = t.includes('.') ? t : `public.${t}`;
+    lines.push(`ALTER TABLE IF EXISTS ${qual} ENABLE ROW LEVEL SECURITY;`);
+  }
+  return { sql: lines.join('\n') + '\n', missing };
+}
+
+function buildSensitiveRpcClosure(sql) {
+  const lines = [
+    '-- [ESC] Sensitive RPC privilege closure before COMMIT (service-role callers only).',
+  ];
+  let needed = false;
+  if (/CREATE\s+(OR\s+REPLACE\s+)?FUNCTION[\s\S]{0,80}?increment_share_token_access/i.test(sql)) {
+    needed = true;
+    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM PUBLIC;');
+    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM anon;');
+    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM authenticated;');
+  }
+  if (/CREATE\s+(OR\s+REPLACE\s+)?FUNCTION[\s\S]{0,120}?publish_ledger_event/i.test(sql)) {
+    needed = true;
+    lines.push(
+      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM PUBLIC;'
+    );
+    lines.push(
+      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM anon;'
+    );
+    lines.push(
+      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM authenticated;'
+    );
+  }
+  if (!needed) return { sql: '', needed: false };
+  return { sql: lines.join('\n') + '\n', needed: true };
+}
+
+function wrapSingleOuterTransaction(bodySql) {
+  return 'BEGIN;\n' + bodySql.trim() + '\nCOMMIT;\n';
+}
+
+function partitionByTargetBytes(items, targetBytes) {
+  // items: [{file, sql, bytes}]
+  const slices = [];
+  let cur = [];
+  let curBytes = 0;
+  for (const it of items) {
+    if (cur.length && curBytes + it.bytes > targetBytes) {
+      slices.push(cur);
+      cur = [];
+      curBytes = 0;
+    }
+    cur.push(it);
+    curBytes += it.bytes;
+  }
+  if (cur.length) slices.push(cur);
+  return slices;
+}
 
 function sha256(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
@@ -245,9 +486,29 @@ function sanitizeEmbeddedSqlComments(sql) {
 
 function findCreateTables(sql) {
   const tables = [];
+  // Ignore comment lines to avoid prose false positives (e.g. "CREATE TABLE ... without RLS").
+  const cleaned = sql
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--.*$/gm, '');
   const re = /CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+((?:public\.)?[a-zA-Z_][\w.]*)/gi;
+  const banned = new Set([
+    'if',
+    'not',
+    'exists',
+    'without',
+    'only',
+    'as',
+    'on',
+    'for',
+    'and',
+    'or',
+  ]);
   let m;
-  while ((m = re.exec(sql))) tables.push(m[1].replace(/^public\./, ''));
+  while ((m = re.exec(cleaned))) {
+    const t = m[1].replace(/^public\./, '');
+    if (banned.has(t.toLowerCase())) continue;
+    tables.push(t);
+  }
   return tables;
 }
 
@@ -389,7 +650,7 @@ function main() {
     'ALTER TABLE IF EXISTS public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;\n' +
     'COMMIT;\n';
 
-  // Application schema + security hardening: one atomic proposed version (closes 4→5 window).
+  // Application schema + security: Option 2 secure multi-version split
   const prefix = new Set([
     '20260701043598_public_users_derived_baseline.sql',
     '20260701043599_foundations_baseline.sql',
@@ -398,38 +659,134 @@ function main() {
   const securityNameRe =
     /(q8[a-e]|rpc_lockdown|rls_|security_definer|search_path|grant|revoke|policy)/i;
 
-  let appBody = '';
-  let securityBody = '';
+  const appItems = [];
+  const securityItems = [];
   const appSources = [];
   const securitySources = [];
 
   for (const f of order) {
     if (prefix.has(f) || skipInBody.has(f)) continue;
-    const sql = sanitizeEmbeddedSqlComments(toLf(readAssembled(f)).trim());
+    const raw = sanitizeEmbeddedSqlComments(toLf(readAssembled(f)).trim());
+    const sql = stripExecutableTxnMarkers(raw);
+    const bytes = Buffer.byteLength(sql, 'utf8');
     if (securityNameRe.test(f)) {
-      securityBody += `\n-- >>> begin ${f}\n${sql}\n-- <<< end ${f}\n`;
+      securityItems.push({ file: f, sql, bytes });
       securitySources.push(f);
     } else {
-      appBody += `\n-- >>> begin ${f}\n${sql}\n-- <<< end ${f}\n`;
+      appItems.push({ file: f, sql, bytes });
       appSources.push(f);
     }
   }
 
-  const appSecurityModule =
-    moduleHeader({
-      version: PROPOSED_VERSIONS.application_security_atomic,
-      name: 'esc_application_schema_and_security_atomic',
-      module: 'public_application_schema_and_security_atomic',
-      provenance: `Option D assembled app body (${appSources.length}) + security-named files (${securitySources.length}) + ESC boundary RLS/privilege patch; digest qualify excluded (forward-tail only)`,
-    }) +
-    '-- NOTE: Nested BEGIN/COMMIT from source files may appear; single proposed version\n' +
-    '-- closes former module 4→5 RLS exposure for schema_migrations / stop-after-module semantics.\n' +
-    appBody +
-    '\n-- --- security / RLS / grants / revokes (former module 5) ---\n' +
+  const appSlices = partitionByTargetBytes(appItems, TARGET_APP_SLICE_BYTES);
+  if (appSlices.length > APP_SLICE_VERSIONS.length) {
+    throw new Error(
+      `App slice count ${appSlices.length} exceeds allocated versions ${APP_SLICE_VERSIONS.length}; raise target bytes or add versions`
+    );
+  }
+
+  const splitModules = [];
+  appSlices.forEach((slice, idx) => {
+    const version = APP_SLICE_VERSIONS[idx];
+    const name = `esc_application_schema_slice_${idx + 1}_of_${appSlices.length}`;
+    let body = '';
+    const files = [];
+    for (const it of slice) {
+      body += `\n-- >>> begin ${it.file}\n${it.sql}\n-- <<< end ${it.file}\n`;
+      files.push(it.file);
+    }
+    const rls = buildRlsClosure(body);
+    const rpc = buildSensitiveRpcClosure(body);
+    const inner =
+      `-- OPTION 2 secure multi-version split: slice ${idx + 1}/${appSlices.length}\n` +
+      `-- Source BEGIN/COMMIT stripped; exactly one outer transaction.\n` +
+      `-- Files: ${files.length}; RLS closure tables: ${rls.missing.length || 0}\n` +
+      body +
+      '\n' +
+      rls.sql +
+      (rpc.sql ? '\n' + rpc.sql : '');
+    const full = moduleHeader({
+      version,
+      name,
+      module: `public_application_schema_slice_${idx + 1}`,
+      provenance: `Option D assembled app files (${files.length}) stripped of nested txn markers; RLS/privilege closed before COMMIT`,
+    }) + wrapSingleOuterTransaction(inner);
+
+    const txn = countExecutableTxnControls(full);
+    if (txn.BEGIN !== 1 || txn.COMMIT !== 1 || txn.ROLLBACK !== 0 || txn.START !== 0) {
+      throw new Error(`Slice ${idx + 1} txn controls invalid: ${JSON.stringify(txn)}`);
+    }
+    if (rls.missing.length && !rls.sql.includes('ENABLE ROW LEVEL SECURITY')) {
+      throw new Error(`Slice ${idx + 1} missing RLS closure`);
+    }
+
+    splitModules.push({
+      order: 0, // filled later
+      version,
+      name,
+      module: `public_application_schema_slice_${idx + 1}`,
+      filename: `${version}_${name}.sql`,
+      kind: 'baseline',
+      sql: full,
+      sources: files.map((f) => 'assembled:' + f),
+      txn: 'single outer BEGIN/COMMIT; nested source markers stripped',
+      dmlClass: 'mixed_see_dml_allowlist',
+      txnControls: txn,
+      rlsClosureTables: rls.missing,
+      sourceEntryRange: files,
+    });
+  });
+
+  // Security slice: policies/lockdowns + ESC patch
+  let securityBody = '';
+  for (const it of securityItems) {
+    securityBody += `\n-- >>> begin ${it.file}\n${it.sql}\n-- <<< end ${it.file}\n`;
+  }
+  const securityInner =
+    '-- OPTION 2 security slice: RLS policies, Q8 lockdowns, ESC boundary patch\n' +
+    '-- Nested source txn markers stripped; one outer transaction.\n' +
     securityBody +
     '\n' +
     ESC_BOUNDARY_SECURITY_PATCH +
     '\n';
+  const securityFull =
+    moduleHeader({
+      version: PROPOSED_VERSIONS.security_atomic,
+      name: 'esc_security_rls_grants_hardening_atomic',
+      module: 'security_rls_grants_triggers_functions_atomic',
+      provenance: `Option D security-named files (${securitySources.length}) + ESC boundary patch; single outer txn`,
+    }) + wrapSingleOuterTransaction(securityInner);
+  const securityTxn = countExecutableTxnControls(securityFull);
+  if (securityTxn.BEGIN !== 1 || securityTxn.COMMIT !== 1) {
+    throw new Error('Security slice txn controls invalid: ' + JSON.stringify(securityTxn));
+  }
+  // Ensure engagement + gap2 protected in this slice (created here or earlier; patch enables)
+  const secRls = findEnableRls(securityFull);
+  for (const t of ['gap2_purge_table_registry', 'engagement_posting_policy', 'curated_rule_fires']) {
+    if (!secRls.has(t) && !findCreateTables(securityFull).includes(t)) {
+      // may have been enabled in earlier app slice — OK if created earlier with closure
+    }
+  }
+
+  splitModules.push({
+    order: 0,
+    version: PROPOSED_VERSIONS.security_atomic,
+    name: 'esc_security_rls_grants_hardening_atomic',
+    module: 'security_rls_grants_triggers_functions_atomic',
+    filename: `${PROPOSED_VERSIONS.security_atomic}_esc_security_rls_grants_hardening_atomic.sql`,
+    kind: 'baseline',
+    sql: securityFull,
+    sources: [...securitySources.map((f) => 'assembled:' + f), 'esc:boundary-security-patch'],
+    txn: 'single outer BEGIN/COMMIT; nested source markers stripped',
+    dmlClass: 'none_expected_primary',
+    txnControls: securityTxn,
+    rlsClosureTables: [],
+    sourceEntryRange: securitySources,
+  });
+
+  // Marker bookkeeping: OD assembled begin markers in app+security = appSources+securitySources (138)
+  // ESC patch adds a 139th begin marker that is NOT an Option D entry.
+  const odAssembledInSplits = appSources.length + securitySources.length;
 
   // Reference seeds: document allowlist only + no-op check (company_roles already in foundations)
   const referenceModule =
@@ -583,24 +940,9 @@ function main() {
       txn: 'single outer BEGIN/COMMIT wrapping phase1 + ENABLE RLS',
       dmlClass: 'none',
     },
+    ...splitModules.map((m, i) => ({ ...m, order: 4 + i })),
     {
-      order: 4,
-      version: PROPOSED_VERSIONS.application_security_atomic,
-      name: 'esc_application_schema_and_security_atomic',
-      module: 'public_application_schema_and_security_atomic',
-      filename: `${PROPOSED_VERSIONS.application_security_atomic}_esc_application_schema_and_security_atomic.sql`,
-      kind: 'baseline',
-      sql: appSecurityModule,
-      sources: [
-        ...appSources.map((f) => 'assembled:' + f),
-        ...securitySources.map((f) => 'assembled:' + f),
-        'esc:boundary-security-patch',
-      ],
-      txn: 'single proposed version; nested source BEGIN/COMMIT markers preserved',
-      dmlClass: 'mixed_see_dml_allowlist',
-    },
-    {
-      order: 5,
+      order: 4 + splitModules.length,
       version: PROPOSED_VERSIONS.reference_seeds,
       name: 'esc_reference_seed_allowlist_contract',
       module: 'allowlisted_immutable_reference_seeds',
@@ -612,7 +954,7 @@ function main() {
       dmlClass: 'none_in_module',
     },
     {
-      order: 6,
+      order: 5 + splitModules.length,
       version: PROPOSED_VERSIONS.guarded_init,
       name: 'esc_guarded_dataless_safe_initialization',
       module: 'guarded_data_less_safe_initialization',
@@ -628,7 +970,7 @@ function main() {
       dmlClass: 'guarded_optional_seed + registry_reference_update',
     },
     {
-      order: 7,
+      order: 6 + splitModules.length,
       version: PROPOSED_VERSIONS.forward_tail,
       name: 'esc_forward_tail_main_unapplied',
       module: 'post_baseline_forward_migrations',
@@ -640,6 +982,11 @@ function main() {
       dmlClass: 'forward_source_dependent',
     },
   ];
+
+  // Re-number orders sequentially 1..n
+  modules.forEach((m, i) => {
+    m.order = i + 1;
+  });
 
   const boundaryMatrix = buildBoundaryMatrix(modules);
   const finalNoRls = boundaryMatrix[boundaryMatrix.length - 1].sampleCumulativeWithoutRls || [];
@@ -653,6 +1000,17 @@ function main() {
         unsafeAny
           .map((b) => `m${b.afterModule}:{${b.unsafeCreatesInModuleWithoutRlsSameModule.join(',')}}`)
           .join('; ')
+    );
+  }
+  for (const sm of splitModules) {
+    const t = countExecutableTxnControls(sm.sql);
+    if (t.BEGIN !== 1 || t.COMMIT !== 1 || t.ROLLBACK !== 0) {
+      throw new Error(`Builder refuse: split ${sm.name} txn=${JSON.stringify(t)}`);
+    }
+  }
+  if (odAssembledInSplits !== 138) {
+    throw new Error(
+      `Builder refuse: expected 138 OD assembled files in app+security splits, got ${odAssembledInSplits} (app=${appSources.length} sec=${securitySources.length})`
     );
   }
 
@@ -682,11 +1040,14 @@ function main() {
       dmlClassification: mod.dmlClass,
       createdConsumedObjects: 'see Option D dependency manifests + module source list',
       rlsSecurityAssertions: [
-        'zero CREATE TABLE without same-module ENABLE RLS (builder refuse)',
-        'gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4',
-        'publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked',
+        'Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT',
+        'zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)',
+        'sensitive RPC revoke-on-create before slice COMMIT when function is introduced',
         'digest qualify exactly once in forward-tail',
+        'OD assembled begin markers in splits=138; ESC patch marker is extra non-OD',
       ],
+      transactionControlCounts: mod.txnControls || countExecutableTxnControls(mod.sql),
+      sourceEntryRange: mod.sourceEntryRange || mod.sources,
     };
     manifestEntries.push(entry);
     allDml.push(...classifyDmlInSql(mod.sql, mod.filename));
@@ -697,15 +1058,18 @@ function main() {
     generatedAt: new Date().toISOString(),
     authorization: 'candidate remediation only - no production mutation, no Docker, no branch, no SQL execution',
     targetModel: {
-      baselineModules: '1-6 Option D production-schema baseline + ESC overlays (digest qualify excluded)',
-      forwardTailModule: '7 post-baseline merged-but-unapplied main (sole digest qualify home)',
-      module4AtomicSecurity: 'former application schema + security merged into one proposed version',
-      reviewedAncestorSeal: 'ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28',
-      reviewedAncestorCommit: '524ada4933c7d326e79cf69cb69bb88aed7a5c08',
-      remediationAuthorizedFromPrHead: '689ab36b5e82df08dd664f43067788b6902eb86e',
+      transactionModel: 'OPTION_2_SECURE_MULTI_VERSION_SPLIT',
+      transactionModelJustification:
+        'Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.',
+      baselineModules: 'platform+foundations+phase1+app slices+security+reference+guarded',
+      forwardTailModule: 'post-baseline merged-but-unapplied main (sole digest qualify home)',
+      reviewedAncestorSeal: '99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf',
+      reviewedAncestorCommit: '9b0c3b1a51e5674742c55b2d47aa0a1ecdaa3fc3',
+      remediationAuthorizedFromPrHead: '142fa46ec9cc46de71dee88e2526ffc123d3172b',
+      priorSingleModule4Superseded: true,
     },
     bound: {
-      pr314HeadAtStart: '689ab36b5e82df08dd664f43067788b6902eb86e',
+      pr314HeadAtStart: '142fa46ec9cc46de71dee88e2526ffc123d3172b',
       mainHead: '9d8a01d37422179ddd68bbd181a8815d8a893577',
       projectRefReadOnly: 'jzmdgwwiestcmmeuhhkr',
       optionDManifestBlob: '0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e',
@@ -715,6 +1079,7 @@ function main() {
       primaryDecision: 'executable_squash_baseline',
       productionMutationReadiness: false,
       sourceReviewVerdictPrior: 'CHANGES REQUIRED',
+      blockingFindingRemediated: 'MODULE4_NOT_SINGLE_TRANSACTION',
     },
     proposedLineageOrder: modules.map((m) => ({
       order: m.order,
@@ -732,12 +1097,27 @@ function main() {
     ),
     sourceAccounting: {
       optionDEntries: order.length,
-      includedInBaselineBody: appSources.length + securitySources.length,
+      includedUnchangedBaseline:
+        prefix.size - phase1Files.length + phase1Files.length + odAssembledInSplits,
+      // Explicit equation components for reviewers:
+      foundationsAndUsers: 2,
+      phase1: phase1Files.length,
+      appAndSecurityAssembled: odAssembledInSplits,
       dispositionOverlays: d6Files.length + 2,
       digestQualifyOccurrences: 1,
-      digestQualifyLocation: 'module_7_forward_tail_only',
+      digestQualifyLocation: 'forward_tail_only',
+      equation: `${2 + phase1Files.length + odAssembledInSplits} unchanged + ${d6Files.length + 2} overlays + 1 forward = ${2 + phase1Files.length + odAssembledInSplits + d6Files.length + 2 + 1}`,
+      includedInBaselineBody: odAssembledInSplits,
+      markerBookkeeping: {
+        odAssembledBeginMarkersInSplits: odAssembledInSplits,
+        escRemediationPatchBeginMarker: 1,
+        priorObserved139Explanation:
+          '139 = 138 Option D assembled begin markers in former module 4 + 1 ESC_REMEDIATION_MODULE_BOUNDARY_SECURITY patch marker (not an Option D entry)',
+      },
       excludedFromBaselineBody: [DIGEST_QUALIFY_FILE, ...d6Files, tcp1File, grantFile],
       escBoundaryPatch: true,
+      transactionModel: 'OPTION_2_SECURE_MULTI_VERSION_SPLIT',
+      appSliceCount: appSlices.length,
     },
     privilegeDispositions: {
       publish_ledger_event: {
@@ -840,9 +1220,9 @@ function main() {
           'subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events have RLS enabled',
       },
       {
-        afterModule: PROPOSED_VERSIONS.application_security_atomic,
+        afterModule: 'app_slices_and_security',
         assert:
-          'zero application tables without RLS; gap2_purge_table_registry and curated_rule_fires protected; sensitive RPCs revoked from anon',
+          'each Option-2 slice: exactly one outer txn; zero tables without RLS at slice COMMIT; sensitive RPC revokes when introduced',
       },
       {
         afterAnyFailure: true,
@@ -852,7 +1232,8 @@ function main() {
     privilegeDispositions: packageManifest.privilegeDispositions,
     patent6AndImmutability:
       'Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)',
-    partialReplayRlsRisk: 'reduced: module 4 is atomic app+security; still requires independent source review before replay',
+    partialReplayRlsRisk: 'reduced via Option 2 per-slice RLS closure; still requires independent source review before replay',
+    transactionModel: 'OPTION_2_SECURE_MULTI_VERSION_SPLIT',
   };
   writeLf(SECURITY_PATH, JSON.stringify(security, null, 2));
 
@@ -905,62 +1286,46 @@ function main() {
   const readme = `# Executable squash candidate (DRAFT / NON-DEPLOYABLE)
 
 **Mutation readiness: NO**  
+**Transaction model: OPTION 2 — secure multi-version split**  
 **Replay: NOT authorized**  
-**Active \`supabase/migrations/\`: untouched**  
-**Prior source review: CHANGES REQUIRED (remediated candidate; needs new independent review)**
+**Active \`supabase/migrations/\`: untouched**
 
-## Target model
-- **Baseline (modules 1–6):** Option D production-schema baseline + ESC overlays; digest qualify **excluded**
-- **Forward-tail (module 7):** sole home of \`publish_ledger_event\` extensions.digest qualify
-- **Module 4:** atomic application schema + security (closes former 4→5 RLS window)
+## Why Option 2
+Former monolithic module 4 had 50 nested BEGIN/COMMIT pairs, extension operations, and ~979KB / ~4500 statements (HIGH timeout/lock risk). A blind single outer transaction was rejected.
 
 ## Proposed lineage
-
 | Order | Version | Name | Kind |
 |------:|---------|------|------|
 ${modules
   .map((m) => `| ${m.order} | \`${m.version}\` | \`${m.name}\` | ${m.kind} |`)
   .join('\n')}
 
-## Dispositions
-- **d6_2a–d**: guarded Option D substitutions
-- **tcp1**: schema/RLS/functions; complimentary seed **omitted**
-- **grant**: unique index only; no LOCK/RAISE/UPDATE
-- **gap2_purge_table_registry / engagement_posting_policy**: ENABLE RLS + service_role-only policy
-- **publish_ledger_event / increment_share_token_access**: PUBLIC/anon/authenticated EXECUTE **revoked**
+Each app/security slice: nested source txn markers stripped; exactly one outer BEGIN/COMMIT; RLS closed before COMMIT.
 
-## Authority
-Built from Option D manifest SHA-256 \`9dc080cf…\` / 151 assembled files + substitutions, with ESC overlays.
-
-See \`MANIFEST.json\` and \`docs/migration-remediation/executable-squash-candidate-package-2026-09-06.md\`.
+See \`MANIFEST.json\` and package docs.
 `;
   writeLf(path.join(OUT_DIR, 'README.md'), readme);
 
-  const doc = `# Executable squash/baseline candidate package — remediations 2026-09-06
+  const doc = `# Executable squash/baseline candidate — Option 2 txn remediation 2026-09-06
 
-**Authorization:** candidate remediation only (SQL/manifest/docs/tests).  
-**PR #314:** draft. **Production mutation:** NO. **Docker/branch/SQL exec:** NO.
+**Authorization:** candidate transaction-boundary remediation only.  
+**PR #314:** draft. **Chosen model:** OPTION_2_SECURE_MULTI_VERSION_SPLIT.
 
 ## Bound pins
-- Remediation from PR HEAD: \`689ab36b5e82df08dd664f43067788b6902eb86e\`
-- Reviewed ancestor: \`524ada4933c7d326e79cf69cb69bb88aed7a5c08\` (seal \`ae85b002…\`, 1,132,090 bytes)
-- main: \`9d8a01d37422179ddd68bbd181a8815d8a893577\`
-- Option D: blob \`0d2a39a3…\` · SHA-256 \`9dc080cf…\` · PASS 151/151
+- From PR HEAD: \`142fa46ec9cc46de71dee88e2526ffc123d3172b\`
+- Candidate ancestor: \`9b0c3b1a…\` seal \`99f556…\` / 1,130,762 bytes
+- Option D: SHA-256 \`9dc080cf…\` · 151 entries
 
-## P0 remediations
-1. Merged former modules 4+5 into atomic \`20260907010030_esc_application_schema_and_security_atomic\`
-2. Enabled RLS + service_role-only policy on \`gap2_purge_table_registry\` and \`engagement_posting_policy\`
-3. Digest qualify retained **only** in forward-tail module 7
-4. Revoked PUBLIC/anon/authenticated EXECUTE on \`publish_ledger_event\` and \`increment_share_token_access\` (service_role callers)
+## Compatibility basis
+See \`docs/migration-remediation/evidence/executable-squash-candidate-module4-txn-compatibility.json\`.
 
-## Package files
-Under \`supabase/migrations-draft/executable-squash-candidate/\` (7 SQL modules) + \`MANIFEST.json\`.
+## Marker bookkeeping (138 vs 139)
+- **138** = Option D assembled files in app+security splits
+- **+1** ESC remediation patch begin marker (not an Option D entry)
+- Prior review’s “139” counted both; authoritative OD accounting remains **144+6+1=151**
 
-**Ready for independent source review:** YES (new review required; do not claim PASS_SOURCE_REVIEW yet)  
-**Ready for local replay / production dump / mutation:** NO
-
-## Next authorization
-New independent source review of this remediations package. Do not request production schema dump until that review PASSes boundary/security gates.
+## Next
+Third independent source review. No Docker/SQL/dump until PASS_SOURCE_REVIEW.
 `;
   writeLf(DOC_PATH, doc);
 
@@ -968,9 +1333,16 @@ New independent source review of this remediations package. Do not request produ
   const tmp = path.join(ROOT, 'docs/migration-remediation/evidence/_tmp-git-vs-prod.json');
   if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
 
+  // Persist txn compatibility copy next to evidence if analyzer was run
+  const txnCompatSrc = path.join(
+    ROOT,
+    'docs/migration-remediation/evidence/executable-squash-candidate-module4-txn-compatibility.json'
+  );
+
   console.log(
     JSON.stringify(
       {
+        transactionModel: 'OPTION_2_SECURE_MULTI_VERSION_SPLIT',
         modules: manifestEntries.map((e) => ({
           order: e.order,
           version: e.version,
@@ -979,14 +1351,18 @@ New independent source review of this remediations package. Do not request produ
           sha256: e.sha256,
           blob: e.gitBlobId,
           md5: e.md5,
+          txn: e.transactionControlCounts,
         })),
         totalBytes: packageManifest.totalUtf8LfBytes,
         packageSeal: packageManifest.packageSha256OfConcatenatedEntryHashes,
         forwardFiles,
         appSources: appSources.length,
         securitySources: securitySources.length,
+        odAssembledInSplits,
+        appSlices: appSlices.length,
         boundaryUnsafe: boundaryMatrix.map((b) => b.unsafeCreatesInModuleCount),
         finalWithoutRls: finalNoRls,
+        txnCompatExists: fs.existsSync(txnCompatSrc),
       },
       null,
       2

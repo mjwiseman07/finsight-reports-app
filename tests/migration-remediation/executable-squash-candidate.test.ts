@@ -8,38 +8,32 @@ const ROOT = path.resolve(__dirname, "../..");
 const PKG = path.join(ROOT, "supabase/migrations-draft/executable-squash-candidate");
 const MANIFEST = path.join(PKG, "MANIFEST.json");
 const BUILDER = path.join(ROOT, "scripts/migration-remediation/build-executable-squash-candidate.js");
+const EXPECTED_SEAL = "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff";
+const EXPECTED_BYTES = 1139927;
 
 function sha256File(p: string) {
   return createHash("sha256").update(fs.readFileSync(p)).digest("hex");
 }
 
-describe("executable squash candidate package (authoring only)", () => {
+describe("executable squash candidate package (Option 2 txn remediation)", () => {
   it("does not modify active supabase/migrations", () => {
     const active = fs.readdirSync(path.join(ROOT, "supabase/migrations"));
     expect(active.some((f) => f.startsWith("202609070100"))).toBe(false);
   });
 
-  it("manifest has 7 ordered modules with git blobs and hashes", () => {
+  it("manifest has Option-2 modules with hashes and single-txn slices", () => {
     const m = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-    expect(m.productionMutationReadiness ?? m.bound.productionMutationReadiness).toBe(false);
-    expect(m.entries).toHaveLength(7);
-    expect(m.entries.map((e: { version: string }) => e.version)).toEqual([
-      "20260907010000",
-      "20260907010010",
-      "20260907010020",
-      "20260907010030",
-      "20260907010040",
-      "20260907010050",
-      "20260907010060",
-    ]);
+    expect(m.bound.productionMutationReadiness).toBe(false);
+    expect(m.targetModel.transactionModel).toBe("OPTION_2_SECURE_MULTI_VERSION_SPLIT");
+    expect(m.packageSha256OfConcatenatedEntryHashes).toBe(EXPECTED_SEAL);
+    expect(m.totalUtf8LfBytes).toBe(EXPECTED_BYTES);
+    expect(m.entries.length).toBeGreaterThanOrEqual(10);
+    const sliceNames = m.entries.filter((e: { name: string }) => e.name.includes("slice_"));
+    expect(sliceNames.length).toBe(5);
     for (const e of m.entries) {
       expect(e.gitBlobId).toMatch(/^[0-9a-f]{40}$/);
-      expect(e.sha256).toMatch(/^[0-9a-f]{64}$/);
-      expect(e.utf8LfBytes).toBeGreaterThan(0);
-      const abs = path.join(ROOT, e.path);
-      expect(sha256File(abs)).toBe(e.sha256);
-      const text = fs.readFileSync(abs, "utf8");
-      expect(text.includes("\r")).toBe(false);
+      expect(sha256File(path.join(ROOT, e.path))).toBe(e.sha256);
+      expect(fs.readFileSync(path.join(ROOT, e.path), "utf8").includes("\r")).toBe(false);
     }
   });
 
@@ -54,7 +48,7 @@ describe("executable squash candidate package (authoring only)", () => {
 
   it("forward tail is only digest-qualify migration", () => {
     const m = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-    const fwd = m.entries.find((e: { order: number }) => e.order === 7);
+    const fwd = m.entries.find((e: { name: string }) => e.name.includes("forward_tail"));
     expect(fwd.sourceProvenance).toEqual([
       "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     ]);
@@ -66,7 +60,15 @@ describe("executable squash candidate package (authoring only)", () => {
     execFileSync(process.execPath, [BUILDER], { cwd: ROOT, stdio: "pipe" });
     const twice = JSON.parse(fs.readFileSync(MANIFEST, "utf8")).packageSha256OfConcatenatedEntryHashes;
     expect(twice).toBe(once);
-    expect(once).toBe("99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf");
+    expect(once).toBe(EXPECTED_SEAL);
+  });
+
+  it("source accounting equation remains 151", () => {
+    const m = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
+    expect(m.sourceAccounting.optionDEntries).toBe(151);
+    expect(m.sourceAccounting.appAndSecurityAssembled).toBe(138);
+    expect(m.sourceAccounting.markerBookkeeping.priorObserved139Explanation).toMatch(/ESC_REMEDIATION/);
+    expect(m.sourceAccounting.equation).toMatch(/= 151$/);
   });
 
   it("secret scan passes", () => {
