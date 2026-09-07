@@ -12,7 +12,7 @@ const baseLegacy = {
   id: "e53c49f0-9686-44eb-b0ea-040ceedd02e4",
   userId: "a4ebf834-a698-4f79-a945-8498f2e6c45d",
   realmId: "9341454381415870",
-  legacyTable: "quickbooks_connections" as const,
+  legacyTable: "erp_connections" as const,
   hasAccessToken: true,
   hasRefreshToken: true,
   tokenExpiry: "2099-01-01T00:00:00.000Z",

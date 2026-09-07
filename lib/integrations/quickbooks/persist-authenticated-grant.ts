@@ -1,7 +1,7 @@
 /**
  * Authenticated (mode=user) QBO OAuth completion after token exchange.
- * Dual-writes legacy ERP adapter storage + canonical accounting_connections.
- * Returns the canonical connection id for redirect / dashboard hydration.
+ * Persists via adapter (accounting_connections) then enriches the same
+ * canonical grant with company profile metadata.
  */
 import { getERPAdapter } from "@/lib/erp-adapters";
 import { persistCanonicalAccountingConnectionGrant } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
