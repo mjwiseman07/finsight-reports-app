@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "goals": [
+    "Eliminate phase1 CREATE-before-RLS window by atomic module",
+    "Option-2 per-slice RLS closure at every app/security COMMIT",
+    "Create engagement_posting_policy before any ENABLE/POLICY (FORCE_APP d6_4c_3)",
+    "Same-slice REVOKE EXECUTE FROM PUBLIC for every created application function",
+    "Fail-closed anon/authenticated EXECUTE except allowlisted RLS helpers",
+    "Remove public.users GRANT ALL TO anon; narrow authenticated to SELECT/UPDATE",
+    "Digest qualify exactly once in forward-tail",
+    "No customer data in package"
+  ],
+  "midReplayAssertions": [
+    {
+      "afterModule": "20260907010000",
+      "assert": "auth.users and storage schema exist; no public app tables required yet"
+    },
+    {
+      "afterModule": "20260907010020",
+      "assert": "subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events have RLS enabled"
+    },
+    {
+      "afterModule": "app_slices_and_security",
+      "assert": "each Option-2 slice: exactly one outer txn; zero tables without RLS at slice COMMIT; sensitive RPC revokes when introduced"
+    },
+    {
+      "afterAnyFailure": true,
+      "assert": "delete contaminated branch; do not continue mid-chain"
+    }
+  ],
+  "privilegeDispositions": {
+    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted only for exact-identity allowlist",
+    "serviceRoleRpcIdentityAllowlist": [
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+      "public.clear_audit_ready_recon_bridge(uuid)",
+      "public.gap2_cancel_purge(uuid,text,uuid)",
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+      "public.get_similar_kickout_resolution_counts(uuid[])",
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+      "public.increment_pbc_request_count(uuid,int4)",
+      "public.increment_share_token_access(uuid)",
+      "public.next_document_number(uuid,text)",
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "public.sp_list_public_columns()",
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)"
+    ],
+    "serviceRoleRpcCallerEvidence": {
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)": {
+        "callers": [
+          "lib/events/publisher.ts"
+        ],
+        "authority": "getSupabaseAdmin()/service_role"
+      },
+      "public.increment_share_token_access(uuid)": {
+        "callers": [
+          "lib/close-packet/share-tokens.js"
+        ],
+        "authority": "supabaseAdmin/service_role"
+      },
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/approval-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:81"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:123"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:168"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:212"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.gap2_cancel_purge(uuid,text,uuid)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/continuous-close/persistence/repository.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.clear_audit_ready_recon_bridge(uuid)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.increment_pbc_request_count(uuid,int4)": {
+        "callers": [
+          "lib/audit-ready/pbc-parser.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)": {
+        "callers": [
+          "lib/audit-ready/memory/similar-resolutions.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolution_counts(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.next_document_number(uuid,text)": {
+        "callers": [
+          "lib/ap-intake/requisitions/service.ts via numbering.ts + createServiceClient()",
+          "lib/ap-intake/purchase-orders/service.ts via numbering.ts + createServiceClient()"
+        ],
+        "authority": "createServiceClient() → getSupabaseAdmin()"
+      },
+      "public.sp_list_public_columns()": {
+        "callers": [
+          "lib/schema-drift/repo-scanner.ts"
+        ],
+        "authority": "service_role"
+      }
+    },
+    "spWriteAnchorBatchDisposition": {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "serviceRoleExecute": "REVOKED",
+      "finalPrivilege": "owner_admin_only",
+      "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+    },
+    "anonRpcAllowlist": [],
+    "authenticatedRlsHelperAllowlist": [
+      "public.is_active_company_member(uuid)",
+      "public.has_active_company_role(uuid,text[])",
+      "public.is_company_admin(uuid)",
+      "public.is_active_firm_member(uuid)",
+      "public.has_active_firm_role(uuid,text[])"
+    ],
+    "public_users_table": {
+      "anonAll": "REVOKED",
+      "publicAll": "REVOKED",
+      "authenticated": "SELECT only; UPDATE fully REVOKED (empty self-service allowlist)",
+      "authenticatedUpdatePolicy": "DROPPED (stale FOR UPDATE removed)",
+      "serviceRolePrivileges": "ALL retained for server paths",
+      "columnContract": {
+        "table": "public.users",
+        "authenticatedTablePrivileges": [
+          "SELECT"
+        ],
+        "authenticatedUpdateAllowlist": [],
+        "authenticatedUpdateFullyRevoked": true,
+        "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+        "columns": {
+          "id": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "email": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "first_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "last_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "business_name": {
+            "class": "server_path_profile",
+            "userEditable": false,
+            "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+          },
+          "ip_address_signup": {
+            "class": "immutable_audit_system",
+            "userEditable": false,
+            "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+          },
+          "trial_used": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "reports_generated": {
+            "class": "usage_quota",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "subscription_status": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/subscription-sync.js service-role webhook path"
+          },
+          "stripe_customer_id": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+          },
+          "created_at": {
+            "class": "immutable_audit_system",
+            "userEditable": false
+          }
+        }
+      },
+      "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely."
+    },
+    "engagement_posting_policy": {
+      "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "note": "FORCE_APP so CREATE precedes prepilot ENABLE/POLICY; same-slice RLS via buildRlsClosure"
+    },
+    "publish_ledger_event": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/events/publisher.ts via createServiceClient (service_role)",
+      "anonymousRequired": false
+    },
+    "increment_share_token_access": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
+      "anonymousRequired": false,
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only."
+    }
+  },
+  "patent6AndImmutability": "Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)",
+  "partialReplayRlsRisk": "reduced via Option 2 per-slice RLS closure; still requires independent source review before replay",
+  "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT"
+}

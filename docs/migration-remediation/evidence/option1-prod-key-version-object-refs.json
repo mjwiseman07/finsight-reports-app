@@ -1,0 +1,72 @@
+[
+  {
+    "version": "20260701043602",
+    "name": "phase1_subscriptions_core",
+    "table_ops": ["public.stripe_webhook_events", "public.subscription_items", "public.subscriptions"],
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": null,
+    "update_targets": null,
+    "combined_sha256": "5ce9f47bc051393665675d795c6e685bc2c813cd355c2ac39367cd9c59145072"
+  },
+  {
+    "version": "20260703182655",
+    "name": "d6_2a_test_client_activation",
+    "table_ops": null,
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": ["public.client_active_rules"],
+    "update_targets": ["public.curated_rules_registry"],
+    "combined_sha256": "4ff9251055f2af8a3b4314409c198f61a0d2597a0f7b44819d6ccb5f3ac044bb"
+  },
+  {
+    "version": "20260703184839",
+    "name": "d6_2b_mfg_activation",
+    "table_ops": null,
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": ["public.client_active_rules"],
+    "update_targets": ["public.curated_rules_registry"],
+    "combined_sha256": "fc53cb1efe54eea106ebfed71d724ccde51573ad148151e77989d924c4f9988e"
+  },
+  {
+    "version": "20260703190541",
+    "name": "d6_2c_retail_activation",
+    "table_ops": null,
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": ["public.client_active_rules"],
+    "update_targets": ["public.curated_rules_registry"],
+    "combined_sha256": "5daaf4fd08488b42796f4acfa3c567bc81a1a5205d4700ec998ea3787b4e0a6a"
+  },
+  {
+    "version": "20260703192608",
+    "name": "d6_2d_ps_activation",
+    "table_ops": null,
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": ["public.client_active_rules"],
+    "update_targets": ["public.curated_rules_registry"],
+    "combined_sha256": "f1b7ec4eb94c37730ff7cef1b5be27f1861d2df06a11ef5d2251e3d4a4546ab5"
+  },
+  {
+    "version": "20260708051526",
+    "name": "tcp1_w1_solo_bk_pilot_slots",
+    "table_ops": ["public.pilot_slots", "public.sku_launch_waitlist"],
+    "view_ops": null,
+    "function_ops": ["public.public_pilot_slot_count", "public.set_pilot_slots_updated_at"],
+    "insert_targets": null,
+    "update_targets": null,
+    "combined_sha256": "de02eba76e8dc969c13ade60f136f4dfb949c7742253d060aac0ee46d7532010"
+  },
+  {
+    "version": "20260814023005",
+    "name": "accounting_canonical_connected_grant",
+    "table_ops": null,
+    "view_ops": null,
+    "function_ops": null,
+    "insert_targets": null,
+    "update_targets": ["public.accounting_connections"],
+    "combined_sha256": "1beca937fcd335f6fae1778f3c0aaa315db893cbb00f63a9ce1e90ab50b8ac86"
+  }
+]

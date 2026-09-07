@@ -104,14 +104,17 @@ describe("Option D assembled Git-blob regeneration", () => {
 
   it("verifies every original, replacement, and assembled hash against Git blobs", () => {
     const pin = currentManifestPin();
+    const authorityCommit =
+      pin.manifest.assembleAuthority?.sourceCommit || pin.head;
     for (const e of pin.manifest.entries) {
-      const original = readGitBlobAtCommit(pin.head, e.originalSource, { cwd: ROOT });
+      // Originals are frozen at assembleAuthority.sourceCommit — not mutable HEAD.
+      const original = readGitBlobAtCommit(authorityCommit, e.originalSource, { cwd: ROOT });
       expect(original.ok).toBe(true);
       expect(original.sha256).toBe(e.originalSha256);
       expect(original.gitBlobId).toBe(e.originalGitBlobId);
 
       if (e.replacementSource) {
-        const replacement = readGitBlobAtCommit(pin.head, e.replacementSource, {
+        const replacement = readGitBlobAtCommit(authorityCommit, e.replacementSource, {
           cwd: ROOT,
         });
         expect(replacement.ok).toBe(true);
@@ -128,7 +131,7 @@ describe("Option D assembled Git-blob regeneration", () => {
       expect(assembled.ok).toBe(true);
       expect(assembled.sha256).toBe(e.assembledSha256);
       const applySource = e.replacementSource || e.originalSource;
-      const applyBlob = readGitBlobAtCommit(pin.head, applySource, { cwd: ROOT });
+      const applyBlob = readGitBlobAtCommit(authorityCommit, applySource, { cwd: ROOT });
       expect(applyBlob.ok).toBe(true);
       expect(assembled.bytes!.equals(applyBlob.bytes!)).toBe(true);
     }

@@ -1,0 +1,1207 @@
+{
+  "packageId": "executable-squash-candidate",
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "authorization": "candidate remediation only - no production mutation, no Docker, no branch, no SQL execution",
+  "targetModel": {
+    "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
+    "transactionModelJustification": "Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.",
+    "baselineModules": "platform+foundations+phase1+app slices+security+reference+guarded",
+    "forwardTailModule": "post-baseline merged-but-unapplied main (sole digest qualify home)",
+    "reviewedAncestorSeal": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+    "reviewedAncestorCommit": "d558c39b4a42540f9c485b30c6b9f0972b4ac500",
+    "remediationAuthorizedFromPrHead": "93f839546bbec8d6e80e06f263660ae091c3fc8b",
+    "priorSingleModule4Superseded": true,
+    "privilegeAndRlsOrderRemediation": true,
+    "usersColumnUpdateRemediation": true
+  },
+  "bound": {
+    "pr314HeadAtStart": "93f839546bbec8d6e80e06f263660ae091c3fc8b",
+    "candidateAncestorSeal": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+    "candidateAncestorCommit": "d558c39b4a42540f9c485b30c6b9f0972b4ac500",
+    "mainHead": "9d8a01d37422179ddd68bbd181a8815d8a893577",
+    "projectRefReadOnly": "jzmdgwwiestcmmeuhhkr",
+    "optionDManifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
+    "optionDManifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+    "optionDRuntime": "PASS 151/151",
+    "cli": "2.116.0",
+    "primaryDecision": "executable_squash_baseline",
+    "productionMutationReadiness": false,
+    "sourceReviewVerdictPrior": "CHANGES REQUIRED",
+    "blockingFindingsRemediated": [
+      "USERS_AUTHENTICATED_COLUMN_UPDATE_ESCALATION",
+      "USERS_STALE_UPDATE_RLS_POLICY",
+      "SECURITY_DEFINER_MISSING_SEARCH_PATH:publish_ledger_event",
+      "TRIGGER_ONLY_SERVICE_ROLE_EXECUTE_GRANTED",
+      "MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF",
+      "SERVICE_ROLE_RPC_CALLER_BUT_EXECUTE_REVOKED:je_provider_dispatch",
+      "SERVICE_ROLE_EXECUTE_WITHOUT_PROVEN_CALLER:sp_write_anchor_batch"
+    ],
+    "serviceRoleRpcAllowlistMode": "exact_identity",
+    "spWriteAnchorBatchDisposition": {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "serviceRoleExecute": "REVOKED",
+      "finalPrivilege": "owner_admin_only",
+      "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+    }
+  },
+  "proposedLineageOrder": [
+    {
+      "order": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "filename": "20260907010000_esc_platform_prerequisites_contract.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "filename": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "filename": "20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_slice_1_of_5",
+      "filename": "20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 5,
+      "version": "20260907010031",
+      "name": "esc_application_schema_slice_2_of_5",
+      "filename": "20260907010031_esc_application_schema_slice_2_of_5.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 6,
+      "version": "20260907010032",
+      "name": "esc_application_schema_slice_3_of_5",
+      "filename": "20260907010032_esc_application_schema_slice_3_of_5.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 7,
+      "version": "20260907010033",
+      "name": "esc_application_schema_slice_4_of_5",
+      "filename": "20260907010033_esc_application_schema_slice_4_of_5.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 8,
+      "version": "20260907010034",
+      "name": "esc_application_schema_slice_5_of_5",
+      "filename": "20260907010034_esc_application_schema_slice_5_of_5.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 9,
+      "version": "20260907010035",
+      "name": "esc_security_rls_grants_hardening_atomic",
+      "filename": "20260907010035_esc_security_rls_grants_hardening_atomic.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 10,
+      "version": "20260907010040",
+      "name": "esc_reference_seed_allowlist_contract",
+      "filename": "20260907010040_esc_reference_seed_allowlist_contract.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 11,
+      "version": "20260907010050",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "filename": "20260907010050_esc_guarded_dataless_safe_initialization.sql",
+      "kind": "baseline"
+    },
+    {
+      "order": 12,
+      "version": "20260907010060",
+      "name": "esc_forward_tail_main_unapplied",
+      "filename": "20260907010060_esc_forward_tail_main_unapplied.sql",
+      "kind": "forward-tail"
+    }
+  ],
+  "activeSupabaseMigrationsModified": false,
+  "entries": [
+    {
+      "order": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "module": "platform_prerequisite_contract",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010000_esc_platform_prerequisites_contract.sql",
+      "sourceProvenance": [
+        "design:platform-prerequisites"
+      ],
+      "gitBlobId": "8b8f31992e2714fe3ee0ed9ec350138ceb65b926",
+      "sha256": "4b71d1a582fd81098535513af258354735eb9b85827b25c3ea5a7dc2318ebad0",
+      "md5": "b91ececa001dc264f1af6e952f0fa53c",
+      "utf8LfBytes": 1074,
+      "statementCountApprox": 5,
+      "transactionBoundary": "DO block only",
+      "dmlClassification": "none",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "design:platform-prerequisites"
+      ]
+    },
+    {
+      "order": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "module": "public_application_schema_baseline_prefix",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "sourceProvenance": [
+        "assembled:20260701043598_public_users_derived_baseline.sql",
+        "assembled:20260701043599_foundations_baseline.sql"
+      ],
+      "gitBlobId": "d1c64ccb3604566159580b2e27c667d6dd66a041",
+      "sha256": "3d461e36e56235c3fec1532dcb1c07be67999c00246f42408cf4b9cab4b1b2a0",
+      "md5": "76c29ee891e5c5ced7987d1bb0a61e5f",
+      "utf8LfBytes": 111920,
+      "statementCountApprox": 586,
+      "transactionBoundary": "inherits source BEGIN/COMMIT from foundations",
+      "dmlClassification": "required_immutable_reference_seed (company_roles inside foundations)",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "assembled:20260701043598_public_users_derived_baseline.sql",
+        "assembled:20260701043599_foundations_baseline.sql"
+      ]
+    },
+    {
+      "order": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "module": "phase1_atomic_with_rls_closure",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "sourceProvenance": [
+        "assembled:20260701043602_phase1_subscriptions_core.sql",
+        "assembled:20260701043707_phase1_subscription_seats_and_entitlements.sql",
+        "assembled:20260701043911_phase1_backward_compat_view.sql",
+        "assembled:20260701043931_phase1_entitlement_rls_policies.sql"
+      ],
+      "gitBlobId": "cac8d38c9083e2c7b4db24a7693db89e21b4434a",
+      "sha256": "d90e1d66bb12c1312f7e1024b10fa1a292dfbc9d30a63d94f09f8648d3fddc1f",
+      "md5": "da2d5ca4f145b6c475a6c52869866cd3",
+      "utf8LfBytes": 20392,
+      "statementCountApprox": 67,
+      "transactionBoundary": "single outer BEGIN/COMMIT wrapping phase1 + ENABLE RLS",
+      "dmlClassification": "none",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "assembled:20260701043602_phase1_subscriptions_core.sql",
+        "assembled:20260701043707_phase1_subscription_seats_and_entitlements.sql",
+        "assembled:20260701043911_phase1_backward_compat_view.sql",
+        "assembled:20260701043931_phase1_entitlement_rls_policies.sql"
+      ]
+    },
+    {
+      "order": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_slice_1_of_5",
+      "module": "public_application_schema_slice_1",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "sourceProvenance": [
+        "assembled:20260701_refund_requests.sql",
+        "assembled:20260702041259_add_received_at_to_stripe_webhook_events.sql",
+        "assembled:20260702_create_mfg_waitlist.sql",
+        "assembled:20260703_00_create_close_ledger.sql",
+        "assembled:20260703_01_create_checklist_system.sql",
+        "assembled:20260704024059_d_entitlements_legacy_stripe_rename.sql",
+        "assembled:20260707_create_close_packet_system.sql",
+        "assembled:20260707_01_variance_config_unique.sql",
+        "assembled:20260707_02_section_manual_edit_flag.sql",
+        "assembled:20260707_03_close_packet_share.sql",
+        "assembled:20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+        "assembled:20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+        "assembled:20260708200000_tcp1_w1_seat_idempotency.sql",
+        "assembled:20260708_00_d0_identity_and_memory_activation.sql",
+        "assembled:20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+        "assembled:20260706_d67_p2_layer2_layer4.sql",
+        "assembled:20260708_01_d1_qbo_write_readiness.sql",
+        "assembled:20260708_02_d1_1_owner_user_id_backfill.sql",
+        "assembled:20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+        "assembled:20260709_00_d2_safe_je_posting.sql",
+        "assembled:20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "assembled:20260706120000_d_platform_event_sourced_foundation.sql",
+        "assembled:20260706130000_d_entitlements.sql",
+        "assembled:20260706140000_d_entitlements_followup.sql",
+        "assembled:20260707000000_d6_5_part1_universal_intake.sql",
+        "assembled:20260710_00_d3_memory_indexes.sql",
+        "assembled:20260713_00_d4_uncategorized_proposals.sql",
+        "assembled:20260714_00_d5_recurring_templates.sql",
+        "assembled:20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "assembled:20260706150000_d6_4c_1_pre_close_review_queue.sql"
+      ],
+      "gitBlobId": "d3956503d5ec7d4d9f867da37ab03955a9d21092",
+      "sha256": "a8e412acf43da7e063f8473e3fffb23a567d043d4867e01c8d7bc8feeb397133",
+      "md5": "351e7ba0129f544d38e5c54769f143a9",
+      "utf8LfBytes": 206856,
+      "statementCountApprox": 818,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "mixed_see_dml_allowlist",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260701_refund_requests.sql",
+        "20260702041259_add_received_at_to_stripe_webhook_events.sql",
+        "20260702_create_mfg_waitlist.sql",
+        "20260703_00_create_close_ledger.sql",
+        "20260703_01_create_checklist_system.sql",
+        "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+        "20260707_create_close_packet_system.sql",
+        "20260707_01_variance_config_unique.sql",
+        "20260707_02_section_manual_edit_flag.sql",
+        "20260707_03_close_packet_share.sql",
+        "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+        "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+        "20260708200000_tcp1_w1_seat_idempotency.sql",
+        "20260708_00_d0_identity_and_memory_activation.sql",
+        "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+        "20260706_d67_p2_layer2_layer4.sql",
+        "20260708_01_d1_qbo_write_readiness.sql",
+        "20260708_02_d1_1_owner_user_id_backfill.sql",
+        "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+        "20260709_00_d2_safe_je_posting.sql",
+        "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260706130000_d_entitlements.sql",
+        "20260706140000_d_entitlements_followup.sql",
+        "20260707000000_d6_5_part1_universal_intake.sql",
+        "20260710_00_d3_memory_indexes.sql",
+        "20260713_00_d4_uncategorized_proposals.sql",
+        "20260714_00_d5_recurring_templates.sql",
+        "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "20260706150000_d6_4c_1_pre_close_review_queue.sql"
+      ]
+    },
+    {
+      "order": 5,
+      "version": "20260907010031",
+      "name": "esc_application_schema_slice_2_of_5",
+      "module": "public_application_schema_slice_2",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010031_esc_application_schema_slice_2_of_5.sql",
+      "sourceProvenance": [
+        "assembled:20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+        "assembled:20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+        "assembled:20260707130000_d_assertions_part_2_coverage_projection.sql",
+        "assembled:20260707140000_d_assertions_part_3_coverage_statement.sql",
+        "assembled:20260707150000_d_assertions_part_4_je_propagation.sql",
+        "assembled:20260707160000_d_assertions_part_5_gap_review_items.sql",
+        "assembled:20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+        "assembled:20260715180000_mfa_enrollment.sql",
+        "assembled:20260715190000_mfa_webauthn_and_trusted_devices.sql",
+        "assembled:20260716010000_add_qbo_cdc_tables.sql",
+        "assembled:20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+        "assembled:20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "assembled:20260707214500_d65_p2_block7a2_prepilot_security.sql",
+        "assembled:20260717020000_d65_p2_block2_vendor_mirror.sql",
+        "assembled:20260717030000_d65_p2_block3_quarantine_l3.sql",
+        "assembled:20260717040000_d65_p2_block4_duplicate_detection.sql",
+        "assembled:20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+        "assembled:20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "gitBlobId": "f46dab904644913ffd6f30ea3b1d8f0e5407481f",
+      "sha256": "2dde1fecb6394666e0c7b72642d5eb06a4705994f6c0b759f6402d49fed618e0",
+      "md5": "fca5c5156a1f9d6aeb6004095c5b77a6",
+      "utf8LfBytes": 189013,
+      "statementCountApprox": 671,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "mixed_see_dml_allowlist",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+        "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+        "20260707130000_d_assertions_part_2_coverage_projection.sql",
+        "20260707140000_d_assertions_part_3_coverage_statement.sql",
+        "20260707150000_d_assertions_part_4_je_propagation.sql",
+        "20260707160000_d_assertions_part_5_gap_review_items.sql",
+        "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+        "20260715180000_mfa_enrollment.sql",
+        "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+        "20260716010000_add_qbo_cdc_tables.sql",
+        "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+        "20260717020000_d65_p2_block2_vendor_mirror.sql",
+        "20260717030000_d65_p2_block3_quarantine_l3.sql",
+        "20260717040000_d65_p2_block4_duplicate_detection.sql",
+        "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ]
+    },
+    {
+      "order": 6,
+      "version": "20260907010032",
+      "name": "esc_application_schema_slice_3_of_5",
+      "module": "public_application_schema_slice_3",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010032_esc_application_schema_slice_3_of_5.sql",
+      "sourceProvenance": [
+        "assembled:20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+        "assembled:20260717090000_d65_p2_block7a_credits_prepayment.sql",
+        "assembled:20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+        "assembled:20260717110000_d65_p2_block8a_interlock_rails.sql",
+        "assembled:20260717120000_d65_p2_block8b_presets_selfgov.sql",
+        "assembled:20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+        "assembled:20260718000000_intuit_webhook_events.sql",
+        "assembled:20260718010000_mc1_home_currency.sql",
+        "assembled:20260718020000_mc3_je_posting_audit_currency.sql",
+        "assembled:20260718030000_mc4c_payment_batch_lines_currency.sql",
+        "assembled:20260718040000_q7_qbo_edition.sql",
+        "assembled:20260718200000_support_ticket_intuit_context.sql",
+        "assembled:20260719000000_support_auto_file_engine.sql",
+        "assembled:20260719050000_gap3_je_approval_flow.sql",
+        "assembled:20260719060000_gap2_subscription_lifecycle_purge.sql",
+        "assembled:20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "assembled:20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+        "assembled:20260720150000_pulse_je_reliability_basis.sql",
+        "assembled:20260720170000_ar_tieout2_runs_and_variances.sql",
+        "assembled:20260720180000_tieout3_grni_binding.sql",
+        "assembled:20260721000000_audit_ready_tie_out_variance_evidence.sql",
+        "assembled:20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+        "assembled:20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+        "assembled:20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+        "assembled:20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql"
+      ],
+      "gitBlobId": "355da1a1a60d4865393bb99eb9ba95e16628e669",
+      "sha256": "267274baf3beecabd8c9f69800dabb7be53d00873199378987b807f506cd4a29",
+      "md5": "c835ef671a7c177fa3d31419ccee84af",
+      "utf8LfBytes": 209503,
+      "statementCountApprox": 786,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "mixed_see_dml_allowlist",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+        "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+        "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+        "20260717110000_d65_p2_block8a_interlock_rails.sql",
+        "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+        "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+        "20260718000000_intuit_webhook_events.sql",
+        "20260718010000_mc1_home_currency.sql",
+        "20260718020000_mc3_je_posting_audit_currency.sql",
+        "20260718030000_mc4c_payment_batch_lines_currency.sql",
+        "20260718040000_q7_qbo_edition.sql",
+        "20260718200000_support_ticket_intuit_context.sql",
+        "20260719000000_support_auto_file_engine.sql",
+        "20260719050000_gap3_je_approval_flow.sql",
+        "20260719060000_gap2_subscription_lifecycle_purge.sql",
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+        "20260720150000_pulse_je_reliability_basis.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql",
+        "20260720180000_tieout3_grni_binding.sql",
+        "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+        "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+        "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+        "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+        "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql"
+      ]
+    },
+    {
+      "order": 7,
+      "version": "20260907010033",
+      "name": "esc_application_schema_slice_4_of_5",
+      "module": "public_application_schema_slice_4",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010033_esc_application_schema_slice_4_of_5.sql",
+      "sourceProvenance": [
+        "assembled:20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+        "assembled:20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+        "assembled:20260723050000_audit_ready_cron_runs.sql",
+        "assembled:20260724010000_kickout_investigations.sql",
+        "assembled:20260724020000_kickout_dedupe_rpcs.sql",
+        "assembled:20260724030000_ar_tieout412a_kind_reconcile.sql",
+        "assembled:20260724030100_ar_tieout412a_run_artifacts.sql",
+        "assembled:20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+        "assembled:20260725050000_ar_tieout420a_resolution_code.sql",
+        "assembled:20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+        "assembled:20260725060000_ar_tieout42_memory_events.sql",
+        "assembled:20260727000100_users_auth_trigger_single_writer.sql",
+        "assembled:20260804213003_pilot_lifecycle_events.sql",
+        "assembled:20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+        "assembled:20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+        "assembled:20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+        "assembled:20260804234230_lifecycle_issues.sql",
+        "assembled:20260805005320_pilot_lifecycle_anchors.sql",
+        "assembled:20260805054000_schema_drift_issue_policies.sql",
+        "assembled:20260805210000_schema_drift_scanner_issue_kinds.sql",
+        "assembled:20260805211000_sp_list_public_columns_jsonb.sql",
+        "assembled:20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+        "assembled:20260806032000_lifecycle_issues_schema_drift_checks.sql",
+        "assembled:20260806040000_major_2_3_block_a_assertion_linkage.sql",
+        "assembled:20260806042000_major_2_3_block_a_1_research_revision.sql",
+        "assembled:20260809083000_companies_tenant_identity_columns.sql",
+        "assembled:20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+        "assembled:20260810070050_dash_1c_a_widen_provenance.sql",
+        "assembled:20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+        "assembled:20260813220000_accounting_connection_supersession.sql",
+        "assembled:20260814060000_accounting_superseded_credential_retirement.sql",
+        "assembled:20260815000000_urm2_reconciling_items_persistence.sql",
+        "assembled:20260815120000_urm3_universal_evidence_spine.sql",
+        "assembled:20260815130000_urm3_hash_normalization_order.sql",
+        "assembled:20260815140000_urm3_storage_requires_hash_not_null.sql",
+        "assembled:20260818020716_accounting_measurement_snapshots.sql",
+        "assembled:20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+        "assembled:20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+        "assembled:20260819045253_continuous_close_runs.sql",
+        "assembled:20260820233219_journal_entry_proposals.sql",
+        "assembled:20260821042800_journal_entry_approvals.sql"
+      ],
+      "gitBlobId": "8a67a789bbfb5f13b2c30cac4c45aa1756be0291",
+      "sha256": "cbce7c82c1b88a1b80d4c694cdad4fe383c5631751916aeb910f57a27619ac4b",
+      "md5": "b636d589e547fdebbd10ba724bb03f4b",
+      "utf8LfBytes": 205787,
+      "statementCountApprox": 1096,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "mixed_see_dml_allowlist",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+        "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+        "20260723050000_audit_ready_cron_runs.sql",
+        "20260724010000_kickout_investigations.sql",
+        "20260724020000_kickout_dedupe_rpcs.sql",
+        "20260724030000_ar_tieout412a_kind_reconcile.sql",
+        "20260724030100_ar_tieout412a_run_artifacts.sql",
+        "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+        "20260725050000_ar_tieout420a_resolution_code.sql",
+        "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+        "20260725060000_ar_tieout42_memory_events.sql",
+        "20260727000100_users_auth_trigger_single_writer.sql",
+        "20260804213003_pilot_lifecycle_events.sql",
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+        "20260804234230_lifecycle_issues.sql",
+        "20260805005320_pilot_lifecycle_anchors.sql",
+        "20260805054000_schema_drift_issue_policies.sql",
+        "20260805210000_schema_drift_scanner_issue_kinds.sql",
+        "20260805211000_sp_list_public_columns_jsonb.sql",
+        "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+        "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+        "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+        "20260806042000_major_2_3_block_a_1_research_revision.sql",
+        "20260809083000_companies_tenant_identity_columns.sql",
+        "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+        "20260810070050_dash_1c_a_widen_provenance.sql",
+        "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+        "20260813220000_accounting_connection_supersession.sql",
+        "20260814060000_accounting_superseded_credential_retirement.sql",
+        "20260815000000_urm2_reconciling_items_persistence.sql",
+        "20260815120000_urm3_universal_evidence_spine.sql",
+        "20260815130000_urm3_hash_normalization_order.sql",
+        "20260815140000_urm3_storage_requires_hash_not_null.sql",
+        "20260818020716_accounting_measurement_snapshots.sql",
+        "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+        "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+        "20260819045253_continuous_close_runs.sql",
+        "20260820233219_journal_entry_proposals.sql",
+        "20260821042800_journal_entry_approvals.sql"
+      ]
+    },
+    {
+      "order": 8,
+      "version": "20260907010034",
+      "name": "esc_application_schema_slice_5_of_5",
+      "module": "public_application_schema_slice_5",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010034_esc_application_schema_slice_5_of_5.sql",
+      "sourceProvenance": [
+        "assembled:20260821183525_journal_entry_executions.sql",
+        "assembled:20260821212020_journal_entry_provider_attempts.sql",
+        "assembled:20260821220646_journal_entry_provider_discovery_receipts.sql",
+        "assembled:20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+        "assembled:20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+        "assembled:20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+        "assembled:20260822050000_journal_entry_verified_readback.sql",
+        "assembled:20260822200000_je3d_sandbox_activation_identity.sql",
+        "assembled:20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+        "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
+      ],
+      "gitBlobId": "ee75beb52bb6c63f25e7b030005dffc8696deeeb",
+      "sha256": "30b093afd3324f2962b92e2c45c27c3c56664ea4e69d44895197bbb0ca152524",
+      "md5": "1353d2ab6fe6233e7d8dd6a2b7254c75",
+      "utf8LfBytes": 150931,
+      "statementCountApprox": 1111,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "mixed_see_dml_allowlist",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260821183525_journal_entry_executions.sql",
+        "20260821212020_journal_entry_provider_attempts.sql",
+        "20260821220646_journal_entry_provider_discovery_receipts.sql",
+        "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+        "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+        "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+        "20260822050000_journal_entry_verified_readback.sql",
+        "20260822200000_je3d_sandbox_activation_identity.sql",
+        "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+        "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
+      ]
+    },
+    {
+      "order": 9,
+      "version": "20260907010035",
+      "name": "esc_security_rls_grants_hardening_atomic",
+      "module": "security_rls_grants_triggers_functions_atomic",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010035_esc_security_rls_grants_hardening_atomic.sql",
+      "sourceProvenance": [
+        "assembled:20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+        "assembled:20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+        "assembled:20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+        "assembled:20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+        "assembled:20260718180000_q8a_qbo_view_security_invoker.sql",
+        "assembled:20260718190000_q8b_function_search_path_lockdown.sql",
+        "assembled:20260718200000_q8c_security_definer_rpc_revoke.sql",
+        "assembled:20260718210000_q8d_vector_schema_move.sql",
+        "assembled:20260718220000_q8e_rls_service_role_policies.sql",
+        "assembled:20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+        "assembled:20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+        "assembled:20260720160000_ar_tieout1_policy_and_kind.sql",
+        "assembled:20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+        "assembled:20260805041500_major_1_rpc_lockdown.sql",
+        "esc:boundary-security-patch"
+      ],
+      "gitBlobId": "b2a23992273eabd4598ba7fa94762c01cd6a53cc",
+      "sha256": "1e7d902c2b4da790894c07133de2419be66c11fae89398d7e35bb2d89cbb5c98",
+      "md5": "4043a2c9ba1ae6123ea3f88767b4d642",
+      "utf8LfBytes": 72707,
+      "statementCountApprox": 312,
+      "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
+      "dmlClassification": "none_expected_primary",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+        "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+        "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+        "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+        "20260718180000_q8a_qbo_view_security_invoker.sql",
+        "20260718190000_q8b_function_search_path_lockdown.sql",
+        "20260718200000_q8c_security_definer_rpc_revoke.sql",
+        "20260718210000_q8d_vector_schema_move.sql",
+        "20260718220000_q8e_rls_service_role_policies.sql",
+        "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+        "20260720160000_ar_tieout1_policy_and_kind.sql",
+        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+        "20260805041500_major_1_rpc_lockdown.sql"
+      ]
+    },
+    {
+      "order": 10,
+      "version": "20260907010040",
+      "name": "esc_reference_seed_allowlist_contract",
+      "module": "allowlisted_immutable_reference_seeds",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_reference_seed_allowlist_contract.sql",
+      "sourceProvenance": [
+        "design:reference-allowlist"
+      ],
+      "gitBlobId": "06709f26f35893881eec8f6ec5dfea0a5767e7ef",
+      "sha256": "a2ae185ca8e1c0ac6cb5dc8fef979f7c7427ad36603bbc32ce6330b020284d88",
+      "md5": "28658991e6679fbe2371a30f23b75457",
+      "utf8LfBytes": 1021,
+      "statementCountApprox": 3,
+      "transactionBoundary": "DO block only",
+      "dmlClassification": "none_in_module",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "design:reference-allowlist"
+      ]
+    },
+    {
+      "order": 11,
+      "version": "20260907010050",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "module": "guarded_data_less_safe_initialization",
+      "kind": "baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_guarded_dataless_safe_initialization.sql",
+      "sourceProvenance": [
+        "substitution:20260703_2000_d6_2a_test_client_activation.sql",
+        "substitution:20260703_2200_d6_2b_mfg_activation.sql",
+        "substitution:20260703_2300_d6_2c_retail_activation.sql",
+        "substitution:20260703_2400_d6_2d_ps_activation.sql",
+        "substitution:20260708120000_tcp1_w1_solo_bk_pilot_slots.sql#seed_omitted",
+        "substitution:20260814221500_accounting_canonical_connected_grant.sql"
+      ],
+      "gitBlobId": "8fd3201fd7cd1cc0cee37ee9c30dd97c23e250c8",
+      "sha256": "02e3ce5b530f09eae75edda12977cee4cc8d45f4832db12ce259980e9be9b9a9",
+      "md5": "4785169e0577fe10c2af60b6b40ec7b6",
+      "utf8LfBytes": 16797,
+      "statementCountApprox": 58,
+      "transactionBoundary": "per-source BEGIN/COMMIT for d6/tcp1; grant has none",
+      "dmlClassification": "guarded_optional_seed + registry_reference_update",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 5,
+        "COMMIT": 5,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "substitution:20260703_2000_d6_2a_test_client_activation.sql",
+        "substitution:20260703_2200_d6_2b_mfg_activation.sql",
+        "substitution:20260703_2300_d6_2c_retail_activation.sql",
+        "substitution:20260703_2400_d6_2d_ps_activation.sql",
+        "substitution:20260708120000_tcp1_w1_solo_bk_pilot_slots.sql#seed_omitted",
+        "substitution:20260814221500_accounting_canonical_connected_grant.sql"
+      ]
+    },
+    {
+      "order": 12,
+      "version": "20260907010060",
+      "name": "esc_forward_tail_main_unapplied",
+      "module": "post_baseline_forward_migrations",
+      "kind": "forward-tail",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_forward_tail_main_unapplied.sql",
+      "sourceProvenance": [
+        "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+      ],
+      "gitBlobId": "eb44bf98f82db931c0fa8bba5b88fb7e90e08876",
+      "sha256": "a1b3286afd48d4b07b3db26f5f428f355e3a0008439dd5ff274d1e8f48a9ba89",
+      "md5": "2496d21aed1b5b24a9a6fa5667bcb56a",
+      "utf8LfBytes": 5851,
+      "statementCountApprox": 25,
+      "transactionBoundary": "mixed",
+      "dmlClassification": "forward_source_dependent",
+      "createdConsumedObjects": "see Option D dependency manifests + module source list",
+      "rlsSecurityAssertions": [
+        "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
+        "digest qualify exactly once in forward-tail",
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
+      ],
+      "transactionControlCounts": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "END_TXN": 0
+      },
+      "sourceEntryRange": [
+        "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+      ]
+    }
+  ],
+  "moduleFileCount": 12,
+  "totalUtf8LfBytes": 1191852,
+  "packageSha256OfConcatenatedEntryHashes": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+  "sourceAccounting": {
+    "optionDEntries": 151,
+    "includedUnchangedBaseline": 144,
+    "foundationsAndUsers": 2,
+    "phase1": 4,
+    "appAndSecurityAssembled": 138,
+    "dispositionOverlays": 6,
+    "digestQualifyOccurrences": 1,
+    "digestQualifyLocation": "forward_tail_only",
+    "equation": "144 unchanged + 6 overlays + 1 forward = 151",
+    "includedInBaselineBody": 138,
+    "markerBookkeeping": {
+      "odAssembledBeginMarkersInSplits": 138,
+      "escRemediationPatchBeginMarker": 1,
+      "priorObserved139Explanation": "139 = 138 Option D assembled begin markers in former module 4 + 1 ESC_REMEDIATION_MODULE_BOUNDARY_SECURITY patch marker (not an Option D entry)"
+    },
+    "excludedFromBaselineBody": [
+      "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+      "20260703_2000_d6_2a_test_client_activation.sql",
+      "20260703_2200_d6_2b_mfg_activation.sql",
+      "20260703_2300_d6_2c_retail_activation.sql",
+      "20260703_2400_d6_2d_ps_activation.sql",
+      "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "20260814221500_accounting_canonical_connected_grant.sql"
+    ],
+    "escBoundaryPatch": true,
+    "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
+    "appSliceCount": 5
+  },
+  "privilegeDispositions": {
+    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted only for exact-identity allowlist",
+    "serviceRoleRpcIdentityAllowlist": [
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+      "public.clear_audit_ready_recon_bridge(uuid)",
+      "public.gap2_cancel_purge(uuid,text,uuid)",
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+      "public.get_similar_kickout_resolution_counts(uuid[])",
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+      "public.increment_pbc_request_count(uuid,int4)",
+      "public.increment_share_token_access(uuid)",
+      "public.next_document_number(uuid,text)",
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "public.sp_list_public_columns()",
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)"
+    ],
+    "serviceRoleRpcCallerEvidence": {
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)": {
+        "callers": [
+          "lib/events/publisher.ts"
+        ],
+        "authority": "getSupabaseAdmin()/service_role"
+      },
+      "public.increment_share_token_access(uuid)": {
+        "callers": [
+          "lib/close-packet/share-tokens.js"
+        ],
+        "authority": "supabaseAdmin/service_role"
+      },
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/approval-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:81"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:123"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:168"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:212"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.gap2_cancel_purge(uuid,text,uuid)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/continuous-close/persistence/repository.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.clear_audit_ready_recon_bridge(uuid)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.increment_pbc_request_count(uuid,int4)": {
+        "callers": [
+          "lib/audit-ready/pbc-parser.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)": {
+        "callers": [
+          "lib/audit-ready/memory/similar-resolutions.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolution_counts(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.next_document_number(uuid,text)": {
+        "callers": [
+          "lib/ap-intake/requisitions/service.ts via numbering.ts + createServiceClient()",
+          "lib/ap-intake/purchase-orders/service.ts via numbering.ts + createServiceClient()"
+        ],
+        "authority": "createServiceClient() → getSupabaseAdmin()"
+      },
+      "public.sp_list_public_columns()": {
+        "callers": [
+          "lib/schema-drift/repo-scanner.ts"
+        ],
+        "authority": "service_role"
+      }
+    },
+    "spWriteAnchorBatchDisposition": {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "serviceRoleExecute": "REVOKED",
+      "finalPrivilege": "owner_admin_only",
+      "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+    },
+    "anonRpcAllowlist": [],
+    "authenticatedRlsHelperAllowlist": [
+      "public.is_active_company_member(uuid)",
+      "public.has_active_company_role(uuid,text[])",
+      "public.is_company_admin(uuid)",
+      "public.is_active_firm_member(uuid)",
+      "public.has_active_firm_role(uuid,text[])"
+    ],
+    "public_users_table": {
+      "anonAll": "REVOKED",
+      "publicAll": "REVOKED",
+      "authenticated": "SELECT only; UPDATE fully REVOKED (empty self-service allowlist)",
+      "authenticatedUpdatePolicy": "DROPPED (stale FOR UPDATE removed)",
+      "serviceRolePrivileges": "ALL retained for server paths",
+      "columnContract": {
+        "table": "public.users",
+        "authenticatedTablePrivileges": [
+          "SELECT"
+        ],
+        "authenticatedUpdateAllowlist": [],
+        "authenticatedUpdateFullyRevoked": true,
+        "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+        "columns": {
+          "id": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "email": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "first_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "last_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "business_name": {
+            "class": "server_path_profile",
+            "userEditable": false,
+            "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+          },
+          "ip_address_signup": {
+            "class": "immutable_audit_system",
+            "userEditable": false,
+            "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+          },
+          "trial_used": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "reports_generated": {
+            "class": "usage_quota",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "subscription_status": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/subscription-sync.js service-role webhook path"
+          },
+          "stripe_customer_id": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+          },
+          "created_at": {
+            "class": "immutable_audit_system",
+            "userEditable": false
+          }
+        }
+      },
+      "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely."
+    },
+    "engagement_posting_policy": {
+      "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "note": "FORCE_APP so CREATE precedes prepilot ENABLE/POLICY; same-slice RLS via buildRlsClosure"
+    },
+    "publish_ledger_event": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/events/publisher.ts via createServiceClient (service_role)",
+      "anonymousRequired": false
+    },
+    "increment_share_token_access": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
+      "anonymousRequired": false,
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only."
+    }
+  }
+}
