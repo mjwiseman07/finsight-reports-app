@@ -45,10 +45,7 @@ CREATE POLICY "Users can read own record"
   USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can update own record" ON public.users;
-CREATE POLICY "Users can update own record"
-  ON public.users
-  FOR UPDATE
-  USING (auth.uid() = id);
+-- [ESC] public.users privilege overlay: removed FOR UPDATE own-row policy (authenticated UPDATE fully revoked; SELECT policy retained).
 
 -- [ESC] public.users privilege overlay: removed GRANT ALL TO anon (no anon client path; RLS is not justification for table ALL).
 -- HISTORICAL_TABLE_GRANT_REMOVED ALL ON TABLE public.users TO anon;

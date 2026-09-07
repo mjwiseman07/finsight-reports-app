@@ -17,8 +17,8 @@ const INV = path.join(
   ROOT,
   "docs/migration-remediation/evidence/executable-squash-candidate-function-privilege-inventory.json",
 );
-const EXPECTED_SEAL = "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b";
-const EXPECTED_BYTES = 1191052;
+const EXPECTED_SEAL = "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e";
+const EXPECTED_BYTES = 1191852;
 
 function stripComments(sql: string) {
   return sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");

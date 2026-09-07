@@ -12,15 +12,20 @@ const crypto = require('crypto');
 const { execSync, spawnSync } = require('child_process');
 const {
   applyUsersAnonGrantOverlay,
+  applySpWriteAnchorBatchOwnerOnlyOverlay,
   hardenPublishLedgerEventCreate,
   buildFunctionPrivilegeClosureSql,
   injectPrivilegeClosureBeforeCommits,
   buildDispositionInventory,
   assertNoUsersAnonAllGrant,
   assertNoUsersAuthenticatedTableUpdate,
+  assertNoUsersUpdatePolicy,
   sameSlicePublicRevokeGaps,
   engagementPostingPolicyOrder,
   PUBLIC_USERS_COLUMN_CONTRACT,
+  SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST,
+  SERVICE_ROLE_RPC_CALLER_EVIDENCE,
+  SP_WRITE_ANCHOR_BATCH_DISPOSITION,
 } = require('./esc-privilege-remediation');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -587,6 +592,9 @@ function main() {
   if (!assertNoUsersAuthenticatedTableUpdate(usersSql)) {
     throw new Error('Builder refuse: public.users authenticated UPDATE grant remains after overlay');
   }
+  if (!assertNoUsersUpdatePolicy(usersSql)) {
+    throw new Error('Builder refuse: public.users FOR UPDATE policy remains after overlay');
+  }
   const foundationsSql = readAssembled('20260701043599_foundations_baseline.sql');
   const phase1Files = [
     '20260701043602_phase1_subscriptions_core.sql',
@@ -762,6 +770,7 @@ function main() {
   for (const it of securityItems) {
     securityBody += `\n-- >>> begin ${it.file}\n${it.sql}\n-- <<< end ${it.file}\n`;
   }
+  securityBody = applySpWriteAnchorBatchOwnerOnlyOverlay(securityBody);
   const securityPriv = buildSensitiveRpcClosure(securityBody + '\n' + ESC_BOUNDARY_SECURITY_PATCH, PROPOSED_VERSIONS.security_atomic);
   const securityInner =
     '-- OPTION 2 security slice: RLS policies, Q8 lockdowns, ESC boundary patch\n' +
@@ -769,6 +778,12 @@ function main() {
     securityBody +
     '\n' +
     ESC_BOUNDARY_SECURITY_PATCH +
+    '\n' +
+    '-- [ESC] sp_write_anchor_batch: owner/admin-only (no proven runtime .rpc() caller).\n' +
+    'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM PUBLIC;\n' +
+    'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM anon;\n' +
+    'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM authenticated;\n' +
+    'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM service_role;\n' +
     '\n' +
     securityPriv.sql +
     '\n';
@@ -1187,10 +1202,15 @@ function main() {
       sourceReviewVerdictPrior: 'CHANGES REQUIRED',
       blockingFindingsRemediated: [
         'USERS_AUTHENTICATED_COLUMN_UPDATE_ESCALATION',
+        'USERS_STALE_UPDATE_RLS_POLICY',
         'SECURITY_DEFINER_MISSING_SEARCH_PATH:publish_ledger_event',
         'TRIGGER_ONLY_SERVICE_ROLE_EXECUTE_GRANTED',
         'MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF',
+        'SERVICE_ROLE_RPC_CALLER_BUT_EXECUTE_REVOKED:je_provider_dispatch',
+        'SERVICE_ROLE_EXECUTE_WITHOUT_PROVEN_CALLER:sp_write_anchor_batch',
       ],
+      serviceRoleRpcAllowlistMode: 'exact_identity',
+      spWriteAnchorBatchDisposition: SP_WRITE_ANCHOR_BATCH_DISPOSITION,
     },
     proposedLineageOrder: modules.map((m) => ({
       order: m.order,
@@ -1232,7 +1252,10 @@ function main() {
     },
     privilegeDispositions: {
       defaultPolicy:
-        'Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted',
+        'Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted only for exact-identity allowlist',
+      serviceRoleRpcIdentityAllowlist: [...SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST].sort(),
+      serviceRoleRpcCallerEvidence: SERVICE_ROLE_RPC_CALLER_EVIDENCE,
+      spWriteAnchorBatchDisposition: SP_WRITE_ANCHOR_BATCH_DISPOSITION,
       anonRpcAllowlist: [],
       authenticatedRlsHelperAllowlist: [
         'public.is_active_company_member(uuid)',
@@ -1245,6 +1268,7 @@ function main() {
         anonAll: 'REVOKED',
         publicAll: 'REVOKED',
         authenticated: 'SELECT only; UPDATE fully REVOKED (empty self-service allowlist)',
+        authenticatedUpdatePolicy: 'DROPPED (stale FOR UPDATE removed)',
         serviceRolePrivileges: 'ALL retained for server paths',
         columnContract: PUBLIC_USERS_COLUMN_CONTRACT,
         rationale: PUBLIC_USERS_COLUMN_CONTRACT.rationale,
@@ -1460,8 +1484,48 @@ function main() {
         engagement_posting_policy: epp,
         public_users_anon_all_absent: true,
         public_users_authenticated_update_revoked: true,
+        public_users_update_policy_absent: true,
         publicUsersColumnContract: PUBLIC_USERS_COLUMN_CONTRACT,
+        serviceRoleRpcIdentityAllowlist: [...SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST].sort(),
+        spWriteAnchorBatchDisposition: SP_WRITE_ANCHOR_BATCH_DISPOSITION,
         functions: allInventory,
+      },
+      null,
+      2
+    )
+  );
+
+  const RETAINED_GRANTS_PATH = path.join(
+    ROOT,
+    'docs/migration-remediation/evidence/executable-squash-candidate-retained-service-role-grants.json'
+  );
+  const retainedGrantRows = [...SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST].sort().map((identity) => {
+    const ev = SERVICE_ROLE_RPC_CALLER_EVIDENCE[identity];
+    if (!ev || !ev.callers || !ev.callers.length) {
+      throw new Error('Builder refuse: missing caller evidence for allowlisted identity ' + identity);
+    }
+    return {
+      identity,
+      grant: 'EXECUTE TO service_role',
+      revokeFrom: ['PUBLIC', 'anon', 'authenticated'],
+      callers: ev.callers,
+      authority: ev.authority,
+      note: ev.note || null,
+    };
+  });
+  writeLf(
+    RETAINED_GRANTS_PATH,
+    JSON.stringify(
+      {
+        generatedAt: packageManifest.generatedAt,
+        packageSeal: packageManifest.packageSha256OfConcatenatedEntryHashes,
+        allowlistMode: 'exact_identity',
+        retainedServiceRoleGrantCount: retainedGrantRows.length,
+        grants: retainedGrantRows,
+        ownerAdminOnly: [SP_WRITE_ANCHOR_BATCH_DISPOSITION],
+        jeDispatchRpcGrantsDoNotActivateDispatch: true,
+        dormantCapabilityNote:
+          'DB EXECUTE grants are orthogonal to PREPARE/CREATE/VERIFY flags and sandbox/production kill switches',
       },
       null,
       2

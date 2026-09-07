@@ -8,8 +8,8 @@ const ROOT = path.resolve(__dirname, "../..");
 const PKG = path.join(ROOT, "supabase/migrations-draft/executable-squash-candidate");
 const MANIFEST = path.join(PKG, "MANIFEST.json");
 const BUILDER = path.join(ROOT, "scripts/migration-remediation/build-executable-squash-candidate.js");
-const EXPECTED_SEAL = "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b";
-const EXPECTED_BYTES = 1191052;
+const EXPECTED_SEAL = "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e";
+const EXPECTED_BYTES = 1191852;
 
 function sha256File(p: string) {
   return createHash("sha256").update(fs.readFileSync(p)).digest("hex");

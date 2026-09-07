@@ -16,7 +16,7 @@ const TXN_COMPAT = path.join(
   "docs/migration-remediation/evidence/executable-squash-candidate-module4-txn-compatibility.json",
 );
 const DIGEST = "20260906184500_publish_ledger_event_extensions_digest_qualify.sql";
-const EXPECTED_SEAL = "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b";
+const EXPECTED_SEAL = "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e";
 
 function stripSqlComments(sql: string) {
   return sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");

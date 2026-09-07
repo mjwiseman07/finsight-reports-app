@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T05:21:57.501Z",
+  "generatedAt": "2026-09-07T06:00:08.813Z",
   "dispositions": {
     "d6_2a_through_d6_2d": {
       "verdict": "ALLOW_GUARDED_OPTIONAL_SEED",
@@ -49,7 +49,7 @@
     {
       "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
       "kind": "UPDATE",
-      "target": "USING"
+      "target": "fully"
     },
     {
       "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",

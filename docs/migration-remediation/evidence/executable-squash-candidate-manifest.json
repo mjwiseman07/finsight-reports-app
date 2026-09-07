@@ -1,6 +1,6 @@
 {
   "packageId": "executable-squash-candidate",
-  "generatedAt": "2026-09-07T05:21:57.501Z",
+  "generatedAt": "2026-09-07T06:00:08.813Z",
   "authorization": "candidate remediation only - no production mutation, no Docker, no branch, no SQL execution",
   "targetModel": {
     "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
@@ -29,10 +29,20 @@
     "sourceReviewVerdictPrior": "CHANGES REQUIRED",
     "blockingFindingsRemediated": [
       "USERS_AUTHENTICATED_COLUMN_UPDATE_ESCALATION",
+      "USERS_STALE_UPDATE_RLS_POLICY",
       "SECURITY_DEFINER_MISSING_SEARCH_PATH:publish_ledger_event",
       "TRIGGER_ONLY_SERVICE_ROLE_EXECUTE_GRANTED",
-      "MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF"
-    ]
+      "MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF",
+      "SERVICE_ROLE_RPC_CALLER_BUT_EXECUTE_REVOKED:je_provider_dispatch",
+      "SERVICE_ROLE_EXECUTE_WITHOUT_PROVEN_CALLER:sp_write_anchor_batch"
+    ],
+    "serviceRoleRpcAllowlistMode": "exact_identity",
+    "spWriteAnchorBatchDisposition": {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "serviceRoleExecute": "REVOKED",
+      "finalPrivilege": "owner_admin_only",
+      "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+    }
   },
   "proposedLineageOrder": [
     {
@@ -170,11 +180,11 @@
         "assembled:20260701043598_public_users_derived_baseline.sql",
         "assembled:20260701043599_foundations_baseline.sql"
       ],
-      "gitBlobId": "4efbe6471ad5b4b85e77efb0a499a28a9772a32d",
-      "sha256": "672b8d4246d05c3d1e8bd877cebd1387a018e6194a85dfa938668d5a6d6db21d",
-      "md5": "97146256b6886b30b76d455bd0546dcb",
-      "utf8LfBytes": 111885,
-      "statementCountApprox": 587,
+      "gitBlobId": "d1c64ccb3604566159580b2e27c667d6dd66a041",
+      "sha256": "3d461e36e56235c3fec1532dcb1c07be67999c00246f42408cf4b9cab4b1b2a0",
+      "md5": "76c29ee891e5c5ced7987d1bb0a61e5f",
+      "utf8LfBytes": 111920,
+      "statementCountApprox": 586,
       "transactionBoundary": "inherits source BEGIN/COMMIT from foundations",
       "dmlClassification": "required_immutable_reference_seed (company_roles inside foundations)",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
@@ -628,10 +638,10 @@
         "assembled:20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
         "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
       ],
-      "gitBlobId": "3200ee5692f8efcbaf440957df8e8374f943499d",
-      "sha256": "180230d4eaa0e706f113b4f2bf748bbc6c9b9d80bfc6bdd006302861fb73abd2",
-      "md5": "f4ae6bcc7ff8b2669cd6af248dec5782",
-      "utf8LfBytes": 150947,
+      "gitBlobId": "ee75beb52bb6c63f25e7b030005dffc8696deeeb",
+      "sha256": "30b093afd3324f2962b92e2c45c27c3c56664ea4e69d44895197bbb0ca152524",
+      "md5": "1353d2ab6fe6233e7d8dd6a2b7254c75",
+      "utf8LfBytes": 150931,
       "statementCountApprox": 1111,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -688,11 +698,11 @@
         "assembled:20260805041500_major_1_rpc_lockdown.sql",
         "esc:boundary-security-patch"
       ],
-      "gitBlobId": "c3b12854c85d6663605605c73be3fc8c6c40cf21",
-      "sha256": "c34dee44152c745464a6acd2a5c870c07ef9697f7177e689c9bf77ed5a3a9032",
-      "md5": "f5908ab086e613c67539d0b28e07004b",
-      "utf8LfBytes": 71926,
-      "statementCountApprox": 307,
+      "gitBlobId": "b2a23992273eabd4598ba7fa94762c01cd6a53cc",
+      "sha256": "1e7d902c2b4da790894c07133de2419be66c11fae89398d7e35bb2d89cbb5c98",
+      "md5": "4043a2c9ba1ae6123ea3f88767b4d642",
+      "utf8LfBytes": 72707,
+      "statementCountApprox": 312,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "none_expected_primary",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
@@ -851,8 +861,8 @@
     }
   ],
   "moduleFileCount": 12,
-  "totalUtf8LfBytes": 1191052,
-  "packageSha256OfConcatenatedEntryHashes": "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b",
+  "totalUtf8LfBytes": 1191852,
+  "packageSha256OfConcatenatedEntryHashes": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
   "sourceAccounting": {
     "optionDEntries": 151,
     "includedUnchangedBaseline": 144,
@@ -883,7 +893,218 @@
     "appSliceCount": 5
   },
   "privilegeDispositions": {
-    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted",
+    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted only for exact-identity allowlist",
+    "serviceRoleRpcIdentityAllowlist": [
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+      "public.clear_audit_ready_recon_bridge(uuid)",
+      "public.gap2_cancel_purge(uuid,text,uuid)",
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+      "public.get_similar_kickout_resolution_counts(uuid[])",
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+      "public.increment_pbc_request_count(uuid,int4)",
+      "public.increment_share_token_access(uuid)",
+      "public.next_document_number(uuid,text)",
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "public.sp_list_public_columns()",
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)"
+    ],
+    "serviceRoleRpcCallerEvidence": {
+      "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)": {
+        "callers": [
+          "lib/events/publisher.ts"
+        ],
+        "authority": "getSupabaseAdmin()/service_role"
+      },
+      "public.increment_share_token_access(uuid)": {
+        "callers": [
+          "lib/close-packet/share-tokens.js"
+        ],
+        "authority": "supabaseAdmin/service_role"
+      },
+      "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/approval-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/execution-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-verification-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-attempt-repository.ts"
+        ],
+        "authority": "getSupabaseAdmin()"
+      },
+      "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:81"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:123"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:168"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/journal-entry-governance/provider-dispatch-repository.ts:212"
+        ],
+        "authority": "getSupabaseAdmin()",
+        "note": "DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required"
+      },
+      "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.gap2_cancel_purge(uuid,text,uuid)": {
+        "callers": [
+          "lib/gap2/stripe-integration.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)": {
+        "callers": [
+          "lib/continuous-close/persistence/repository.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.clear_audit_ready_recon_bridge(uuid)": {
+        "callers": [
+          "lib/audit-ready/tie-out/reconciling-items-persistence.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.increment_pbc_request_count(uuid,int4)": {
+        "callers": [
+          "lib/audit-ready/pbc-parser.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolutions(uuid,text,jsonb)": {
+        "callers": [
+          "lib/audit-ready/memory/similar-resolutions.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.get_similar_kickout_resolution_counts(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_bs_kickout_lines(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.audit_ready_latest_pbc_kickout_runs(uuid[])": {
+        "callers": [
+          "lib/audit-ready/kickouts/list-kickouts.ts"
+        ],
+        "authority": "service_role"
+      },
+      "public.next_document_number(uuid,text)": {
+        "callers": [
+          "lib/ap-intake/requisitions/service.ts via numbering.ts + createServiceClient()",
+          "lib/ap-intake/purchase-orders/service.ts via numbering.ts + createServiceClient()"
+        ],
+        "authority": "createServiceClient() → getSupabaseAdmin()"
+      },
+      "public.sp_list_public_columns()": {
+        "callers": [
+          "lib/schema-drift/repo-scanner.ts"
+        ],
+        "authority": "service_role"
+      }
+    },
+    "spWriteAnchorBatchDisposition": {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "serviceRoleExecute": "REVOKED",
+      "finalPrivilege": "owner_admin_only",
+      "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+    },
     "anonRpcAllowlist": [],
     "authenticatedRlsHelperAllowlist": [
       "public.is_active_company_member(uuid)",
@@ -896,6 +1117,7 @@
       "anonAll": "REVOKED",
       "publicAll": "REVOKED",
       "authenticated": "SELECT only; UPDATE fully REVOKED (empty self-service allowlist)",
+      "authenticatedUpdatePolicy": "DROPPED (stale FOR UPDATE removed)",
       "serviceRolePrivileges": "ALL retained for server paths",
       "columnContract": {
         "table": "public.users",

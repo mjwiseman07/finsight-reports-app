@@ -1573,9 +1573,9 @@ REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(
   bigint, bigint, integer, text, jsonb, jsonb
 ) FROM PUBLIC, anon, authenticated;
 
-GRANT EXECUTE ON FUNCTION public.sp_write_anchor_batch(
-  bigint, bigint, integer, text, jsonb, jsonb
-) TO service_role;
+-- [ESC] sp_write_anchor_batch owner/admin-only: no proven runtime .rpc() caller — REVOKE service_role (separate auth required before re-grant).
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM service_role;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM service_role;
 
 -- [ESC] stripped source txn marker: COMMIT;
 
@@ -1696,6 +1696,12 @@ BEGIN
 END
 $esc_priv_assert$;
 -- <<< end ESC_REMEDIATION_MODULE_BOUNDARY_SECURITY
+-- [ESC] sp_write_anchor_batch: owner/admin-only (no proven runtime .rpc() caller).
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM service_role;
+
 -- [ESC] Function privilege closure before COMMIT
 -- Default PUBLIC EXECUTE removed for every application function created/replaced in this slice.
 -- Regrant only per disposition (service_role always; authenticated only for allowlisted RLS helpers).

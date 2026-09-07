@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-07T05:21:57.501Z",
-  "packageSeal": "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b",
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "packageSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
   "totalFunctions": 100,
   "unclassifiedCount": 0,
   "classCounts": {
     "trigger_only": 55,
-    "internal_service_role_only": 25,
-    "migration_admin_or_internal": 15,
+    "internal_service_role_only": 29,
+    "migration_admin_or_internal": 11,
     "authenticated_rls_helper": 5
   },
   "engagement_posting_policy": {
@@ -19,6 +19,7 @@
   },
   "public_users_anon_all_absent": true,
   "public_users_authenticated_update_revoked": true,
+  "public_users_update_policy_absent": true,
   "publicUsersColumnContract": {
     "table": "public.users",
     "authenticatedTablePrivileges": [
@@ -82,6 +83,42 @@
       }
     }
   },
+  "serviceRoleRpcIdentityAllowlist": [
+    "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+    "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+    "public.clear_audit_ready_recon_bridge(uuid)",
+    "public.gap2_cancel_purge(uuid,text,uuid)",
+    "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+    "public.get_similar_kickout_resolution_counts(uuid[])",
+    "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+    "public.increment_pbc_request_count(uuid,int4)",
+    "public.increment_share_token_access(uuid)",
+    "public.next_document_number(uuid,text)",
+    "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+    "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+    "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+    "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+    "public.sp_list_public_columns()",
+    "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)"
+  ],
+  "spWriteAnchorBatchDisposition": {
+    "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+    "serviceRoleExecute": "REVOKED",
+    "finalPrivilege": "owner_admin_only",
+    "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+  },
   "functions": [
     {
       "identity": "public.prevent_si_snapshot_metadata_mutation()",
@@ -90,7 +127,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2005,
+      "line": 2002,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -112,7 +149,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2045,
+      "line": 2042,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -134,7 +171,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2687,
+      "line": 2684,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -156,7 +193,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2755,
+      "line": 2752,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -178,7 +215,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2788,
+      "line": 2785,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -257,7 +294,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -808,7 +845,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -831,7 +868,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1052,7 +1089,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1075,7 +1112,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1098,7 +1135,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1121,7 +1158,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1144,7 +1181,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1167,7 +1204,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1190,7 +1227,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1300,7 +1337,7 @@
         "service_role"
       ],
       "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1322,7 +1359,7 @@
         "service_role"
       ],
       "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1345,7 +1382,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1389,7 +1426,7 @@
         "service_role"
       ],
       "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1522,7 +1559,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1545,7 +1582,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1634,7 +1671,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1679,7 +1716,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1724,7 +1761,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1791,7 +1828,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1814,7 +1851,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1859,7 +1896,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1882,7 +1919,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1905,7 +1942,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1928,7 +1965,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1942,15 +1979,16 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated",
+        "authenticated"
+      ],
+      "grant": [
         "service_role"
       ],
-      "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1964,15 +2002,16 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated",
+        "authenticated"
+      ],
+      "grant": [
         "service_role"
       ],
-      "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1986,15 +2025,16 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated",
+        "authenticated"
+      ],
+      "grant": [
         "service_role"
       ],
-      "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2008,15 +2048,16 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated",
+        "authenticated"
+      ],
+      "grant": [
         "service_role"
       ],
-      "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2039,7 +2080,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2062,7 +2103,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2084,7 +2125,7 @@
         "service_role"
       ],
       "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2243,7 +2284,7 @@
         "service_role"
       ],
       "grant": [],
-      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2310,7 +2351,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     }
   ]

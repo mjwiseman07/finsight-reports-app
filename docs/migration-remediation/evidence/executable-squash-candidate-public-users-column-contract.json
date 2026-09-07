@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-07T05:21:57.501Z",
-  "packageSeal": "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b",
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "packageSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
   "contract": {
     "table": "public.users",
     "authenticatedTablePrivileges": [

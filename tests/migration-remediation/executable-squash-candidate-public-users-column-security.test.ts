@@ -5,6 +5,7 @@ import {
   PUBLIC_USERS_COLUMN_CONTRACT,
   assertNoUsersAnonAllGrant,
   assertNoUsersAuthenticatedTableUpdate,
+  assertNoUsersUpdatePolicy,
 } from "../../scripts/migration-remediation/esc-privilege-remediation.js";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -65,10 +66,14 @@ describe("public.users column privilege contract (ESC)", () => {
     expect(cleaned).not.toMatch(/GRANT\s+[^(;]*\bDELETE\b[^(;]*ON\s+TABLE\s+public\.users\s+TO\s+authenticated/i);
   });
 
-  it("own-row RLS remains and incomplete classification fails closed", () => {
+  it("own-row SELECT RLS remains; stale UPDATE policy is dropped", () => {
     expect(foundations).toMatch(/Users can read own record/);
-    expect(foundations).toMatch(/Users can update own record/);
-    expect(foundations).toMatch(/auth\.uid\(\)\s*=\s*id/);
+    expect(foundations).toMatch(/DROP POLICY IF EXISTS "Users can update own record"/);
+    expect(assertNoUsersUpdatePolicy(foundations)).toBe(true);
+    const cleaned = stripComments(foundations);
+    expect(cleaned).toMatch(/CREATE\s+POLICY[\s\S]{0,120}?ON\s+public\.users\s+FOR\s+SELECT/i);
+    expect(cleaned).not.toMatch(/CREATE\s+POLICY[\s\S]{0,120}?ON\s+public\.users\s+FOR\s+UPDATE/i);
+    expect(cleaned).toMatch(/auth\.uid\(\)\s*=\s*id/);
     // Future column not in contract must not become editable by empty allowlist policy
     expect(PUBLIC_USERS_COLUMN_CONTRACT.authenticatedUpdateAllowlist.includes("future_col" as never)).toBe(
       false,

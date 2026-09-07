@@ -3898,26 +3898,26 @@ REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_not_found_confirm
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
--- disposition public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) => migration_admin_or_internal
+-- disposition public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) FROM service_role;
--- disposition public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => migration_admin_or_internal
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
+-- disposition public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM service_role;
--- disposition public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => migration_admin_or_internal
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
+-- disposition public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM service_role;
--- disposition public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => migration_admin_or_internal
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
+-- disposition public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) FROM service_role;
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
 -- disposition public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;

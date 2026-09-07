@@ -8,33 +8,186 @@ const {
   parseRoutineHead,
 } = require('./option-d-function-identity');
 
-/** Proven lib/.rpc / server admin callers that need service_role EXECUTE. */
-const SERVICE_ROLE_RPC_NAME_ALLOWLIST = new Set([
-  'publish_ledger_event',
-  'increment_share_token_access',
-  'persist_journal_entry_proposal',
-  'persist_journal_entry_approval',
-  'persist_journal_entry_execution_reservation',
-  'transition_journal_entry_execution',
-  'persist_journal_entry_provider_attempt',
-  'patch_journal_entry_provider_attempt',
-  'apply_journal_entry_verified',
-  'apply_journal_entry_verification_mismatch',
-  'apply_journal_entry_provider_commit_discovered',
-  'apply_journal_entry_provider_not_found_confirmed',
-  'gap2_schedule_purge',
-  'gap2_cancel_purge',
-  'persist_continuous_close_observe_run',
-  'persist_audit_ready_recon_bridge',
-  'clear_audit_ready_recon_bridge',
-  'increment_pbc_request_count',
-  'get_similar_kickout_resolutions',
-  'get_similar_kickout_resolution_counts',
-  'audit_ready_latest_bs_kickout_lines',
-  'audit_ready_latest_pbc_kickout_runs',
-  'next_document_number',
-  'sp_list_public_columns',
+/**
+ * Exact-identity service_role EXECUTE allowlist (fail-closed).
+ * Bare function names are insufficient — grant only when CREATE identity matches exactly.
+ * Ambiguous/wrong overloads classify as migration_admin_or_internal (revoke service_role).
+ */
+const SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST = new Set([
+  'public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)',
+  'public.increment_share_token_access(uuid)',
+  'public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)',
+  'public.patch_journal_entry_provider_attempt(uuid,text,jsonb)',
+  'public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)',
+  'public.gap2_cancel_purge(uuid,text,uuid)',
+  'public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)',
+  'public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)',
+  'public.clear_audit_ready_recon_bridge(uuid)',
+  'public.increment_pbc_request_count(uuid,int4)',
+  'public.get_similar_kickout_resolutions(uuid,text,jsonb)',
+  'public.get_similar_kickout_resolution_counts(uuid[])',
+  'public.audit_ready_latest_bs_kickout_lines(uuid[])',
+  'public.audit_ready_latest_pbc_kickout_runs(uuid[])',
+  'public.next_document_number(uuid,text)',
+  'public.sp_list_public_columns()',
 ]);
+
+/** Names derived from exact identities — used only to fail-closed wrong overloads. */
+const SERVICE_ROLE_RPC_ALLOWED_NAMES = new Set(
+  [...SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST].map((id) =>
+    id.replace(/^public\./, '').split('(')[0]
+  )
+);
+
+/** Concrete caller evidence for every retained service_role grant identity. */
+const SERVICE_ROLE_RPC_CALLER_EVIDENCE = {
+  'public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)': {
+    callers: ['lib/events/publisher.ts'],
+    authority: 'getSupabaseAdmin()/service_role',
+  },
+  'public.increment_share_token_access(uuid)': {
+    callers: ['lib/close-packet/share-tokens.js'],
+    authority: 'supabaseAdmin/service_role',
+  },
+  'public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/approval-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/execution-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/execution-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)': {
+    callers: ['lib/journal-entry-governance/provider-attempt-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.patch_journal_entry_provider_attempt(uuid,text,jsonb)': {
+    callers: ['lib/journal-entry-governance/provider-attempt-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-verification-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-verification-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-attempt-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-attempt-repository.ts'],
+    authority: 'getSupabaseAdmin()',
+  },
+  'public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-dispatch-repository.ts:81'],
+    authority: 'getSupabaseAdmin()',
+    note: 'DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required',
+  },
+  'public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-dispatch-repository.ts:123'],
+    authority: 'getSupabaseAdmin()',
+    note: 'DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required',
+  },
+  'public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-dispatch-repository.ts:168'],
+    authority: 'getSupabaseAdmin()',
+    note: 'DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required',
+  },
+  'public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/journal-entry-governance/provider-dispatch-repository.ts:212'],
+    authority: 'getSupabaseAdmin()',
+    note: 'DB EXECUTE alone does not activate dispatch; app kill-switch/capability gates remain required',
+  },
+  'public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)': {
+    callers: ['lib/gap2/stripe-integration.ts'],
+    authority: 'service_role',
+  },
+  'public.gap2_cancel_purge(uuid,text,uuid)': {
+    callers: ['lib/gap2/stripe-integration.ts'],
+    authority: 'service_role',
+  },
+  'public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)': {
+    callers: ['lib/continuous-close/persistence/repository.ts'],
+    authority: 'service_role',
+  },
+  'public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)': {
+    callers: ['lib/audit-ready/tie-out/reconciling-items-persistence.ts'],
+    authority: 'service_role',
+  },
+  'public.clear_audit_ready_recon_bridge(uuid)': {
+    callers: ['lib/audit-ready/tie-out/reconciling-items-persistence.ts'],
+    authority: 'service_role',
+  },
+  'public.increment_pbc_request_count(uuid,int4)': {
+    callers: ['lib/audit-ready/pbc-parser.ts'],
+    authority: 'service_role',
+  },
+  'public.get_similar_kickout_resolutions(uuid,text,jsonb)': {
+    callers: ['lib/audit-ready/memory/similar-resolutions.ts'],
+    authority: 'service_role',
+  },
+  'public.get_similar_kickout_resolution_counts(uuid[])': {
+    callers: ['lib/audit-ready/kickouts/list-kickouts.ts'],
+    authority: 'service_role',
+  },
+  'public.audit_ready_latest_bs_kickout_lines(uuid[])': {
+    callers: ['lib/audit-ready/kickouts/list-kickouts.ts'],
+    authority: 'service_role',
+  },
+  'public.audit_ready_latest_pbc_kickout_runs(uuid[])': {
+    callers: ['lib/audit-ready/kickouts/list-kickouts.ts'],
+    authority: 'service_role',
+  },
+  'public.next_document_number(uuid,text)': {
+    callers: [
+      'lib/ap-intake/requisitions/service.ts via numbering.ts + createServiceClient()',
+      'lib/ap-intake/purchase-orders/service.ts via numbering.ts + createServiceClient()',
+    ],
+    authority: 'createServiceClient() → getSupabaseAdmin()',
+  },
+  'public.sp_list_public_columns()': {
+    callers: ['lib/schema-drift/repo-scanner.ts'],
+    authority: 'service_role',
+  },
+};
+
+/**
+ * sp_write_anchor_batch — no proven runtime .rpc() caller in this repository
+ * (commented anchor-batcher.ts path is absent). Owner/admin only until separately authorized.
+ */
+const SP_WRITE_ANCHOR_BATCH_DISPOSITION = {
+  identity: 'public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)',
+  serviceRoleExecute: 'REVOKED',
+  finalPrivilege: 'owner_admin_only',
+  rationale:
+    'No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant.',
+};
+
+/** @deprecated Prefer SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST — kept as name set for transition. */
+const SERVICE_ROLE_RPC_NAME_ALLOWLIST = SERVICE_ROLE_RPC_ALLOWED_NAMES;
 
 /**
  * public.users column privilege contract (ESC overlay).
@@ -269,22 +422,30 @@ function classifyFunction(fn) {
         'Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role',
     };
   }
-  if (SERVICE_ROLE_RPC_NAME_ALLOWLIST.has(name) || SENSITIVE_NAME_RE.test(name) || fn.securityDefiner) {
-    const allowSvc = SERVICE_ROLE_RPC_NAME_ALLOWLIST.has(name);
-    if (allowSvc) {
-      return {
-        class: 'internal_service_role_only',
-        revoke: ['PUBLIC', 'anon', 'authenticated'],
-        grant: ['service_role'],
-        rationale: 'Proven server-side RPC/caller; service_role EXECUTE only',
-      };
-    }
+  if (SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST.has(identity)) {
+    return {
+      class: 'internal_service_role_only',
+      revoke: ['PUBLIC', 'anon', 'authenticated'],
+      grant: ['service_role'],
+      rationale: 'Exact-identity proven server-side RPC/caller; service_role EXECUTE only',
+    };
+  }
+  if (SERVICE_ROLE_RPC_ALLOWED_NAMES.has(name)) {
     return {
       class: 'migration_admin_or_internal',
       revoke: ['PUBLIC', 'anon', 'authenticated', 'service_role'],
       grant: [],
       rationale:
-        'SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only',
+        'Function name is allowlisted but CREATE identity is not an exact signature match — fail closed',
+    };
+  }
+  if (SENSITIVE_NAME_RE.test(name) || fn.securityDefiner) {
+    return {
+      class: 'migration_admin_or_internal',
+      revoke: ['PUBLIC', 'anon', 'authenticated', 'service_role'],
+      grant: [],
+      rationale:
+        'SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only',
     };
   }
   return {
@@ -460,6 +621,7 @@ function injectPrivilegeClosureBeforeCommits(sql, opts = {}) {
 
 /**
  * Overlay public.users grants: remove anon ALL; authenticated SELECT only (UPDATE fully revoked).
+ * Also drops the stale FOR UPDATE own-row RLS policy so policy intent matches table privileges.
  */
 function applyUsersAnonGrantOverlay(sql) {
   const marker = '-- [ESC] public.users privilege overlay';
@@ -473,6 +635,19 @@ function applyUsersAnonGrantOverlay(sql) {
     /GRANT\s+(?:ALL|SELECT\s*,\s*UPDATE|UPDATE\s*,\s*SELECT|SELECT|UPDATE)\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated\s*;/gi,
     `${marker}: authenticated SELECT only — UPDATE fully revoked (no browser UPDATE path; account/billing use service_role).\nGRANT SELECT ON TABLE public.users TO authenticated;\nREVOKE UPDATE ON TABLE public.users FROM authenticated;`
   );
+  // Drop stale FOR UPDATE policy (privileges no longer allow authenticated UPDATE).
+  out = out.replace(
+    /DROP\s+POLICY\s+IF\s+EXISTS\s+"Users can update own record"\s+ON\s+public\.users\s*;\s*CREATE\s+POLICY\s+"Users can update own record"\s+ON\s+public\.users\s+FOR\s+UPDATE\s+USING\s*\(\s*auth\.uid\(\)\s*=\s*id\s*\)\s*;/gi,
+    `DROP POLICY IF EXISTS "Users can update own record" ON public.users;\n${marker}: removed FOR UPDATE own-row policy (authenticated UPDATE fully revoked; SELECT policy retained).`
+  );
+  out = out.replace(
+    /CREATE\s+POLICY\s+"Users can update own record"\s+ON\s+public\.users\s+FOR\s+UPDATE\s+USING\s*\(\s*auth\.uid\(\)\s*=\s*id\s*\)\s*;/gi,
+    `${marker}: removed CREATE POLICY FOR UPDATE (stale after UPDATE revoke).\nDROP POLICY IF EXISTS "Users can update own record" ON public.users;`
+  );
+  if (!/DROP\s+POLICY\s+IF\s+EXISTS\s+"Users can update own record"\s+ON\s+public\.users/i.test(out)) {
+    out += `\n${marker}: ensure stale UPDATE policy is absent.\n`;
+    out += 'DROP POLICY IF EXISTS "Users can update own record" ON public.users;\n';
+  }
   if (!/REVOKE\s+ALL\s+ON\s+TABLE\s+public\.users\s+FROM\s+anon/i.test(out)) {
     out += `\n${marker}: explicit deny for PUBLIC/anon table privileges.\n`;
     out += 'REVOKE ALL ON TABLE public.users FROM PUBLIC;\n';
@@ -488,6 +663,33 @@ function applyUsersAnonGrantOverlay(sql) {
     `${marker}: removed column-level UPDATE grant — authenticatedUpdateAllowlist is empty.\n-- HISTORICAL_COLUMN_UPDATE_GRANT_REMOVED ON public.users TO authenticated;`
   );
   return out;
+}
+
+/**
+ * Ensure sp_write_anchor_batch remains owner/admin-only (no service_role EXECUTE)
+ * when no proven runtime caller exists. Neutralizes source GRANT in major_1 lockdown.
+ */
+function applySpWriteAnchorBatchOwnerOnlyOverlay(sql) {
+  const marker = '-- [ESC] sp_write_anchor_batch owner/admin-only';
+  let out = sql.replace(
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.sp_write_anchor_batch\s*\([^)]*\)\s+TO\s+service_role\s*;/gi,
+    `${marker}: no proven runtime .rpc() caller — REVOKE service_role (separate auth required before re-grant).\nREVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM service_role;\nREVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM service_role;`
+  );
+  if (!/REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.sp_write_anchor_batch[\s\S]{0,120}?FROM\s+service_role/i.test(out)) {
+    out += `\n${marker}: fail-closed revoke.\n`;
+    out +=
+      'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(bigint,bigint,integer,text,jsonb,jsonb) FROM service_role;\n';
+    out +=
+      'REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM service_role;\n';
+  }
+  return out;
+}
+
+/** True when no FOR UPDATE policy remains on public.users (contract: updateFullyRevoked). */
+function assertNoUsersUpdatePolicy(sql) {
+  if (!PUBLIC_USERS_COLUMN_CONTRACT.authenticatedUpdateFullyRevoked) return true;
+  const cleaned = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '');
+  return !/CREATE\s+POLICY\s+[\s\S]{0,120}?ON\s+public\.users\s+FOR\s+UPDATE\b/i.test(cleaned);
 }
 
 /**
@@ -580,6 +782,10 @@ module.exports = {
   ANON_RPC_ALLOWLIST,
   AUTHENTICATED_HELPER_ALLOWLIST,
   SERVICE_ROLE_RPC_NAME_ALLOWLIST,
+  SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST,
+  SERVICE_ROLE_RPC_ALLOWED_NAMES,
+  SERVICE_ROLE_RPC_CALLER_EVIDENCE,
+  SP_WRITE_ANCHOR_BATCH_DISPOSITION,
   PUBLIC_USERS_COLUMN_CONTRACT,
   findCreateFunctionsDetailed,
   findRevokeExecuteDetailed,
@@ -589,9 +795,11 @@ module.exports = {
   buildFunctionPrivilegeClosureSql,
   injectPrivilegeClosureBeforeCommits,
   applyUsersAnonGrantOverlay,
+  applySpWriteAnchorBatchOwnerOnlyOverlay,
   hardenPublishLedgerEventCreate,
   assertNoUsersAnonAllGrant,
   assertNoUsersAuthenticatedTableUpdate,
+  assertNoUsersUpdatePolicy,
   sameSlicePublicRevokeGaps,
   engagementPostingPolicyOrder,
   formatRevokeTarget,

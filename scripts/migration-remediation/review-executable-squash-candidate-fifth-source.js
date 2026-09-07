@@ -19,6 +19,7 @@ const {
   classifyFunction,
   AUTHENTICATED_HELPER_ALLOWLIST,
   ANON_RPC_ALLOWLIST,
+  SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST,
   SERVICE_ROLE_RPC_NAME_ALLOWLIST,
   sameSlicePublicRevokeGaps,
   engagementPostingPolicyOrder,
@@ -441,7 +442,7 @@ function main() {
         version: ev.version,
         line: ev.line,
         callers: serviceCallers,
-        onAllowlist: SERVICE_ROLE_RPC_NAME_ALLOWLIST.has(name),
+        onAllowlist: SERVICE_ROLE_RPC_IDENTITY_ALLOWLIST.has(identity),
         isHelper: AUTHENTICATED_HELPER_ALLOWLIST.has(identity),
       });
       if (!serviceCallers.length && !AUTHENTICATED_HELPER_ALLOWLIST.has(identity)) {
