@@ -5,6 +5,7 @@ import {
   getQuotaGuardUndiciDispatcher,
   isQuotaGuardConfigured,
 } from "@/lib/network/quotaguard-proxy";
+import { extractNetworkErrorDiagnostics } from "@/lib/network/transport-diagnostics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +20,9 @@ export const dynamic = "force-dynamic";
  * super_admin role + allowlisted email).
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const access = (await resolveSuperAdminAccess(req)) as { response?: NextResponse };
+  const access = (await resolveSuperAdminAccess(req)) as {
+    response?: NextResponse;
+  };
   if (access.response) return access.response;
 
   const expected = getQuotaGuardStaticIps();
@@ -72,39 +75,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { status: matches ? 200 : 500 },
     );
   } catch (err: unknown) {
-    // undici's fetch throws a TypeError with .cause chain — unwrap it so
-    // callers see the actual network error (ETIMEDOUT, 407, ECONNREFUSED, etc.)
-    // instead of the useless top-level "fetch failed".
-    const chain: Array<{ name: string; message: string; code?: string }> = [];
-    let cursor: unknown = err;
-    let depth = 0;
-    while (cursor && depth < 6) {
-      if (cursor instanceof Error) {
-        const entry: { name: string; message: string; code?: string } = {
-          name: cursor.name,
-          message: cursor.message,
-        };
-        const maybeCode = (cursor as unknown as { code?: unknown }).code;
-        if (typeof maybeCode === "string") entry.code = maybeCode;
-        chain.push(entry);
-        cursor = (cursor as unknown as { cause?: unknown }).cause;
-      } else {
-        chain.push({ name: "Unknown", message: String(cursor) });
-        cursor = undefined;
-      }
-      depth += 1;
-    }
-    const top = chain[0] ?? { name: "Unknown", message: "unknown error" };
-    const deepest = chain[chain.length - 1] ?? top;
+    const diag = extractNetworkErrorDiagnostics(err);
     return NextResponse.json(
       {
         ok: false,
         proxyActive: true,
-        error: top.message,
-        errorCode: top.code,
-        rootError: deepest.message,
-        rootErrorCode: deepest.code,
-        errorChain: chain,
+        error: diag.message,
+        errorCode: diag.code,
+        rootError: diag.deepest?.message ?? diag.message,
+        rootErrorCode: diag.deepest?.code ?? diag.code,
+        errorChain: diag.causeChain,
         expected,
       },
       { status: 500 },
