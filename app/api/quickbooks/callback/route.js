@@ -388,7 +388,7 @@ async function getImpl(request) {
     console.log("[quickbooks/callback] saving QuickBooks connection", {
       userId: authData.user.id,
       hasRealmId: Boolean(realmId),
-      tables: ["erp_or_quickbooks_connections", "accounting_connections"],
+      tables: ["accounting_connections"],
       platform: "quickbooks",
     });
 

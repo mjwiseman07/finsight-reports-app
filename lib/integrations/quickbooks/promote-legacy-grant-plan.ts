@@ -9,7 +9,7 @@ export type LegacyQboGrantRef = {
   id: string;
   userId: string;
   realmId: string;
-  legacyTable: "quickbooks_connections" | "erp_connections";
+  legacyTable: "erp_connections";
   hasAccessToken: boolean;
   hasRefreshToken: boolean;
   tokenExpiry: string | null;

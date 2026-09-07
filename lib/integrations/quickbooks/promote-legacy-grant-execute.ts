@@ -145,24 +145,26 @@ export async function loadPromoteLegacyGrantContext(args: {
   };
 
   let legacyRow: LegacyRow | null = null;
-  let legacyTable: LegacyQboGrantRef["legacyTable"] = "quickbooks_connections";
+  let legacyTable: LegacyQboGrantRef["legacyTable"] = "erp_connections";
 
-  for (const table of ["quickbooks_connections", "erp_connections"] as const) {
-    const { data, error } = await admin
-      .from(table)
-      .select("id, user_id, realm_id, access_token, refresh_token, token_expiry")
-      .eq("id", legacyConnectionId)
-      .maybeSingle();
-    if (error && error.code !== "PGRST205" && error.code !== "42P01") throw error;
-    if (data) {
-      legacyRow = data as LegacyRow;
-      legacyTable = table;
-      break;
-    }
+  // quickbooks_connections promote is retired (CONTROLLED_OMIT_AFTER_CALLER_MIGRATION).
+  // Do not SELECT/INSERT/UPDATE that table. Optional erp_connections read remains
+  // only when that table already exists — not as a new fallback for missing canonical rows.
+  const { data, error } = await admin
+    .from("erp_connections")
+    .select("id, user_id, realm_id, access_token, refresh_token, token_expiry")
+    .eq("id", legacyConnectionId)
+    .maybeSingle();
+  if (error && error.code !== "PGRST205" && error.code !== "42P01") throw error;
+  if (data) {
+    legacyRow = data as LegacyRow;
+    legacyTable = "erp_connections";
   }
 
   if (!legacyRow) {
-    throw new Error(`Legacy connection ${legacyConnectionId} not found`);
+    throw new Error(
+      `Legacy connection ${legacyConnectionId} not found (quickbooks_connections promote retired; use accounting_connections)`,
+    );
   }
 
   const { data: firmClient, error: fcErr } = await admin

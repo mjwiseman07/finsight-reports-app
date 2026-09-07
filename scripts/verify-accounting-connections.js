@@ -69,22 +69,9 @@ async function verify() {
   console.log("accounting_connections reachable: OK");
   console.log(`accounting_connections row count: ${count ?? data.length}`);
   console.log(`quickbooks canonical rows: ${quickBooksCount ?? 0}`);
-
-  const legacyChecks = [
-    ["erp_connections", "platform"],
-    ["quickbooks_connections", null],
-  ];
-
-  for (const [tableName, platformColumn] of legacyChecks) {
-    let query = supabase.from(tableName).select("id", { count: "exact", head: true });
-    if (platformColumn) query = query.eq(platformColumn, "quickbooks");
-    const { count: legacyCount, error: legacyError } = await query;
-    if (legacyError) {
-      console.log(`${tableName} legacy check: unavailable (${legacyError.message})`);
-    } else {
-      console.log(`${tableName} legacy rows: ${legacyCount ?? 0}`);
-    }
-  }
+  console.log(
+    "legacy quickbooks_connections checks: retired (CONTROLLED_OMIT_AFTER_CALLER_MIGRATION)",
+  );
 
   console.log(
     "sample rows:",
