@@ -3,6 +3,8 @@
  * Includes negative cases required by PR #316 independent review (P2).
  */
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createQboOAuthEnvironmentState,
@@ -335,8 +337,6 @@ describe("qbo oauth environment state", () => {
 
 describe("callback orders state verify before exchange/persist (static)", () => {
   it("callback invokes verifyQboOAuthEnvironmentState before exchangeAuthorizationCode", () => {
-    const fs = require("node:fs") as typeof import("node:fs");
-    const path = require("node:path") as typeof import("node:path");
     const src = fs.readFileSync(
       path.join(process.cwd(), "app/api/quickbooks/callback/route.js"),
       "utf8",
