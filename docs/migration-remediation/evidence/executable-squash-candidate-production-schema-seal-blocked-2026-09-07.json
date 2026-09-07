@@ -1,0 +1,42 @@
+{
+  "verdict": "BLOCKED",
+  "blockedAt": "2026-09-07T06:35:00.000Z",
+  "authorization": "read-only full production pg_dump --schema-only seal and comparison",
+  "pins": {
+    "pr314Head": "ea6c105fec912cd6d8ec8f2226df74dda74046da",
+    "candidateAncestorFromSixthReview": "c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6",
+    "rejectedUserPastedCandidateCommit": "c386185f4a42540f9c485b30c6b9f0972b4ac500",
+    "candidateSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "rejectedUserPastedSealTypo": "170b7105b09acdb2fd1d5f1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "packageBytes": 1191852,
+    "modules": 12,
+    "sourceAccountingEquation": "144 unchanged + 6 overlays + 1 forward = 151",
+    "sourceReviewVerdict": "PASS_SOURCE_REVIEW",
+    "originMainFetched": "9d8a01d37422179ddd68bbd181a8815d8a893577"
+  },
+  "productionIdentity": {
+    "projectRef": "jzmdgwwiestcmmeuhhkr",
+    "status": "ACTIVE_HEALTHY",
+    "region": "us-east-2",
+    "databaseHostSanitized": "db.jzmdgwwiestcmmeuhhkr.supabase.co",
+    "postgresEngineApi": "17.6.1.121",
+    "versionPrefix": "PostgreSQL 17.6 on x86_64-pc-linux-gnu",
+    "currentDatabase": "postgres",
+    "schemaMigrationsCount": 185,
+    "schemaMigrationsMinVersion": "20260701043602",
+    "schemaMigrationsMaxVersion": "20260827030454"
+  },
+  "tooling": {
+    "supabaseCliVersion": "2.116.0",
+    "pgDumpOnPath": false,
+    "supabaseAccessTokenPresent": false,
+    "sessionDatabaseUrlPresent": false,
+    "rawDumpsCreated": false,
+    "candidateSqlModified": false,
+    "activeMigrationsModified": false,
+    "productionMutated": false
+  },
+  "blockReason": "Part A.8 stop: cannot verify session credentials/tooling required for authentic pg_dump --schema-only (no pg_dump binary, no SUPABASE_ACCESS_TOKEN, no session DATABASE_URL).",
+  "rawDumpDeletionProof": "N/A — no raw dumps were written",
+  "nextAuthorization": "Provide session-only SUPABASE_ACCESS_TOKEN or read-only DATABASE_URL (+ PostgreSQL 17 client tools), then re-authorize the same seal/comparison bound to candidate c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6 / seal 170b7105…"
+}
