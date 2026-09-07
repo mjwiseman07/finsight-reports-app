@@ -3,14 +3,386 @@
 -- Proposed version: 20260907010032
 -- Proposed name: esc_application_schema_slice_3_of_5
 -- Module: public_application_schema_slice_3
--- Provenance: Option D assembled app files (33) stripped of nested txn markers; RLS/privilege closed before COMMIT
+-- Provenance: Option D assembled app files (25) stripped of nested txn markers; RLS/privilege closed before COMMIT
 -- NOT in active supabase/migrations/. Production mutation NOT authorized.
 -- UTF-8 LF. statements[] must remain non-empty when eventually recorded.
 -- =============================================================================
 BEGIN;
 -- OPTION 2 secure multi-version split: slice 3/5
 -- Source BEGIN/COMMIT stripped; exactly one outer transaction.
--- Files: 33; RLS closure tables: 1
+-- Files: 25; RLS closure tables: 1; fn dispositions: 12
+
+-- >>> begin 20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql
+-- =============================================================================
+-- Phase D6.5 Part 2 · Block 6b
+-- L0 Approval Matrix + Delegation + Comment Threads + L7 Budget Checks
+-- =============================================================================
+-- Additive-only. Idempotent. RLS on every new table.
+-- Depends on Block 6a (requisitions, requisition_line_items, pilot_feature_allowlist,
+-- engagement_addons addon_code CHECK, ap event catalog).
+-- =============================================================================
+-- [ESC] stripped source txn marker: BEGIN;
+
+
+-- -----------------------------------------------------------------------------
+-- 1. Widen engagement_addons.addon_code CHECK — add ap_budget_controls
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.engagement_addons DROP CONSTRAINT IF EXISTS engagement_addons_addon_code_check;
+ALTER TABLE public.engagement_addons
+  ADD CONSTRAINT engagement_addons_addon_code_check
+  CHECK (addon_code IN (
+    'ap_intake','ap_pay','ar_invoicing','ar_cash_app','ar_collections',
+    'voice_collections','quarantine_review','ap_requisitions',
+    'ap_baseline_harvest','ap_three_way_match','ap_budget_controls'
+  ));
+
+-- -----------------------------------------------------------------------------
+-- 1b. Widen pilot_feature_allowlist.feature_code CHECK
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.pilot_feature_allowlist DROP CONSTRAINT IF EXISTS pilot_feature_allowlist_feature_code_check;
+ALTER TABLE public.pilot_feature_allowlist
+  ADD CONSTRAINT pilot_feature_allowlist_feature_code_check
+  CHECK (feature_code IN (
+    'ap_requisitions',
+    'ap_baseline_harvest',
+    'ap_three_way_match',
+    'ap_approval_matrix',
+    'ap_budget_controls'
+  ));
+
+-- -----------------------------------------------------------------------------
+-- 2. requisition_approval_chains — ordered approver list per requisition
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.requisition_approval_chains (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
+  strategy               TEXT NOT NULL DEFAULT 'sequential'
+    CHECK (strategy IN ('sequential','parallel','any_of')),
+  status                 TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','completed','cancelled','rejected')),
+  total_steps            INTEGER NOT NULL DEFAULT 0,
+  completed_steps        INTEGER NOT NULL DEFAULT 0,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at           TIMESTAMPTZ,
+  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
+  UNIQUE (requisition_id)
+);
+CREATE INDEX IF NOT EXISTS idx_rac_firm ON public.requisition_approval_chains(firm_id);
+CREATE INDEX IF NOT EXISTS idx_rac_status ON public.requisition_approval_chains(status);
+ALTER TABLE public.requisition_approval_chains ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS rac_service_all ON public.requisition_approval_chains;
+CREATE POLICY rac_service_all ON public.requisition_approval_chains
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS rac_firm_select ON public.requisition_approval_chains;
+CREATE POLICY rac_firm_select ON public.requisition_approval_chains
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = requisition_approval_chains.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 3. requisition_approval_steps — one row per approver in the chain
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.requisition_approval_steps (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chain_id               UUID NOT NULL REFERENCES public.requisition_approval_chains(id) ON DELETE CASCADE,
+  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
+  firm_id                UUID NOT NULL,
+  order_index            INTEGER NOT NULL,
+  required_role          TEXT,
+  approver_user_id       UUID NOT NULL,
+  threshold_amount_cents BIGINT,
+  status                 TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','approved','rejected','delegated','skipped')),
+  acted_at               TIMESTAMPTZ,
+  acted_by_user_id       UUID,
+  delegated_to_user_id   UUID,
+  comment                TEXT,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  -- multiple rows allowed per slot (delegation creates a sibling)
+);
+CREATE INDEX IF NOT EXISTS idx_ras_requisition ON public.requisition_approval_steps(requisition_id);
+CREATE INDEX IF NOT EXISTS idx_ras_approver ON public.requisition_approval_steps(approver_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_ras_firm ON public.requisition_approval_steps(firm_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ras_pending_slot
+  ON public.requisition_approval_steps(chain_id, order_index)
+  WHERE status = 'pending';
+ALTER TABLE public.requisition_approval_steps ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS ras_service_all ON public.requisition_approval_steps;
+CREATE POLICY ras_service_all ON public.requisition_approval_steps
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS ras_firm_select ON public.requisition_approval_steps;
+CREATE POLICY ras_firm_select ON public.requisition_approval_steps
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = requisition_approval_steps.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 4. approval_delegations — user → user delegation windows (per firm)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.approval_delegations (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id                UUID NOT NULL,
+  delegator_user_id      UUID NOT NULL,
+  delegate_user_id       UUID NOT NULL,
+  scope                  TEXT NOT NULL DEFAULT 'ap_requisitions'
+    CHECK (scope IN ('ap_requisitions','ap_amendments','ap_all')),
+  effective_from         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  effective_to           TIMESTAMPTZ NOT NULL,
+  reason                 TEXT,
+  revoked_at             TIMESTAMPTZ,
+  created_by             UUID NOT NULL,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (delegator_user_id <> delegate_user_id),
+  CHECK (effective_to > effective_from)
+);
+CREATE INDEX IF NOT EXISTS idx_deleg_firm_delegator ON public.approval_delegations(firm_id, delegator_user_id);
+CREATE INDEX IF NOT EXISTS idx_deleg_firm_delegate ON public.approval_delegations(firm_id, delegate_user_id);
+CREATE INDEX IF NOT EXISTS idx_deleg_active
+  ON public.approval_delegations(firm_id, delegator_user_id, effective_to)
+  WHERE revoked_at IS NULL;
+ALTER TABLE public.approval_delegations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS deleg_service_all ON public.approval_delegations;
+CREATE POLICY deleg_service_all ON public.approval_delegations
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS deleg_firm_select ON public.approval_delegations;
+CREATE POLICY deleg_firm_select ON public.approval_delegations
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = approval_delegations.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 5. requisition_comments — threaded discussion on a requisition
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.requisition_comments (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  parent_comment_id      UUID REFERENCES public.requisition_comments(id) ON DELETE CASCADE,
+  author_user_id         UUID NOT NULL,
+  body                   TEXT NOT NULL CHECK (length(body) > 0 AND length(body) <= 10000),
+  edited_at              TIMESTAMPTZ,
+  deleted_at             TIMESTAMPTZ,
+  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rc_requisition ON public.requisition_comments(requisition_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_rc_firm ON public.requisition_comments(firm_id);
+CREATE INDEX IF NOT EXISTS idx_rc_parent ON public.requisition_comments(parent_comment_id);
+ALTER TABLE public.requisition_comments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS rc_service_all ON public.requisition_comments;
+CREATE POLICY rc_service_all ON public.requisition_comments
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS rc_firm_select ON public.requisition_comments;
+CREATE POLICY rc_firm_select ON public.requisition_comments
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = requisition_comments.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 6. requisition_amendments — post-approval change requests
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.requisition_amendments (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  amender_user_id        UUID NOT NULL,
+  reason                 TEXT NOT NULL CHECK (length(reason) > 0),
+  changes_json           JSONB NOT NULL,
+  prior_total_cents      BIGINT NOT NULL,
+  new_total_cents        BIGINT NOT NULL,
+  requires_controller    BOOLEAN NOT NULL DEFAULT FALSE,
+  status                 TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','approved','rejected','cancelled')),
+  approved_by            UUID,
+  approved_at            TIMESTAMPTZ,
+  rejected_by            UUID,
+  rejected_at            TIMESTAMPTZ,
+  rejection_reason       TEXT,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ra_requisition ON public.requisition_amendments(requisition_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ra_firm_status ON public.requisition_amendments(firm_id, status);
+ALTER TABLE public.requisition_amendments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS ra_service_all ON public.requisition_amendments;
+CREATE POLICY ra_service_all ON public.requisition_amendments
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS ra_firm_select ON public.requisition_amendments;
+CREATE POLICY ra_firm_select ON public.requisition_amendments
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = requisition_amendments.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 7. gl_account_budgets — monthly budget by GL account
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.gl_account_budgets (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  company_id             UUID NOT NULL,
+  gl_account_code        TEXT NOT NULL,
+  gl_account_name        TEXT,
+  period_year            INTEGER NOT NULL CHECK (period_year BETWEEN 2020 AND 2100),
+  period_month           INTEGER NOT NULL CHECK (period_month BETWEEN 1 AND 12),
+  budget_amount_cents    BIGINT NOT NULL CHECK (budget_amount_cents >= 0),
+  currency               TEXT NOT NULL DEFAULT 'USD',
+  tolerance_pct          NUMERIC(6,3) NOT NULL DEFAULT 0.000
+    CHECK (tolerance_pct >= 0 AND tolerance_pct <= 100),
+  source                 TEXT NOT NULL DEFAULT 'manual'
+    CHECK (source IN ('manual','qbo','csv_upload','api')),
+  created_by             UUID NOT NULL,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (company_id, gl_account_code, period_year, period_month)
+);
+CREATE INDEX IF NOT EXISTS idx_glab_firm ON public.gl_account_budgets(firm_id);
+CREATE INDEX IF NOT EXISTS idx_glab_company_period ON public.gl_account_budgets(company_id, period_year, period_month);
+ALTER TABLE public.gl_account_budgets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS glab_service_all ON public.gl_account_budgets;
+CREATE POLICY glab_service_all ON public.gl_account_budgets
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS glab_firm_select ON public.gl_account_budgets;
+CREATE POLICY glab_firm_select ON public.gl_account_budgets
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = gl_account_budgets.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 8. vendor_spend_history — rolling actuals per vendor per period
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.vendor_spend_history (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  company_id             UUID NOT NULL,
+  vendor_id              UUID,
+  vendor_external_id     TEXT,
+  gl_account_code        TEXT,
+  period_year            INTEGER NOT NULL CHECK (period_year BETWEEN 2020 AND 2100),
+  period_month           INTEGER NOT NULL CHECK (period_month BETWEEN 1 AND 12),
+  spend_amount_cents     BIGINT NOT NULL DEFAULT 0 CHECK (spend_amount_cents >= 0),
+  invoice_count          INTEGER NOT NULL DEFAULT 0 CHECK (invoice_count >= 0),
+  currency               TEXT NOT NULL DEFAULT 'USD',
+  last_updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (company_id, vendor_id, gl_account_code, period_year, period_month)
+);
+CREATE INDEX IF NOT EXISTS idx_vsh_firm ON public.vendor_spend_history(firm_id);
+CREATE INDEX IF NOT EXISTS idx_vsh_vendor_period ON public.vendor_spend_history(company_id, vendor_id, period_year, period_month);
+ALTER TABLE public.vendor_spend_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS vsh_service_all ON public.vendor_spend_history;
+CREATE POLICY vsh_service_all ON public.vendor_spend_history
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS vsh_firm_select ON public.vendor_spend_history;
+CREATE POLICY vsh_firm_select ON public.vendor_spend_history
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = vendor_spend_history.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 9. budget_check_results — audit trail of every budget evaluation
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.budget_check_results (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id                UUID NOT NULL,
+  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
+  company_id             UUID NOT NULL,
+  aggregate_type         TEXT NOT NULL CHECK (aggregate_type IN ('requisition','bill','purchase_order')),
+  aggregate_id           UUID NOT NULL,
+  gl_account_code        TEXT NOT NULL,
+  period_year            INTEGER NOT NULL,
+  period_month           INTEGER NOT NULL,
+  budget_amount_cents    BIGINT NOT NULL,
+  committed_cents        BIGINT NOT NULL,
+  incoming_cents         BIGINT NOT NULL,
+  tolerance_pct          NUMERIC(6,3) NOT NULL,
+  result                 TEXT NOT NULL CHECK (result IN ('within_budget','within_tolerance','exceeds_budget','no_budget_set')),
+  evaluated_by_user_id   UUID,
+  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bcr_aggregate ON public.budget_check_results(aggregate_type, aggregate_id);
+CREATE INDEX IF NOT EXISTS idx_bcr_firm_created ON public.budget_check_results(firm_id, created_at DESC);
+ALTER TABLE public.budget_check_results ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS bcr_service_all ON public.budget_check_results;
+CREATE POLICY bcr_service_all ON public.budget_check_results
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS bcr_firm_select ON public.budget_check_results;
+CREATE POLICY bcr_firm_select ON public.budget_check_results
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.firm_memberships fm
+      WHERE fm.firm_id = budget_check_results.firm_id
+        AND fm.user_id = auth.uid()
+        AND fm.status = 'active'
+    )
+  );
+
+-- -----------------------------------------------------------------------------
+-- 10. Extend ap_intake_ledger_event_types catalog (16 Block 6b events)
+-- -----------------------------------------------------------------------------
+INSERT INTO public.ap_intake_ledger_event_types (event_type, actor_type, is_merkle_chained) VALUES
+  ('requisition.approval_chain_created',    'user',   TRUE),
+  ('requisition.approval_step_assigned',   'user',   TRUE),
+  ('requisition.approval_step_approved',    'user',   TRUE),
+  ('requisition.approval_step_rejected',    'user',   TRUE),
+  ('requisition.approval_step_delegated',   'user',   TRUE),
+  ('requisition.approval_chain_completed',  'user',   TRUE),
+  ('approval.delegation_created',           'user',   TRUE),
+  ('approval.delegation_revoked',           'user',   TRUE),
+  ('requisition.commented',                 'user',   TRUE),
+  ('requisition.comment_edited',            'user',   TRUE),
+  ('requisition.comment_deleted',           'user',   TRUE),
+  ('requisition.amendment_requested',       'user',   TRUE),
+  ('requisition.amendment_approved',          'user',   TRUE),
+  ('requisition.amendment_rejected',          'user',   TRUE),
+  ('budget.evaluated',                      'user',   TRUE),
+  ('budget.exceeded',                       'user',   TRUE),
+  ('budget.tolerance_hit',                  'user',   TRUE),
+  ('vendor_spend.updated',                  'user',   TRUE)
+ON CONFLICT (event_type) DO NOTHING;
+
+-- [ESC] stripped source txn marker: COMMIT;
+
+-- <<< end 20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql
 
 -- >>> begin 20260717090000_d65_p2_block7a_credits_prepayment.sql
 -- Phase D6.5 Part 2 Block 7a — L7 credits / prepayment sub-ledger
@@ -3836,489 +4208,71 @@ COMMENT ON INDEX public.audit_ready_pbc_requests_sys_rollup_sentinel_key IS
   'Ensures at most one system-managed sentinel PBC row per (engagement, tie_out_kind). System sentinels are identified by request_number LIKE ''SYS-ROLLUP-%''. Referenced by rollup resolvers (e.g. runBsSummaryResolver) that need to satisfy audit_ready_tie_out_runs.pbc_request_id NOT NULL without polluting the PBC inbox with one row per run.';
 -- <<< end 20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql
 
--- >>> begin 20260722221611_bs_recon_summary_basis_and_computed_lines.sql
--- Additive migration for PBC-TIEOUT-4B.3.5.
--- Adds is_computed_line to summary lines (Net Income row support) and
--- accounting_method to summary artifacts (Accrual vs Cash audit trail).
-
-ALTER TABLE public.audit_ready_bs_recon_summary_lines
-  ADD COLUMN IF NOT EXISTS is_computed_line boolean NOT NULL DEFAULT false;
-
--- Per-report accounting basis captured at fixture-capture time.
--- Lives on the summary artifact (not the parent tie_out_runs) because
--- a firm may run BS on Accrual basis and P&L on Cash basis in the same
--- tie-out run — basis is a property of the specific report, not the
--- orchestration run that produced it.
-ALTER TABLE public.audit_ready_bs_recon_summary_artifacts
-  ADD COLUMN IF NOT EXISTS accounting_method text
-  CHECK (accounting_method IN ('Accrual', 'Cash'));
-
--- Backfill any pre-existing rows to 'Accrual' (default assumption for
--- the pilot). Safe because there are no Cash-basis clients in
--- production yet as of this migration.
-UPDATE public.audit_ready_bs_recon_summary_artifacts
-  SET accounting_method = 'Accrual'
-  WHERE accounting_method IS NULL;
--- <<< end 20260722221611_bs_recon_summary_basis_and_computed_lines.sql
-
--- >>> begin 20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql
--- Phase PBC-TIEOUT-4B.3.5 Fix-up #2
---
--- Relax NOT NULL on audit_ready_bs_recon_summary_lines.qbo_account_id.
--- Computed summary lines (e.g. QBO's Net Income row on the Balance Sheet)
--- have no underlying QBO account — the value is derived on the report
--- itself. The is_computed_line boolean column (added in the prior
--- migration in this phase) already distinguishes these rows from
--- real-account rows. Application code inserts qbo_account_id = NULL
--- for these rows, which the previous NOT NULL constraint rejected.
---
--- Backfill is a no-op: existing rows all have non-null qbo_account_id
--- values (they were all real-account rows before Phase 4B.3.5).
---
--- Idempotent: ALTER COLUMN DROP NOT NULL is a no-op if the column is
--- already nullable.
-ALTER TABLE audit_ready_bs_recon_summary_lines
-  ALTER COLUMN qbo_account_id DROP NOT NULL;
-
--- Add a partial CHECK to encode the semantic: qbo_account_id may be NULL
--- ONLY when is_computed_line = true. This prevents accidental future
--- inserts of real-account rows with a null account id — those would
--- indicate a bug in the parser or resolver.
-ALTER TABLE audit_ready_bs_recon_summary_lines
-  DROP CONSTRAINT IF EXISTS audit_ready_bs_recon_summary_lines_qbo_account_id_computed_check;
-
-ALTER TABLE audit_ready_bs_recon_summary_lines
-  ADD CONSTRAINT audit_ready_bs_recon_summary_lines_qbo_account_id_computed_check
-  CHECK (
-    (is_computed_line = true AND qbo_account_id IS NULL)
-    OR (is_computed_line = false AND qbo_account_id IS NOT NULL)
-  );
--- <<< end 20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql
-
--- >>> begin 20260723050000_audit_ready_cron_runs.sql
--- Phase PBC-TIEOUT-4B.4: monthly BS recon cron observability table
--- Patterned after qbo_cdc_runs (service-role RLS, timestamptz timestamps, structured counters)
-
-CREATE TABLE IF NOT EXISTS public.audit_ready_cron_runs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  cron_name text NOT NULL,
-  triggered_at timestamptz NOT NULL DEFAULT now(),
-  completed_at timestamptz,
-  as_of_date date NOT NULL,
-  engagements_attempted int NOT NULL DEFAULT 0,
-  engagements_succeeded_tie int NOT NULL DEFAULT 0,
-  engagements_succeeded_kickout int NOT NULL DEFAULT 0,
-  engagements_failed int NOT NULL DEFAULT 0,
-  engagements_skipped int NOT NULL DEFAULT 0,
-  duration_ms int,
-  error_summary text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_ready_cron_runs_name_time
-  ON public.audit_ready_cron_runs (cron_name, triggered_at DESC);
-
-ALTER TABLE public.audit_ready_cron_runs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY audit_ready_cron_runs_service_role
-  ON public.audit_ready_cron_runs
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
-
-COMMENT ON TABLE public.audit_ready_cron_runs IS
-  'PBC-TIEOUT-4B.4: observability log for scheduled Audit Ready cron runs (e.g. monthly BS recon).';
--- <<< end 20260723050000_audit_ready_cron_runs.sql
-
--- >>> begin 20260724010000_kickout_investigations.sql
--- PBC-TIEOUT-4.1: Kickout investigations table (append-only)
--- Feeds 4.2 auto-reconcile memory. Polymorphic FK to BS lines and PBC runs.
-
-CREATE TABLE IF NOT EXISTS public.audit_ready_kickout_investigations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  engagement_id UUID NOT NULL REFERENCES public.audit_ready_engagements(id) ON DELETE CASCADE,
-  kickout_source_type TEXT NOT NULL CHECK (kickout_source_type IN ('bs_summary_line', 'pbc_run')),
-  kickout_source_id UUID NOT NULL,
-  investigated_by UUID NOT NULL REFERENCES auth.users(id),
-  investigated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  note TEXT NOT NULL CHECK (length(trim(note)) > 0),
-  resolution_status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (resolution_status IN ('pending', 'resolved', 'escalated')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_kickout_inv_source_lookup
-  ON public.audit_ready_kickout_investigations
-    (engagement_id, kickout_source_type, kickout_source_id, investigated_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_kickout_inv_engagement_status
-  ON public.audit_ready_kickout_investigations
-    (engagement_id, resolution_status, investigated_at DESC);
-
-ALTER TABLE public.audit_ready_kickout_investigations ENABLE ROW LEVEL SECURITY;
-
--- SELECT: user must have firm or company access to the engagement
-CREATE POLICY kickout_inv_select
-  ON public.audit_ready_kickout_investigations FOR SELECT
-  TO authenticated
-  USING (
-    engagement_id IN (
-      SELECT e.id FROM public.audit_ready_engagements e
-      WHERE
-        (e.firm_id IS NOT NULL AND e.firm_id IN (
-          SELECT firm_id FROM public.firm_memberships
-          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
-        ))
-        OR
-        (e.company_id IS NOT NULL AND e.company_id IN (
-          SELECT company_id FROM public.company_users
-          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
-        ))
-    )
-  );
-
--- INSERT: same access + user must be the investigator
-CREATE POLICY kickout_inv_insert
-  ON public.audit_ready_kickout_investigations FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    investigated_by = (SELECT auth.uid())
-    AND engagement_id IN (
-      SELECT e.id FROM public.audit_ready_engagements e
-      WHERE
-        (e.firm_id IS NOT NULL AND e.firm_id IN (
-          SELECT firm_id FROM public.firm_memberships
-          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
-        ))
-        OR
-        (e.company_id IS NOT NULL AND e.company_id IN (
-          SELECT company_id FROM public.company_users
-          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
-        ))
-    )
-  );
-
--- No UPDATE, no DELETE (append-only)
--- <<< end 20260724010000_kickout_investigations.sql
-
--- >>> begin 20260724020000_kickout_dedupe_rpcs.sql
--- Phase PBC-TIEOUT-4.1.1: dedupe RPCs for Kickout Inbox
--- Landmine: audit_ready_tie_out_runs has no created_at — use COALESCE(completed_at, started_at).
--- Landmine: suppress linked bs_account_recon BEFORE DISTINCT ON, else a linked
--- "latest" run wins the (eng, kind, period) slot and orphans disappear.
-
-CREATE OR REPLACE FUNCTION audit_ready_latest_bs_kickout_lines(
-  p_engagement_ids uuid[]
-)
-RETURNS TABLE (
-  id uuid,
-  engagement_id uuid,
-  qbo_account_id text,
-  qbo_account_name text,
-  qbo_account_type text,
-  tie_variance_cents bigint,
-  gl_ending_balance_cents bigint,
-  child_run_id uuid,
-  line_created_at timestamptz,
-  artifact_id uuid,
-  period_end date,
-  artifact_created_at timestamptz
-)
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT DISTINCT ON (l.engagement_id, art.period_end, l.qbo_account_id)
-    l.id,
-    l.engagement_id,
-    l.qbo_account_id,
-    l.qbo_account_name,
-    l.qbo_account_type,
-    l.tie_variance_cents,
-    l.gl_ending_balance_cents,
-    l.child_run_id,
-    l.created_at AS line_created_at,
-    art.id AS artifact_id,
-    art.period_end,
-    art.created_at AS artifact_created_at
-  FROM audit_ready_bs_recon_summary_lines l
-  JOIN audit_ready_bs_recon_summary_artifacts art
-    ON art.id = l.summary_artifact_id
-  WHERE l.engagement_id = ANY (p_engagement_ids)
-    AND l.totals_status = 'kickout'
-  ORDER BY
-    l.engagement_id,
-    art.period_end,
-    l.qbo_account_id,
-    art.created_at DESC,
-    l.created_at DESC;
-$$;
-
-REVOKE ALL ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION audit_ready_latest_pbc_kickout_runs(
-  p_engagement_ids uuid[]
-)
-RETURNS TABLE (
-  id uuid,
-  engagement_id uuid,
-  tie_out_kind text,
-  period_end date,
-  subledger_total_cents bigint,
-  gl_total_cents bigint,
-  subledger_source_url text,
-  created_at timestamptz
-)
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  WITH eligible AS (
-    -- Fix 3 first: drop bs_account_recon already surfaced via kickout summary lines
-    SELECT
-      r.id,
-      r.engagement_id,
-      r.tie_out_kind,
-      r.period_end,
-      r.subledger_total_cents,
-      r.gl_total_cents,
-      r.subledger_source_url,
-      COALESCE(r.completed_at, r.started_at) AS created_at
-    FROM audit_ready_tie_out_runs r
-    WHERE r.engagement_id = ANY (p_engagement_ids)
-      AND r.totals_status = 'kickout'
-      AND r.tie_out_kind <> 'bs_recon_summary'
-      AND NOT (
-        r.tie_out_kind = 'bs_account_recon'
-        AND EXISTS (
-          SELECT 1
-          FROM audit_ready_bs_recon_summary_lines sl
-          WHERE sl.child_run_id = r.id
-            AND sl.totals_status = 'kickout'
-        )
-      )
-  )
-  -- Fix 2: latest remaining run per (engagement, kind, period)
-  SELECT DISTINCT ON (e.engagement_id, e.tie_out_kind, e.period_end)
-    e.id,
-    e.engagement_id,
-    e.tie_out_kind,
-    e.period_end,
-    e.subledger_total_cents,
-    e.gl_total_cents,
-    e.subledger_source_url,
-    e.created_at
-  FROM eligible e
-  ORDER BY
-    e.engagement_id,
-    e.tie_out_kind,
-    e.period_end,
-    e.created_at DESC NULLS LAST;
-$$;
-
-REVOKE ALL ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) TO authenticated, service_role;
--- <<< end 20260724020000_kickout_dedupe_rpcs.sql
-
--- >>> begin 20260724030000_ar_tieout412a_kind_reconcile.sql
--- Phase PBC-TIEOUT-4.1.2 Block A: kind reconciliation
--- Rename legacy 'fixed_assets' tie_out_kind values to canonical 'fixed_asset_rollforward'.
--- Idempotent — safe to re-run.
-
-UPDATE public.audit_ready_tie_out_runs
-SET tie_out_kind = 'fixed_asset_rollforward'
-WHERE tie_out_kind = 'fixed_assets';
-
--- Also reconcile classifier-persisted kind on PBC requests (if any legacy rows)
-UPDATE public.audit_ready_pbc_requests
-SET tie_out_kind = 'fixed_asset_rollforward'
-WHERE tie_out_kind = 'fixed_assets';
-
-DO $$
-DECLARE
-  legacy_count int;
-BEGIN
-  SELECT COUNT(*) INTO legacy_count
-  FROM public.audit_ready_tie_out_runs
-  WHERE tie_out_kind = 'fixed_assets';
-  IF legacy_count > 0 THEN
-    RAISE EXCEPTION 'Legacy fixed_assets rows still exist on runs: %', legacy_count;
-  END IF;
-
-  SELECT COUNT(*) INTO legacy_count
-  FROM public.audit_ready_pbc_requests
-  WHERE tie_out_kind = 'fixed_assets';
-  IF legacy_count > 0 THEN
-    RAISE EXCEPTION 'Legacy fixed_assets rows still exist on pbc_requests: %', legacy_count;
-  END IF;
-END $$;
--- <<< end 20260724030000_ar_tieout412a_kind_reconcile.sql
-
--- >>> begin 20260724030100_ar_tieout412a_run_artifacts.sql
--- Phase PBC-TIEOUT-4.1.2 Block A: run artifact storage + regeneration lineage
-
-CREATE TABLE IF NOT EXISTS public.audit_ready_run_artifacts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tie_out_run_id uuid NOT NULL
-    REFERENCES public.audit_ready_tie_out_runs(id) ON DELETE CASCADE,
-  artifact_kind text NOT NULL CHECK (artifact_kind IN ('xlsx', 'pdf')),
-  storage_bucket text NOT NULL,
-  storage_path text NOT NULL,
-  file_size_bytes bigint NOT NULL CHECK (file_size_bytes >= 0),
-  content_hash text NOT NULL,
-  generated_at timestamptz NOT NULL DEFAULT now(),
-  generated_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tie_out_run_id, artifact_kind)
-);
-
-CREATE INDEX IF NOT EXISTS idx_run_artifacts_run
-  ON public.audit_ready_run_artifacts (tie_out_run_id);
-CREATE INDEX IF NOT EXISTS idx_run_artifacts_generated_at
-  ON public.audit_ready_run_artifacts (generated_at DESC);
-
-ALTER TABLE public.audit_ready_run_artifacts ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS run_artifacts_select ON public.audit_ready_run_artifacts;
-CREATE POLICY run_artifacts_select ON public.audit_ready_run_artifacts
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1
-      FROM public.audit_ready_tie_out_runs r
-      JOIN public.audit_ready_engagements e ON e.id = r.engagement_id
-      WHERE r.id = audit_ready_run_artifacts.tie_out_run_id
-        AND (
-          EXISTS (
-            SELECT 1 FROM public.firm_memberships fm
-            WHERE fm.firm_id = e.firm_id
-              AND fm.user_id = (SELECT auth.uid())
-              AND fm.status = 'active'
-          )
-          OR EXISTS (
-            SELECT 1 FROM public.company_users cu
-            WHERE cu.company_id = e.company_id
-              AND cu.user_id = (SELECT auth.uid())
-              AND cu.status = 'active'
-          )
-        )
-    )
-  );
-
--- Regeneration lineage on runs
-ALTER TABLE public.audit_ready_tie_out_runs
-  ADD COLUMN IF NOT EXISTS regenerated_from_run_id uuid
-    REFERENCES public.audit_ready_tie_out_runs(id),
-  ADD COLUMN IF NOT EXISTS trigger_kind text NOT NULL DEFAULT 'initial';
-
--- Backfill + constrain trigger_kind (column may already exist without check)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'audit_ready_tie_out_runs_trigger_kind_check'
-  ) THEN
-    ALTER TABLE public.audit_ready_tie_out_runs
-      ADD CONSTRAINT audit_ready_tie_out_runs_trigger_kind_check
-      CHECK (trigger_kind IN ('initial', 'regenerated', 'cron'));
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_tie_out_runs_regenerated_from
-  ON public.audit_ready_tie_out_runs (regenerated_from_run_id)
-  WHERE regenerated_from_run_id IS NOT NULL;
-
--- Storage bucket (idempotent). If your project forbids SQL bucket inserts,
--- create `audit-ready-workpapers` via Dashboard and skip this INSERT.
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('audit-ready-workpapers', 'audit-ready-workpapers', false)
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "audit_ready_workpapers_select" ON storage.objects;
-CREATE POLICY "audit_ready_workpapers_select"
-  ON storage.objects
-  FOR SELECT
-  TO authenticated
-  USING (
-    bucket_id = 'audit-ready-workpapers'
-    AND EXISTS (
-      SELECT 1
-      FROM public.audit_ready_run_artifacts a
-      JOIN public.audit_ready_tie_out_runs r ON r.id = a.tie_out_run_id
-      JOIN public.audit_ready_engagements e ON e.id = r.engagement_id
-      WHERE a.storage_path = storage.objects.name
-        AND (
-          EXISTS (
-            SELECT 1 FROM public.firm_memberships fm
-            WHERE fm.firm_id = e.firm_id
-              AND fm.user_id = (SELECT auth.uid())
-              AND fm.status = 'active'
-          )
-          OR EXISTS (
-            SELECT 1 FROM public.company_users cu
-            WHERE cu.company_id = e.company_id
-              AND cu.user_id = (SELECT auth.uid())
-              AND cu.status = 'active'
-          )
-        )
-    )
-  );
--- <<< end 20260724030100_ar_tieout412a_run_artifacts.sql
-
--- >>> begin 20260724220000_ar_tieout412b_raw_qbo_payload.sql
--- Phase PBC-TIEOUT-4.1.2 Block B: raw QBO payload persistence for Source Data tab
--- Path Y: build() reads from this column, never live-fetches.
-ALTER TABLE audit_ready_tie_out_runs
-  ADD COLUMN IF NOT EXISTS raw_qbo_payload_jsonb jsonb;
-
-COMMENT ON COLUMN audit_ready_tie_out_runs.raw_qbo_payload_jsonb IS
-  'Snapshot of the QBO API response(s) used to compute this run. Read by workpaper emitters for the Source Data tab. Never mutated after run completion.';
--- <<< end 20260724220000_ar_tieout412b_raw_qbo_payload.sql
-
--- >>> begin 20260725050000_ar_tieout420a_resolution_code.sql
--- Phase PBC-TIEOUT-4.2 Block A: resolution_code on kickout investigations
--- Structured disposition for memory matching.
--- NULL-safe: legacy rows stay NULL; API layer enforces required on new INSERTs.
--- Forward reference: audit_ready_memory AddonCode gates Block B (auto-clear)
--- and Block C (governance); Suggest is not gated in Block A.
-
-ALTER TABLE public.audit_ready_kickout_investigations
-  ADD COLUMN IF NOT EXISTS resolution_code text NULL;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'audit_ready_kickout_investigations_resolution_code_chk'
-      AND conrelid = 'public.audit_ready_kickout_investigations'::regclass
-  ) THEN
-    ALTER TABLE public.audit_ready_kickout_investigations
-      ADD CONSTRAINT audit_ready_kickout_investigations_resolution_code_chk
-      CHECK (
-        resolution_code IS NULL
-        OR resolution_code IN (
-          'immaterial',
-          'timing',
-          'reclass',
-          'true_error',
-          'other'
-        )
-      );
-  END IF;
-END
-$$;
-
-COMMENT ON COLUMN public.audit_ready_kickout_investigations.resolution_code IS
-  'Structured disposition for memory matching (Block B). Canonical values: '
-  'immaterial | timing | reclass | true_error | other. NULL-safe for legacy '
-  'rows; API layer enforces required on new INSERTs.';
--- <<< end 20260725050000_ar_tieout420a_resolution_code.sql
-
 -- [ESC] RLS closure: ENABLE RLS before COMMIT for tables first visible in this slice.
 -- Policies may arrive in a later security slice; ENABLE with no policy = deny-by-default for anon/authenticated.
 ALTER TABLE IF EXISTS public.gap2_purge_table_registry ENABLE ROW LEVEL SECURITY;
+
+-- [ESC] Function privilege closure before COMMIT
+-- Default PUBLIC EXECUTE removed for every application function created/replaced in this slice.
+-- Regrant only per disposition (service_role always; authenticated only for allowlisted RLS helpers).
+-- disposition public.preset_pack_registry_immutable() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.preset_pack_registry_immutable() TO service_role;
+-- disposition public.observation_events_immutable() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.observation_events_immutable() TO service_role;
+-- disposition public.drafted_amendments_terminal_immutable() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() TO service_role;
+-- disposition public.qbo_webhook_events_enforce_append_only() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() TO service_role;
+-- disposition public.qbo_webhook_events_block_delete() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() TO service_role;
+-- disposition public.gap3_materiality_bucket(int8,uuid) => trigger_only
+REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) TO service_role;
+-- disposition public.gap3_pre_close_ri_materiality_before_insert() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() TO service_role;
+-- disposition public.gap3_pre_close_ri_sod_before_update() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() TO service_role;
+-- disposition public.gap2_audit_append_only() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap2_audit_append_only() TO service_role;
+-- disposition public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) TO service_role;
+-- disposition public.gap2_cancel_purge(uuid,text,uuid) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.gap2_cancel_purge(uuid,text,uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.gap2_cancel_purge(uuid,text,uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.gap2_cancel_purge(uuid,text,uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.gap2_cancel_purge(uuid,text,uuid) TO service_role;
+-- disposition public.increment_pbc_request_count(uuid,int4) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.increment_pbc_request_count(uuid,int4) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.increment_pbc_request_count(uuid,int4) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.increment_pbc_request_count(uuid,int4) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_pbc_request_count(uuid,int4) TO service_role;
 COMMIT;

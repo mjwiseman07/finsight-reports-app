@@ -3,7 +3,7 @@
 -- Proposed version: 20260907010010
 -- Proposed name: esc_public_users_and_foundations_baseline
 -- Module: public_application_schema_baseline_prefix
--- Provenance: Option D assembled: public_users_derived_baseline + foundations_baseline (git-blob authority via assemble)
+-- Provenance: Option D assembled: public_users_derived_baseline (ESC users-grant overlay) + foundations_baseline
 -- NOT in active supabase/migrations/. Production mutation NOT authorized.
 -- UTF-8 LF. statements[] must remain non-empty when eventually recorded.
 -- =============================================================================
@@ -50,11 +50,17 @@ CREATE POLICY "Users can update own record"
   FOR UPDATE
   USING (auth.uid() = id);
 
-GRANT ALL ON TABLE public.users TO anon;
-GRANT ALL ON TABLE public.users TO authenticated;
+-- [ESC] public.users privilege overlay: removed GRANT ALL TO anon (no anon client path; RLS is not justification for table ALL).
+-- HISTORICAL_TABLE_GRANT_REMOVED ALL ON TABLE public.users TO anon;
+-- [ESC] public.users privilege overlay: narrowed authenticated from ALL to SELECT, UPDATE (own-row policies only).
+GRANT SELECT, UPDATE ON TABLE public.users TO authenticated;
 GRANT ALL ON TABLE public.users TO service_role;
 
 ALTER TABLE public.users OWNER TO postgres;
+
+-- [ESC] public.users privilege overlay: explicit deny for PUBLIC/anon table privileges.
+REVOKE ALL ON TABLE public.users FROM PUBLIC;
+REVOKE ALL ON TABLE public.users FROM anon;
 -- <<< end public_users_derived_baseline
 
 -- >>> begin 20260701043599_foundations_baseline.sql
@@ -2828,5 +2834,32 @@ create trigger prevent_company_memory_version_unsafe_mutation
 
 
 
+-- [ESC] Function privilege closure before COMMIT
+-- Same-slice revoke of default PUBLIC EXECUTE (+ anon/authenticated per disposition).
+-- disposition public.prevent_si_snapshot_metadata_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() TO service_role;
+-- disposition public.prevent_si_snapshot_child_mutation_when_parent_locked() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() TO service_role;
+-- disposition public.prevent_company_memory_record_unsafe_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() TO service_role;
+-- disposition public.prevent_company_memory_append_only_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() TO service_role;
+-- disposition public.prevent_company_memory_version_unsafe_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() TO service_role;
 COMMIT;
 -- <<< end foundations_baseline

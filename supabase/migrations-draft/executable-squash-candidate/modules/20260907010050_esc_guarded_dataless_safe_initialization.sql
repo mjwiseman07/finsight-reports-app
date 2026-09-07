@@ -388,6 +388,18 @@ COMMENT ON FUNCTION public.public_pilot_slot_count(TEXT) IS
 -- divergent. Empty DB remains valid without slot-0 complimentary row.
 -- =============================================================================
 
+-- [ESC] Function privilege closure before COMMIT
+-- Same-slice revoke of default PUBLIC EXECUTE (+ anon/authenticated per disposition).
+-- disposition public.set_pilot_slots_updated_at() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() TO service_role;
+-- disposition public.public_pilot_slot_count(text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.public_pilot_slot_count(text) TO service_role;
 COMMIT;
 -- <<< end tcp1
 

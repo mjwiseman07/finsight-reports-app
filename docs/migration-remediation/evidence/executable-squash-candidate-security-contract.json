@@ -1,10 +1,12 @@
 {
-  "generatedAt": "2026-09-07T03:14:45.488Z",
+  "generatedAt": "2026-09-07T03:51:49.143Z",
   "goals": [
     "Eliminate phase1 CREATE-before-RLS window by atomic module",
-    "Eliminate former module 4→5 RLS window by merging app schema + security",
-    "Enable RLS on gap2_purge_table_registry and engagement_posting_policy at first visibility",
-    "Revoke anon/authenticated/PUBLIC execute on publish_ledger_event and increment_share_token_access",
+    "Option-2 per-slice RLS closure at every app/security COMMIT",
+    "Create engagement_posting_policy before any ENABLE/POLICY (FORCE_APP d6_4c_3)",
+    "Same-slice REVOKE EXECUTE FROM PUBLIC for every created application function",
+    "Fail-closed anon/authenticated EXECUTE except allowlisted RLS helpers",
+    "Remove public.users GRANT ALL TO anon; narrow authenticated to SELECT/UPDATE",
     "Digest qualify exactly once in forward-tail",
     "No customer data in package"
   ],
@@ -27,6 +29,26 @@
     }
   ],
   "privilegeDispositions": {
+    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted",
+    "anonRpcAllowlist": [],
+    "authenticatedRlsHelperAllowlist": [
+      "public.is_active_company_member(uuid)",
+      "public.has_active_company_role(uuid,text[])",
+      "public.is_company_admin(uuid)",
+      "public.is_active_firm_member(uuid)",
+      "public.has_active_firm_role(uuid,text[])"
+    ],
+    "public_users_table": {
+      "anonAll": "REVOKED",
+      "publicAll": "REVOKED",
+      "authenticated": "SELECT, UPDATE only (own-row RLS policies)",
+      "serviceRolePrivileges": "ALL retained",
+      "rationale": "No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon."
+    },
+    "engagement_posting_policy": {
+      "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "note": "FORCE_APP so CREATE precedes prepilot ENABLE/POLICY; same-slice RLS via buildRlsClosure"
+    },
     "publish_ledger_event": {
       "anonExecute": "REVOKED",
       "authenticatedExecute": "REVOKED",
@@ -40,7 +62,7 @@
       "publicExecute": "REVOKED",
       "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
       "anonymousRequired": false,
-      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only. Q8c + ESC patch revoke anon."
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only."
     }
   },
   "patent6AndImmutability": "Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)",

@@ -397,4 +397,11 @@ ALTER TABLE IF EXISTS public.subscription_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.subscription_seats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.entitlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;
+-- [ESC] Function privilege closure before COMMIT
+-- Same-slice revoke of default PUBLIC EXECUTE (+ anon/authenticated per disposition).
+-- disposition public.tg_set_updated_at() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.tg_set_updated_at() TO service_role;
 COMMIT;

@@ -109,3 +109,12 @@ COMMENT ON FUNCTION public.publish_ledger_event(
 ) IS
   'Patent #6 Merkle ledger publisher. Hash uses extensions.digest(bytea, text) under locked search_path=public, pg_temp.';
 -- <<< end 20260906184500_publish_ledger_event_extensions_digest_qualify.sql
+
+-- [ESC] Function privilege closure before COMMIT
+-- Default PUBLIC EXECUTE removed for every application function created/replaced in this slice.
+-- Regrant only per disposition (service_role always; authenticated only for allowlisted RLS helpers).
+-- disposition public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) TO service_role;

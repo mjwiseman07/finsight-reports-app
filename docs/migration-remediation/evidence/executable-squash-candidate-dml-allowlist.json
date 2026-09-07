@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T03:14:45.488Z",
+  "generatedAt": "2026-09-07T03:51:49.143Z",
   "dispositions": {
     "d6_2a_through_d6_2d": {
       "verdict": "ALLOW_GUARDED_OPTIONAL_SEED",
@@ -29,7 +29,7 @@
     "provider/custody/ledger/execution/memory operational rows",
     "setval from production sequences"
   ],
-  "scanFindingsCount": 320,
+  "scanFindingsCount": 321,
   "scanFindingsSample": [
     {
       "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
@@ -50,6 +50,11 @@
       "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
       "kind": "UPDATE",
       "target": "USING"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "ON"
     },
     {
       "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
@@ -425,11 +430,6 @@
       "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
       "kind": "UPDATE",
       "target": "ON"
-    },
-    {
-      "file": "20260907010030_esc_application_schema_slice_1_of_5.sql",
-      "kind": "UPDATE",
-      "target": "USING"
     }
   ],
   "note": "Full INSERT/UPDATE/DELETE scan is advisory; allowlist policy enforced by dispositions + tests"

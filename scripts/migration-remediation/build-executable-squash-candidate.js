@@ -10,6 +10,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync, spawnSync } = require('child_process');
+const {
+  applyUsersAnonGrantOverlay,
+  buildFunctionPrivilegeClosureSql,
+  injectPrivilegeClosureBeforeCommits,
+  buildDispositionInventory,
+  assertNoUsersAnonAllGrant,
+  sameSlicePublicRevokeGaps,
+  engagementPostingPolicyOrder,
+} = require('./esc-privilege-remediation');
 
 const ROOT = path.resolve(__dirname, '../..');
 const OUT_DIR = path.join(ROOT, 'supabase/migrations-draft/executable-squash-candidate');
@@ -325,32 +334,19 @@ function buildRlsClosure(sql) {
   return { sql: lines.join('\n') + '\n', missing };
 }
 
-function buildSensitiveRpcClosure(sql) {
-  const lines = [
-    '-- [ESC] Sensitive RPC privilege closure before COMMIT (service-role callers only).',
-  ];
-  let needed = false;
-  if (/CREATE\s+(OR\s+REPLACE\s+)?FUNCTION[\s\S]{0,80}?increment_share_token_access/i.test(sql)) {
-    needed = true;
-    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM PUBLIC;');
-    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM anon;');
-    lines.push('REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM authenticated;');
-  }
-  if (/CREATE\s+(OR\s+REPLACE\s+)?FUNCTION[\s\S]{0,120}?publish_ledger_event/i.test(sql)) {
-    needed = true;
-    lines.push(
-      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM PUBLIC;'
-    );
-    lines.push(
-      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM anon;'
-    );
-    lines.push(
-      'REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM authenticated;'
-    );
-  }
-  if (!needed) return { sql: '', needed: false };
-  return { sql: lines.join('\n') + '\n', needed: true };
+/**
+ * Full per-slice function privilege closure (supersedes two-RPC-only closure).
+ * Every CREATE FUNCTION gets an explicit disposition + PUBLIC revoke before COMMIT.
+ */
+function buildSensitiveRpcClosure(sql, sliceVersion) {
+  return buildFunctionPrivilegeClosureSql(sql, { sliceVersion });
 }
+
+/** Files that match securityNameRe via accidental substrings but must stay with app DDL order. */
+const FORCE_APP_SCHEMA_FILES = new Set([
+  // Contains "policy" but CREATEs engagement_posting_policy — must precede prepilot ENABLE/POLICY.
+  '20260706170000_d6_4c_3_posting_policy_and_remediation.sql',
+]);
 
 function wrapSingleOuterTransaction(bodySql) {
   return 'BEGIN;\n' + bodySql.trim() + '\nCOMMIT;\n';
@@ -578,8 +574,13 @@ function main() {
   // Digest qualify is forward-tail only (not baseline body), even if present in Option D order.
   const skipInBody = new Set([...d6Files, tcp1File, grantFile, DIGEST_QUALIFY_FILE]);
 
-  // Fixed prefix pieces
-  const usersSql = readAssembled('20260701043598_public_users_derived_baseline.sql');
+  // Fixed prefix pieces — ESC overlay removes unjustified public.users → anon ALL
+  const usersSql = applyUsersAnonGrantOverlay(
+    readAssembled('20260701043598_public_users_derived_baseline.sql')
+  );
+  if (!assertNoUsersAnonAllGrant(usersSql)) {
+    throw new Error('Builder refuse: public.users GRANT ALL TO anon remains after overlay');
+  }
   const foundationsSql = readAssembled('20260701043599_foundations_baseline.sql');
   const phase1Files = [
     '20260701043602_phase1_subscriptions_core.sql',
@@ -612,13 +613,13 @@ function main() {
     ].join('\n');
 
   // Extract company_roles seed from foundations if present; keep foundations as schema+allowlisted seed
-  const foundationsModule =
+  let foundationsModule =
     moduleHeader({
       version: PROPOSED_VERSIONS.foundations,
       name: 'esc_public_users_and_foundations_baseline',
       module: 'public_application_schema_baseline_prefix',
       provenance:
-        'Option D assembled: public_users_derived_baseline + foundations_baseline (git-blob authority via assemble)',
+        'Option D assembled: public_users_derived_baseline (ESC users-grant overlay) + foundations_baseline',
     }) +
     '-- >>> begin 20260701043598_public_users_derived_baseline.sql\n' +
     toLf(usersSql).trim() +
@@ -626,13 +627,19 @@ function main() {
     '-- >>> begin 20260701043599_foundations_baseline.sql\n' +
     toLf(foundationsSql).trim() +
     '\n-- <<< end foundations_baseline\n';
+  {
+    const inj = injectPrivilegeClosureBeforeCommits(foundationsModule, {
+      sliceVersion: PROPOSED_VERSIONS.foundations,
+    });
+    foundationsModule = inj.sql;
+  }
 
   // Phase1 atomic: concatenate 4 recovered files in one module + explicit RLS enable block up front note
   let phase1Body = '';
   for (const f of phase1Files) {
     phase1Body += `\n-- >>> begin ${f}\n` + toLf(readAssembled(f)).trim() + `\n-- <<< end ${f}\n`;
   }
-  const phase1Module =
+  let phase1Module =
     moduleHeader({
       version: PROPOSED_VERSIONS.phase1_atomic,
       name: 'esc_phase1_subscriptions_rls_atomic',
@@ -649,6 +656,12 @@ function main() {
     'ALTER TABLE IF EXISTS public.entitlements ENABLE ROW LEVEL SECURITY;\n' +
     'ALTER TABLE IF EXISTS public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;\n' +
     'COMMIT;\n';
+  {
+    const inj = injectPrivilegeClosureBeforeCommits(phase1Module, {
+      sliceVersion: PROPOSED_VERSIONS.phase1_atomic,
+    });
+    phase1Module = inj.sql;
+  }
 
   // Application schema + security: Option 2 secure multi-version split
   const prefix = new Set([
@@ -669,7 +682,7 @@ function main() {
     const raw = sanitizeEmbeddedSqlComments(toLf(readAssembled(f)).trim());
     const sql = stripExecutableTxnMarkers(raw);
     const bytes = Buffer.byteLength(sql, 'utf8');
-    if (securityNameRe.test(f)) {
+    if (securityNameRe.test(f) && !FORCE_APP_SCHEMA_FILES.has(f)) {
       securityItems.push({ file: f, sql, bytes });
       securitySources.push(f);
     } else {
@@ -696,15 +709,16 @@ function main() {
       files.push(it.file);
     }
     const rls = buildRlsClosure(body);
-    const rpc = buildSensitiveRpcClosure(body);
+    const rpc = buildSensitiveRpcClosure(body, version);
     const inner =
       `-- OPTION 2 secure multi-version split: slice ${idx + 1}/${appSlices.length}\n` +
       `-- Source BEGIN/COMMIT stripped; exactly one outer transaction.\n` +
-      `-- Files: ${files.length}; RLS closure tables: ${rls.missing.length || 0}\n` +
+      `-- Files: ${files.length}; RLS closure tables: ${rls.missing.length || 0}; fn dispositions: ${rpc.inventory.length}\n` +
       body +
       '\n' +
       rls.sql +
-      (rpc.sql ? '\n' + rpc.sql : '');
+      '\n' +
+      rpc.sql;
     const full = moduleHeader({
       version,
       name,
@@ -737,19 +751,22 @@ function main() {
     });
   });
 
-  // Security slice: policies/lockdowns + ESC patch
+  // Security slice: policies/lockdowns + ESC patch + privilege closure for functions created here
   let securityBody = '';
   for (const it of securityItems) {
     securityBody += `\n-- >>> begin ${it.file}\n${it.sql}\n-- <<< end ${it.file}\n`;
   }
+  const securityPriv = buildSensitiveRpcClosure(securityBody + '\n' + ESC_BOUNDARY_SECURITY_PATCH, PROPOSED_VERSIONS.security_atomic);
   const securityInner =
     '-- OPTION 2 security slice: RLS policies, Q8 lockdowns, ESC boundary patch\n' +
     '-- Nested source txn markers stripped; one outer transaction.\n' +
     securityBody +
     '\n' +
     ESC_BOUNDARY_SECURITY_PATCH +
+    '\n' +
+    securityPriv.sql +
     '\n';
-  const securityFull =
+  let securityFull =
     moduleHeader({
       version: PROPOSED_VERSIONS.security_atomic,
       name: 'esc_security_rls_grants_hardening_atomic',
@@ -819,7 +836,7 @@ function main() {
   const tcp1Stripped = stripTcp1ComplimentarySeed(toLf(tcp1Raw));
   const grantSql = toLf(fs.readFileSync(path.join(SUBST_DIR, grantFile), 'utf8'));
 
-  const guardedModule =
+  let guardedModule =
     moduleHeader({
       version: PROPOSED_VERSIONS.guarded_init,
       name: 'esc_guarded_dataless_safe_initialization',
@@ -834,6 +851,12 @@ function main() {
     '-- >>> accounting connected grant schema-only\n' +
     grantSql.trim() +
     '\n-- <<< end grant\n';
+  {
+    const inj = injectPrivilegeClosureBeforeCommits(guardedModule, {
+      sliceVersion: PROPOSED_VERSIONS.guarded_init,
+    });
+    guardedModule = inj.sql;
+  }
 
   // Forward tail: git files whose semantic names are not present in production name list
   const prod = JSON.parse(
@@ -891,7 +914,7 @@ function main() {
       'SELECT 1; -- placeholder no-op for non-empty statements[]\n';
   }
 
-  const forwardModule =
+  let forwardModule =
     moduleHeader({
       version: PROPOSED_VERSIONS.forward_tail,
       name: 'esc_forward_tail_main_unapplied',
@@ -899,6 +922,12 @@ function main() {
       provenance:
         'Merged main migrations not in production baseline; sole home of publish_ledger_event extensions.digest qualify',
     }) + forwardBody;
+  {
+    const inj = injectPrivilegeClosureBeforeCommits(forwardModule, {
+      sliceVersion: PROPOSED_VERSIONS.forward_tail,
+    });
+    forwardModule = inj.sql;
+  }
 
   const modules = [
     {
@@ -1014,6 +1043,54 @@ function main() {
     );
   }
 
+  // Fail-closed privilege + engagement_posting_policy order + users anon grant
+  const byVersion = Object.fromEntries(modules.map((m) => [m.version, m.sql]));
+  for (const mod of modules) {
+    const gaps = sameSlicePublicRevokeGaps(mod.sql);
+    if (gaps.length) {
+      throw new Error(
+        `Builder refuse: ${gaps.length} functions without same-module PUBLIC EXECUTE revoke in ${mod.version}: ` +
+          gaps
+            .slice(0, 8)
+            .map((g) => g.identity)
+            .join(', ')
+      );
+    }
+    const unclassified = buildDispositionInventory(mod.sql, mod.version).filter((f) => !f.classified);
+    if (unclassified.length) {
+      throw new Error(`Builder refuse: unclassified functions in ${mod.version}`);
+    }
+  }
+  if (!assertNoUsersAnonAllGrant(byVersion[PROPOSED_VERSIONS.foundations] || '')) {
+    throw new Error('Builder refuse: GRANT ALL ON public.users TO anon still present');
+  }
+  const epp = engagementPostingPolicyOrder(byVersion);
+  if (!epp.okOrder || !epp.sameModule) {
+    // same-module preferred; okOrder requires create<=enable. Require CREATE and ENABLE in same version.
+    if (!(epp.createVer && epp.enableVer && epp.createVer === epp.enableVer && epp.okOrder)) {
+      // Allow create-then-enable across slices only if create slice also ENABLE via RLS closure
+      const createSql = byVersion[epp.createVer] || '';
+      const createHasEnable =
+        /ALTER\s+TABLE(?:\s+IF\s+EXISTS)?\s+(?:public\.)?engagement_posting_policy\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/i.test(
+          createSql
+        );
+      if (!(epp.okOrder && createHasEnable && epp.createVer <= epp.enableVer)) {
+        throw new Error(
+          `Builder refuse: engagement_posting_policy order create@${epp.createVer} enable@${epp.enableVer} sameModule=${epp.sameModule}`
+        );
+      }
+    }
+  }
+  if (!FORCE_APP_SCHEMA_FILES.has('20260706170000_d6_4c_3_posting_policy_and_remediation.sql')) {
+    throw new Error('Builder refuse: d6_4c_3 must remain FORCE_APP');
+  }
+  if (!appSources.includes('20260706170000_d6_4c_3_posting_policy_and_remediation.sql')) {
+    throw new Error('Builder refuse: d6_4c_3 not in appSources');
+  }
+  if (securitySources.includes('20260706170000_d6_4c_3_posting_policy_and_remediation.sql')) {
+    throw new Error('Builder refuse: d6_4c_3 incorrectly in securitySources');
+  }
+
   const manifestEntries = [];
   const allDml = [];
 
@@ -1042,9 +1119,10 @@ function main() {
       rlsSecurityAssertions: [
         'Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT',
         'zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)',
-        'sensitive RPC revoke-on-create before slice COMMIT when function is introduced',
+        'every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants',
         'digest qualify exactly once in forward-tail',
         'OD assembled begin markers in splits=138; ESC patch marker is extra non-OD',
+        'public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE',
       ],
       transactionControlCounts: mod.txnControls || countExecutableTxnControls(mod.sql),
       sourceEntryRange: mod.sourceEntryRange || mod.sources,
@@ -1063,13 +1141,16 @@ function main() {
         'Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.',
       baselineModules: 'platform+foundations+phase1+app slices+security+reference+guarded',
       forwardTailModule: 'post-baseline merged-but-unapplied main (sole digest qualify home)',
-      reviewedAncestorSeal: '99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf',
-      reviewedAncestorCommit: '9b0c3b1a51e5674742c55b2d47aa0a1ecdaa3fc3',
-      remediationAuthorizedFromPrHead: '142fa46ec9cc46de71dee88e2526ffc123d3172b',
+      reviewedAncestorSeal: '74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff',
+      reviewedAncestorCommit: '4888756224129abcdc1729fc772a1300dc1ba074',
+      remediationAuthorizedFromPrHead: '3deb5d6b5b00597eb3726e3b8235c76cb417ede3',
       priorSingleModule4Superseded: true,
+      privilegeAndRlsOrderRemediation: true,
     },
     bound: {
-      pr314HeadAtStart: '142fa46ec9cc46de71dee88e2526ffc123d3172b',
+      pr314HeadAtStart: '3deb5d6b5b00597eb3726e3b8235c76cb417ede3',
+      candidateAncestorSeal: '74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff',
+      candidateAncestorCommit: '4888756224129abcdc1729fc772a1300dc1ba074',
       mainHead: '9d8a01d37422179ddd68bbd181a8815d8a893577',
       projectRefReadOnly: 'jzmdgwwiestcmmeuhhkr',
       optionDManifestBlob: '0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e',
@@ -1079,7 +1160,11 @@ function main() {
       primaryDecision: 'executable_squash_baseline',
       productionMutationReadiness: false,
       sourceReviewVerdictPrior: 'CHANGES REQUIRED',
-      blockingFindingRemediated: 'MODULE4_NOT_SINGLE_TRANSACTION',
+      blockingFindingsRemediated: [
+        'FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT',
+        'NAMED_TABLE_RLS_NOT_AT_CREATE_COMMIT:engagement_posting_policy',
+        'BROAD_TABLE_GRANT:public.users→anon ALL',
+      ],
     },
     proposedLineageOrder: modules.map((m) => ({
       order: m.order,
@@ -1120,6 +1205,28 @@ function main() {
       appSliceCount: appSlices.length,
     },
     privilegeDispositions: {
+      defaultPolicy:
+        'Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted',
+      anonRpcAllowlist: [],
+      authenticatedRlsHelperAllowlist: [
+        'public.is_active_company_member(uuid)',
+        'public.has_active_company_role(uuid,text[])',
+        'public.is_company_admin(uuid)',
+        'public.is_active_firm_member(uuid)',
+        'public.has_active_firm_role(uuid,text[])',
+      ],
+      public_users_table: {
+        anonAll: 'REVOKED',
+        publicAll: 'REVOKED',
+        authenticated: 'SELECT, UPDATE only (own-row RLS policies)',
+        serviceRolePrivileges: 'ALL retained',
+        rationale:
+          'No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon.',
+      },
+      engagement_posting_policy: {
+        createForcedIntoAppBucket: '20260706170000_d6_4c_3_posting_policy_and_remediation.sql',
+        note: 'FORCE_APP so CREATE precedes prepilot ENABLE/POLICY; same-slice RLS via buildRlsClosure',
+      },
       publish_ledger_event: {
         anonExecute: 'REVOKED',
         authenticatedExecute: 'REVOKED',
@@ -1134,7 +1241,7 @@ function main() {
         caller: 'lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)',
         anonymousRequired: false,
         evidence:
-          'Share verification uses hashed token via admin client; RPC increment is server-side only. Q8c + ESC patch revoke anon.',
+          'Share verification uses hashed token via admin client; RPC increment is server-side only.',
       },
     },
   };
@@ -1203,9 +1310,11 @@ function main() {
     generatedAt: packageManifest.generatedAt,
     goals: [
       'Eliminate phase1 CREATE-before-RLS window by atomic module',
-      'Eliminate former module 4→5 RLS window by merging app schema + security',
-      'Enable RLS on gap2_purge_table_registry and engagement_posting_policy at first visibility',
-      'Revoke anon/authenticated/PUBLIC execute on publish_ledger_event and increment_share_token_access',
+      'Option-2 per-slice RLS closure at every app/security COMMIT',
+      'Create engagement_posting_policy before any ENABLE/POLICY (FORCE_APP d6_4c_3)',
+      'Same-slice REVOKE EXECUTE FROM PUBLIC for every created application function',
+      'Fail-closed anon/authenticated EXECUTE except allowlisted RLS helpers',
+      'Remove public.users GRANT ALL TO anon; narrow authenticated to SELECT/UPDATE',
       'Digest qualify exactly once in forward-tail',
       'No customer data in package',
     ],
@@ -1281,6 +1390,55 @@ function main() {
     readyForProductionMutation: false,
   };
   writeLf(COMPARISON_PATH, JSON.stringify(comparison, null, 2));
+
+  // Complete function privilege inventory (machine-readable dispositions)
+  const PRIV_INV_PATH = path.join(
+    ROOT,
+    'docs/migration-remediation/evidence/executable-squash-candidate-function-privilege-inventory.json'
+  );
+  const allInventory = [];
+  for (const mod of modules) {
+    for (const fn of buildDispositionInventory(mod.sql, mod.version)) {
+      allInventory.push({
+        identity: fn.identity,
+        schema: fn.schema,
+        name: fn.name,
+        argsRaw: fn.argsRaw,
+        sliceVersion: mod.version,
+        sliceName: mod.name,
+        line: fn.line,
+        returnsTrigger: fn.returnsTrigger,
+        securityDefiner: fn.securityDefiner,
+        searchPath: fn.searchPath,
+        class: fn.disposition.class,
+        revoke: fn.disposition.revoke,
+        grant: fn.disposition.grant,
+        rationale: fn.disposition.rationale,
+        classified: true,
+      });
+    }
+  }
+  const classCounts = {};
+  for (const fn of allInventory) {
+    classCounts[fn.class] = (classCounts[fn.class] || 0) + 1;
+  }
+  writeLf(
+    PRIV_INV_PATH,
+    JSON.stringify(
+      {
+        generatedAt: packageManifest.generatedAt,
+        packageSeal: packageManifest.packageSha256OfConcatenatedEntryHashes,
+        totalFunctions: allInventory.length,
+        unclassifiedCount: allInventory.filter((f) => !f.classified).length,
+        classCounts,
+        engagement_posting_policy: epp,
+        public_users_anon_all_absent: true,
+        functions: allInventory,
+      },
+      null,
+      2
+    )
+  );
 
   // README + human doc
   const readme = `# Executable squash candidate (DRAFT / NON-DEPLOYABLE)

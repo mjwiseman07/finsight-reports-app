@@ -3,14 +3,496 @@
 -- Proposed version: 20260907010033
 -- Proposed name: esc_application_schema_slice_4_of_5
 -- Module: public_application_schema_slice_4
--- Provenance: Option D assembled app files (33) stripped of nested txn markers; RLS/privilege closed before COMMIT
+-- Provenance: Option D assembled app files (41) stripped of nested txn markers; RLS/privilege closed before COMMIT
 -- NOT in active supabase/migrations/. Production mutation NOT authorized.
 -- UTF-8 LF. statements[] must remain non-empty when eventually recorded.
 -- =============================================================================
 BEGIN;
 -- OPTION 2 secure multi-version split: slice 4/5
 -- Source BEGIN/COMMIT stripped; exactly one outer transaction.
--- Files: 33; RLS closure tables: 0
+-- Files: 41; RLS closure tables: 0; fn dispositions: 28
+
+-- >>> begin 20260722221611_bs_recon_summary_basis_and_computed_lines.sql
+-- Additive migration for PBC-TIEOUT-4B.3.5.
+-- Adds is_computed_line to summary lines (Net Income row support) and
+-- accounting_method to summary artifacts (Accrual vs Cash audit trail).
+
+ALTER TABLE public.audit_ready_bs_recon_summary_lines
+  ADD COLUMN IF NOT EXISTS is_computed_line boolean NOT NULL DEFAULT false;
+
+-- Per-report accounting basis captured at fixture-capture time.
+-- Lives on the summary artifact (not the parent tie_out_runs) because
+-- a firm may run BS on Accrual basis and P&L on Cash basis in the same
+-- tie-out run — basis is a property of the specific report, not the
+-- orchestration run that produced it.
+ALTER TABLE public.audit_ready_bs_recon_summary_artifacts
+  ADD COLUMN IF NOT EXISTS accounting_method text
+  CHECK (accounting_method IN ('Accrual', 'Cash'));
+
+-- Backfill any pre-existing rows to 'Accrual' (default assumption for
+-- the pilot). Safe because there are no Cash-basis clients in
+-- production yet as of this migration.
+UPDATE public.audit_ready_bs_recon_summary_artifacts
+  SET accounting_method = 'Accrual'
+  WHERE accounting_method IS NULL;
+-- <<< end 20260722221611_bs_recon_summary_basis_and_computed_lines.sql
+
+-- >>> begin 20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql
+-- Phase PBC-TIEOUT-4B.3.5 Fix-up #2
+--
+-- Relax NOT NULL on audit_ready_bs_recon_summary_lines.qbo_account_id.
+-- Computed summary lines (e.g. QBO's Net Income row on the Balance Sheet)
+-- have no underlying QBO account — the value is derived on the report
+-- itself. The is_computed_line boolean column (added in the prior
+-- migration in this phase) already distinguishes these rows from
+-- real-account rows. Application code inserts qbo_account_id = NULL
+-- for these rows, which the previous NOT NULL constraint rejected.
+--
+-- Backfill is a no-op: existing rows all have non-null qbo_account_id
+-- values (they were all real-account rows before Phase 4B.3.5).
+--
+-- Idempotent: ALTER COLUMN DROP NOT NULL is a no-op if the column is
+-- already nullable.
+ALTER TABLE audit_ready_bs_recon_summary_lines
+  ALTER COLUMN qbo_account_id DROP NOT NULL;
+
+-- Add a partial CHECK to encode the semantic: qbo_account_id may be NULL
+-- ONLY when is_computed_line = true. This prevents accidental future
+-- inserts of real-account rows with a null account id — those would
+-- indicate a bug in the parser or resolver.
+ALTER TABLE audit_ready_bs_recon_summary_lines
+  DROP CONSTRAINT IF EXISTS audit_ready_bs_recon_summary_lines_qbo_account_id_computed_check;
+
+ALTER TABLE audit_ready_bs_recon_summary_lines
+  ADD CONSTRAINT audit_ready_bs_recon_summary_lines_qbo_account_id_computed_check
+  CHECK (
+    (is_computed_line = true AND qbo_account_id IS NULL)
+    OR (is_computed_line = false AND qbo_account_id IS NOT NULL)
+  );
+-- <<< end 20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql
+
+-- >>> begin 20260723050000_audit_ready_cron_runs.sql
+-- Phase PBC-TIEOUT-4B.4: monthly BS recon cron observability table
+-- Patterned after qbo_cdc_runs (service-role RLS, timestamptz timestamps, structured counters)
+
+CREATE TABLE IF NOT EXISTS public.audit_ready_cron_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  cron_name text NOT NULL,
+  triggered_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  as_of_date date NOT NULL,
+  engagements_attempted int NOT NULL DEFAULT 0,
+  engagements_succeeded_tie int NOT NULL DEFAULT 0,
+  engagements_succeeded_kickout int NOT NULL DEFAULT 0,
+  engagements_failed int NOT NULL DEFAULT 0,
+  engagements_skipped int NOT NULL DEFAULT 0,
+  duration_ms int,
+  error_summary text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_ready_cron_runs_name_time
+  ON public.audit_ready_cron_runs (cron_name, triggered_at DESC);
+
+ALTER TABLE public.audit_ready_cron_runs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY audit_ready_cron_runs_service_role
+  ON public.audit_ready_cron_runs
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE public.audit_ready_cron_runs IS
+  'PBC-TIEOUT-4B.4: observability log for scheduled Audit Ready cron runs (e.g. monthly BS recon).';
+-- <<< end 20260723050000_audit_ready_cron_runs.sql
+
+-- >>> begin 20260724010000_kickout_investigations.sql
+-- PBC-TIEOUT-4.1: Kickout investigations table (append-only)
+-- Feeds 4.2 auto-reconcile memory. Polymorphic FK to BS lines and PBC runs.
+
+CREATE TABLE IF NOT EXISTS public.audit_ready_kickout_investigations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  engagement_id UUID NOT NULL REFERENCES public.audit_ready_engagements(id) ON DELETE CASCADE,
+  kickout_source_type TEXT NOT NULL CHECK (kickout_source_type IN ('bs_summary_line', 'pbc_run')),
+  kickout_source_id UUID NOT NULL,
+  investigated_by UUID NOT NULL REFERENCES auth.users(id),
+  investigated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note TEXT NOT NULL CHECK (length(trim(note)) > 0),
+  resolution_status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (resolution_status IN ('pending', 'resolved', 'escalated')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kickout_inv_source_lookup
+  ON public.audit_ready_kickout_investigations
+    (engagement_id, kickout_source_type, kickout_source_id, investigated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_kickout_inv_engagement_status
+  ON public.audit_ready_kickout_investigations
+    (engagement_id, resolution_status, investigated_at DESC);
+
+ALTER TABLE public.audit_ready_kickout_investigations ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: user must have firm or company access to the engagement
+CREATE POLICY kickout_inv_select
+  ON public.audit_ready_kickout_investigations FOR SELECT
+  TO authenticated
+  USING (
+    engagement_id IN (
+      SELECT e.id FROM public.audit_ready_engagements e
+      WHERE
+        (e.firm_id IS NOT NULL AND e.firm_id IN (
+          SELECT firm_id FROM public.firm_memberships
+          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
+        ))
+        OR
+        (e.company_id IS NOT NULL AND e.company_id IN (
+          SELECT company_id FROM public.company_users
+          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
+        ))
+    )
+  );
+
+-- INSERT: same access + user must be the investigator
+CREATE POLICY kickout_inv_insert
+  ON public.audit_ready_kickout_investigations FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    investigated_by = (SELECT auth.uid())
+    AND engagement_id IN (
+      SELECT e.id FROM public.audit_ready_engagements e
+      WHERE
+        (e.firm_id IS NOT NULL AND e.firm_id IN (
+          SELECT firm_id FROM public.firm_memberships
+          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
+        ))
+        OR
+        (e.company_id IS NOT NULL AND e.company_id IN (
+          SELECT company_id FROM public.company_users
+          WHERE user_id = (SELECT auth.uid()) AND status = 'active'
+        ))
+    )
+  );
+
+-- No UPDATE, no DELETE (append-only)
+-- <<< end 20260724010000_kickout_investigations.sql
+
+-- >>> begin 20260724020000_kickout_dedupe_rpcs.sql
+-- Phase PBC-TIEOUT-4.1.1: dedupe RPCs for Kickout Inbox
+-- Landmine: audit_ready_tie_out_runs has no created_at — use COALESCE(completed_at, started_at).
+-- Landmine: suppress linked bs_account_recon BEFORE DISTINCT ON, else a linked
+-- "latest" run wins the (eng, kind, period) slot and orphans disappear.
+
+CREATE OR REPLACE FUNCTION audit_ready_latest_bs_kickout_lines(
+  p_engagement_ids uuid[]
+)
+RETURNS TABLE (
+  id uuid,
+  engagement_id uuid,
+  qbo_account_id text,
+  qbo_account_name text,
+  qbo_account_type text,
+  tie_variance_cents bigint,
+  gl_ending_balance_cents bigint,
+  child_run_id uuid,
+  line_created_at timestamptz,
+  artifact_id uuid,
+  period_end date,
+  artifact_created_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT DISTINCT ON (l.engagement_id, art.period_end, l.qbo_account_id)
+    l.id,
+    l.engagement_id,
+    l.qbo_account_id,
+    l.qbo_account_name,
+    l.qbo_account_type,
+    l.tie_variance_cents,
+    l.gl_ending_balance_cents,
+    l.child_run_id,
+    l.created_at AS line_created_at,
+    art.id AS artifact_id,
+    art.period_end,
+    art.created_at AS artifact_created_at
+  FROM audit_ready_bs_recon_summary_lines l
+  JOIN audit_ready_bs_recon_summary_artifacts art
+    ON art.id = l.summary_artifact_id
+  WHERE l.engagement_id = ANY (p_engagement_ids)
+    AND l.totals_status = 'kickout'
+  ORDER BY
+    l.engagement_id,
+    art.period_end,
+    l.qbo_account_id,
+    art.created_at DESC,
+    l.created_at DESC;
+$$;
+
+REVOKE ALL ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION audit_ready_latest_pbc_kickout_runs(
+  p_engagement_ids uuid[]
+)
+RETURNS TABLE (
+  id uuid,
+  engagement_id uuid,
+  tie_out_kind text,
+  period_end date,
+  subledger_total_cents bigint,
+  gl_total_cents bigint,
+  subledger_source_url text,
+  created_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH eligible AS (
+    -- Fix 3 first: drop bs_account_recon already surfaced via kickout summary lines
+    SELECT
+      r.id,
+      r.engagement_id,
+      r.tie_out_kind,
+      r.period_end,
+      r.subledger_total_cents,
+      r.gl_total_cents,
+      r.subledger_source_url,
+      COALESCE(r.completed_at, r.started_at) AS created_at
+    FROM audit_ready_tie_out_runs r
+    WHERE r.engagement_id = ANY (p_engagement_ids)
+      AND r.totals_status = 'kickout'
+      AND r.tie_out_kind <> 'bs_recon_summary'
+      AND NOT (
+        r.tie_out_kind = 'bs_account_recon'
+        AND EXISTS (
+          SELECT 1
+          FROM audit_ready_bs_recon_summary_lines sl
+          WHERE sl.child_run_id = r.id
+            AND sl.totals_status = 'kickout'
+        )
+      )
+  )
+  -- Fix 2: latest remaining run per (engagement, kind, period)
+  SELECT DISTINCT ON (e.engagement_id, e.tie_out_kind, e.period_end)
+    e.id,
+    e.engagement_id,
+    e.tie_out_kind,
+    e.period_end,
+    e.subledger_total_cents,
+    e.gl_total_cents,
+    e.subledger_source_url,
+    e.created_at
+  FROM eligible e
+  ORDER BY
+    e.engagement_id,
+    e.tie_out_kind,
+    e.period_end,
+    e.created_at DESC NULLS LAST;
+$$;
+
+REVOKE ALL ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) TO authenticated, service_role;
+-- <<< end 20260724020000_kickout_dedupe_rpcs.sql
+
+-- >>> begin 20260724030000_ar_tieout412a_kind_reconcile.sql
+-- Phase PBC-TIEOUT-4.1.2 Block A: kind reconciliation
+-- Rename legacy 'fixed_assets' tie_out_kind values to canonical 'fixed_asset_rollforward'.
+-- Idempotent — safe to re-run.
+
+UPDATE public.audit_ready_tie_out_runs
+SET tie_out_kind = 'fixed_asset_rollforward'
+WHERE tie_out_kind = 'fixed_assets';
+
+-- Also reconcile classifier-persisted kind on PBC requests (if any legacy rows)
+UPDATE public.audit_ready_pbc_requests
+SET tie_out_kind = 'fixed_asset_rollforward'
+WHERE tie_out_kind = 'fixed_assets';
+
+DO $$
+DECLARE
+  legacy_count int;
+BEGIN
+  SELECT COUNT(*) INTO legacy_count
+  FROM public.audit_ready_tie_out_runs
+  WHERE tie_out_kind = 'fixed_assets';
+  IF legacy_count > 0 THEN
+    RAISE EXCEPTION 'Legacy fixed_assets rows still exist on runs: %', legacy_count;
+  END IF;
+
+  SELECT COUNT(*) INTO legacy_count
+  FROM public.audit_ready_pbc_requests
+  WHERE tie_out_kind = 'fixed_assets';
+  IF legacy_count > 0 THEN
+    RAISE EXCEPTION 'Legacy fixed_assets rows still exist on pbc_requests: %', legacy_count;
+  END IF;
+END $$;
+-- <<< end 20260724030000_ar_tieout412a_kind_reconcile.sql
+
+-- >>> begin 20260724030100_ar_tieout412a_run_artifacts.sql
+-- Phase PBC-TIEOUT-4.1.2 Block A: run artifact storage + regeneration lineage
+
+CREATE TABLE IF NOT EXISTS public.audit_ready_run_artifacts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tie_out_run_id uuid NOT NULL
+    REFERENCES public.audit_ready_tie_out_runs(id) ON DELETE CASCADE,
+  artifact_kind text NOT NULL CHECK (artifact_kind IN ('xlsx', 'pdf')),
+  storage_bucket text NOT NULL,
+  storage_path text NOT NULL,
+  file_size_bytes bigint NOT NULL CHECK (file_size_bytes >= 0),
+  content_hash text NOT NULL,
+  generated_at timestamptz NOT NULL DEFAULT now(),
+  generated_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tie_out_run_id, artifact_kind)
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_artifacts_run
+  ON public.audit_ready_run_artifacts (tie_out_run_id);
+CREATE INDEX IF NOT EXISTS idx_run_artifacts_generated_at
+  ON public.audit_ready_run_artifacts (generated_at DESC);
+
+ALTER TABLE public.audit_ready_run_artifacts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS run_artifacts_select ON public.audit_ready_run_artifacts;
+CREATE POLICY run_artifacts_select ON public.audit_ready_run_artifacts
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.audit_ready_tie_out_runs r
+      JOIN public.audit_ready_engagements e ON e.id = r.engagement_id
+      WHERE r.id = audit_ready_run_artifacts.tie_out_run_id
+        AND (
+          EXISTS (
+            SELECT 1 FROM public.firm_memberships fm
+            WHERE fm.firm_id = e.firm_id
+              AND fm.user_id = (SELECT auth.uid())
+              AND fm.status = 'active'
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.company_users cu
+            WHERE cu.company_id = e.company_id
+              AND cu.user_id = (SELECT auth.uid())
+              AND cu.status = 'active'
+          )
+        )
+    )
+  );
+
+-- Regeneration lineage on runs
+ALTER TABLE public.audit_ready_tie_out_runs
+  ADD COLUMN IF NOT EXISTS regenerated_from_run_id uuid
+    REFERENCES public.audit_ready_tie_out_runs(id),
+  ADD COLUMN IF NOT EXISTS trigger_kind text NOT NULL DEFAULT 'initial';
+
+-- Backfill + constrain trigger_kind (column may already exist without check)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'audit_ready_tie_out_runs_trigger_kind_check'
+  ) THEN
+    ALTER TABLE public.audit_ready_tie_out_runs
+      ADD CONSTRAINT audit_ready_tie_out_runs_trigger_kind_check
+      CHECK (trigger_kind IN ('initial', 'regenerated', 'cron'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_tie_out_runs_regenerated_from
+  ON public.audit_ready_tie_out_runs (regenerated_from_run_id)
+  WHERE regenerated_from_run_id IS NOT NULL;
+
+-- Storage bucket (idempotent). If your project forbids SQL bucket inserts,
+-- create `audit-ready-workpapers` via Dashboard and skip this INSERT.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('audit-ready-workpapers', 'audit-ready-workpapers', false)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "audit_ready_workpapers_select" ON storage.objects;
+CREATE POLICY "audit_ready_workpapers_select"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'audit-ready-workpapers'
+    AND EXISTS (
+      SELECT 1
+      FROM public.audit_ready_run_artifacts a
+      JOIN public.audit_ready_tie_out_runs r ON r.id = a.tie_out_run_id
+      JOIN public.audit_ready_engagements e ON e.id = r.engagement_id
+      WHERE a.storage_path = storage.objects.name
+        AND (
+          EXISTS (
+            SELECT 1 FROM public.firm_memberships fm
+            WHERE fm.firm_id = e.firm_id
+              AND fm.user_id = (SELECT auth.uid())
+              AND fm.status = 'active'
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.company_users cu
+            WHERE cu.company_id = e.company_id
+              AND cu.user_id = (SELECT auth.uid())
+              AND cu.status = 'active'
+          )
+        )
+    )
+  );
+-- <<< end 20260724030100_ar_tieout412a_run_artifacts.sql
+
+-- >>> begin 20260724220000_ar_tieout412b_raw_qbo_payload.sql
+-- Phase PBC-TIEOUT-4.1.2 Block B: raw QBO payload persistence for Source Data tab
+-- Path Y: build() reads from this column, never live-fetches.
+ALTER TABLE audit_ready_tie_out_runs
+  ADD COLUMN IF NOT EXISTS raw_qbo_payload_jsonb jsonb;
+
+COMMENT ON COLUMN audit_ready_tie_out_runs.raw_qbo_payload_jsonb IS
+  'Snapshot of the QBO API response(s) used to compute this run. Read by workpaper emitters for the Source Data tab. Never mutated after run completion.';
+-- <<< end 20260724220000_ar_tieout412b_raw_qbo_payload.sql
+
+-- >>> begin 20260725050000_ar_tieout420a_resolution_code.sql
+-- Phase PBC-TIEOUT-4.2 Block A: resolution_code on kickout investigations
+-- Structured disposition for memory matching.
+-- NULL-safe: legacy rows stay NULL; API layer enforces required on new INSERTs.
+-- Forward reference: audit_ready_memory AddonCode gates Block B (auto-clear)
+-- and Block C (governance); Suggest is not gated in Block A.
+
+ALTER TABLE public.audit_ready_kickout_investigations
+  ADD COLUMN IF NOT EXISTS resolution_code text NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'audit_ready_kickout_investigations_resolution_code_chk'
+      AND conrelid = 'public.audit_ready_kickout_investigations'::regclass
+  ) THEN
+    ALTER TABLE public.audit_ready_kickout_investigations
+      ADD CONSTRAINT audit_ready_kickout_investigations_resolution_code_chk
+      CHECK (
+        resolution_code IS NULL
+        OR resolution_code IN (
+          'immaterial',
+          'timing',
+          'reclass',
+          'true_error',
+          'other'
+        )
+      );
+  END IF;
+END
+$$;
+
+COMMENT ON COLUMN public.audit_ready_kickout_investigations.resolution_code IS
+  'Structured disposition for memory matching (Block B). Canonical values: '
+  'immaterial | timing | reclass | true_error | other. NULL-safe for legacy '
+  'rows; API layer enforces required on new INSERTs.';
+-- <<< end 20260725050000_ar_tieout420a_resolution_code.sql
 
 -- >>> begin 20260725050100_ar_tieout420a_similar_kickouts_rpc.sql
 -- Phase PBC-TIEOUT-4.2 Block A: deterministic similar-resolution query layer.
@@ -4628,579 +5110,149 @@ GRANT EXECUTE ON FUNCTION public.persist_journal_entry_approval(
 ) TO service_role;
 -- <<< end 20260821042800_journal_entry_approvals.sql
 
--- >>> begin 20260821183525_journal_entry_executions.sql
--- JE-3A — Governed Journal Entry execution custody + preflight foundation.
--- Domain authority for execution/query. Stops at READY_TO_POST.
--- NO QBO POST. NO je_post_attempts rows. NO Memory. NO auto-governed principal.
--- Future JE-3B binds journal_entry_executions.id → je_post_attempts idempotency.
-
-CREATE TABLE IF NOT EXISTS public.journal_entry_executions (
-  id uuid PRIMARY KEY,
-  proposal_id uuid NOT NULL
-    REFERENCES public.journal_entry_proposals(id)
-    ON DELETE RESTRICT,
-  approval_id uuid NOT NULL
-    REFERENCES public.journal_entry_approvals(id)
-    ON DELETE RESTRICT,
-  company_id uuid NOT NULL
-    REFERENCES public.companies(id)
-    ON DELETE RESTRICT,
-  engagement_id uuid NOT NULL
-    REFERENCES public.audit_ready_engagements(id)
-    ON DELETE RESTRICT,
-  firm_client_id uuid NULL,
-  source_continuous_close_run_id uuid NOT NULL,
-  source_accounting_sync_id uuid NOT NULL,
-  accounting_connection_id uuid NOT NULL
-    REFERENCES public.accounting_connections(id)
-    ON DELETE RESTRICT,
-  provider text NOT NULL,
-  proposal_hash text NOT NULL,
-  approval_policy_hash text NOT NULL,
-  execution_policy_hash text NOT NULL,
-  execution_hash text NOT NULL,
-  idempotency_key text NOT NULL,
-  status text NOT NULL,
-  correlation_marker text NOT NULL,
-  execution_policy_snapshot jsonb NOT NULL,
-  preflight_result jsonb NOT NULL,
-  requested_by uuid NOT NULL
-    REFERENCES auth.users(id)
-    ON DELETE RESTRICT,
-  requested_at timestamptz NOT NULL,
-  state_version integer NOT NULL DEFAULT 1,
-  provider_journal_id text NULL,
-  provider_request_hash text NULL,
-  provider_response_hash text NULL,
-  last_error_code text NULL,
-  last_error_message text NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT journal_entry_executions_provider_check
-    CHECK (provider = 'quickbooks'),
-  CONSTRAINT journal_entry_executions_status_check
-    CHECK (status IN (
-      'RESERVED',
-      'PRECHECK_FAILED',
-      'READY_TO_POST',
-      'POSTING',
-      'POSTED_UNVERIFIED',
-      'UNKNOWN_COMMIT',
-      'VERIFIED',
-      'FAILED',
-      'REVERSAL_REQUIRED'
-    )),
-  CONSTRAINT journal_entry_executions_proposal_hash_check
-    CHECK (proposal_hash ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT journal_entry_executions_approval_policy_hash_check
-    CHECK (approval_policy_hash ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT journal_entry_executions_execution_policy_hash_check
-    CHECK (execution_policy_hash ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT journal_entry_executions_execution_hash_check
-    CHECK (execution_hash ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT journal_entry_executions_idempotency_key_check
-    CHECK (idempotency_key ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT journal_entry_executions_idempotency_key_unique
-    UNIQUE (idempotency_key),
-  CONSTRAINT journal_entry_executions_correlation_marker_check
-    CHECK (char_length(btrim(correlation_marker)) > 0),
-  CONSTRAINT journal_entry_executions_correlation_marker_unique
-    UNIQUE (correlation_marker),
-  CONSTRAINT journal_entry_executions_approval_unique
-    UNIQUE (approval_id),
-  CONSTRAINT journal_entry_executions_state_version_check
-    CHECK (state_version > 0),
-  CONSTRAINT journal_entry_executions_provider_journal_null_until_post
-    CHECK (provider_journal_id IS NULL OR status IN (
-      'POSTED_UNVERIFIED',
-      'UNKNOWN_COMMIT',
-      'VERIFIED',
-      'FAILED',
-      'REVERSAL_REQUIRED',
-      'POSTING'
-    ))
-);
-
-CREATE INDEX IF NOT EXISTS journal_entry_executions_proposal_idx
-  ON public.journal_entry_executions (proposal_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS journal_entry_executions_engagement_idx
-  ON public.journal_entry_executions (engagement_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS journal_entry_executions_connection_idx
-  ON public.journal_entry_executions (accounting_connection_id);
-
-CREATE INDEX IF NOT EXISTS journal_entry_executions_status_idx
-  ON public.journal_entry_executions (status, updated_at DESC);
-
-COMMENT ON TABLE public.journal_entry_executions IS
-  'JE-3A governed execution custody. Mutable state machine with Patent #6 receipts. Domain authority for JE execution/query. Does not replace je_post_attempts (D2 spine for JE-3B). No provider write in JE-3A.';
-
-COMMENT ON COLUMN public.journal_entry_executions.provider_journal_id IS
-  'Nullable until a verified provider commit. JE-3A must never populate this.';
-
-COMMENT ON COLUMN public.journal_entry_executions.accounting_connection_id IS
-  'Canonical accounting_connections.id is domain authority; realm is provider metadata only.';
-
--- Authenticated path never writes; service_role uses RPCs that SET LOCAL.
--- Trigger blocks direct UPDATE/DELETE unless session flag is set by RPC.
-CREATE OR REPLACE FUNCTION public.journal_entry_executions_guard_mutation()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-BEGIN
-  IF current_setting('advisacor.je_execution_transition', true) IS DISTINCT FROM '1' THEN
-    RAISE EXCEPTION
-      'journal_entry_executions mutations must use transition_journal_entry_execution RPC';
-  END IF;
-  IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'journal_entry_executions rows cannot be deleted';
-  END IF;
-  NEW.updated_at := now();
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS journal_entry_executions_guard_update
-  ON public.journal_entry_executions;
-CREATE TRIGGER journal_entry_executions_guard_update
-  BEFORE UPDATE ON public.journal_entry_executions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.journal_entry_executions_guard_mutation();
-
-DROP TRIGGER IF EXISTS journal_entry_executions_guard_delete
-  ON public.journal_entry_executions;
-CREATE TRIGGER journal_entry_executions_guard_delete
-  BEFORE DELETE ON public.journal_entry_executions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.journal_entry_executions_guard_mutation();
-
-ALTER TABLE public.journal_entry_executions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS journal_entry_executions_service_role_all
-  ON public.journal_entry_executions;
-CREATE POLICY journal_entry_executions_service_role_all
-  ON public.journal_entry_executions
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS journal_entry_executions_select
-  ON public.journal_entry_executions;
-CREATE POLICY journal_entry_executions_select
-  ON public.journal_entry_executions
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1
-      FROM public.audit_ready_engagements e
-      WHERE e.id = journal_entry_executions.engagement_id
-        AND (
-          (
-            e.company_id IS NOT NULL
-            AND EXISTS (
-              SELECT 1
-              FROM public.company_users cu
-              WHERE cu.company_id = e.company_id
-                AND cu.user_id = (SELECT auth.uid())
-                AND cu.status = 'active'
-            )
-          )
-          OR
-          (
-            e.firm_id IS NOT NULL
-            AND EXISTS (
-              SELECT 1
-              FROM public.firm_memberships fm
-              WHERE fm.firm_id = e.firm_id
-                AND fm.user_id = (SELECT auth.uid())
-                AND fm.status = 'active'
-            )
-          )
-        )
-    )
-  );
-
-GRANT SELECT ON public.journal_entry_executions TO authenticated;
-GRANT ALL ON public.journal_entry_executions TO service_role;
-
--- Immutable binding equality for reservation reuse (excludes id/marker/status).
-CREATE OR REPLACE FUNCTION public.je_execution_immutable_binding_matches(
-  p_existing public.journal_entry_executions,
-  p_row jsonb
-)
-RETURNS boolean
-LANGUAGE plpgsql
-STABLE
-AS $$
-BEGIN
-  RETURN
-    p_existing.proposal_id::text = p_row->>'proposal_id'
-    AND p_existing.approval_id::text = p_row->>'approval_id'
-    AND p_existing.company_id::text = p_row->>'company_id'
-    AND p_existing.engagement_id::text = p_row->>'engagement_id'
-    AND p_existing.source_continuous_close_run_id::text = p_row->>'source_continuous_close_run_id'
-    AND p_existing.source_accounting_sync_id::text = p_row->>'source_accounting_sync_id'
-    AND p_existing.accounting_connection_id::text = p_row->>'accounting_connection_id'
-    AND p_existing.provider = p_row->>'provider'
-    AND p_existing.proposal_hash = p_row->>'proposal_hash'
-    AND p_existing.approval_policy_hash = p_row->>'approval_policy_hash'
-    AND p_existing.execution_policy_hash = p_row->>'execution_policy_hash'
-    AND p_existing.execution_hash = p_row->>'execution_hash'
-    AND p_existing.idempotency_key = p_row->>'idempotency_key';
-END;
-$$;
-
--- Atomic reservation insert + Patent #6 execution_requested receipt.
--- Exact logical reuse vs approval_id binding conflict are distinguished.
-CREATE OR REPLACE FUNCTION public.persist_journal_entry_execution_reservation(
-  p_row jsonb,
-  p_event_payload jsonb,
-  p_event_payload_canonical text,
-  p_firm_id uuid,
-  p_firm_client_id uuid,
-  p_engagement_id uuid,
-  p_close_period_id text,
-  p_actor_id text
-)
-RETURNS TABLE(
-  reused boolean,
-  reuse_reason text,
-  execution jsonb,
-  ledger_event_id uuid
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_existing public.journal_entry_executions%ROWTYPE;
-  v_inserted public.journal_entry_executions%ROWTYPE;
-  v_event_id uuid;
-BEGIN
-  SELECT *
-    INTO v_existing
-    FROM public.journal_entry_executions
-   WHERE idempotency_key = p_row->>'idempotency_key';
-
-  IF FOUND THEN
-    IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
-      RAISE EXCEPTION 'je_execution_binding_conflict: idempotency_key match with mismatched immutable binding'
-        USING ERRCODE = 'P0001';
-    END IF;
-    reused := true;
-    reuse_reason := 'idempotency_key';
-    execution := to_jsonb(v_existing);
-    ledger_event_id := NULL;
-    RETURN NEXT;
-    RETURN;
-  END IF;
-
-  -- One approval → one execution record (UNIQUE approval_id).
-  -- Exact binding → reuse. Different binding → fail closed (no silent collapse).
-  SELECT *
-    INTO v_existing
-    FROM public.journal_entry_executions
-   WHERE approval_id = (p_row->>'approval_id')::uuid
-   LIMIT 1;
-  IF FOUND THEN
-    IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
-      RAISE EXCEPTION 'je_execution_binding_conflict: approval_id already reserved under a different immutable binding'
-        USING ERRCODE = 'P0001';
-    END IF;
-    reused := true;
-    reuse_reason := 'approval_id';
-    execution := to_jsonb(v_existing);
-    ledger_event_id := NULL;
-    RETURN NEXT;
-    RETURN;
-  END IF;
-
-  INSERT INTO public.journal_entry_executions (
-    id,
-    proposal_id,
-    approval_id,
-    company_id,
-    engagement_id,
-    firm_client_id,
-    source_continuous_close_run_id,
-    source_accounting_sync_id,
-    accounting_connection_id,
-    provider,
-    proposal_hash,
-    approval_policy_hash,
-    execution_policy_hash,
-    execution_hash,
-    idempotency_key,
-    status,
-    correlation_marker,
-    execution_policy_snapshot,
-    preflight_result,
-    requested_by,
-    requested_at,
-    state_version,
-    provider_journal_id,
-    provider_request_hash,
-    provider_response_hash,
-    last_error_code,
-    last_error_message
-  ) VALUES (
-    (p_row->>'id')::uuid,
-    (p_row->>'proposal_id')::uuid,
-    (p_row->>'approval_id')::uuid,
-    (p_row->>'company_id')::uuid,
-    (p_row->>'engagement_id')::uuid,
-    NULLIF(p_row->>'firm_client_id', '')::uuid,
-    (p_row->>'source_continuous_close_run_id')::uuid,
-    (p_row->>'source_accounting_sync_id')::uuid,
-    (p_row->>'accounting_connection_id')::uuid,
-    p_row->>'provider',
-    p_row->>'proposal_hash',
-    p_row->>'approval_policy_hash',
-    p_row->>'execution_policy_hash',
-    p_row->>'execution_hash',
-    p_row->>'idempotency_key',
-    COALESCE(NULLIF(p_row->>'status', ''), 'RESERVED'),
-    p_row->>'correlation_marker',
-    COALESCE(p_row->'execution_policy_snapshot', '{}'::jsonb),
-    COALESCE(p_row->'preflight_result', '{}'::jsonb),
-    (p_row->>'requested_by')::uuid,
-    (p_row->>'requested_at')::timestamptz,
-    COALESCE((p_row->>'state_version')::integer, 1),
-    NULL,
-    NULLIF(p_row->>'provider_request_hash', ''),
-    NULL,
-    NULLIF(p_row->>'last_error_code', ''),
-    NULLIF(p_row->>'last_error_message', '')
-  )
-  RETURNING * INTO v_inserted;
-
-  SELECT pe.event_id
-    INTO v_event_id
-    FROM public.publish_ledger_event(
-      'journal_entry.execution_requested',
-      'posting',
-      1,
-      p_firm_id,
-      p_firm_client_id,
-      p_engagement_id,
-      NULL,
-      p_close_period_id,
-      'journal_entry_execution',
-      v_inserted.id::text,
-      'user',
-      p_actor_id,
-      p_event_payload,
-      '{}'::jsonb,
-      NULL,
-      p_event_payload_canonical
-    ) AS pe;
-
-  reused := false;
-  reuse_reason := NULL;
-  execution := to_jsonb(v_inserted);
-  ledger_event_id := v_event_id;
-  RETURN NEXT;
-  RETURN;
-
-EXCEPTION
-  WHEN unique_violation THEN
-    -- Exact same logical race: reuse by idempotency_key when binding matches.
-    SELECT *
-      INTO v_existing
-      FROM public.journal_entry_executions
-     WHERE idempotency_key = p_row->>'idempotency_key';
-    IF FOUND THEN
-      IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
-        RAISE EXCEPTION 'je_execution_binding_conflict: race idempotency_key match with mismatched binding'
-          USING ERRCODE = 'P0001';
-      END IF;
-      reused := true;
-      reuse_reason := 'idempotency_key';
-      execution := to_jsonb(v_existing);
-      ledger_event_id := NULL;
-      RETURN NEXT;
-      RETURN;
-    END IF;
-
-    -- Same approval, possibly different binding (must not silently collapse).
-    SELECT *
-      INTO v_existing
-      FROM public.journal_entry_executions
-     WHERE approval_id = (p_row->>'approval_id')::uuid
-     LIMIT 1;
-    IF FOUND THEN
-      IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
-        RAISE EXCEPTION 'je_execution_binding_conflict: race approval_id already reserved under a different immutable binding'
-          USING ERRCODE = 'P0001';
-      END IF;
-      reused := true;
-      reuse_reason := 'approval_id';
-      execution := to_jsonb(v_existing);
-      ledger_event_id := NULL;
-      RETURN NEXT;
-      RETURN;
-    END IF;
-
-    RAISE;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.persist_journal_entry_execution_reservation(
-  jsonb, jsonb, text, uuid, uuid, uuid, text, text
-) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.persist_journal_entry_execution_reservation(
-  jsonb, jsonb, text, uuid, uuid, uuid, text, text
-) FROM anon;
-REVOKE ALL ON FUNCTION public.persist_journal_entry_execution_reservation(
-  jsonb, jsonb, text, uuid, uuid, uuid, text, text
-) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.persist_journal_entry_execution_reservation(
-  jsonb, jsonb, text, uuid, uuid, uuid, text, text
-) TO service_role;
-
--- Guarded state transition + Patent #6 receipt (optimistic concurrency).
--- JE-3A DB mutation authority is intentionally narrower than the domain
--- status vocabulary: only RESERVED → READY_TO_POST | PRECHECK_FAILED,
--- each paired with its exact Patent #6 event type. Future provider lifecycle
--- transitions (POSTING / UNKNOWN_COMMIT / VERIFIED / ...) are authorized in JE-3B.
-CREATE OR REPLACE FUNCTION public.transition_journal_entry_execution(
-  p_execution_id uuid,
-  p_expected_status text,
-  p_expected_state_version integer,
-  p_new_status text,
-  p_patch jsonb,
-  p_event_type text,
-  p_event_payload jsonb,
-  p_event_payload_canonical text,
-  p_firm_id uuid,
-  p_firm_client_id uuid,
-  p_engagement_id uuid,
-  p_close_period_id text,
-  p_actor_id text
-)
-RETURNS TABLE(
-  execution jsonb,
-  ledger_event_id uuid
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_row public.journal_entry_executions%ROWTYPE;
-  v_event_id uuid;
-  v_pair_ok boolean := false;
-BEGIN
-  -- Exact JE-3A transition ↔ Patent #6 event coupling (one semantic operation).
-  IF p_expected_status = 'RESERVED'
-     AND p_new_status = 'READY_TO_POST'
-     AND p_event_type = 'journal_entry.execution_ready' THEN
-    v_pair_ok := true;
-  ELSIF p_expected_status = 'RESERVED'
-     AND p_new_status = 'PRECHECK_FAILED'
-     AND p_event_type = 'journal_entry.execution_precheck_failed' THEN
-    v_pair_ok := true;
-  END IF;
-
-  IF NOT v_pair_ok THEN
-    RAISE EXCEPTION
-      'invalid journal entry execution transition/event pairing: % -> % with %',
-      p_expected_status, p_new_status, p_event_type;
-  END IF;
-
-  -- Patent #6 payload status must agree with the persisted new status.
-  IF COALESCE(p_event_payload->>'status', '') IS DISTINCT FROM p_new_status THEN
-    RAISE EXCEPTION
-      'journal entry execution event payload status mismatch: payload=% expected=%',
-      COALESCE(p_event_payload->>'status', '<null>'), p_new_status;
-  END IF;
-
-  SELECT *
-    INTO v_row
-    FROM public.journal_entry_executions
-   WHERE id = p_execution_id
-   FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'journal_entry_execution not found: %', p_execution_id;
-  END IF;
-
-  IF v_row.status IS DISTINCT FROM p_expected_status THEN
-    RAISE EXCEPTION 'journal_entry_execution status concurrency conflict: expected %, found %',
-      p_expected_status, v_row.status;
-  END IF;
-
-  IF v_row.state_version IS DISTINCT FROM p_expected_state_version THEN
-    RAISE EXCEPTION 'journal_entry_execution state_version concurrency conflict: expected %, found %',
-      p_expected_state_version, v_row.state_version;
-  END IF;
-
-  PERFORM set_config('advisacor.je_execution_transition', '1', true);
-
-  UPDATE public.journal_entry_executions
-     SET status = p_new_status,
-         state_version = v_row.state_version + 1,
-         preflight_result = COALESCE(p_patch->'preflight_result', preflight_result),
-         provider_request_hash = COALESCE(
-           NULLIF(p_patch->>'provider_request_hash', ''),
-           provider_request_hash
-         ),
-         last_error_code = CASE
-           WHEN p_patch ? 'last_error_code' THEN NULLIF(p_patch->>'last_error_code', '')
-           ELSE last_error_code
-         END,
-         last_error_message = CASE
-           WHEN p_patch ? 'last_error_message' THEN NULLIF(p_patch->>'last_error_message', '')
-           ELSE last_error_message
-         END,
-         updated_at = now()
-   WHERE id = p_execution_id
-  RETURNING * INTO v_row;
-
-  SELECT pe.event_id
-    INTO v_event_id
-    FROM public.publish_ledger_event(
-      p_event_type,
-      'posting',
-      1,
-      p_firm_id,
-      p_firm_client_id,
-      p_engagement_id,
-      NULL,
-      p_close_period_id,
-      'journal_entry_execution',
-      v_row.id::text,
-      'user',
-      p_actor_id,
-      p_event_payload,
-      '{}'::jsonb,
-      NULL,
-      p_event_payload_canonical
-    ) AS pe;
-
-  execution := to_jsonb(v_row);
-  ledger_event_id := v_event_id;
-  RETURN NEXT;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.transition_journal_entry_execution(
-  uuid, text, integer, text, jsonb, text, jsonb, text, uuid, uuid, uuid, text, text
-) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.transition_journal_entry_execution(
-  uuid, text, integer, text, jsonb, text, jsonb, text, uuid, uuid, uuid, text, text
-) FROM anon;
-REVOKE ALL ON FUNCTION public.transition_journal_entry_execution(
-  uuid, text, integer, text, jsonb, text, jsonb, text, uuid, uuid, uuid, text, text
-) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.transition_journal_entry_execution(
-  uuid, text, integer, text, jsonb, text, jsonb, text, uuid, uuid, uuid, text, text
-) TO service_role;
--- <<< end 20260821183525_journal_entry_executions.sql
-
 -- [ESC] RLS closure: no CREATE TABLE without ENABLE RLS in this slice.
+
+-- [ESC] Function privilege closure before COMMIT
+-- Default PUBLIC EXECUTE removed for every application function created/replaced in this slice.
+-- Regrant only per disposition (service_role always; authenticated only for allowlisted RLS helpers).
+-- disposition public.audit_ready_latest_bs_kickout_lines(uuid[]) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_bs_kickout_lines(uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_bs_kickout_lines(uuid[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_bs_kickout_lines(uuid[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.audit_ready_latest_bs_kickout_lines(uuid[]) TO service_role;
+-- disposition public.audit_ready_latest_pbc_kickout_runs(uuid[]) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) TO service_role;
+-- disposition public.get_similar_kickout_resolutions(uuid,text,jsonb) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) TO service_role;
+-- disposition public.get_similar_kickout_resolution_counts(uuid[]) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) TO service_role;
+-- disposition public.handle_new_auth_user() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_new_auth_user() TO service_role;
+-- disposition public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) => trigger_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) TO service_role;
+-- disposition public.pilot_lifecycle_events_before_insert() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() TO service_role;
+-- disposition public.pilot_lifecycle_events_reject_mutations() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() TO service_role;
+-- disposition public.pilot_lifecycle_events_verify_chain(uuid,uuid) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) TO service_role;
+-- disposition public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) TO service_role;
+-- disposition public.sp_list_public_columns() => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.sp_list_public_columns() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sp_list_public_columns() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sp_list_public_columns() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.sp_list_public_columns() TO service_role;
+-- disposition public.resolve_assertion_impact_by_table(text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) TO service_role;
+-- disposition public.backfill_schema_drift_assertion_impact(bool) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) TO service_role;
+-- disposition public.trg_lifecycle_issues_assertion_impact() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() TO service_role;
+-- disposition public.resolve_assertion_confidence_by_table(text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) TO service_role;
+-- disposition public.resolve_fr_relevance_by_table(text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) TO service_role;
+-- disposition public.resolve_mapping_source_by_table(text) => trigger_only
+REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) TO service_role;
+-- disposition public.trg_ar_reconciling_items_stamp_run_identity() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() TO service_role;
+-- disposition public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) TO service_role;
+-- disposition public.clear_audit_ready_recon_bridge(uuid) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) TO service_role;
+-- disposition public.trg_arte_stamp_run_identity() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() TO service_role;
+-- disposition public.accounting_measurement_snapshots_deny_update() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() TO service_role;
+-- disposition public.continuous_close_runs_deny_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() TO service_role;
+-- disposition public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
+-- disposition public.journal_entry_proposals_deny_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() TO service_role;
+-- disposition public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
+-- disposition public.journal_entry_approvals_deny_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() TO service_role;
+-- disposition public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) TO service_role;
 COMMIT;

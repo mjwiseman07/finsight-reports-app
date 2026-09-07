@@ -1,19 +1,22 @@
 {
   "packageId": "executable-squash-candidate",
-  "generatedAt": "2026-09-07T03:14:45.488Z",
+  "generatedAt": "2026-09-07T03:51:49.143Z",
   "authorization": "candidate remediation only - no production mutation, no Docker, no branch, no SQL execution",
   "targetModel": {
     "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
     "transactionModelJustification": "Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.",
     "baselineModules": "platform+foundations+phase1+app slices+security+reference+guarded",
     "forwardTailModule": "post-baseline merged-but-unapplied main (sole digest qualify home)",
-    "reviewedAncestorSeal": "99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf",
-    "reviewedAncestorCommit": "9b0c3b1a51e5674742c55b2d47aa0a1ecdaa3fc3",
-    "remediationAuthorizedFromPrHead": "142fa46ec9cc46de71dee88e2526ffc123d3172b",
-    "priorSingleModule4Superseded": true
+    "reviewedAncestorSeal": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+    "reviewedAncestorCommit": "4888756224129abcdc1729fc772a1300dc1ba074",
+    "remediationAuthorizedFromPrHead": "3deb5d6b5b00597eb3726e3b8235c76cb417ede3",
+    "priorSingleModule4Superseded": true,
+    "privilegeAndRlsOrderRemediation": true
   },
   "bound": {
-    "pr314HeadAtStart": "142fa46ec9cc46de71dee88e2526ffc123d3172b",
+    "pr314HeadAtStart": "3deb5d6b5b00597eb3726e3b8235c76cb417ede3",
+    "candidateAncestorSeal": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+    "candidateAncestorCommit": "4888756224129abcdc1729fc772a1300dc1ba074",
     "mainHead": "9d8a01d37422179ddd68bbd181a8815d8a893577",
     "projectRefReadOnly": "jzmdgwwiestcmmeuhhkr",
     "optionDManifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
@@ -23,7 +26,11 @@
     "primaryDecision": "executable_squash_baseline",
     "productionMutationReadiness": false,
     "sourceReviewVerdictPrior": "CHANGES REQUIRED",
-    "blockingFindingRemediated": "MODULE4_NOT_SINGLE_TRANSACTION"
+    "blockingFindingsRemediated": [
+      "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "NAMED_TABLE_RLS_NOT_AT_CREATE_COMMIT:engagement_posting_policy",
+      "BROAD_TABLE_GRANT:public.users→anon ALL"
+    ]
   },
   "proposedLineageOrder": [
     {
@@ -134,9 +141,10 @@
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 0,
@@ -160,20 +168,21 @@
         "assembled:20260701043598_public_users_derived_baseline.sql",
         "assembled:20260701043599_foundations_baseline.sql"
       ],
-      "gitBlobId": "81d9069328d9579bbdd73f234f5510b49d26cda3",
-      "sha256": "5f622b6a244620ad5ee896555c6640a34adf8d5b4212ec7815a06ce6c786cc74",
-      "md5": "60875424b1b85d32bebd2f619d86040c",
-      "utf8LfBytes": 108827,
-      "statementCountApprox": 565,
+      "gitBlobId": "179f92565dadddf31f54ecb807def5b67bf2aa29",
+      "sha256": "baafbba09333daaefc2309aa44f39bf96560469ca41a3a181105d47ba799c8ca",
+      "md5": "5ea8a60d5ec7074759aa960e2d2d52f9",
+      "utf8LfBytes": 111786,
+      "statementCountApprox": 586,
       "transactionBoundary": "inherits source BEGIN/COMMIT from foundations",
       "dmlClassification": "required_immutable_reference_seed (company_roles inside foundations)",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -200,20 +209,21 @@
         "assembled:20260701043911_phase1_backward_compat_view.sql",
         "assembled:20260701043931_phase1_entitlement_rls_policies.sql"
       ],
-      "gitBlobId": "d55a4911d99f85bc51a3d16a40fccc87c4c35ae0",
-      "sha256": "10a46c634df0bfd706244a504851ed58a4b14930094b41a3baab21a14c701bff",
-      "md5": "58e9b513cd4ebd455e67c7fcf66ebc11",
-      "utf8LfBytes": 19918,
-      "statementCountApprox": 63,
+      "gitBlobId": "5bc60c2432c9d593d4f3177d4cfc2ebf302b4ece",
+      "sha256": "2499a96b1799cdaeb918fa342b992757ef31a65e2836f5258260f881f2ed2d09",
+      "md5": "a39158a1f0eee7987e02e491f45c2a3b",
+      "utf8LfBytes": 20389,
+      "statementCountApprox": 67,
       "transactionBoundary": "single outer BEGIN/COMMIT wrapping phase1 + ENABLE RLS",
       "dmlClassification": "none",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -268,20 +278,21 @@
         "assembled:20260703_1200_d6_0_vertical_rule_foundation.sql",
         "assembled:20260706150000_d6_4c_1_pre_close_review_queue.sql"
       ],
-      "gitBlobId": "f21d4761e1d773bf9077b0c75b8a7533e426df88",
-      "sha256": "e8b81bc2e6c1b5233767a1691018c0b9651384a5a30cbea72eb227f3b5c53a96",
-      "md5": "11add88cba520fc7715ecf1a1a07b9cb",
-      "utf8LfBytes": 199231,
-      "statementCountApprox": 745,
+      "gitBlobId": "b23f1940ac600b59c7214f9a34d99c6951932ab4",
+      "sha256": "52648cc7c5cee153398dc97e9ca1e51296c25621a96fde6619e104116b53b246",
+      "md5": "56f1e7cd25c14daee64c998e7c7ce1ef",
+      "utf8LfBytes": 206802,
+      "statementCountApprox": 818,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -331,6 +342,7 @@
       "kind": "baseline",
       "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010031_esc_application_schema_slice_2_of_5.sql",
       "sourceProvenance": [
+        "assembled:20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
         "assembled:20260707120000_d_assertions_part_1_schema_and_backfill.sql",
         "assembled:20260707130000_d_assertions_part_2_coverage_projection.sql",
         "assembled:20260707140000_d_assertions_part_3_coverage_statement.sql",
@@ -347,23 +359,23 @@
         "assembled:20260717030000_d65_p2_block3_quarantine_l3.sql",
         "assembled:20260717040000_d65_p2_block4_duplicate_detection.sql",
         "assembled:20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
-        "assembled:20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
-        "assembled:20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql"
+        "assembled:20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
       ],
-      "gitBlobId": "559f82039c134e8492ff495215465bbd99c577f1",
-      "sha256": "af9138cd22c9ee4db7d527dba5a80fea93a3446f35d643bdf11ffdb4d4987a95",
-      "md5": "6229847aaa9d7c40ea482427dec9c2c9",
-      "utf8LfBytes": 195422,
-      "statementCountApprox": 675,
+      "gitBlobId": "791850944fc3a153f38febe81a6ed6f4426a9c41",
+      "sha256": "c990a236d51de10ec5f6ccb9e653cfc4e1e4ef50e3012d8a20aa43822893ac78",
+      "md5": "056a8dde11a77a2382866191ad0a660a",
+      "utf8LfBytes": 188959,
+      "statementCountApprox": 671,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -373,6 +385,7 @@
         "END_TXN": 0
       },
       "sourceEntryRange": [
+        "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
         "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
         "20260707130000_d_assertions_part_2_coverage_projection.sql",
         "20260707140000_d_assertions_part_3_coverage_statement.sql",
@@ -389,8 +402,7 @@
         "20260717030000_d65_p2_block3_quarantine_l3.sql",
         "20260717040000_d65_p2_block4_duplicate_detection.sql",
         "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
-        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
-        "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql"
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
       ]
     },
     {
@@ -401,6 +413,7 @@
       "kind": "baseline",
       "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010032_esc_application_schema_slice_3_of_5.sql",
       "sourceProvenance": [
+        "assembled:20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
         "assembled:20260717090000_d65_p2_block7a_credits_prepayment.sql",
         "assembled:20260717100000_d65_p2_block7b_multimodal_inbox.sql",
         "assembled:20260717110000_d65_p2_block8a_interlock_rails.sql",
@@ -424,31 +437,23 @@
         "assembled:20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
         "assembled:20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
         "assembled:20260721160000_ar_tieout4b3_bs_recon_summary.sql",
-        "assembled:20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
-        "assembled:20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
-        "assembled:20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
-        "assembled:20260723050000_audit_ready_cron_runs.sql",
-        "assembled:20260724010000_kickout_investigations.sql",
-        "assembled:20260724020000_kickout_dedupe_rpcs.sql",
-        "assembled:20260724030000_ar_tieout412a_kind_reconcile.sql",
-        "assembled:20260724030100_ar_tieout412a_run_artifacts.sql",
-        "assembled:20260724220000_ar_tieout412b_raw_qbo_payload.sql",
-        "assembled:20260725050000_ar_tieout420a_resolution_code.sql"
+        "assembled:20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql"
       ],
-      "gitBlobId": "7b512436c780ec5287d6970ed9009398075634c5",
-      "sha256": "bfa9bb333c8e9089c7efe339bf9b33ab456264fb83a33eeb09335601bff170da",
-      "md5": "49dd03bf8af4adc2932bd25aebbf20ee",
-      "utf8LfBytes": 202023,
-      "statementCountApprox": 722,
+      "gitBlobId": "b0c5e58f6376c37fc65ff4e735996b9c44c0bcae",
+      "sha256": "f87e7d9aaeaf1345e9c9bc81f3c89412f3f3ce1d3a72ca0bd93555643a8fd1b2",
+      "md5": "abe2807d4ec6bd81347b3854c41dff00",
+      "utf8LfBytes": 209476,
+      "statementCountApprox": 786,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -458,6 +463,7 @@
         "END_TXN": 0
       },
       "sourceEntryRange": [
+        "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
         "20260717090000_d65_p2_block7a_credits_prepayment.sql",
         "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
         "20260717110000_d65_p2_block8a_interlock_rails.sql",
@@ -481,16 +487,7 @@
         "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
         "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
         "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
-        "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
-        "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
-        "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
-        "20260723050000_audit_ready_cron_runs.sql",
-        "20260724010000_kickout_investigations.sql",
-        "20260724020000_kickout_dedupe_rpcs.sql",
-        "20260724030000_ar_tieout412a_kind_reconcile.sql",
-        "20260724030100_ar_tieout412a_run_artifacts.sql",
-        "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
-        "20260725050000_ar_tieout420a_resolution_code.sql"
+        "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql"
       ]
     },
     {
@@ -501,6 +498,15 @@
       "kind": "baseline",
       "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010033_esc_application_schema_slice_4_of_5.sql",
       "sourceProvenance": [
+        "assembled:20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+        "assembled:20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+        "assembled:20260723050000_audit_ready_cron_runs.sql",
+        "assembled:20260724010000_kickout_investigations.sql",
+        "assembled:20260724020000_kickout_dedupe_rpcs.sql",
+        "assembled:20260724030000_ar_tieout412a_kind_reconcile.sql",
+        "assembled:20260724030100_ar_tieout412a_run_artifacts.sql",
+        "assembled:20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+        "assembled:20260725050000_ar_tieout420a_resolution_code.sql",
         "assembled:20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
         "assembled:20260725060000_ar_tieout42_memory_events.sql",
         "assembled:20260727000100_users_auth_trigger_single_writer.sql",
@@ -532,23 +538,23 @@
         "assembled:20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
         "assembled:20260819045253_continuous_close_runs.sql",
         "assembled:20260820233219_journal_entry_proposals.sql",
-        "assembled:20260821042800_journal_entry_approvals.sql",
-        "assembled:20260821183525_journal_entry_executions.sql"
+        "assembled:20260821042800_journal_entry_approvals.sql"
       ],
-      "gitBlobId": "81e64a0ca77c63549d4ffc1659e30946c2003789",
-      "sha256": "7ac4942124cea7551f2ab9e2972517c1bc1505c4b208e33ec46687767130eda6",
-      "md5": "48d9a8f22c885866fddad0b58a366b46",
-      "utf8LfBytes": 193331,
-      "statementCountApprox": 1045,
+      "gitBlobId": "8be7e40f18f04c9d9e38e32ceeb1027f964a2c3c",
+      "sha256": "7095f4ddce087cc7b64332c0976f5af8dd7ed296edf9b15fe7a8704571c482c9",
+      "md5": "e459a5809822aeb975a13e9e775d20ad",
+      "utf8LfBytes": 205732,
+      "statementCountApprox": 1096,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -558,6 +564,15 @@
         "END_TXN": 0
       },
       "sourceEntryRange": [
+        "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+        "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+        "20260723050000_audit_ready_cron_runs.sql",
+        "20260724010000_kickout_investigations.sql",
+        "20260724020000_kickout_dedupe_rpcs.sql",
+        "20260724030000_ar_tieout412a_kind_reconcile.sql",
+        "20260724030100_ar_tieout412a_run_artifacts.sql",
+        "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+        "20260725050000_ar_tieout420a_resolution_code.sql",
         "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
         "20260725060000_ar_tieout42_memory_events.sql",
         "20260727000100_users_auth_trigger_single_writer.sql",
@@ -589,8 +604,7 @@
         "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
         "20260819045253_continuous_close_runs.sql",
         "20260820233219_journal_entry_proposals.sql",
-        "20260821042800_journal_entry_approvals.sql",
-        "20260821183525_journal_entry_executions.sql"
+        "20260821042800_journal_entry_approvals.sql"
       ]
     },
     {
@@ -601,6 +615,7 @@
       "kind": "baseline",
       "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010034_esc_application_schema_slice_5_of_5.sql",
       "sourceProvenance": [
+        "assembled:20260821183525_journal_entry_executions.sql",
         "assembled:20260821212020_journal_entry_provider_attempts.sql",
         "assembled:20260821220646_journal_entry_provider_discovery_receipts.sql",
         "assembled:20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
@@ -611,20 +626,21 @@
         "assembled:20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
         "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
       ],
-      "gitBlobId": "5e52dc43f286375dd2641f24bbb56f071ca25465",
-      "sha256": "e9b73f50c68fef18f3f4a1d91f9c2f62e5d1f7e4b05c80329bd9c1504e7202b2",
-      "md5": "1f3aac407199031e28fe0ba1212d072e",
-      "utf8LfBytes": 119994,
-      "statementCountApprox": 929,
+      "gitBlobId": "01f1f35c97ee70068502afdd704c94fe167a83f8",
+      "sha256": "cc25b4960af1337ea25b584e4a7b99084082f3ecbb910c8d63ced8489c83d1f9",
+      "md5": "d8200348cf61959e7e48b95836eb85b3",
+      "utf8LfBytes": 150918,
+      "statementCountApprox": 1111,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -634,6 +650,7 @@
         "END_TXN": 0
       },
       "sourceEntryRange": [
+        "20260821183525_journal_entry_executions.sql",
         "20260821212020_journal_entry_provider_attempts.sql",
         "20260821220646_journal_entry_provider_discovery_receipts.sql",
         "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
@@ -654,7 +671,6 @@
       "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010035_esc_security_rls_grants_hardening_atomic.sql",
       "sourceProvenance": [
         "assembled:20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
-        "assembled:20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
         "assembled:20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
         "assembled:20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
         "assembled:20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
@@ -670,20 +686,21 @@
         "assembled:20260805041500_major_1_rpc_lockdown.sql",
         "esc:boundary-security-patch"
       ],
-      "gitBlobId": "3f424420fc6b5bf2d6d2a3dd2654c6032c5dddad",
-      "sha256": "5bc2563e5565cb452727f5f34eef6dc12a2f133d1d01e8495bb30d3c8ab4e08e",
-      "md5": "1d889498131dc2e256789c014029f939",
-      "utf8LfBytes": 78378,
-      "statementCountApprox": 315,
+      "gitBlobId": "bb18e9700e7603610cccf0045ac2a4b93480ebba",
+      "sha256": "9ccbb522642bbaa3af81ab456df344d329b3a2e16b89d56986ec4fb727ded490",
+      "md5": "be71703ebbb21e4b825f620c24143f28",
+      "utf8LfBytes": 71919,
+      "statementCountApprox": 307,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "none_expected_primary",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 1,
@@ -694,7 +711,6 @@
       },
       "sourceEntryRange": [
         "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
-        "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
         "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
         "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
         "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
@@ -731,9 +747,10 @@
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 0,
@@ -761,20 +778,21 @@
         "substitution:20260708120000_tcp1_w1_solo_bk_pilot_slots.sql#seed_omitted",
         "substitution:20260814221500_accounting_canonical_connected_grant.sql"
       ],
-      "gitBlobId": "6dcc488c070ad5ac57c7bfe43f1d027872d702ea",
-      "sha256": "25c01a3edf4dd6203f6e396b812278305f6e7ebd6c79115c75765d86742feb3b",
-      "md5": "d820e05f0da06658e5d665da45bad1a6",
-      "utf8LfBytes": 15876,
-      "statementCountApprox": 50,
+      "gitBlobId": "a98a4fd3dfebf8774ad7de9f6fd820fd39e0113d",
+      "sha256": "b79d85e818668cbe5a50b93b12e03475652684172014c7083ace5c69aea7284b",
+      "md5": "f3056903a0c71a98afa848e0e06f03f6",
+      "utf8LfBytes": 16791,
+      "statementCountApprox": 58,
       "transactionBoundary": "per-source BEGIN/COMMIT for d6/tcp1; grant has none",
       "dmlClassification": "guarded_optional_seed + registry_reference_update",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 5,
@@ -802,20 +820,21 @@
       "sourceProvenance": [
         "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
       ],
-      "gitBlobId": "ca90b19db66f4fbe0b76bf715e270517463559c1",
-      "sha256": "f46ffb82276aa485ab968312e2d0c6223a83f805e99a2c671d684f7e77714232",
-      "md5": "799aa12957cdb29e8d81a426d712a119",
-      "utf8LfBytes": 4832,
-      "statementCountApprox": 21,
+      "gitBlobId": "eb44bf98f82db931c0fa8bba5b88fb7e90e08876",
+      "sha256": "a1b3286afd48d4b07b3db26f5f428f355e3a0008439dd5ff274d1e8f48a9ba89",
+      "md5": "2496d21aed1b5b24a9a6fa5667bcb56a",
+      "utf8LfBytes": 5851,
+      "statementCountApprox": 25,
       "transactionBoundary": "mixed",
       "dmlClassification": "forward_source_dependent",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
         "Option 2 secure multi-version split: each app/security slice has exactly one outer BEGIN/COMMIT",
         "zero CREATE TABLE without same-module ENABLE RLS (builder refuse + per-slice closure)",
-        "sensitive RPC revoke-on-create before slice COMMIT when function is introduced",
+        "every CREATE FUNCTION: same-slice REVOKE EXECUTE FROM PUBLIC + disposition grants",
         "digest qualify exactly once in forward-tail",
-        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD"
+        "OD assembled begin markers in splits=138; ESC patch marker is extra non-OD",
+        "public.users: no GRANT ALL TO anon; authenticated narrowed to SELECT/UPDATE"
       ],
       "transactionControlCounts": {
         "BEGIN": 0,
@@ -830,8 +849,8 @@
     }
   ],
   "moduleFileCount": 12,
-  "totalUtf8LfBytes": 1139927,
-  "packageSha256OfConcatenatedEntryHashes": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+  "totalUtf8LfBytes": 1190718,
+  "packageSha256OfConcatenatedEntryHashes": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
   "sourceAccounting": {
     "optionDEntries": 151,
     "includedUnchangedBaseline": 144,
@@ -862,6 +881,26 @@
     "appSliceCount": 5
   },
   "privilegeDispositions": {
+    "defaultPolicy": "Every CREATE FUNCTION receives same-slice REVOKE EXECUTE FROM PUBLIC; anon/authenticated revoked unless allowlisted RLS helper; service_role regranted",
+    "anonRpcAllowlist": [],
+    "authenticatedRlsHelperAllowlist": [
+      "public.is_active_company_member(uuid)",
+      "public.has_active_company_role(uuid,text[])",
+      "public.is_company_admin(uuid)",
+      "public.is_active_firm_member(uuid)",
+      "public.has_active_firm_role(uuid,text[])"
+    ],
+    "public_users_table": {
+      "anonAll": "REVOKED",
+      "publicAll": "REVOKED",
+      "authenticated": "SELECT, UPDATE only (own-row RLS policies)",
+      "serviceRolePrivileges": "ALL retained",
+      "rationale": "No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon."
+    },
+    "engagement_posting_policy": {
+      "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "note": "FORCE_APP so CREATE precedes prepilot ENABLE/POLICY; same-slice RLS via buildRlsClosure"
+    },
     "publish_ledger_event": {
       "anonExecute": "REVOKED",
       "authenticatedExecute": "REVOKED",
@@ -875,7 +914,7 @@
       "publicExecute": "REVOKED",
       "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
       "anonymousRequired": false,
-      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only. Q8c + ESC patch revoke anon."
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only."
     }
   }
 }

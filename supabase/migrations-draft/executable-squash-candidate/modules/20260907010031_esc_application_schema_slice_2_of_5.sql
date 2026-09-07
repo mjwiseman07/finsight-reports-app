@@ -10,7 +10,193 @@
 BEGIN;
 -- OPTION 2 secure multi-version split: slice 2/5
 -- Source BEGIN/COMMIT stripped; exactly one outer transaction.
--- Files: 18; RLS closure tables: 0
+-- Files: 18; RLS closure tables: 0; fn dispositions: 9
+
+-- >>> begin 20260706170000_d6_4c_3_posting_policy_and_remediation.sql
+-- =============================================================================
+-- D6.4c-3 — Approve-and-Post: Posting Policy + Remediation Support
+-- =============================================================================
+-- ADDITIVE ONLY except:
+--   (a) replaces pre_close_review_items_immutable() to permit set-once
+--       transition of post_block_reason.
+--   (b) extends ai_action_log_action_category_check and
+--       ledger_events_event_category_check for D6.4c-3 categories.
+-- =============================================================================
+-- [ESC] stripped source txn marker: begin;
+
+
+-- ------------------------------------------------------------
+-- 1. New table: engagement_posting_policy
+-- ------------------------------------------------------------
+create table if not exists public.engagement_posting_policy (
+  engagement_id                     uuid primary key
+                                    references public.engagements(id) on delete cascade,
+  policy_code                       text        not null default 'advisacor_balanced',
+  advisacor_preset                  text        null,
+  auto_post_on_approved             boolean     not null default true,
+  auto_post_on_edit_and_approved    boolean     not null default false,
+  updated_by                        uuid        null,
+  updated_at                        timestamptz not null default now(),
+  created_at                        timestamptz not null default now(),
+  constraint engagement_posting_policy_preset_chk check (
+    advisacor_preset is null or advisacor_preset in (
+      'advisacor_conservative',
+      'advisacor_balanced',
+      'advisacor_aggressive'
+    )
+  )
+);
+
+comment on table public.engagement_posting_policy is
+  'D6.4c-3: per-engagement posting policy. Hybrid: pin to an Advisacor preset OR set flags manually.';
+
+comment on column public.engagement_posting_policy.policy_code is
+  'Free-text label for humans. When a preset is pinned, this equals the preset code.';
+
+comment on column public.engagement_posting_policy.advisacor_preset is
+  'When non-null, flags below must match the preset definition (enforced by trigger).';
+
+-- ------------------------------------------------------------
+-- 2. Preset consistency trigger
+-- ------------------------------------------------------------
+create or replace function public.engagement_posting_policy_preset_consistency()
+returns trigger language plpgsql as $$
+begin
+  if new.advisacor_preset is null then
+    return new;
+  end if;
+  if new.advisacor_preset = 'advisacor_conservative' then
+    if new.auto_post_on_approved is distinct from false
+       or new.auto_post_on_edit_and_approved is distinct from false then
+      raise exception 'advisacor_conservative requires both auto_post flags = false (engagement=%)', new.engagement_id;
+    end if;
+  elsif new.advisacor_preset = 'advisacor_balanced' then
+    if new.auto_post_on_approved is distinct from true
+       or new.auto_post_on_edit_and_approved is distinct from false then
+      raise exception 'advisacor_balanced requires auto_post_on_approved=true, auto_post_on_edit_and_approved=false (engagement=%)', new.engagement_id;
+    end if;
+  elsif new.advisacor_preset = 'advisacor_aggressive' then
+    if new.auto_post_on_approved is distinct from true
+       or new.auto_post_on_edit_and_approved is distinct from true then
+      raise exception 'advisacor_aggressive requires both auto_post flags = true (engagement=%)', new.engagement_id;
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists engagement_posting_policy_preset_consistency_trg
+  on public.engagement_posting_policy;
+create trigger engagement_posting_policy_preset_consistency_trg
+  before insert or update on public.engagement_posting_policy
+  for each row execute function public.engagement_posting_policy_preset_consistency();
+
+-- ------------------------------------------------------------
+-- 3. Backfill: seed advisacor_balanced for every existing engagement
+-- ------------------------------------------------------------
+insert into public.engagement_posting_policy (
+  engagement_id, policy_code, advisacor_preset,
+  auto_post_on_approved, auto_post_on_edit_and_approved
+)
+select
+  e.id,
+  'advisacor_balanced',
+  'advisacor_balanced',
+  true,
+  false
+from public.engagements e
+where not exists (
+  select 1 from public.engagement_posting_policy p where p.engagement_id = e.id
+);
+
+-- ------------------------------------------------------------
+-- 4. New column on pre_close_review_items: post_block_reason
+-- ------------------------------------------------------------
+alter table public.pre_close_review_items
+  add column if not exists post_block_reason text null;
+
+comment on column public.pre_close_review_items.post_block_reason is
+  'D6.4c-3: machine-readable reason the remediation pipeline blocked posting. Set-once (null -> value).';
+
+-- ------------------------------------------------------------
+-- 5. Extend immutability trigger to allow set-once for post_block_reason
+-- ------------------------------------------------------------
+create or replace function public.pre_close_review_items_immutable()
+returns trigger language plpgsql as $$
+begin
+  if (
+    new.id                          is distinct from old.id                          or
+    new.fire_id                     is distinct from old.fire_id                     or
+    new.firm_client_id              is distinct from old.firm_client_id              or
+    new.engagement_id               is distinct from old.engagement_id               or
+    new.close_period_id             is distinct from old.close_period_id             or
+    new.rule_id                     is distinct from old.rule_id                     or
+    new.rule_version                is distinct from old.rule_version                or
+    new.accounting_method           is distinct from old.accounting_method           or
+    new.je_draft                    is distinct from old.je_draft                    or
+    new.je_draft_total_debit_cents  is distinct from old.je_draft_total_debit_cents  or
+    new.je_draft_total_credit_cents is distinct from old.je_draft_total_credit_cents or
+    new.je_draft_line_count         is distinct from old.je_draft_line_count         or
+    new.assertion_tags              is distinct from old.assertion_tags              or
+    new.rule_reason_code            is distinct from old.rule_reason_code            or
+    new.rule_reason_detail          is distinct from old.rule_reason_detail          or
+    new.severity                    is distinct from old.severity                    or
+    new.evidence_refs               is distinct from old.evidence_refs               or
+    new.basis_guard_reason_code     is distinct from old.basis_guard_reason_code     or
+    new.basis_guard_reason_text     is distinct from old.basis_guard_reason_text     or
+    new.created_at                  is distinct from old.created_at
+  ) then
+    raise exception 'pre_close_review_items row is immutable except decision-tail columns (id=%)', old.id;
+  end if;
+  if old.posted_je_attempt_id is not null and new.posted_je_attempt_id is distinct from old.posted_je_attempt_id then
+    raise exception 'pre_close_review_items.posted_je_attempt_id is set-once (id=%)', old.id;
+  end if;
+  if old.post_block_reason is not null and new.post_block_reason is distinct from old.post_block_reason then
+    raise exception 'pre_close_review_items.post_block_reason is set-once (id=%)', old.id;
+  end if;
+  if old.decision is not null and new.decision is distinct from old.decision then
+    raise exception 'pre_close_review_items.decision is set-once (id=%)', old.id;
+  end if;
+  return new;
+end $$;
+
+-- ------------------------------------------------------------
+-- 6. Extend ai_action_log_action_category_check (reconciled union)
+-- ------------------------------------------------------------
+alter table public.ai_action_log
+  drop constraint if exists ai_action_log_action_category_check;
+alter table public.ai_action_log
+  add constraint ai_action_log_action_category_check check (
+    action_category in (
+      'intake_ocr','intake_classify','cash_app_reasoning','ar_dunning_draft',
+      'assertion_reasoning','je_proposal','anomaly_reasoning','recon_reasoning',
+      'agent_close_walkthrough','entitlement_check','other',
+      'directive_apply','review_item_compose',
+      'posting_attempt','posting_blocked','posting_remediation'
+    )
+  );
+
+comment on constraint ai_action_log_action_category_check on public.ai_action_log is
+  'D6.4c-3: widened to include posting_attempt, posting_blocked, posting_remediation (preserves D-Platform + D-Entitlements + D6.4c-1 categories).';
+
+-- ------------------------------------------------------------
+-- 7. Extend ledger_events_event_category_check for posting category
+-- ------------------------------------------------------------
+alter table public.ledger_events
+  drop constraint if exists ledger_events_event_category_check;
+alter table public.ledger_events
+  add constraint ledger_events_event_category_check check (
+    event_category in (
+      'intake','ledger','cash_app','ar','ap','recon','close','assertion',
+      'rule','directive','ai_action','system','entitlement','posting'
+    )
+  );
+
+comment on constraint ledger_events_event_category_check on public.ledger_events is
+  'D6.4c-3: widened to include posting (approve-and-post outcomes).';
+
+-- [ESC] stripped source txn marker: commit;
+
+-- <<< end 20260706170000_d6_4c_3_posting_policy_and_remediation.sql
 
 -- >>> begin 20260707120000_d_assertions_part_1_schema_and_backfill.sql
 -- =============================================================================
@@ -3191,382 +3377,54 @@ ON CONFLICT (event_type) DO NOTHING;
 
 -- <<< end 20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql
 
--- >>> begin 20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql
--- =============================================================================
--- Phase D6.5 Part 2 · Block 6b
--- L0 Approval Matrix + Delegation + Comment Threads + L7 Budget Checks
--- =============================================================================
--- Additive-only. Idempotent. RLS on every new table.
--- Depends on Block 6a (requisitions, requisition_line_items, pilot_feature_allowlist,
--- engagement_addons addon_code CHECK, ap event catalog).
--- =============================================================================
--- [ESC] stripped source txn marker: BEGIN;
-
-
--- -----------------------------------------------------------------------------
--- 1. Widen engagement_addons.addon_code CHECK — add ap_budget_controls
--- -----------------------------------------------------------------------------
-ALTER TABLE public.engagement_addons DROP CONSTRAINT IF EXISTS engagement_addons_addon_code_check;
-ALTER TABLE public.engagement_addons
-  ADD CONSTRAINT engagement_addons_addon_code_check
-  CHECK (addon_code IN (
-    'ap_intake','ap_pay','ar_invoicing','ar_cash_app','ar_collections',
-    'voice_collections','quarantine_review','ap_requisitions',
-    'ap_baseline_harvest','ap_three_way_match','ap_budget_controls'
-  ));
-
--- -----------------------------------------------------------------------------
--- 1b. Widen pilot_feature_allowlist.feature_code CHECK
--- -----------------------------------------------------------------------------
-ALTER TABLE public.pilot_feature_allowlist DROP CONSTRAINT IF EXISTS pilot_feature_allowlist_feature_code_check;
-ALTER TABLE public.pilot_feature_allowlist
-  ADD CONSTRAINT pilot_feature_allowlist_feature_code_check
-  CHECK (feature_code IN (
-    'ap_requisitions',
-    'ap_baseline_harvest',
-    'ap_three_way_match',
-    'ap_approval_matrix',
-    'ap_budget_controls'
-  ));
-
--- -----------------------------------------------------------------------------
--- 2. requisition_approval_chains — ordered approver list per requisition
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.requisition_approval_chains (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
-  strategy               TEXT NOT NULL DEFAULT 'sequential'
-    CHECK (strategy IN ('sequential','parallel','any_of')),
-  status                 TEXT NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active','completed','cancelled','rejected')),
-  total_steps            INTEGER NOT NULL DEFAULT 0,
-  completed_steps        INTEGER NOT NULL DEFAULT 0,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at           TIMESTAMPTZ,
-  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
-  UNIQUE (requisition_id)
-);
-CREATE INDEX IF NOT EXISTS idx_rac_firm ON public.requisition_approval_chains(firm_id);
-CREATE INDEX IF NOT EXISTS idx_rac_status ON public.requisition_approval_chains(status);
-ALTER TABLE public.requisition_approval_chains ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS rac_service_all ON public.requisition_approval_chains;
-CREATE POLICY rac_service_all ON public.requisition_approval_chains
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS rac_firm_select ON public.requisition_approval_chains;
-CREATE POLICY rac_firm_select ON public.requisition_approval_chains
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = requisition_approval_chains.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 3. requisition_approval_steps — one row per approver in the chain
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.requisition_approval_steps (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  chain_id               UUID NOT NULL REFERENCES public.requisition_approval_chains(id) ON DELETE CASCADE,
-  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
-  firm_id                UUID NOT NULL,
-  order_index            INTEGER NOT NULL,
-  required_role          TEXT,
-  approver_user_id       UUID NOT NULL,
-  threshold_amount_cents BIGINT,
-  status                 TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending','approved','rejected','delegated','skipped')),
-  acted_at               TIMESTAMPTZ,
-  acted_by_user_id       UUID,
-  delegated_to_user_id   UUID,
-  comment                TEXT,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  -- multiple rows allowed per slot (delegation creates a sibling)
-);
-CREATE INDEX IF NOT EXISTS idx_ras_requisition ON public.requisition_approval_steps(requisition_id);
-CREATE INDEX IF NOT EXISTS idx_ras_approver ON public.requisition_approval_steps(approver_user_id, status);
-CREATE INDEX IF NOT EXISTS idx_ras_firm ON public.requisition_approval_steps(firm_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_ras_pending_slot
-  ON public.requisition_approval_steps(chain_id, order_index)
-  WHERE status = 'pending';
-ALTER TABLE public.requisition_approval_steps ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS ras_service_all ON public.requisition_approval_steps;
-CREATE POLICY ras_service_all ON public.requisition_approval_steps
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS ras_firm_select ON public.requisition_approval_steps;
-CREATE POLICY ras_firm_select ON public.requisition_approval_steps
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = requisition_approval_steps.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 4. approval_delegations — user → user delegation windows (per firm)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.approval_delegations (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id                UUID NOT NULL,
-  delegator_user_id      UUID NOT NULL,
-  delegate_user_id       UUID NOT NULL,
-  scope                  TEXT NOT NULL DEFAULT 'ap_requisitions'
-    CHECK (scope IN ('ap_requisitions','ap_amendments','ap_all')),
-  effective_from         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  effective_to           TIMESTAMPTZ NOT NULL,
-  reason                 TEXT,
-  revoked_at             TIMESTAMPTZ,
-  created_by             UUID NOT NULL,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (delegator_user_id <> delegate_user_id),
-  CHECK (effective_to > effective_from)
-);
-CREATE INDEX IF NOT EXISTS idx_deleg_firm_delegator ON public.approval_delegations(firm_id, delegator_user_id);
-CREATE INDEX IF NOT EXISTS idx_deleg_firm_delegate ON public.approval_delegations(firm_id, delegate_user_id);
-CREATE INDEX IF NOT EXISTS idx_deleg_active
-  ON public.approval_delegations(firm_id, delegator_user_id, effective_to)
-  WHERE revoked_at IS NULL;
-ALTER TABLE public.approval_delegations ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS deleg_service_all ON public.approval_delegations;
-CREATE POLICY deleg_service_all ON public.approval_delegations
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS deleg_firm_select ON public.approval_delegations;
-CREATE POLICY deleg_firm_select ON public.approval_delegations
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = approval_delegations.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 5. requisition_comments — threaded discussion on a requisition
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.requisition_comments (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  parent_comment_id      UUID REFERENCES public.requisition_comments(id) ON DELETE CASCADE,
-  author_user_id         UUID NOT NULL,
-  body                   TEXT NOT NULL CHECK (length(body) > 0 AND length(body) <= 10000),
-  edited_at              TIMESTAMPTZ,
-  deleted_at             TIMESTAMPTZ,
-  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_rc_requisition ON public.requisition_comments(requisition_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_rc_firm ON public.requisition_comments(firm_id);
-CREATE INDEX IF NOT EXISTS idx_rc_parent ON public.requisition_comments(parent_comment_id);
-ALTER TABLE public.requisition_comments ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS rc_service_all ON public.requisition_comments;
-CREATE POLICY rc_service_all ON public.requisition_comments
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS rc_firm_select ON public.requisition_comments;
-CREATE POLICY rc_firm_select ON public.requisition_comments
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = requisition_comments.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 6. requisition_amendments — post-approval change requests
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.requisition_amendments (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  requisition_id         UUID NOT NULL REFERENCES public.requisitions(id) ON DELETE CASCADE,
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  amender_user_id        UUID NOT NULL,
-  reason                 TEXT NOT NULL CHECK (length(reason) > 0),
-  changes_json           JSONB NOT NULL,
-  prior_total_cents      BIGINT NOT NULL,
-  new_total_cents        BIGINT NOT NULL,
-  requires_controller    BOOLEAN NOT NULL DEFAULT FALSE,
-  status                 TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending','approved','rejected','cancelled')),
-  approved_by            UUID,
-  approved_at            TIMESTAMPTZ,
-  rejected_by            UUID,
-  rejected_at            TIMESTAMPTZ,
-  rejection_reason       TEXT,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_ra_requisition ON public.requisition_amendments(requisition_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_ra_firm_status ON public.requisition_amendments(firm_id, status);
-ALTER TABLE public.requisition_amendments ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS ra_service_all ON public.requisition_amendments;
-CREATE POLICY ra_service_all ON public.requisition_amendments
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS ra_firm_select ON public.requisition_amendments;
-CREATE POLICY ra_firm_select ON public.requisition_amendments
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = requisition_amendments.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 7. gl_account_budgets — monthly budget by GL account
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.gl_account_budgets (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  company_id             UUID NOT NULL,
-  gl_account_code        TEXT NOT NULL,
-  gl_account_name        TEXT,
-  period_year            INTEGER NOT NULL CHECK (period_year BETWEEN 2020 AND 2100),
-  period_month           INTEGER NOT NULL CHECK (period_month BETWEEN 1 AND 12),
-  budget_amount_cents    BIGINT NOT NULL CHECK (budget_amount_cents >= 0),
-  currency               TEXT NOT NULL DEFAULT 'USD',
-  tolerance_pct          NUMERIC(6,3) NOT NULL DEFAULT 0.000
-    CHECK (tolerance_pct >= 0 AND tolerance_pct <= 100),
-  source                 TEXT NOT NULL DEFAULT 'manual'
-    CHECK (source IN ('manual','qbo','csv_upload','api')),
-  created_by             UUID NOT NULL,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (company_id, gl_account_code, period_year, period_month)
-);
-CREATE INDEX IF NOT EXISTS idx_glab_firm ON public.gl_account_budgets(firm_id);
-CREATE INDEX IF NOT EXISTS idx_glab_company_period ON public.gl_account_budgets(company_id, period_year, period_month);
-ALTER TABLE public.gl_account_budgets ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS glab_service_all ON public.gl_account_budgets;
-CREATE POLICY glab_service_all ON public.gl_account_budgets
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS glab_firm_select ON public.gl_account_budgets;
-CREATE POLICY glab_firm_select ON public.gl_account_budgets
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = gl_account_budgets.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 8. vendor_spend_history — rolling actuals per vendor per period
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.vendor_spend_history (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  company_id             UUID NOT NULL,
-  vendor_id              UUID,
-  vendor_external_id     TEXT,
-  gl_account_code        TEXT,
-  period_year            INTEGER NOT NULL CHECK (period_year BETWEEN 2020 AND 2100),
-  period_month           INTEGER NOT NULL CHECK (period_month BETWEEN 1 AND 12),
-  spend_amount_cents     BIGINT NOT NULL DEFAULT 0 CHECK (spend_amount_cents >= 0),
-  invoice_count          INTEGER NOT NULL DEFAULT 0 CHECK (invoice_count >= 0),
-  currency               TEXT NOT NULL DEFAULT 'USD',
-  last_updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (company_id, vendor_id, gl_account_code, period_year, period_month)
-);
-CREATE INDEX IF NOT EXISTS idx_vsh_firm ON public.vendor_spend_history(firm_id);
-CREATE INDEX IF NOT EXISTS idx_vsh_vendor_period ON public.vendor_spend_history(company_id, vendor_id, period_year, period_month);
-ALTER TABLE public.vendor_spend_history ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS vsh_service_all ON public.vendor_spend_history;
-CREATE POLICY vsh_service_all ON public.vendor_spend_history
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS vsh_firm_select ON public.vendor_spend_history;
-CREATE POLICY vsh_firm_select ON public.vendor_spend_history
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = vendor_spend_history.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 9. budget_check_results — audit trail of every budget evaluation
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.budget_check_results (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id                UUID NOT NULL,
-  firm_client_id         UUID NOT NULL REFERENCES public.firm_clients(id) ON DELETE CASCADE,
-  company_id             UUID NOT NULL,
-  aggregate_type         TEXT NOT NULL CHECK (aggregate_type IN ('requisition','bill','purchase_order')),
-  aggregate_id           UUID NOT NULL,
-  gl_account_code        TEXT NOT NULL,
-  period_year            INTEGER NOT NULL,
-  period_month           INTEGER NOT NULL,
-  budget_amount_cents    BIGINT NOT NULL,
-  committed_cents        BIGINT NOT NULL,
-  incoming_cents         BIGINT NOT NULL,
-  tolerance_pct          NUMERIC(6,3) NOT NULL,
-  result                 TEXT NOT NULL CHECK (result IN ('within_budget','within_tolerance','exceeds_budget','no_budget_set')),
-  evaluated_by_user_id   UUID,
-  metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_bcr_aggregate ON public.budget_check_results(aggregate_type, aggregate_id);
-CREATE INDEX IF NOT EXISTS idx_bcr_firm_created ON public.budget_check_results(firm_id, created_at DESC);
-ALTER TABLE public.budget_check_results ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS bcr_service_all ON public.budget_check_results;
-CREATE POLICY bcr_service_all ON public.budget_check_results
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS bcr_firm_select ON public.budget_check_results;
-CREATE POLICY bcr_firm_select ON public.budget_check_results
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.firm_memberships fm
-      WHERE fm.firm_id = budget_check_results.firm_id
-        AND fm.user_id = auth.uid()
-        AND fm.status = 'active'
-    )
-  );
-
--- -----------------------------------------------------------------------------
--- 10. Extend ap_intake_ledger_event_types catalog (16 Block 6b events)
--- -----------------------------------------------------------------------------
-INSERT INTO public.ap_intake_ledger_event_types (event_type, actor_type, is_merkle_chained) VALUES
-  ('requisition.approval_chain_created',    'user',   TRUE),
-  ('requisition.approval_step_assigned',   'user',   TRUE),
-  ('requisition.approval_step_approved',    'user',   TRUE),
-  ('requisition.approval_step_rejected',    'user',   TRUE),
-  ('requisition.approval_step_delegated',   'user',   TRUE),
-  ('requisition.approval_chain_completed',  'user',   TRUE),
-  ('approval.delegation_created',           'user',   TRUE),
-  ('approval.delegation_revoked',           'user',   TRUE),
-  ('requisition.commented',                 'user',   TRUE),
-  ('requisition.comment_edited',            'user',   TRUE),
-  ('requisition.comment_deleted',           'user',   TRUE),
-  ('requisition.amendment_requested',       'user',   TRUE),
-  ('requisition.amendment_approved',          'user',   TRUE),
-  ('requisition.amendment_rejected',          'user',   TRUE),
-  ('budget.evaluated',                      'user',   TRUE),
-  ('budget.exceeded',                       'user',   TRUE),
-  ('budget.tolerance_hit',                  'user',   TRUE),
-  ('vendor_spend.updated',                  'user',   TRUE)
-ON CONFLICT (event_type) DO NOTHING;
-
--- [ESC] stripped source txn marker: COMMIT;
-
--- <<< end 20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql
-
 -- [ESC] RLS closure: no CREATE TABLE without ENABLE RLS in this slice.
 
--- [ESC] Sensitive RPC privilege closure before COMMIT (service-role callers only).
-REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) FROM authenticated;
+-- [ESC] Function privilege closure before COMMIT
+-- Default PUBLIC EXECUTE removed for every application function created/replaced in this slice.
+-- Regrant only per disposition (service_role always; authenticated only for allowlisted RLS helpers).
+-- disposition public.engagement_posting_policy_preset_consistency() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() TO service_role;
+-- disposition public.pre_close_review_items_immutable() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.pre_close_review_items_immutable() TO service_role;
+-- disposition public.validate_assertions_array(text[]) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_assertions_array(text[]) TO service_role;
+-- disposition public.close_gap_review_items_touch_updated_at() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() TO service_role;
+-- disposition public.mfa_audit_log_prevent_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() TO service_role;
+-- disposition public.user_webauthn_credentials_prevent_column_mutation() => trigger_only
+REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() TO service_role;
+-- disposition public._d651_slugify_name(text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public._d651_slugify_name(text) TO service_role;
+-- disposition public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) TO service_role;
+-- disposition public.next_document_number(uuid,text) => migration_admin_or_internal
+REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.next_document_number(uuid,text) TO service_role;
 COMMIT;
