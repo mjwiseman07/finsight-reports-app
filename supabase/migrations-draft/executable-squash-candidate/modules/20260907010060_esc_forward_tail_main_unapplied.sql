@@ -1,9 +1,9 @@
 -- =============================================================================
 -- EXECUTABLE SQUASH CANDIDATE — DRAFT / NON-DEPLOYABLE
--- Proposed version: 20260907010070
+-- Proposed version: 20260907010060
 -- Proposed name: esc_forward_tail_main_unapplied
 -- Module: post_baseline_forward_migrations
--- Provenance: Merged main migrations not represented in production names / Option D assembled set
+-- Provenance: Merged main migrations not in production baseline; sole home of publish_ledger_event extensions.digest qualify
 -- NOT in active supabase/migrations/. Production mutation NOT authorized.
 -- UTF-8 LF. statements[] must remain non-empty when eventually recorded.
 -- =============================================================================

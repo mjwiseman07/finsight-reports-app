@@ -1,6 +1,6 @@
 -- =============================================================================
 -- EXECUTABLE SQUASH CANDIDATE — DRAFT / NON-DEPLOYABLE
--- Proposed version: 20260907010060
+-- Proposed version: 20260907010050
 -- Proposed name: esc_guarded_dataless_safe_initialization
 -- Module: guarded_data_less_safe_initialization
 -- Provenance: d6: Option D guarded substitutions; tcp1: Option D schema/RLS/functions with complimentary seed omitted; grant: schema-only unique index

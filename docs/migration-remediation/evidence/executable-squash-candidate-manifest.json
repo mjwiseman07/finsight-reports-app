@@ -1,9 +1,17 @@
 {
   "packageId": "executable-squash-candidate",
-  "generatedAt": "2026-09-07T01:54:14.189Z",
-  "authorization": "authoring and static validation only - no production mutation, no Docker, no branch",
+  "generatedAt": "2026-09-07T02:41:10.819Z",
+  "authorization": "candidate remediation only - no production mutation, no Docker, no branch, no SQL execution",
+  "targetModel": {
+    "baselineModules": "1-6 Option D production-schema baseline + ESC overlays (digest qualify excluded)",
+    "forwardTailModule": "7 post-baseline merged-but-unapplied main (sole digest qualify home)",
+    "module4AtomicSecurity": "former application schema + security merged into one proposed version",
+    "reviewedAncestorSeal": "ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28",
+    "reviewedAncestorCommit": "524ada4933c7d326e79cf69cb69bb88aed7a5c08",
+    "remediationAuthorizedFromPrHead": "689ab36b5e82df08dd664f43067788b6902eb86e"
+  },
   "bound": {
-    "pr314HeadAtStart": "157c561b85793248cce0d8256f16cb43c298c1b6",
+    "pr314HeadAtStart": "689ab36b5e82df08dd664f43067788b6902eb86e",
     "mainHead": "9d8a01d37422179ddd68bbd181a8815d8a893577",
     "projectRefReadOnly": "jzmdgwwiestcmmeuhhkr",
     "optionDManifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
@@ -11,7 +19,8 @@
     "optionDRuntime": "PASS 151/151",
     "cli": "2.116.0",
     "primaryDecision": "executable_squash_baseline",
-    "productionMutationReadiness": false
+    "productionMutationReadiness": false,
+    "sourceReviewVerdictPrior": "CHANGES REQUIRED"
   },
   "proposedLineageOrder": [
     {
@@ -38,36 +47,29 @@
     {
       "order": 4,
       "version": "20260907010030",
-      "name": "esc_application_schema_lineage_body",
-      "filename": "20260907010030_esc_application_schema_lineage_body.sql",
+      "name": "esc_application_schema_and_security_atomic",
+      "filename": "20260907010030_esc_application_schema_and_security_atomic.sql",
       "kind": "baseline"
     },
     {
       "order": 5,
       "version": "20260907010040",
-      "name": "esc_security_rls_grants_hardening",
-      "filename": "20260907010040_esc_security_rls_grants_hardening.sql",
+      "name": "esc_reference_seed_allowlist_contract",
+      "filename": "20260907010040_esc_reference_seed_allowlist_contract.sql",
       "kind": "baseline"
     },
     {
       "order": 6,
       "version": "20260907010050",
-      "name": "esc_reference_seed_allowlist_contract",
-      "filename": "20260907010050_esc_reference_seed_allowlist_contract.sql",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "filename": "20260907010050_esc_guarded_dataless_safe_initialization.sql",
       "kind": "baseline"
     },
     {
       "order": 7,
       "version": "20260907010060",
-      "name": "esc_guarded_dataless_safe_initialization",
-      "filename": "20260907010060_esc_guarded_dataless_safe_initialization.sql",
-      "kind": "baseline"
-    },
-    {
-      "order": 8,
-      "version": "20260907010070",
       "name": "esc_forward_tail_main_unapplied",
-      "filename": "20260907010070_esc_forward_tail_main_unapplied.sql",
+      "filename": "20260907010060_esc_forward_tail_main_unapplied.sql",
       "kind": "forward-tail"
     }
   ],
@@ -92,8 +94,10 @@
       "dmlClassification": "none",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
@@ -116,8 +120,10 @@
       "dmlClassification": "required_immutable_reference_seed (company_roles inside foundations)",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
@@ -142,17 +148,19 @@
       "dmlClassification": "none",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
       "order": 4,
       "version": "20260907010030",
-      "name": "esc_application_schema_lineage_body",
-      "module": "public_application_schema_baseline_body",
+      "name": "esc_application_schema_and_security_atomic",
+      "module": "public_application_schema_and_security_atomic",
       "kind": "baseline",
-      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_lineage_body.sql",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_and_security_atomic.sql",
       "sourceProvenance": [
         "assembled:20260701_refund_requests.sql",
         "assembled:20260702041259_add_received_at_to_stripe_webhook_events.sql",
@@ -276,30 +284,7 @@
         "assembled:20260822050000_journal_entry_verified_readback.sql",
         "assembled:20260822200000_je3d_sandbox_activation_identity.sql",
         "assembled:20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
-        "assembled:20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
-        "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
-      ],
-      "gitBlobId": "19568a79f7b4c00a32d944479515cac3b254b2b3",
-      "sha256": "0914af7983b980e0e7cc6b5915e8d164525d54076d9bf95e14ba4abba15a887b",
-      "md5": "86b8ee9ec6586117836b19b65df97ceb",
-      "utf8LfBytes": 906182,
-      "statementCountApprox": 4203,
-      "transactionBoundary": "mixed (source nested markers preserved for review)",
-      "dmlClassification": "mixed_see_dml_allowlist",
-      "createdConsumedObjects": "see Option D dependency manifests + module source list",
-      "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
-      ]
-    },
-    {
-      "order": 5,
-      "version": "20260907010040",
-      "name": "esc_security_rls_grants_hardening",
-      "module": "security_rls_grants_triggers_functions",
-      "kind": "baseline",
-      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_security_rls_grants_hardening.sql",
-      "sourceProvenance": [
+        "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
         "assembled:20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
         "assembled:20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
         "assembled:20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
@@ -314,51 +299,56 @@
         "assembled:20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
         "assembled:20260720160000_ar_tieout1_policy_and_kind.sql",
         "assembled:20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
-        "assembled:20260805041500_major_1_rpc_lockdown.sql"
+        "assembled:20260805041500_major_1_rpc_lockdown.sql",
+        "esc:boundary-security-patch"
       ],
-      "gitBlobId": "2a1eda6cf4b0f407161b86192c23c7f54f92c194",
-      "sha256": "cfbb696265728d07bcdcd456f9ca305675abc11026d7e369c8e8cf0c2b2c09e0",
-      "md5": "f4c4905a07f41b53b088a09d348764c8",
-      "utf8LfBytes": 74387,
-      "statementCountApprox": 304,
-      "transactionBoundary": "mixed",
-      "dmlClassification": "none_expected_primary",
+      "gitBlobId": "98936d35a2c95748aed1582e3bee50ede4ec5f94",
+      "sha256": "6e0e8c53f27531809607b1ab93dc96dd8a07f69d46974f995ea0cb3e3c0b9099",
+      "md5": "f519e5adec6aca7515069ebc72e14f2e",
+      "utf8LfBytes": 979214,
+      "statementCountApprox": 4511,
+      "transactionBoundary": "single proposed version; nested source BEGIN/COMMIT markers preserved",
+      "dmlClassification": "mixed_see_dml_allowlist",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
-      "order": 6,
-      "version": "20260907010050",
+      "order": 5,
+      "version": "20260907010040",
       "name": "esc_reference_seed_allowlist_contract",
       "module": "allowlisted_immutable_reference_seeds",
       "kind": "baseline",
-      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_reference_seed_allowlist_contract.sql",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_reference_seed_allowlist_contract.sql",
       "sourceProvenance": [
         "design:reference-allowlist"
       ],
-      "gitBlobId": "50ec5cdacda573f980291f2029ec306e6b2ac818",
-      "sha256": "a47d687c1b6bc839b1f1e83e32939128eb06ec1c8d46517ebdfd4b2e2174bd1d",
-      "md5": "88a94bfeca84de0cb0fe783730619a00",
+      "gitBlobId": "06709f26f35893881eec8f6ec5dfea0a5767e7ef",
+      "sha256": "a2ae185ca8e1c0ac6cb5dc8fef979f7c7427ad36603bbc32ce6330b020284d88",
+      "md5": "28658991e6679fbe2371a30f23b75457",
       "utf8LfBytes": 1021,
       "statementCountApprox": 3,
       "transactionBoundary": "DO block only",
       "dmlClassification": "none_in_module",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
-      "order": 7,
-      "version": "20260907010060",
+      "order": 6,
+      "version": "20260907010050",
       "name": "esc_guarded_dataless_safe_initialization",
       "module": "guarded_data_less_safe_initialization",
       "kind": "baseline",
-      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_guarded_dataless_safe_initialization.sql",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_guarded_dataless_safe_initialization.sql",
       "sourceProvenance": [
         "substitution:20260703_2000_d6_2a_test_client_activation.sql",
         "substitution:20260703_2200_d6_2b_mfg_activation.sql",
@@ -367,44 +357,82 @@
         "substitution:20260708120000_tcp1_w1_solo_bk_pilot_slots.sql#seed_omitted",
         "substitution:20260814221500_accounting_canonical_connected_grant.sql"
       ],
-      "gitBlobId": "0a37933a27c2f56bf2bae17f53047dbf46cda79b",
-      "sha256": "affe5b9bd60ddae6beeaa27387e2416e2ba04e3f222d05bfe6ea3bd00384a8b8",
-      "md5": "abd3f151117fa575a484a229772aa088",
+      "gitBlobId": "6dcc488c070ad5ac57c7bfe43f1d027872d702ea",
+      "sha256": "25c01a3edf4dd6203f6e396b812278305f6e7ebd6c79115c75765d86742feb3b",
+      "md5": "d820e05f0da06658e5d665da45bad1a6",
       "utf8LfBytes": 15876,
       "statementCountApprox": 50,
       "transactionBoundary": "per-source BEGIN/COMMIT for d6/tcp1; grant has none",
       "dmlClassification": "guarded_optional_seed + registry_reference_update",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     },
     {
-      "order": 8,
-      "version": "20260907010070",
+      "order": 7,
+      "version": "20260907010060",
       "name": "esc_forward_tail_main_unapplied",
       "module": "post_baseline_forward_migrations",
       "kind": "forward-tail",
-      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010070_esc_forward_tail_main_unapplied.sql",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_forward_tail_main_unapplied.sql",
       "sourceProvenance": [
         "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
       ],
-      "gitBlobId": "91ac926848aeb839683cfcdc86822be9ea9f7c67",
-      "sha256": "e738091a7be0117684c8d6f40e4d5766f2a41cfcebead992a0a494cca384771b",
-      "md5": "64430c710b4794c52e05f499611667d3",
-      "utf8LfBytes": 4805,
+      "gitBlobId": "ca90b19db66f4fbe0b76bf715e270517463559c1",
+      "sha256": "f46ffb82276aa485ab968312e2d0c6223a83f805e99a2c671d684f7e77714232",
+      "md5": "799aa12957cdb29e8d81a426d712a119",
+      "utf8LfBytes": 4832,
       "statementCountApprox": 21,
       "transactionBoundary": "mixed",
       "dmlClassification": "forward_source_dependent",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
       "rlsSecurityAssertions": [
-        "stop-after-module must not leave new app tables without RLS when module defines tables",
-        "anon/authenticated must not gain broad PUBLIC execute"
+        "zero CREATE TABLE without same-module ENABLE RLS (builder refuse)",
+        "gap2_purge_table_registry + engagement_posting_policy + curated_rule_fires protected in module 4",
+        "publish_ledger_event and increment_share_token_access: PUBLIC/anon/authenticated EXECUTE revoked",
+        "digest qualify exactly once in forward-tail"
       ]
     }
   ],
-  "moduleFileCount": 8,
-  "totalUtf8LfBytes": 1132090,
-  "packageSha256OfConcatenatedEntryHashes": "ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28"
+  "moduleFileCount": 7,
+  "totalUtf8LfBytes": 1130762,
+  "packageSha256OfConcatenatedEntryHashes": "99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf",
+  "sourceAccounting": {
+    "optionDEntries": 151,
+    "includedInBaselineBody": 138,
+    "dispositionOverlays": 6,
+    "digestQualifyOccurrences": 1,
+    "digestQualifyLocation": "module_7_forward_tail_only",
+    "excludedFromBaselineBody": [
+      "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+      "20260703_2000_d6_2a_test_client_activation.sql",
+      "20260703_2200_d6_2b_mfg_activation.sql",
+      "20260703_2300_d6_2c_retail_activation.sql",
+      "20260703_2400_d6_2d_ps_activation.sql",
+      "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "20260814221500_accounting_canonical_connected_grant.sql"
+    ],
+    "escBoundaryPatch": true
+  },
+  "privilegeDispositions": {
+    "publish_ledger_event": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/events/publisher.ts via createServiceClient (service_role)",
+      "anonymousRequired": false
+    },
+    "increment_share_token_access": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
+      "anonymousRequired": false,
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only. Q8c + ESC patch revoke anon."
+    }
+  }
 }

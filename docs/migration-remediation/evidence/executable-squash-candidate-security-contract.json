@@ -1,9 +1,11 @@
 {
-  "generatedAt": "2026-09-07T01:54:14.189Z",
+  "generatedAt": "2026-09-07T02:41:10.819Z",
   "goals": [
     "Eliminate phase1 CREATE-before-RLS window by atomic module",
-    "RLS enablement assertions after phase1",
-    "Platform prerequisites isolated from application DDL",
+    "Eliminate former module 4→5 RLS window by merging app schema + security",
+    "Enable RLS on gap2_purge_table_registry and engagement_posting_policy at first visibility",
+    "Revoke anon/authenticated/PUBLIC execute on publish_ledger_event and increment_share_token_access",
+    "Digest qualify exactly once in forward-tail",
     "No customer data in package"
   ],
   "midReplayAssertions": [
@@ -16,10 +18,31 @@
       "assert": "subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events have RLS enabled"
     },
     {
+      "afterModule": "20260907010030",
+      "assert": "zero application tables without RLS; gap2_purge_table_registry and curated_rule_fires protected; sensitive RPCs revoked from anon"
+    },
+    {
       "afterAnyFailure": true,
       "assert": "delete contaminated branch; do not continue mid-chain"
     }
   ],
+  "privilegeDispositions": {
+    "publish_ledger_event": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/events/publisher.ts via createServiceClient (service_role)",
+      "anonymousRequired": false
+    },
+    "increment_share_token_access": {
+      "anonExecute": "REVOKED",
+      "authenticatedExecute": "REVOKED",
+      "publicExecute": "REVOKED",
+      "caller": "lib/close-packet/share-tokens.js via getSupabaseAdmin (service_role)",
+      "anonymousRequired": false,
+      "evidence": "Share verification uses hashed token via admin client; RPC increment is server-side only. Q8c + ESC patch revoke anon."
+    }
+  },
   "patent6AndImmutability": "Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)",
-  "partialReplayRlsRisk": "reduced vs historical phase1 split; still medium until full-chain rehearsal"
+  "partialReplayRlsRisk": "reduced: module 4 is atomic app+security; still requires independent source review before replay"
 }

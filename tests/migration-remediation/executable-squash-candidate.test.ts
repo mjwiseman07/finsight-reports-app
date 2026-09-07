@@ -19,10 +19,10 @@ describe("executable squash candidate package (authoring only)", () => {
     expect(active.some((f) => f.startsWith("202609070100"))).toBe(false);
   });
 
-  it("manifest has 8 ordered modules with git blobs and hashes", () => {
+  it("manifest has 7 ordered modules with git blobs and hashes", () => {
     const m = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
     expect(m.productionMutationReadiness ?? m.bound.productionMutationReadiness).toBe(false);
-    expect(m.entries).toHaveLength(8);
+    expect(m.entries).toHaveLength(7);
     expect(m.entries.map((e: { version: string }) => e.version)).toEqual([
       "20260907010000",
       "20260907010010",
@@ -31,7 +31,6 @@ describe("executable squash candidate package (authoring only)", () => {
       "20260907010040",
       "20260907010050",
       "20260907010060",
-      "20260907010070",
     ]);
     for (const e of m.entries) {
       expect(e.gitBlobId).toMatch(/^[0-9a-f]{40}$/);
@@ -46,7 +45,7 @@ describe("executable squash candidate package (authoring only)", () => {
 
   it("omits tcp1 complimentary pilot_slots INSERT seed", () => {
     const guarded = fs.readFileSync(
-      path.join(PKG, "modules/20260907010060_esc_guarded_dataless_safe_initialization.sql"),
+      path.join(PKG, "modules/20260907010050_esc_guarded_dataless_safe_initialization.sql"),
       "utf8",
     );
     expect(guarded).toMatch(/Seed — OMITTED|Seed - OMITTED/);
@@ -55,7 +54,7 @@ describe("executable squash candidate package (authoring only)", () => {
 
   it("forward tail is only digest-qualify migration", () => {
     const m = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-    const fwd = m.entries.find((e: { order: number }) => e.order === 8);
+    const fwd = m.entries.find((e: { order: number }) => e.order === 7);
     expect(fwd.sourceProvenance).toEqual([
       "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
     ]);
@@ -67,6 +66,7 @@ describe("executable squash candidate package (authoring only)", () => {
     execFileSync(process.execPath, [BUILDER], { cwd: ROOT, stdio: "pipe" });
     const twice = JSON.parse(fs.readFileSync(MANIFEST, "utf8")).packageSha256OfConcatenatedEntryHashes;
     expect(twice).toBe(once);
+    expect(once).toBe("99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf");
   });
 
   it("secret scan passes", () => {

@@ -1,6 +1,6 @@
 -- =============================================================================
 -- EXECUTABLE SQUASH CANDIDATE — DRAFT / NON-DEPLOYABLE
--- Proposed version: 20260907010050
+-- Proposed version: 20260907010040
 -- Proposed name: esc_reference_seed_allowlist_contract
 -- Module: allowlisted_immutable_reference_seeds
 -- Provenance: Allowlist contract; company_roles seed lives inside foundations module (deterministic reference)
