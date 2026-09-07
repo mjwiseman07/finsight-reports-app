@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-09-07T01:54:14.189Z",
+  "goals": [
+    "Eliminate phase1 CREATE-before-RLS window by atomic module",
+    "RLS enablement assertions after phase1",
+    "Platform prerequisites isolated from application DDL",
+    "No customer data in package"
+  ],
+  "midReplayAssertions": [
+    {
+      "afterModule": "20260907010000",
+      "assert": "auth.users and storage schema exist; no public app tables required yet"
+    },
+    {
+      "afterModule": "20260907010020",
+      "assert": "subscriptions, subscription_items, subscription_seats, entitlements, stripe_webhook_events have RLS enabled"
+    },
+    {
+      "afterAnyFailure": true,
+      "assert": "delete contaminated branch; do not continue mid-chain"
+    }
+  ],
+  "patent6AndImmutability": "Inherited from Option D assembled lineage + security modules; exact bindings must be verified in rehearsal gate (not this authoring auth)",
+  "partialReplayRlsRisk": "reduced vs historical phase1 split; still medium until full-chain rehearsal"
+}

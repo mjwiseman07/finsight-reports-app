@@ -1,0 +1,436 @@
+{
+  "generatedAt": "2026-09-07T01:54:14.189Z",
+  "dispositions": {
+    "d6_2a_through_d6_2d": {
+      "verdict": "ALLOW_GUARDED_OPTIONAL_SEED",
+      "behavior": "Registry UPDATE always; client_active_rules INSERT…SELECT no-op when fixture firm_clients row absent",
+      "sources": [
+        "20260703_2000_d6_2a_test_client_activation.sql",
+        "20260703_2200_d6_2b_mfg_activation.sql",
+        "20260703_2300_d6_2c_retail_activation.sql",
+        "20260703_2400_d6_2d_ps_activation.sql"
+      ]
+    },
+    "tcp1_w1_solo_bk_pilot_slots": {
+      "verdict": "OMIT_COMPLIMENTARY_SEED_KEEP_SCHEMA",
+      "reason": "Production deferred complimentary INSERT; Option D guarded seed divergent. Schema/RLS/functions retained.",
+      "sameVersionReplace": false
+    },
+    "accounting_canonical_connected_grant": {
+      "verdict": "SCHEMA_INDEX_ONLY",
+      "reason": "Omit LOCK/RAISE/UPDATE operational body; preserve unique connected-grant index. Empty DB has no rows to update.",
+      "sameVersionReplace": false
+    }
+  },
+  "prohibitedPatterns": [
+    "customer/tenant row copies",
+    "auth.users inserts",
+    "oauth tokens",
+    "provider/custody/ledger/execution/memory operational rows",
+    "setval from production sequences"
+  ],
+  "scanFindingsCount": 322,
+  "scanFindingsSample": [
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "INSERT",
+      "target": "public.company_roles"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "own"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "own"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "USING"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "using"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "using"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "their"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "using"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "practice"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "practice"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "using"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "removed"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "removed"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "no"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "kind": "UPDATE",
+      "target": "or"
+    },
+    {
+      "file": "20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "kind": "UPDATE",
+      "target": "ON"
+    },
+    {
+      "file": "20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "kind": "UPDATE",
+      "target": "ON"
+    },
+    {
+      "file": "20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "kind": "UPDATE",
+      "target": "ON"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_templates"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_templates"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_templates"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_templates"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "curated_rules_registry"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.ar_cash_app_config"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.firm_llm_config"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "storage.buckets"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.event_projections"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.stripe_webhook_events"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.entitlement_check_audit"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.firm_intake_settings"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.firm_intake_handlers"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.firm_intake_handlers"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.firm_intake_handlers"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "curated_rules_registry"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.assertions_catalog"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.assertion_relevance_matrix"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    },
+    {
+      "file": "20260907010030_esc_application_schema_lineage_body.sql",
+      "kind": "INSERT",
+      "target": "public.rule_assertion_coverage"
+    }
+  ],
+  "note": "Full INSERT/UPDATE/DELETE scan is advisory; allowlist policy enforced by dispositions + tests"
+}
