@@ -12,12 +12,15 @@ const crypto = require('crypto');
 const { execSync, spawnSync } = require('child_process');
 const {
   applyUsersAnonGrantOverlay,
+  hardenPublishLedgerEventCreate,
   buildFunctionPrivilegeClosureSql,
   injectPrivilegeClosureBeforeCommits,
   buildDispositionInventory,
   assertNoUsersAnonAllGrant,
+  assertNoUsersAuthenticatedTableUpdate,
   sameSlicePublicRevokeGaps,
   engagementPostingPolicyOrder,
+  PUBLIC_USERS_COLUMN_CONTRACT,
 } = require('./esc-privilege-remediation');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -581,6 +584,9 @@ function main() {
   if (!assertNoUsersAnonAllGrant(usersSql)) {
     throw new Error('Builder refuse: public.users GRANT ALL TO anon remains after overlay');
   }
+  if (!assertNoUsersAuthenticatedTableUpdate(usersSql)) {
+    throw new Error('Builder refuse: public.users authenticated UPDATE grant remains after overlay');
+  }
   const foundationsSql = readAssembled('20260701043599_foundations_baseline.sql');
   const phase1Files = [
     '20260701043602_phase1_subscriptions_core.sql',
@@ -680,7 +686,7 @@ function main() {
   for (const f of order) {
     if (prefix.has(f) || skipInBody.has(f)) continue;
     const raw = sanitizeEmbeddedSqlComments(toLf(readAssembled(f)).trim());
-    const sql = stripExecutableTxnMarkers(raw);
+    const sql = hardenPublishLedgerEventCreate(stripExecutableTxnMarkers(raw));
     const bytes = Buffer.byteLength(sql, 'utf8');
     if (securityNameRe.test(f) && !FORCE_APP_SCHEMA_FILES.has(f)) {
       securityItems.push({ file: f, sql, bytes });
@@ -904,7 +910,9 @@ function main() {
 
   let forwardBody = '';
   for (const f of forwardFiles) {
-    const sql = toLf(fs.readFileSync(path.join(ROOT, 'supabase/migrations', f), 'utf8')).trim();
+    const sql = hardenPublishLedgerEventCreate(
+      toLf(fs.readFileSync(path.join(ROOT, 'supabase/migrations', f), 'utf8')).trim()
+    );
     forwardBody += `\n-- >>> forward ${f}\n${sql}\n-- <<< end ${f}\n`;
   }
   if (!forwardBody.trim()) {
@@ -1064,6 +1072,22 @@ function main() {
   if (!assertNoUsersAnonAllGrant(byVersion[PROPOSED_VERSIONS.foundations] || '')) {
     throw new Error('Builder refuse: GRANT ALL ON public.users TO anon still present');
   }
+  if (!assertNoUsersAuthenticatedTableUpdate(byVersion[PROPOSED_VERSIONS.foundations] || '')) {
+    throw new Error('Builder refuse: authenticated UPDATE on public.users still present');
+  }
+  // publish_ledger_event must lock search_path in every CREATE/REPLACE body
+  for (const mod of modules) {
+    const re =
+      /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.publish_ledger_event\s*\([\s\S]*?SECURITY\s+DEFINER([\s\S]{0,120}?)AS\s+/gi;
+    let m;
+    while ((m = re.exec(mod.sql))) {
+      if (!/SET\s+search_path\s*=\s*public,\s*pg_temp/i.test(m[1])) {
+        throw new Error(
+          `Builder refuse: publish_ledger_event CREATE in ${mod.version} missing create-time search_path`
+        );
+      }
+    }
+  }
   const epp = engagementPostingPolicyOrder(byVersion);
   if (!epp.okOrder || !epp.sameModule) {
     // same-module preferred; okOrder requires create<=enable. Require CREATE and ENABLE in same version.
@@ -1141,16 +1165,17 @@ function main() {
         'Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.',
       baselineModules: 'platform+foundations+phase1+app slices+security+reference+guarded',
       forwardTailModule: 'post-baseline merged-but-unapplied main (sole digest qualify home)',
-      reviewedAncestorSeal: '74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff',
-      reviewedAncestorCommit: '4888756224129abcdc1729fc772a1300dc1ba074',
-      remediationAuthorizedFromPrHead: '3deb5d6b5b00597eb3726e3b8235c76cb417ede3',
+      reviewedAncestorSeal: 'c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37',
+      reviewedAncestorCommit: 'd558c39b4a42540f9c485b30c6b9f0972b4ac500',
+      remediationAuthorizedFromPrHead: '93f839546bbec8d6e80e06f263660ae091c3fc8b',
       priorSingleModule4Superseded: true,
       privilegeAndRlsOrderRemediation: true,
+      usersColumnUpdateRemediation: true,
     },
     bound: {
-      pr314HeadAtStart: '3deb5d6b5b00597eb3726e3b8235c76cb417ede3',
-      candidateAncestorSeal: '74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff',
-      candidateAncestorCommit: '4888756224129abcdc1729fc772a1300dc1ba074',
+      pr314HeadAtStart: '93f839546bbec8d6e80e06f263660ae091c3fc8b',
+      candidateAncestorSeal: 'c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37',
+      candidateAncestorCommit: 'd558c39b4a42540f9c485b30c6b9f0972b4ac500',
       mainHead: '9d8a01d37422179ddd68bbd181a8815d8a893577',
       projectRefReadOnly: 'jzmdgwwiestcmmeuhhkr',
       optionDManifestBlob: '0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e',
@@ -1161,9 +1186,10 @@ function main() {
       productionMutationReadiness: false,
       sourceReviewVerdictPrior: 'CHANGES REQUIRED',
       blockingFindingsRemediated: [
-        'FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT',
-        'NAMED_TABLE_RLS_NOT_AT_CREATE_COMMIT:engagement_posting_policy',
-        'BROAD_TABLE_GRANT:public.users→anon ALL',
+        'USERS_AUTHENTICATED_COLUMN_UPDATE_ESCALATION',
+        'SECURITY_DEFINER_MISSING_SEARCH_PATH:publish_ledger_event',
+        'TRIGGER_ONLY_SERVICE_ROLE_EXECUTE_GRANTED',
+        'MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF',
       ],
     },
     proposedLineageOrder: modules.map((m) => ({
@@ -1218,10 +1244,10 @@ function main() {
       public_users_table: {
         anonAll: 'REVOKED',
         publicAll: 'REVOKED',
-        authenticated: 'SELECT, UPDATE only (own-row RLS policies)',
-        serviceRolePrivileges: 'ALL retained',
-        rationale:
-          'No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon.',
+        authenticated: 'SELECT only; UPDATE fully REVOKED (empty self-service allowlist)',
+        serviceRolePrivileges: 'ALL retained for server paths',
+        columnContract: PUBLIC_USERS_COLUMN_CONTRACT,
+        rationale: PUBLIC_USERS_COLUMN_CONTRACT.rationale,
       },
       engagement_posting_policy: {
         createForcedIntoAppBucket: '20260706170000_d6_4c_3_posting_policy_and_remediation.sql',
@@ -1433,7 +1459,26 @@ function main() {
         classCounts,
         engagement_posting_policy: epp,
         public_users_anon_all_absent: true,
+        public_users_authenticated_update_revoked: true,
+        publicUsersColumnContract: PUBLIC_USERS_COLUMN_CONTRACT,
         functions: allInventory,
+      },
+      null,
+      2
+    )
+  );
+
+  const USERS_CONTRACT_PATH = path.join(
+    ROOT,
+    'docs/migration-remediation/evidence/executable-squash-candidate-public-users-column-contract.json'
+  );
+  writeLf(
+    USERS_CONTRACT_PATH,
+    JSON.stringify(
+      {
+        generatedAt: packageManifest.generatedAt,
+        packageSeal: packageManifest.packageSha256OfConcatenatedEntryHashes,
+        contract: PUBLIC_USERS_COLUMN_CONTRACT,
       },
       null,
       2

@@ -1,22 +1,23 @@
 {
   "packageId": "executable-squash-candidate",
-  "generatedAt": "2026-09-07T03:51:49.143Z",
+  "generatedAt": "2026-09-07T05:21:57.501Z",
   "authorization": "candidate remediation only - no production mutation, no Docker, no branch, no SQL execution",
   "targetModel": {
     "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
     "transactionModelJustification": "Module4 txn analysis: BEGIN/COMMIT 50/50 nested markers; CREATE/ALTER EXTENSION present; ~979KB / ~4500 stmts HIGH payload-timeout-lock risk. Option 1 rejected.",
     "baselineModules": "platform+foundations+phase1+app slices+security+reference+guarded",
     "forwardTailModule": "post-baseline merged-but-unapplied main (sole digest qualify home)",
-    "reviewedAncestorSeal": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
-    "reviewedAncestorCommit": "4888756224129abcdc1729fc772a1300dc1ba074",
-    "remediationAuthorizedFromPrHead": "3deb5d6b5b00597eb3726e3b8235c76cb417ede3",
+    "reviewedAncestorSeal": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+    "reviewedAncestorCommit": "d558c39b4a42540f9c485b30c6b9f0972b4ac500",
+    "remediationAuthorizedFromPrHead": "93f839546bbec8d6e80e06f263660ae091c3fc8b",
     "priorSingleModule4Superseded": true,
-    "privilegeAndRlsOrderRemediation": true
+    "privilegeAndRlsOrderRemediation": true,
+    "usersColumnUpdateRemediation": true
   },
   "bound": {
-    "pr314HeadAtStart": "3deb5d6b5b00597eb3726e3b8235c76cb417ede3",
-    "candidateAncestorSeal": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
-    "candidateAncestorCommit": "4888756224129abcdc1729fc772a1300dc1ba074",
+    "pr314HeadAtStart": "93f839546bbec8d6e80e06f263660ae091c3fc8b",
+    "candidateAncestorSeal": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+    "candidateAncestorCommit": "d558c39b4a42540f9c485b30c6b9f0972b4ac500",
     "mainHead": "9d8a01d37422179ddd68bbd181a8815d8a893577",
     "projectRefReadOnly": "jzmdgwwiestcmmeuhhkr",
     "optionDManifestBlob": "0d2a39a3d4220c8d28e3269a87fa8c01e8bf2d4e",
@@ -27,9 +28,10 @@
     "productionMutationReadiness": false,
     "sourceReviewVerdictPrior": "CHANGES REQUIRED",
     "blockingFindingsRemediated": [
-      "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
-      "NAMED_TABLE_RLS_NOT_AT_CREATE_COMMIT:engagement_posting_policy",
-      "BROAD_TABLE_GRANT:public.users→anon ALL"
+      "USERS_AUTHENTICATED_COLUMN_UPDATE_ESCALATION",
+      "SECURITY_DEFINER_MISSING_SEARCH_PATH:publish_ledger_event",
+      "TRIGGER_ONLY_SERVICE_ROLE_EXECUTE_GRANTED",
+      "MIGRATION_ADMIN_SERVICE_ROLE_GRANT_WITHOUT_CALLER_PROOF"
     ]
   },
   "proposedLineageOrder": [
@@ -168,11 +170,11 @@
         "assembled:20260701043598_public_users_derived_baseline.sql",
         "assembled:20260701043599_foundations_baseline.sql"
       ],
-      "gitBlobId": "179f92565dadddf31f54ecb807def5b67bf2aa29",
-      "sha256": "baafbba09333daaefc2309aa44f39bf96560469ca41a3a181105d47ba799c8ca",
-      "md5": "5ea8a60d5ec7074759aa960e2d2d52f9",
-      "utf8LfBytes": 111786,
-      "statementCountApprox": 586,
+      "gitBlobId": "4efbe6471ad5b4b85e77efb0a499a28a9772a32d",
+      "sha256": "672b8d4246d05c3d1e8bd877cebd1387a018e6194a85dfa938668d5a6d6db21d",
+      "md5": "97146256b6886b30b76d455bd0546dcb",
+      "utf8LfBytes": 111885,
+      "statementCountApprox": 587,
       "transactionBoundary": "inherits source BEGIN/COMMIT from foundations",
       "dmlClassification": "required_immutable_reference_seed (company_roles inside foundations)",
       "createdConsumedObjects": "see Option D dependency manifests + module source list",
@@ -209,10 +211,10 @@
         "assembled:20260701043911_phase1_backward_compat_view.sql",
         "assembled:20260701043931_phase1_entitlement_rls_policies.sql"
       ],
-      "gitBlobId": "5bc60c2432c9d593d4f3177d4cfc2ebf302b4ece",
-      "sha256": "2499a96b1799cdaeb918fa342b992757ef31a65e2836f5258260f881f2ed2d09",
-      "md5": "a39158a1f0eee7987e02e491f45c2a3b",
-      "utf8LfBytes": 20389,
+      "gitBlobId": "cac8d38c9083e2c7b4db24a7693db89e21b4434a",
+      "sha256": "d90e1d66bb12c1312f7e1024b10fa1a292dfbc9d30a63d94f09f8648d3fddc1f",
+      "md5": "da2d5ca4f145b6c475a6c52869866cd3",
+      "utf8LfBytes": 20392,
       "statementCountApprox": 67,
       "transactionBoundary": "single outer BEGIN/COMMIT wrapping phase1 + ENABLE RLS",
       "dmlClassification": "none",
@@ -278,10 +280,10 @@
         "assembled:20260703_1200_d6_0_vertical_rule_foundation.sql",
         "assembled:20260706150000_d6_4c_1_pre_close_review_queue.sql"
       ],
-      "gitBlobId": "b23f1940ac600b59c7214f9a34d99c6951932ab4",
-      "sha256": "52648cc7c5cee153398dc97e9ca1e51296c25621a96fde6619e104116b53b246",
-      "md5": "56f1e7cd25c14daee64c998e7c7ce1ef",
-      "utf8LfBytes": 206802,
+      "gitBlobId": "d3956503d5ec7d4d9f867da37ab03955a9d21092",
+      "sha256": "a8e412acf43da7e063f8473e3fffb23a567d043d4867e01c8d7bc8feeb397133",
+      "md5": "351e7ba0129f544d38e5c54769f143a9",
+      "utf8LfBytes": 206856,
       "statementCountApprox": 818,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -361,10 +363,10 @@
         "assembled:20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
         "assembled:20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
       ],
-      "gitBlobId": "791850944fc3a153f38febe81a6ed6f4426a9c41",
-      "sha256": "c990a236d51de10ec5f6ccb9e653cfc4e1e4ef50e3012d8a20aa43822893ac78",
-      "md5": "056a8dde11a77a2382866191ad0a660a",
-      "utf8LfBytes": 188959,
+      "gitBlobId": "f46dab904644913ffd6f30ea3b1d8f0e5407481f",
+      "sha256": "2dde1fecb6394666e0c7b72642d5eb06a4705994f6c0b759f6402d49fed618e0",
+      "md5": "fca5c5156a1f9d6aeb6004095c5b77a6",
+      "utf8LfBytes": 189013,
       "statementCountApprox": 671,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -439,10 +441,10 @@
         "assembled:20260721160000_ar_tieout4b3_bs_recon_summary.sql",
         "assembled:20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql"
       ],
-      "gitBlobId": "b0c5e58f6376c37fc65ff4e735996b9c44c0bcae",
-      "sha256": "f87e7d9aaeaf1345e9c9bc81f3c89412f3f3ce1d3a72ca0bd93555643a8fd1b2",
-      "md5": "abe2807d4ec6bd81347b3854c41dff00",
-      "utf8LfBytes": 209476,
+      "gitBlobId": "355da1a1a60d4865393bb99eb9ba95e16628e669",
+      "sha256": "267274baf3beecabd8c9f69800dabb7be53d00873199378987b807f506cd4a29",
+      "md5": "c835ef671a7c177fa3d31419ccee84af",
+      "utf8LfBytes": 209503,
       "statementCountApprox": 786,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -540,10 +542,10 @@
         "assembled:20260820233219_journal_entry_proposals.sql",
         "assembled:20260821042800_journal_entry_approvals.sql"
       ],
-      "gitBlobId": "8be7e40f18f04c9d9e38e32ceeb1027f964a2c3c",
-      "sha256": "7095f4ddce087cc7b64332c0976f5af8dd7ed296edf9b15fe7a8704571c482c9",
-      "md5": "e459a5809822aeb975a13e9e775d20ad",
-      "utf8LfBytes": 205732,
+      "gitBlobId": "8a67a789bbfb5f13b2c30cac4c45aa1756be0291",
+      "sha256": "cbce7c82c1b88a1b80d4c694cdad4fe383c5631751916aeb910f57a27619ac4b",
+      "md5": "b636d589e547fdebbd10ba724bb03f4b",
+      "utf8LfBytes": 205787,
       "statementCountApprox": 1096,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -626,10 +628,10 @@
         "assembled:20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
         "assembled:2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
       ],
-      "gitBlobId": "01f1f35c97ee70068502afdd704c94fe167a83f8",
-      "sha256": "cc25b4960af1337ea25b584e4a7b99084082f3ecbb910c8d63ced8489c83d1f9",
-      "md5": "d8200348cf61959e7e48b95836eb85b3",
-      "utf8LfBytes": 150918,
+      "gitBlobId": "3200ee5692f8efcbaf440957df8e8374f943499d",
+      "sha256": "180230d4eaa0e706f113b4f2bf748bbc6c9b9d80bfc6bdd006302861fb73abd2",
+      "md5": "f4ae6bcc7ff8b2669cd6af248dec5782",
+      "utf8LfBytes": 150947,
       "statementCountApprox": 1111,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "mixed_see_dml_allowlist",
@@ -686,10 +688,10 @@
         "assembled:20260805041500_major_1_rpc_lockdown.sql",
         "esc:boundary-security-patch"
       ],
-      "gitBlobId": "bb18e9700e7603610cccf0045ac2a4b93480ebba",
-      "sha256": "9ccbb522642bbaa3af81ab456df344d329b3a2e16b89d56986ec4fb727ded490",
-      "md5": "be71703ebbb21e4b825f620c24143f28",
-      "utf8LfBytes": 71919,
+      "gitBlobId": "c3b12854c85d6663605605c73be3fc8c6c40cf21",
+      "sha256": "c34dee44152c745464a6acd2a5c870c07ef9697f7177e689c9bf77ed5a3a9032",
+      "md5": "f5908ab086e613c67539d0b28e07004b",
+      "utf8LfBytes": 71926,
       "statementCountApprox": 307,
       "transactionBoundary": "single outer BEGIN/COMMIT; nested source markers stripped",
       "dmlClassification": "none_expected_primary",
@@ -778,10 +780,10 @@
         "substitution:20260708120000_tcp1_w1_solo_bk_pilot_slots.sql#seed_omitted",
         "substitution:20260814221500_accounting_canonical_connected_grant.sql"
       ],
-      "gitBlobId": "a98a4fd3dfebf8774ad7de9f6fd820fd39e0113d",
-      "sha256": "b79d85e818668cbe5a50b93b12e03475652684172014c7083ace5c69aea7284b",
-      "md5": "f3056903a0c71a98afa848e0e06f03f6",
-      "utf8LfBytes": 16791,
+      "gitBlobId": "8fd3201fd7cd1cc0cee37ee9c30dd97c23e250c8",
+      "sha256": "02e3ce5b530f09eae75edda12977cee4cc8d45f4832db12ce259980e9be9b9a9",
+      "md5": "4785169e0577fe10c2af60b6b40ec7b6",
+      "utf8LfBytes": 16797,
       "statementCountApprox": 58,
       "transactionBoundary": "per-source BEGIN/COMMIT for d6/tcp1; grant has none",
       "dmlClassification": "guarded_optional_seed + registry_reference_update",
@@ -849,8 +851,8 @@
     }
   ],
   "moduleFileCount": 12,
-  "totalUtf8LfBytes": 1190718,
-  "packageSha256OfConcatenatedEntryHashes": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+  "totalUtf8LfBytes": 1191052,
+  "packageSha256OfConcatenatedEntryHashes": "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b",
   "sourceAccounting": {
     "optionDEntries": 151,
     "includedUnchangedBaseline": 144,
@@ -893,9 +895,72 @@
     "public_users_table": {
       "anonAll": "REVOKED",
       "publicAll": "REVOKED",
-      "authenticated": "SELECT, UPDATE only (own-row RLS policies)",
-      "serviceRolePrivileges": "ALL retained",
-      "rationale": "No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon."
+      "authenticated": "SELECT only; UPDATE fully REVOKED (empty self-service allowlist)",
+      "serviceRolePrivileges": "ALL retained for server paths",
+      "columnContract": {
+        "table": "public.users",
+        "authenticatedTablePrivileges": [
+          "SELECT"
+        ],
+        "authenticatedUpdateAllowlist": [],
+        "authenticatedUpdateFullyRevoked": true,
+        "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+        "columns": {
+          "id": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "email": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "first_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "last_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "business_name": {
+            "class": "server_path_profile",
+            "userEditable": false,
+            "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+          },
+          "ip_address_signup": {
+            "class": "immutable_audit_system",
+            "userEditable": false,
+            "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+          },
+          "trial_used": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "reports_generated": {
+            "class": "usage_quota",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "subscription_status": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/subscription-sync.js service-role webhook path"
+          },
+          "stripe_customer_id": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+          },
+          "created_at": {
+            "class": "immutable_audit_system",
+            "userEditable": false
+          }
+        }
+      },
+      "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely."
     },
     "engagement_posting_policy": {
       "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",

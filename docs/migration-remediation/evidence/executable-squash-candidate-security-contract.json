@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T03:51:49.143Z",
+  "generatedAt": "2026-09-07T05:21:57.501Z",
   "goals": [
     "Eliminate phase1 CREATE-before-RLS window by atomic module",
     "Option-2 per-slice RLS closure at every app/security COMMIT",
@@ -41,9 +41,72 @@
     "public_users_table": {
       "anonAll": "REVOKED",
       "publicAll": "REVOKED",
-      "authenticated": "SELECT, UPDATE only (own-row RLS policies)",
-      "serviceRolePrivileges": "ALL retained",
-      "rationale": "No lib/app anon client queries public.users; signup/onboarding uses service role client. RLS does not justify GRANT ALL TO anon."
+      "authenticated": "SELECT only; UPDATE fully REVOKED (empty self-service allowlist)",
+      "serviceRolePrivileges": "ALL retained for server paths",
+      "columnContract": {
+        "table": "public.users",
+        "authenticatedTablePrivileges": [
+          "SELECT"
+        ],
+        "authenticatedUpdateAllowlist": [],
+        "authenticatedUpdateFullyRevoked": true,
+        "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+        "columns": {
+          "id": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "email": {
+            "class": "server_managed_identity",
+            "userEditable": false
+          },
+          "first_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "last_name": {
+            "class": "server_managed_profile_at_signup",
+            "userEditable": false,
+            "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+          },
+          "business_name": {
+            "class": "server_path_profile",
+            "userEditable": false,
+            "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+          },
+          "ip_address_signup": {
+            "class": "immutable_audit_system",
+            "userEditable": false,
+            "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+          },
+          "trial_used": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "reports_generated": {
+            "class": "usage_quota",
+            "userEditable": false,
+            "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+          },
+          "subscription_status": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/subscription-sync.js service-role webhook path"
+          },
+          "stripe_customer_id": {
+            "class": "billing_subscription",
+            "userEditable": false,
+            "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+          },
+          "created_at": {
+            "class": "immutable_audit_system",
+            "userEditable": false
+          }
+        }
+      },
+      "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely."
     },
     "engagement_posting_policy": {
       "createForcedIntoAppBucket": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",

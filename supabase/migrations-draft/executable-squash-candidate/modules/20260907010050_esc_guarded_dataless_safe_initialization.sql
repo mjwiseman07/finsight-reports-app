@@ -394,12 +394,12 @@ COMMENT ON FUNCTION public.public_pilot_slot_count(TEXT) IS
 REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.set_pilot_slots_updated_at() FROM service_role;
 -- disposition public.public_pilot_slot_count(text) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.public_pilot_slot_count(text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.public_pilot_slot_count(text) FROM service_role;
 COMMIT;
 -- <<< end tcp1
 

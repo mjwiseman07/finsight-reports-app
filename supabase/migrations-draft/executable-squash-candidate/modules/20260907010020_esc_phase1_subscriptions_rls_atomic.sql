@@ -403,5 +403,5 @@ ALTER TABLE IF EXISTS public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;
 REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.tg_set_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.tg_set_updated_at() FROM service_role;
 COMMIT;

@@ -52,8 +52,9 @@ CREATE POLICY "Users can update own record"
 
 -- [ESC] public.users privilege overlay: removed GRANT ALL TO anon (no anon client path; RLS is not justification for table ALL).
 -- HISTORICAL_TABLE_GRANT_REMOVED ALL ON TABLE public.users TO anon;
--- [ESC] public.users privilege overlay: narrowed authenticated from ALL to SELECT, UPDATE (own-row policies only).
-GRANT SELECT, UPDATE ON TABLE public.users TO authenticated;
+-- [ESC] public.users privilege overlay: authenticated SELECT only — UPDATE fully revoked (no browser UPDATE path; account/billing use service_role).
+GRANT SELECT ON TABLE public.users TO authenticated;
+REVOKE UPDATE ON TABLE public.users FROM authenticated;
 GRANT ALL ON TABLE public.users TO service_role;
 
 ALTER TABLE public.users OWNER TO postgres;
@@ -2840,26 +2841,26 @@ create trigger prevent_company_memory_version_unsafe_mutation
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_metadata_mutation() FROM service_role;
 -- disposition public.prevent_si_snapshot_child_mutation_when_parent_locked() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_si_snapshot_child_mutation_when_parent_locked() FROM service_role;
 -- disposition public.prevent_company_memory_record_unsafe_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM service_role;
 -- disposition public.prevent_company_memory_append_only_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_append_only_mutation() FROM service_role;
 -- disposition public.prevent_company_memory_version_unsafe_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_version_unsafe_mutation() FROM service_role;
 COMMIT;
 -- <<< end foundations_baseline

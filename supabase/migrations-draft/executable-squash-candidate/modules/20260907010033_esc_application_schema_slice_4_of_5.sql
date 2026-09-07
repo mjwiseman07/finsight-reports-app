@@ -5125,12 +5125,12 @@ REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FR
 REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.audit_ready_latest_pbc_kickout_runs(uuid[]) TO service_role;
--- disposition public.get_similar_kickout_resolutions(uuid,text,jsonb) => migration_admin_or_internal
+-- disposition public.get_similar_kickout_resolutions(uuid,text,jsonb) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid,text,jsonb) TO service_role;
--- disposition public.get_similar_kickout_resolution_counts(uuid[]) => migration_admin_or_internal
+-- disposition public.get_similar_kickout_resolution_counts(uuid[]) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) FROM authenticated;
@@ -5139,32 +5139,32 @@ GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[]) T
 REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.handle_new_auth_user() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM service_role;
 -- disposition public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb) FROM service_role;
 -- disposition public.pilot_lifecycle_events_before_insert() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM service_role;
 -- disposition public.pilot_lifecycle_events_reject_mutations() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() TO service_role;
--- disposition public.pilot_lifecycle_events_verify_chain(uuid,uuid) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_reject_mutations() FROM service_role;
+-- disposition public.pilot_lifecycle_events_verify_chain(uuid,uuid) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) TO service_role;
--- disposition public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM service_role;
+-- disposition public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb) FROM service_role;
 -- disposition public.sp_list_public_columns() => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.sp_list_public_columns() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sp_list_public_columns() FROM anon;
@@ -5174,37 +5174,37 @@ GRANT EXECUTE ON FUNCTION public.sp_list_public_columns() TO service_role;
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) TO service_role;
--- disposition public.backfill_schema_drift_assertion_impact(bool) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_impact_by_table(text) FROM service_role;
+-- disposition public.backfill_schema_drift_assertion_impact(bool) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.backfill_schema_drift_assertion_impact(bool) FROM service_role;
 -- disposition public.trg_lifecycle_issues_assertion_impact() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.trg_lifecycle_issues_assertion_impact() FROM service_role;
 -- disposition public.resolve_assertion_confidence_by_table(text) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.resolve_assertion_confidence_by_table(text) FROM service_role;
 -- disposition public.resolve_fr_relevance_by_table(text) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.resolve_fr_relevance_by_table(text) FROM service_role;
 -- disposition public.resolve_mapping_source_by_table(text) => trigger_only
 REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.resolve_mapping_source_by_table(text) FROM service_role;
 -- disposition public.trg_ar_reconciling_items_stamp_run_identity() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() FROM service_role;
 -- disposition public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz) FROM anon;
@@ -5219,17 +5219,17 @@ GRANT EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) TO service
 REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.trg_arte_stamp_run_identity() FROM service_role;
 -- disposition public.accounting_measurement_snapshots_deny_update() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.accounting_measurement_snapshots_deny_update() FROM service_role;
 -- disposition public.continuous_close_runs_deny_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.continuous_close_runs_deny_mutation() FROM service_role;
 -- disposition public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
@@ -5239,7 +5239,7 @@ GRANT EXECUTE ON FUNCTION public.persist_continuous_close_observe_run(jsonb,json
 REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_proposals_deny_mutation() FROM service_role;
 -- disposition public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;
@@ -5249,7 +5249,7 @@ GRANT EXECUTE ON FUNCTION public.persist_journal_entry_proposal(jsonb,jsonb,text
 REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.journal_entry_approvals_deny_mutation() FROM service_role;
 -- disposition public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text) FROM anon;

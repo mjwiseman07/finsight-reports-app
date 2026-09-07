@@ -3989,7 +3989,7 @@ ALTER TABLE IF EXISTS public.curated_rule_fires ENABLE ROW LEVEL SECURITY;
 REVOKE EXECUTE ON FUNCTION public.set_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.set_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.set_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.set_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.set_updated_at() FROM service_role;
 -- disposition public.increment_share_token_access(uuid) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.increment_share_token_access(uuid) FROM anon;
@@ -3999,85 +3999,85 @@ GRANT EXECUTE ON FUNCTION public.increment_share_token_access(uuid) TO service_r
 REVOKE EXECUTE ON FUNCTION public.prevent_je_audit_update() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_je_audit_update() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_je_audit_update() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_je_audit_update() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_je_audit_update() FROM service_role;
 -- disposition public.touch_je_post_attempts() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.touch_je_post_attempts() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.touch_je_post_attempts() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.touch_je_post_attempts() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.touch_je_post_attempts() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.touch_je_post_attempts() FROM service_role;
 -- disposition public.ledger_events_prevent_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.ledger_events_prevent_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.ledger_events_prevent_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.ledger_events_prevent_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.ledger_events_prevent_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.ledger_events_prevent_mutation() FROM service_role;
 -- disposition public.ledger_events_notify() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.ledger_events_notify() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.ledger_events_notify() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.ledger_events_notify() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.ledger_events_notify() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.ledger_events_notify() FROM service_role;
 -- disposition public.engagement_addons_set_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.engagement_addons_set_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.engagement_addons_set_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.engagement_addons_set_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.engagement_addons_set_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.engagement_addons_set_updated_at() FROM service_role;
 -- disposition public.entitlement_check_audit_no_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.entitlement_check_audit_no_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.entitlement_check_audit_no_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.entitlement_check_audit_no_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.entitlement_check_audit_no_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.entitlement_check_audit_no_mutation() FROM service_role;
 -- disposition public._intake_touch_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public._intake_touch_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public._intake_touch_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public._intake_touch_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public._intake_touch_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public._intake_touch_updated_at() FROM service_role;
 -- disposition public.prevent_company_memory_record_unsafe_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_company_memory_record_unsafe_mutation() FROM service_role;
 -- disposition public.prevent_memory_payload_update() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_memory_payload_update() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_memory_payload_update() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_memory_payload_update() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_memory_payload_update() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_memory_payload_update() FROM service_role;
 -- disposition public.touch_uncategorized_proposals_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.touch_uncategorized_proposals_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.touch_uncategorized_proposals_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.touch_uncategorized_proposals_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.touch_uncategorized_proposals_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.touch_uncategorized_proposals_updated_at() FROM service_role;
 -- disposition public.prevent_proposal_decision_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.prevent_proposal_decision_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.prevent_proposal_decision_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.prevent_proposal_decision_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_proposal_decision_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.prevent_proposal_decision_mutation() FROM service_role;
 -- disposition public.touch_recurring_templates_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_templates_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_templates_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_templates_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.touch_recurring_templates_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.touch_recurring_templates_updated_at() FROM service_role;
 -- disposition public.touch_recurring_fires_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_fires_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_fires_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.touch_recurring_fires_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.touch_recurring_fires_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.touch_recurring_fires_updated_at() FROM service_role;
 -- disposition public.guard_recurring_fire_immutability() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.guard_recurring_fire_immutability() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.guard_recurring_fire_immutability() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.guard_recurring_fire_immutability() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.guard_recurring_fire_immutability() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.guard_recurring_fire_immutability() FROM service_role;
 -- disposition public.curated_rule_fires_immutable() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.curated_rule_fires_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.curated_rule_fires_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.curated_rule_fires_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.curated_rule_fires_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.curated_rule_fires_immutable() FROM service_role;
 -- disposition public.pre_close_review_items_je_draft_check() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_je_draft_check() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_je_draft_check() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_je_draft_check() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pre_close_review_items_je_draft_check() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_je_draft_check() FROM service_role;
 -- disposition public.pre_close_review_items_immutable() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pre_close_review_items_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM service_role;
 COMMIT;

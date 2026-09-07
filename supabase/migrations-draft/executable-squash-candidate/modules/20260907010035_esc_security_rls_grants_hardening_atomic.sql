@@ -1728,10 +1728,10 @@ GRANT EXECUTE ON FUNCTION public.has_active_firm_role(uuid,text[]) TO service_ro
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() TO service_role;
--- disposition public.pilot_lifecycle_events_verify_chain(uuid,uuid) => internal_service_role_only
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_before_insert() FROM service_role;
+-- disposition public.pilot_lifecycle_events_verify_chain(uuid,uuid) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pilot_lifecycle_events_verify_chain(uuid,uuid) FROM service_role;
 COMMIT;

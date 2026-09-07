@@ -2750,6 +2750,7 @@ CREATE OR REPLACE FUNCTION public.publish_ledger_event(
 RETURNS TABLE(event_id UUID, event_hash TEXT, chain_index BIGINT)
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $fn$
 DECLARE
   v_head             public.ledger_chain_head%ROWTYPE;
@@ -3386,43 +3387,43 @@ ON CONFLICT (event_type) DO NOTHING;
 REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.engagement_posting_policy_preset_consistency() FROM service_role;
 -- disposition public.pre_close_review_items_immutable() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.pre_close_review_items_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.pre_close_review_items_immutable() FROM service_role;
 -- disposition public.validate_assertions_array(text[]) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.validate_assertions_array(text[]) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.validate_assertions_array(text[]) FROM service_role;
 -- disposition public.close_gap_review_items_touch_updated_at() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.close_gap_review_items_touch_updated_at() FROM service_role;
 -- disposition public.mfa_audit_log_prevent_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.mfa_audit_log_prevent_mutation() FROM service_role;
 -- disposition public.user_webauthn_credentials_prevent_column_mutation() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.user_webauthn_credentials_prevent_column_mutation() FROM service_role;
 -- disposition public._d651_slugify_name(text) => migration_admin_or_internal
 REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public._d651_slugify_name(text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public._d651_slugify_name(text) FROM service_role;
 -- disposition public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text) TO service_role;
--- disposition public.next_document_number(uuid,text) => migration_admin_or_internal
+-- disposition public.next_document_number(uuid,text) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.next_document_number(uuid,text) FROM authenticated;

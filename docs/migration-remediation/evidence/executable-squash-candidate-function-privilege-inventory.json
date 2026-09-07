@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-07T03:51:49.143Z",
-  "packageSeal": "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37",
+  "generatedAt": "2026-09-07T05:21:57.501Z",
+  "packageSeal": "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b",
   "totalFunctions": 100,
   "unclassifiedCount": 0,
   "classCounts": {
     "trigger_only": 55,
-    "internal_service_role_only": 31,
-    "migration_admin_or_internal": 9,
+    "internal_service_role_only": 25,
+    "migration_admin_or_internal": 15,
     "authenticated_rls_helper": 5
   },
   "engagement_posting_policy": {
@@ -18,6 +18,70 @@
     "sameModule": true
   },
   "public_users_anon_all_absent": true,
+  "public_users_authenticated_update_revoked": true,
+  "publicUsersColumnContract": {
+    "table": "public.users",
+    "authenticatedTablePrivileges": [
+      "SELECT"
+    ],
+    "authenticatedUpdateAllowlist": [],
+    "authenticatedUpdateFullyRevoked": true,
+    "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+    "columns": {
+      "id": {
+        "class": "server_managed_identity",
+        "userEditable": false
+      },
+      "email": {
+        "class": "server_managed_identity",
+        "userEditable": false
+      },
+      "first_name": {
+        "class": "server_managed_profile_at_signup",
+        "userEditable": false,
+        "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+      },
+      "last_name": {
+        "class": "server_managed_profile_at_signup",
+        "userEditable": false,
+        "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+      },
+      "business_name": {
+        "class": "server_path_profile",
+        "userEditable": false,
+        "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+      },
+      "ip_address_signup": {
+        "class": "immutable_audit_system",
+        "userEditable": false,
+        "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+      },
+      "trial_used": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+      },
+      "reports_generated": {
+        "class": "usage_quota",
+        "userEditable": false,
+        "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+      },
+      "subscription_status": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "lib/subscription-sync.js service-role webhook path"
+      },
+      "stripe_customer_id": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+      },
+      "created_at": {
+        "class": "immutable_audit_system",
+        "userEditable": false
+      }
+    }
+  },
   "functions": [
     {
       "identity": "public.prevent_si_snapshot_metadata_mutation()",
@@ -26,7 +90,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2004,
+      "line": 2005,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -34,12 +98,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -49,7 +112,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2044,
+      "line": 2045,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -57,12 +120,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -72,7 +134,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2686,
+      "line": 2687,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -80,12 +142,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -95,7 +156,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2754,
+      "line": 2755,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -103,12 +164,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -118,7 +178,7 @@
       "argsRaw": "",
       "sliceVersion": "20260907010010",
       "sliceName": "esc_public_users_and_foundations_baseline",
-      "line": 2787,
+      "line": 2788,
       "returnsTrigger": true,
       "securityDefiner": false,
       "searchPath": null,
@@ -126,12 +186,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -149,12 +208,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -172,12 +230,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -200,7 +257,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -218,12 +275,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -241,12 +297,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -264,12 +319,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -287,12 +341,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -310,12 +363,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -333,12 +385,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -356,12 +407,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -379,12 +429,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -402,12 +451,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -425,12 +473,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -448,12 +495,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -471,12 +517,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -494,12 +539,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -517,12 +561,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -540,12 +583,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -563,12 +605,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -586,12 +627,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -609,12 +649,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -632,12 +671,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -655,12 +693,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -678,12 +715,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -701,12 +737,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -724,12 +759,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -747,12 +781,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -765,6 +798,29 @@
       "line": 2732,
       "returnsTrigger": false,
       "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.next_document_number(uuid,text)",
+      "schema": "public",
+      "name": "next_document_number",
+      "argsRaw": " p_company_id UUID, p_doc_type TEXT ",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 2959,
+      "returnsTrigger": false,
+      "securityDefiner": false,
       "searchPath": null,
       "class": "internal_service_role_only",
       "revoke": [
@@ -775,30 +831,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
-      "classified": true
-    },
-    {
-      "identity": "public.next_document_number(uuid,text)",
-      "schema": "public",
-      "name": "next_document_number",
-      "argsRaw": " p_company_id UUID, p_doc_type TEXT ",
-      "sliceVersion": "20260907010031",
-      "sliceName": "esc_application_schema_slice_2_of_5",
-      "line": 2958,
-      "returnsTrigger": false,
-      "securityDefiner": false,
-      "searchPath": null,
-      "class": "migration_admin_or_internal",
-      "revoke": [
-        "PUBLIC",
-        "anon",
-        "authenticated"
-      ],
-      "grant": [
-        "service_role"
-      ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -816,12 +849,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -839,12 +871,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -862,12 +893,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -885,12 +915,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -908,12 +937,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -931,12 +959,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -954,12 +981,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -977,12 +1003,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1000,12 +1025,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1028,7 +1052,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1051,7 +1075,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1074,7 +1098,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1097,7 +1121,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1120,7 +1144,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1134,7 +1158,7 @@
       "returnsTrigger": false,
       "securityDefiner": false,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
@@ -1143,7 +1167,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1157,7 +1181,7 @@
       "returnsTrigger": false,
       "securityDefiner": false,
       "searchPath": "public",
-      "class": "migration_admin_or_internal",
+      "class": "internal_service_role_only",
       "revoke": [
         "PUBLIC",
         "anon",
@@ -1166,7 +1190,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1184,12 +1208,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1207,12 +1230,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1230,12 +1252,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1253,12 +1274,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1272,16 +1292,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public, extensions, pg_temp",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1295,16 +1314,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public, pg_temp",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1327,7 +1345,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1345,12 +1363,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -1364,16 +1381,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1391,12 +1407,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1414,12 +1429,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -1437,12 +1451,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -1460,12 +1473,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1483,12 +1495,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1511,7 +1522,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1534,7 +1545,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1552,12 +1563,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1575,12 +1585,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1598,12 +1607,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1626,7 +1634,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1644,12 +1652,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1672,7 +1679,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1690,12 +1697,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1718,7 +1724,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1736,12 +1742,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1759,12 +1764,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1787,7 +1791,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1810,7 +1814,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1828,12 +1832,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -1856,7 +1859,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1879,7 +1882,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1902,7 +1905,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1925,7 +1928,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -1939,16 +1942,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1962,16 +1964,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -1985,16 +1986,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2008,16 +2008,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2040,7 +2039,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2063,7 +2062,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     },
     {
@@ -2077,16 +2076,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2219,12 +2217,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -2238,16 +2235,15 @@
       "returnsTrigger": false,
       "securityDefiner": true,
       "searchPath": "public, extensions, pg_temp",
-      "class": "internal_service_role_only",
+      "class": "migration_admin_or_internal",
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only",
       "classified": true
     },
     {
@@ -2265,12 +2261,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "Trigger/immutability helper — not a browser RPC",
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
       "classified": true
     },
     {
@@ -2288,12 +2283,11 @@
       "revoke": [
         "PUBLIC",
         "anon",
-        "authenticated"
-      ],
-      "grant": [
+        "authenticated",
         "service_role"
       ],
-      "rationale": "No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated",
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
       "classified": true
     },
     {
@@ -2316,7 +2310,7 @@
       "grant": [
         "service_role"
       ],
-      "rationale": "Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role",
+      "rationale": "Proven server-side RPC/caller; service_role EXECUTE only",
       "classified": true
     }
   ]

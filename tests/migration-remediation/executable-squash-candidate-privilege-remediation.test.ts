@@ -17,8 +17,8 @@ const INV = path.join(
   ROOT,
   "docs/migration-remediation/evidence/executable-squash-candidate-function-privilege-inventory.json",
 );
-const EXPECTED_SEAL = "c5c360d8325e2cbfa474d97ea0d33e0f2449ab89820770146def8c4c13da5a37";
-const EXPECTED_BYTES = 1190718;
+const EXPECTED_SEAL = "75b3466195ad01ae336cb1a5f6e89f29232757b2d048dd68ac9ad50bad1d049b";
+const EXPECTED_BYTES = 1191052;
 
 function stripComments(sql: string) {
   return sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");
@@ -135,13 +135,31 @@ describe("ESC privilege + RLS-order remediation fail-closed gates", () => {
     );
   });
 
-  it("public.users has no GRANT ALL TO anon and keeps narrow authenticated grants", () => {
+  it("public.users has no anon ALL and authenticated UPDATE fully revoked", () => {
     const foundations = byVersion["20260907010010"];
     expect(assertNoUsersAnonAllGrant(foundations)).toBe(true);
     const cleaned = stripComments(foundations);
-    expect(cleaned).toMatch(/GRANT\s+SELECT,\s*UPDATE\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated/i);
-    expect(cleaned).toMatch(/REVOKE\s+ALL\s+ON\s+TABLE\s+public\.users\s+FROM\s+anon/i);
+    expect(cleaned).toMatch(/GRANT\s+SELECT\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated/i);
+    expect(cleaned).toMatch(/REVOKE\s+UPDATE\s+ON\s+TABLE\s+public\.users\s+FROM\s+authenticated/i);
     expect(cleaned).not.toMatch(/GRANT\s+ALL\s+ON\s+TABLE\s+public\.users\s+TO\s+anon/i);
+    expect(cleaned).not.toMatch(/GRANT\s+SELECT\s*,\s*UPDATE\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated/i);
+    expect(cleaned).not.toMatch(/GRANT\s+UPDATE\s*\([^)]*\)\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated/i);
+  });
+
+  it("publish_ledger_event CREATE includes locked search_path", () => {
+    const sql = byVersion["20260907010031"];
+    expect(sql).toMatch(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.publish_ledger_event\([\s\S]*?SECURITY\s+DEFINER\s+SET\s+search_path\s*=\s*public,\s*pg_temp\s+AS/i,
+    );
+  });
+
+  it("trigger_only functions do not grant service_role EXECUTE", () => {
+    for (const fn of inv.functions) {
+      if (fn.class === "trigger_only") {
+        expect(fn.grant || []).not.toContain("service_role");
+        expect(fn.revoke).toEqual(expect.arrayContaining(["service_role"]));
+      }
+    }
   });
 
   it("digest qualify remains once in forward-tail only", () => {

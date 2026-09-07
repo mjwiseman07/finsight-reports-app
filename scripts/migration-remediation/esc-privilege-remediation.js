@@ -8,7 +8,95 @@ const {
   parseRoutineHead,
 } = require('./option-d-function-identity');
 
-/** Evidence-backed anonymous RPC allowlist — empty after third-review fail-closed. */
+/** Proven lib/.rpc / server admin callers that need service_role EXECUTE. */
+const SERVICE_ROLE_RPC_NAME_ALLOWLIST = new Set([
+  'publish_ledger_event',
+  'increment_share_token_access',
+  'persist_journal_entry_proposal',
+  'persist_journal_entry_approval',
+  'persist_journal_entry_execution_reservation',
+  'transition_journal_entry_execution',
+  'persist_journal_entry_provider_attempt',
+  'patch_journal_entry_provider_attempt',
+  'apply_journal_entry_verified',
+  'apply_journal_entry_verification_mismatch',
+  'apply_journal_entry_provider_commit_discovered',
+  'apply_journal_entry_provider_not_found_confirmed',
+  'gap2_schedule_purge',
+  'gap2_cancel_purge',
+  'persist_continuous_close_observe_run',
+  'persist_audit_ready_recon_bridge',
+  'clear_audit_ready_recon_bridge',
+  'increment_pbc_request_count',
+  'get_similar_kickout_resolutions',
+  'get_similar_kickout_resolution_counts',
+  'audit_ready_latest_bs_kickout_lines',
+  'audit_ready_latest_pbc_kickout_runs',
+  'next_document_number',
+  'sp_list_public_columns',
+]);
+
+/**
+ * public.users column privilege contract (ESC overlay).
+ * Evidence: all app writes use supabaseAdmin/service_role; no browser .from('users').update.
+ * Self-service profile PATCH (app/api/account) uses service_role for business_name only.
+ * Therefore authenticated UPDATE is fully revoked (not column-granted).
+ */
+const PUBLIC_USERS_COLUMN_CONTRACT = {
+  table: 'public.users',
+  authenticatedTablePrivileges: ['SELECT'],
+  authenticatedUpdateAllowlist: [],
+  authenticatedUpdateFullyRevoked: true,
+  rationale:
+    'No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.',
+  columns: {
+    id: { class: 'server_managed_identity', userEditable: false },
+    email: { class: 'server_managed_identity', userEditable: false },
+    first_name: {
+      class: 'server_managed_profile_at_signup',
+      userEditable: false,
+      evidence: 'Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path',
+    },
+    last_name: {
+      class: 'server_managed_profile_at_signup',
+      userEditable: false,
+      evidence: 'Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path',
+    },
+    business_name: {
+      class: 'server_path_profile',
+      userEditable: false,
+      evidence: 'app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role',
+    },
+    ip_address_signup: {
+      class: 'immutable_audit_system',
+      userEditable: false,
+      evidence: 'app/api/signup/route.js writes via supabaseAdmin only',
+    },
+    trial_used: {
+      class: 'billing_subscription',
+      userEditable: false,
+      evidence: 'app/api/mark-trial-used uses supabaseAdmin',
+    },
+    reports_generated: {
+      class: 'usage_quota',
+      userEditable: false,
+      evidence: 'app/api/mark-trial-used uses supabaseAdmin',
+    },
+    subscription_status: {
+      class: 'billing_subscription',
+      userEditable: false,
+      evidence: 'lib/subscription-sync.js service-role webhook path',
+    },
+    stripe_customer_id: {
+      class: 'billing_subscription',
+      userEditable: false,
+      evidence: 'lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)',
+    },
+    created_at: { class: 'immutable_audit_system', userEditable: false },
+  },
+};
+
+/** Evidence-backed anonymous RPC allowlist — empty (fail-closed). */
 const ANON_RPC_ALLOWLIST = new Set();
 
 /**
@@ -151,6 +239,7 @@ function findGrantExecuteDetailed(sql) {
 
 function classifyFunction(fn) {
   const identity = fn.identity;
+  const name = fn.name || (identity ? identity.replace(/^public\./, '').split('(')[0] : '');
   if (ANON_RPC_ALLOWLIST.has(identity)) {
     return {
       class: 'anonymous_public_rpc',
@@ -169,30 +258,40 @@ function classifyFunction(fn) {
   }
   if (
     fn.returnsTrigger ||
-    /_(trg|trigger)$/i.test(fn.name) ||
-    /prevent_|touch_|immutable|enforce_|guard_|reject_|before_insert|before_update|after_/i.test(fn.name)
+    /_(trg|trigger)$/i.test(name) ||
+    /prevent_|touch_|immutable|enforce_|guard_|reject_|before_insert|before_update|after_/i.test(name)
   ) {
     return {
       class: 'trigger_only',
-      revoke: ['PUBLIC', 'anon', 'authenticated'],
-      grant: ['service_role'],
-      rationale: 'Trigger/immutability helper — not a browser RPC',
+      revoke: ['PUBLIC', 'anon', 'authenticated', 'service_role'],
+      grant: [],
+      rationale:
+        'Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role',
     };
   }
-  if (SENSITIVE_NAME_RE.test(fn.name) || fn.securityDefiner) {
+  if (SERVICE_ROLE_RPC_NAME_ALLOWLIST.has(name) || SENSITIVE_NAME_RE.test(name) || fn.securityDefiner) {
+    const allowSvc = SERVICE_ROLE_RPC_NAME_ALLOWLIST.has(name);
+    if (allowSvc) {
+      return {
+        class: 'internal_service_role_only',
+        revoke: ['PUBLIC', 'anon', 'authenticated'],
+        grant: ['service_role'],
+        rationale: 'Proven server-side RPC/caller; service_role EXECUTE only',
+      };
+    }
     return {
-      class: 'internal_service_role_only',
-      revoke: ['PUBLIC', 'anon', 'authenticated'],
-      grant: ['service_role'],
+      class: 'migration_admin_or_internal',
+      revoke: ['PUBLIC', 'anon', 'authenticated', 'service_role'],
+      grant: [],
       rationale:
-        'Fail-closed: sensitive/SECURITY DEFINER or internal write path; lib callers use service_role',
+        'SECURITY DEFINER/sensitive name without proven runtime RPC caller — owner/admin only',
     };
   }
   return {
     class: 'migration_admin_or_internal',
-    revoke: ['PUBLIC', 'anon', 'authenticated'],
-    grant: ['service_role'],
-    rationale: 'No evidence-backed browser RPC contract; revoke PUBLIC/anon/authenticated',
+    revoke: ['PUBLIC', 'anon', 'authenticated', 'service_role'],
+    grant: [],
+    rationale: 'No evidence-backed browser or service_role RPC contract',
   };
 }
 
@@ -360,26 +459,67 @@ function injectPrivilegeClosureBeforeCommits(sql, opts = {}) {
 }
 
 /**
- * Overlay public.users grants: remove anon ALL; narrow authenticated to SELECT/UPDATE.
+ * Overlay public.users grants: remove anon ALL; authenticated SELECT only (UPDATE fully revoked).
  */
 function applyUsersAnonGrantOverlay(sql) {
   const marker = '-- [ESC] public.users privilege overlay';
-  if (sql.includes(marker)) return sql;
+  // Always re-apply from a clean grant shape so rebuilds are deterministic.
   let out = sql;
   out = out.replace(
     /GRANT\s+ALL\s+ON\s+TABLE\s+public\.users\s+TO\s+anon\s*;/gi,
     `${marker}: removed GRANT ALL TO anon (no anon client path; RLS is not justification for table ALL).\n-- HISTORICAL_TABLE_GRANT_REMOVED ALL ON TABLE public.users TO anon;`
   );
   out = out.replace(
-    /GRANT\s+ALL\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated\s*;/gi,
-    `${marker}: narrowed authenticated from ALL to SELECT, UPDATE (own-row policies only).\nGRANT SELECT, UPDATE ON TABLE public.users TO authenticated;`
+    /GRANT\s+(?:ALL|SELECT\s*,\s*UPDATE|UPDATE\s*,\s*SELECT|SELECT|UPDATE)\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated\s*;/gi,
+    `${marker}: authenticated SELECT only — UPDATE fully revoked (no browser UPDATE path; account/billing use service_role).\nGRANT SELECT ON TABLE public.users TO authenticated;\nREVOKE UPDATE ON TABLE public.users FROM authenticated;`
   );
   if (!/REVOKE\s+ALL\s+ON\s+TABLE\s+public\.users\s+FROM\s+anon/i.test(out)) {
     out += `\n${marker}: explicit deny for PUBLIC/anon table privileges.\n`;
     out += 'REVOKE ALL ON TABLE public.users FROM PUBLIC;\n';
     out += 'REVOKE ALL ON TABLE public.users FROM anon;\n';
   }
+  if (!/REVOKE\s+UPDATE\s+ON\s+TABLE\s+public\.users\s+FROM\s+authenticated/i.test(out)) {
+    out += `\n${marker}: ensure authenticated cannot UPDATE any column.\n`;
+    out += 'REVOKE UPDATE ON TABLE public.users FROM authenticated;\n';
+  }
+  // Strip any column-level UPDATE grants to authenticated (fail-closed; allowlist empty)
+  out = out.replace(
+    /GRANT\s+UPDATE\s*\([^)]*\)\s+ON\s+TABLE\s+public\.users\s+TO\s+authenticated\s*;/gi,
+    `${marker}: removed column-level UPDATE grant — authenticatedUpdateAllowlist is empty.\n-- HISTORICAL_COLUMN_UPDATE_GRANT_REMOVED ON public.users TO authenticated;`
+  );
   return out;
+}
+
+/**
+ * Ensure publish_ledger_event CREATE includes locked search_path (create-time, not later ALTER-only).
+ */
+function hardenPublishLedgerEventCreate(sql) {
+  return sql.replace(
+    /CREATE\s+(OR\s+REPLACE\s+)?FUNCTION\s+public\.publish_ledger_event\s*\([\s\S]*?\)\s*RETURNS\s+TABLE\s*\([\s\S]*?\)\s*LANGUAGE\s+plpgsql\s*SECURITY\s+DEFINER(\s*SET\s+search_path\s*=\s*[^;\n]+)?\s*AS\s+/gi,
+    (full) => {
+      if (/SECURITY\s+DEFINER\s+SET\s+search_path\s*=\s*public,\s*pg_temp/i.test(full)) {
+        return full;
+      }
+      return full.replace(
+        /SECURITY\s+DEFINER(?:\s+SET\s+search_path\s*=\s*[^;\n]+)?\s*AS\s+/i,
+        'SECURITY DEFINER\nSET search_path = public, pg_temp\nAS '
+      );
+    }
+  );
+}
+
+function assertNoUsersAuthenticatedTableUpdate(sql) {
+  const cleaned = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '');
+  if (/GRANT\s+(ALL|UPDATE)\b[\s\S]{0,80}?ON\s+(TABLE\s+)?public\.users\s+TO\s+authenticated/i.test(cleaned)) {
+    return false;
+  }
+  if (/GRANT\s+SELECT\s*,\s*UPDATE\s+ON\s+(TABLE\s+)?public\.users\s+TO\s+authenticated/i.test(cleaned)) {
+    return false;
+  }
+  if (/GRANT\s+UPDATE\s*\([^)]*\)\s+ON\s+(TABLE\s+)?public\.users\s+TO\s+authenticated/i.test(cleaned)) {
+    return false;
+  }
+  return true;
 }
 
 function assertNoUsersAnonAllGrant(sql) {
@@ -439,6 +579,8 @@ function engagementPostingPolicyOrder(modulesSqlByVersion) {
 module.exports = {
   ANON_RPC_ALLOWLIST,
   AUTHENTICATED_HELPER_ALLOWLIST,
+  SERVICE_ROLE_RPC_NAME_ALLOWLIST,
+  PUBLIC_USERS_COLUMN_CONTRACT,
   findCreateFunctionsDetailed,
   findRevokeExecuteDetailed,
   findGrantExecuteDetailed,
@@ -447,7 +589,9 @@ module.exports = {
   buildFunctionPrivilegeClosureSql,
   injectPrivilegeClosureBeforeCommits,
   applyUsersAnonGrantOverlay,
+  hardenPublishLedgerEventCreate,
   assertNoUsersAnonAllGrant,
+  assertNoUsersAuthenticatedTableUpdate,
   sameSlicePublicRevokeGaps,
   engagementPostingPolicyOrder,
   formatRevokeTarget,

@@ -4219,47 +4219,47 @@ ALTER TABLE IF EXISTS public.gap2_purge_table_registry ENABLE ROW LEVEL SECURITY
 REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.preset_pack_registry_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.preset_pack_registry_immutable() FROM service_role;
 -- disposition public.observation_events_immutable() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.observation_events_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.observation_events_immutable() FROM service_role;
 -- disposition public.drafted_amendments_terminal_immutable() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.drafted_amendments_terminal_immutable() FROM service_role;
 -- disposition public.qbo_webhook_events_enforce_append_only() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_enforce_append_only() FROM service_role;
 -- disposition public.qbo_webhook_events_block_delete() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.qbo_webhook_events_block_delete() FROM service_role;
 -- disposition public.gap3_materiality_bucket(int8,uuid) => trigger_only
 REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.gap3_materiality_bucket(int8,uuid) FROM service_role;
 -- disposition public.gap3_pre_close_ri_materiality_before_insert() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_materiality_before_insert() FROM service_role;
 -- disposition public.gap3_pre_close_ri_sod_before_update() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.gap3_pre_close_ri_sod_before_update() FROM service_role;
 -- disposition public.gap2_audit_append_only() => trigger_only
 REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM anon;
 REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.gap2_audit_append_only() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.gap2_audit_append_only() FROM service_role;
 -- disposition public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) => internal_service_role_only
 REVOKE EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4) FROM anon;
