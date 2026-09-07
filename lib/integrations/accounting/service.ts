@@ -20,6 +20,11 @@ import {
 } from "./resolve-or-create-company";
 import { persistCanonicalAccountingConnectionGrant } from "./persist-canonical-connection-grant";
 import {
+  createQboOAuthEnvironmentState,
+  verifyQboOAuthEnvironmentState,
+} from "@/lib/erp/quickbooks/oauth-environment-state";
+import type { PersistedQboProviderEnvironment } from "@/lib/erp/quickbooks/persisted-provider-environment";
+import {
   AccountingConnectionSelectionError,
   selectAccountingConnectionForActiveContext,
 } from "./connection-selection";
@@ -750,7 +755,10 @@ export function listAccountingProviders() {
 
 export async function startConnection(providerKey: AccountingProvider, user: { id: string }, returnTo = "") {
   const provider = getAccountingProvider(providerKey);
-  const state = crypto.randomUUID();
+  const state =
+    provider.provider === "quickbooks"
+      ? createQboOAuthEnvironmentState().state
+      : crypto.randomUUID();
   const url = await provider.getAuthorizationUrl({ state, userId: user.id, returnTo });
   return { url, state, provider: provider.provider };
 }
@@ -803,6 +811,17 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
 
   if (!code || !state || state !== oauth.state || !oauth.token) {
     throw new Error("Missing or invalid accounting OAuth state");
+  }
+
+  let verifiedProviderEnvironment: PersistedQboProviderEnvironment | null = null;
+  if (provider.provider === "quickbooks") {
+    verifiedProviderEnvironment = verifyQboOAuthEnvironmentState({
+      stateFromQuery: state,
+      stateFromCookie: oauth.state,
+      browserEnvironment:
+        requestUrl.searchParams.get("environment") ||
+        requestUrl.searchParams.get("qb_environment"),
+    }).expectedProviderEnvironment;
   }
 
   const { data: authData, error: authError } = await supabase.auth.getUser(oauth.token);
@@ -874,6 +893,7 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
     status,
     companyId,
     nowIso: connectedAt,
+    verifiedProviderEnvironment,
     metadataPatch: {
       token_type: tokenPayload.token_type || null,
       source_system: provider.provider,

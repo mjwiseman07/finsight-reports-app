@@ -12,7 +12,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUserIdShapedCompanyId } from "./resolve-or-create-company";
-import { resolvePersistedQboProviderEnvironment } from "@/lib/erp/quickbooks/persisted-provider-environment";
+import {
+  resolvePersistedQboProviderEnvironment,
+  type PersistedQboProviderEnvironment,
+} from "@/lib/erp/quickbooks/persisted-provider-environment";
 import type {
   AccountingConnectionRecord,
   AccountingConnectionStatus,
@@ -63,6 +66,28 @@ export interface PersistCanonicalConnectionGrantArgs {
   /** QBO / lead extras (home_currency, qbo_edition, …). */
   extraColumns?: Record<string, unknown>;
   nowIso?: string;
+  /**
+   * Verified OAuth-state environment for QuickBooks. When supplied, must equal
+   * the current server QB_ENVIRONMENT. Never accepted from browser input.
+   */
+  verifiedProviderEnvironment?: PersistedQboProviderEnvironment | null;
+}
+
+export class AmbiguousAccountingConnectionGrantError extends Error {
+  constructor(message = "Multiple accounting connection grants matched authority") {
+    super(message);
+    this.name = "AmbiguousAccountingConnectionGrantError";
+  }
+}
+
+export class QboProviderEnvironmentAuthorityError extends Error {
+  readonly code: "missing" | "mismatch";
+
+  constructor(code: "missing" | "mismatch", message: string) {
+    super(message);
+    this.name = "QboProviderEnvironmentAuthorityError";
+    this.code = code;
+  }
 }
 
 export interface PersistCanonicalConnectionGrantResult {
@@ -183,9 +208,11 @@ async function selectConnectedGrant(
     .eq("tenant_or_realm_id", tenantOrRealmId)
     .eq("status", "connected")
     .order("updated_at", { ascending: false })
-    .limit(1);
+    .limit(2);
   if (error) throw error;
-  return (data?.[0] as GrantRow | undefined) || null;
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length > 1) throw new AmbiguousAccountingConnectionGrantError();
+  return (rows[0] as GrantRow | undefined) || null;
 }
 
 async function selectRevivableGrant(
@@ -202,9 +229,11 @@ async function selectRevivableGrant(
     .eq("tenant_or_realm_id", tenantOrRealmId)
     .in("status", REVIVABLE_STATUSES)
     .order("updated_at", { ascending: false })
-    .limit(1);
+    .limit(2);
   if (error) throw error;
-  return (data?.[0] as GrantRow | undefined) || null;
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length > 1) throw new AmbiguousAccountingConnectionGrantError();
+  return (rows[0] as GrantRow | undefined) || null;
 }
 
 async function selectTenantlessGrant(
@@ -220,18 +249,34 @@ async function selectTenantlessGrant(
     .is("tenant_or_realm_id", null)
     .neq("status", "superseded")
     .order("updated_at", { ascending: false })
-    .limit(1);
+    .limit(2);
   if (error) throw error;
-  return (data?.[0] as GrantRow | undefined) || null;
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length > 1) throw new AmbiguousAccountingConnectionGrantError();
+  return (rows[0] as GrantRow | undefined) || null;
+}
+
+function resolveQboProviderEnvironmentForWrite(
+  args: PersistCanonicalConnectionGrantArgs,
+): PersistedQboProviderEnvironment {
+  const serverEnv = resolvePersistedQboProviderEnvironment();
+  if (args.verifiedProviderEnvironment != null) {
+    if (args.verifiedProviderEnvironment !== serverEnv) {
+      throw new QboProviderEnvironmentAuthorityError(
+        "mismatch",
+        "Verified OAuth provider environment does not match server configuration",
+      );
+    }
+    return args.verifiedProviderEnvironment;
+  }
+  return serverEnv;
 }
 
 function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: Record<string, unknown>) {
   assertNoReservedExtraColumns(args.extraColumns);
   const nowIso = args.nowIso || new Date().toISOString();
   const providerEnvironment =
-    args.provider === "quickbooks"
-      ? resolvePersistedQboProviderEnvironment()
-      : null;
+    args.provider === "quickbooks" ? resolveQboProviderEnvironmentForWrite(args) : null;
   const safeExtraColumns = args.extraColumns || {};
   return {
     user_id: args.userId,

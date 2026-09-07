@@ -602,6 +602,52 @@ describe("provider_environment canonical custody", () => {
       qbo_edition: "plus",
     });
   });
+
+  it("9 verifiedProviderEnvironment must match server QB_ENVIRONMENT", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { admin } = createStoreAdmin([]);
+    await expect(
+      persistCanonicalAccountingConnectionGrant(
+        qboBaseArgs(admin, { verifiedProviderEnvironment: "sandbox" }),
+      ),
+    ).rejects.toMatchObject({ name: "QboProviderEnvironmentAuthorityError" });
+  });
+
+  it("10 verified production OAuth state persists production", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { admin, rows } = createStoreAdmin([]);
+    await persistCanonicalAccountingConnectionGrant(
+      qboBaseArgs(admin, { verifiedProviderEnvironment: "production" }),
+    );
+    expect(rows[0]).toMatchObject({ provider_environment: "production" });
+  });
+
+  it("11 ambiguous connected grants fail closed", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { admin } = createStoreAdmin([
+      makeRow({
+        id: "a1",
+        provider: "quickbooks",
+        provider_family: "intuit",
+        provider_product: "quickbooks_online",
+        tenant_or_realm_id: "9341457151063823",
+        external_entity_id: "qbo:9341457151063823",
+        provider_environment: null,
+      }),
+      makeRow({
+        id: "a2",
+        provider: "quickbooks",
+        provider_family: "intuit",
+        provider_product: "quickbooks_online",
+        tenant_or_realm_id: "9341457151063823",
+        external_entity_id: "qbo:9341457151063823",
+        provider_environment: null,
+      }),
+    ]);
+    await expect(persistCanonicalAccountingConnectionGrant(qboBaseArgs(admin))).rejects.toMatchObject({
+      name: "AmbiguousAccountingConnectionGrantError",
+    });
+  });
 });
 
 describe("PR D source wiring (static)", () => {

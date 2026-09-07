@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { createQboOAuthEnvironmentState } from "@/lib/erp/quickbooks/oauth-environment-state";
 
 async function handleConnect(request) {
   try {
     console.log("[quickbooks/connect] request received", {
       method: request.method,
-      environment: process.env.QB_ENVIRONMENT || "sandbox",
+      environment: process.env.QB_ENVIRONMENT || null,
       hasClientId: Boolean(process.env.QB_CLIENT_ID),
       hasClientSecret: Boolean(process.env.QB_CLIENT_SECRET),
       hasRedirectUri: Boolean(process.env.QB_REDIRECT_URI),
@@ -79,7 +79,7 @@ async function handleConnect(request) {
       return NextResponse.json({ error: "Lead capture or sign-in is required before connecting QuickBooks." }, { status: 401 });
     }
 
-    const state = crypto.randomUUID();
+    const { state, expectedProviderEnvironment } = createQboOAuthEnvironmentState();
     const adapter = getERPAdapter("quickbooks", connectContext.userId || null);
     const { url, config: quickBooksConfig } = adapter.connect({ state });
     const parsedUrl = new URL(url);
@@ -101,6 +101,7 @@ async function handleConnect(request) {
       stateLength: state.length,
       scope: "com.intuit.quickbooks.accounting",
       environment: quickBooksConfig.environment,
+      expectedProviderEnvironment,
       hasRedirectUri: Boolean(quickBooksConfig.redirectUri),
       clientIdMatchesEnv: parsedUrl.searchParams.get("client_id") === quickBooksConfig.clientId,
       responseType: parsedUrl.searchParams.get("response_type"),

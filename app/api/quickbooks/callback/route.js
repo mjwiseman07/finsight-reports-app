@@ -8,13 +8,24 @@ import { verifyHolderUserIdCookie, HOLDER_USER_ID_COOKIE_NAME } from "@/lib/demo
 import { persistCanonicalAccountingConnectionGrant } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
 import { resolveOrCreateCompanyForProvider } from "@/lib/integrations/accounting/resolve-or-create-company";
 import { persistAuthenticatedQuickBooksGrant } from "@/lib/integrations/quickbooks/persist-authenticated-grant";
+import {
+  QboOAuthEnvironmentStateError,
+  verifyQboOAuthEnvironmentState,
+} from "@/lib/erp/quickbooks/oauth-environment-state";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 }
 
-async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, companyProfile, oauthMode = "lead" }) {
+async function saveLeadQuickBooksAccountingConnection({
+  leadId,
+  realmId,
+  token,
+  companyProfile,
+  oauthMode = "lead",
+  verifiedProviderEnvironment = null,
+}) {
   const companyName = companyProfile.legal_name || companyProfile.company_name || "QuickBooks Company";
   const now = new Date().toISOString();
 
@@ -43,6 +54,7 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
     status: "connected",
     companyId,
     nowIso: now,
+    verifiedProviderEnvironment,
     extraColumns: {
       home_currency: companyProfile.home_currency || null,
       qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
@@ -181,6 +193,33 @@ async function getImpl(request) {
     return redirectWithQbError(request, "state_mismatch");
   }
 
+  let verifiedProviderEnvironment;
+  try {
+    const verified = verifyQboOAuthEnvironmentState({
+      stateFromQuery: state,
+      stateFromCookie: expectedState,
+      // Explicitly ignore any browser-supplied environment claim.
+      browserEnvironment: url.searchParams.get("environment") || url.searchParams.get("qb_environment"),
+    });
+    verifiedProviderEnvironment = verified.expectedProviderEnvironment;
+  } catch (stateErr) {
+    const code =
+      stateErr instanceof QboOAuthEnvironmentStateError
+        ? stateErr.code
+        : "state_mismatch";
+    console.error("[quickbooks/callback] OAuth environment state rejected", {
+      code,
+      message: stateErr?.message,
+    });
+    if (code === "environment_mismatch") {
+      return redirectWithQbError(request, "environment_mismatch");
+    }
+    if (code === "expired_state") {
+      return redirectWithQbError(request, "state_expired");
+    }
+    return redirectWithQbError(request, "state_mismatch");
+  }
+
   if (!authCode || !realmId) {
     console.error("[quickbooks/callback] missing required callback values", {
       hasAuthCode: Boolean(authCode),
@@ -263,6 +302,7 @@ async function getImpl(request) {
           token,
           companyProfile,
           oauthMode: "super_admin_holder",
+          verifiedProviderEnvironment,
         });
       } catch (saveErr) {
         console.error("[quickbooks/callback] super_admin_holder accounting connection save failed", {
@@ -306,6 +346,7 @@ async function getImpl(request) {
           realmId,
           token,
           companyProfile,
+          verifiedProviderEnvironment,
         });
       } catch (saveErr) {
         console.error("[quickbooks/callback] lead connection save failed", {
@@ -399,6 +440,7 @@ async function getImpl(request) {
         realmId,
         token,
         companyProfile,
+        verifiedProviderEnvironment,
       });
     } catch (saveErr) {
       console.error("[quickbooks/callback] user dual-write connection save failed", {
