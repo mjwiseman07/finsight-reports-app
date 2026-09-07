@@ -1,9 +1,7 @@
 /**
- * QBO adapter — Block 6a scaffold.
- * Uses existing @/lib/qbo/client if available; otherwise returns empty arrays
- * so orchestrator can complete without failure. Real QBO wiring lands in Block 6b/7
- * when we integrate the multi-ERP router.
+ * QBO adapter — Block 6b COA wiring via governed read-only Account query.
  */
+import { getCoaForFirmClient } from "@/lib/pulse-je/coa-cache";
 import type {
   HarvestSourceAdapter,
   HarvestedVendorRow,
@@ -12,6 +10,7 @@ import type {
   HarvestedGoodsReceiptRow,
   HarvestedCoaRow,
 } from "../types";
+
 export class QboHarvestAdapter implements HarvestSourceAdapter {
   constructor(private readonly actorUserId: string) {}
   async fetchVendors(_ctx: { firmClientId: string }): Promise<HarvestedVendorRow[]> {
@@ -27,7 +26,18 @@ export class QboHarvestAdapter implements HarvestSourceAdapter {
   async fetchGoodsReceipts(_ctx: { firmClientId: string }): Promise<HarvestedGoodsReceiptRow[]> {
     return [];
   }
-  async fetchChartOfAccounts(_ctx: { firmClientId: string }): Promise<HarvestedCoaRow[]> {
-    return [];
+  async fetchChartOfAccounts(ctx: {
+    firmClientId: string;
+  }): Promise<HarvestedCoaRow[]> {
+    void this.actorUserId;
+    const coa = await getCoaForFirmClient(ctx.firmClientId, { forceRefresh: true });
+    return coa.accounts.map((account) => ({
+      externalAccountId: account.qbo_id,
+      accountNumber: null,
+      accountName: account.name || account.fully_qualified_name,
+      accountType: account.account_type || null,
+      accountSubtype: account.account_sub_type || null,
+      active: account.active,
+    }));
   }
 }
