@@ -5,8 +5,11 @@
 --   public.qbo_connections_unified
 --
 -- WARNING: Applying this rollback REOPENS the confirmed HIGH-severity browser
--- credential exposure. Use only if an immediate material production outage
--- cannot be resolved safely after the forward containment migration.
+-- credential exposure, including the residual authenticated SELECT policy
+-- "users can read their accounting connection metadata" (which, together with
+-- restored table grants, again permits owner token-column SELECT).
+-- Use only if an immediate material production outage cannot be resolved
+-- safely after the forward containment migration.
 --
 -- This rollback does NOT:
 -- - restore row data or token values
@@ -16,6 +19,7 @@
 -- - weaken unrelated objects
 --
 -- Sealed against: docs/security/connection-credential-browser-containment/PRE_CHANGE_CONTRACT.json
+-- (pre-change production state — not the desired forward contained state)
 
 BEGIN;
 
@@ -43,7 +47,7 @@ WHERE provider = 'quickbooks'::text
 
 ALTER VIEW public.qbo_connections_unified OWNER TO postgres;
 
--- Restore original policies
+-- Restore original policies (exact catalog-verified pre-change names)
 DROP POLICY IF EXISTS service_role_all_quickbooks_connections ON public.quickbooks_connections;
 
 DROP POLICY IF EXISTS "Users can access own QB connection" ON public.quickbooks_connections;

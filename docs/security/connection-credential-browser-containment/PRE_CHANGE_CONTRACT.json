@@ -8,8 +8,25 @@
   "notes": [
     "Zero token values and zero customer rows are included.",
     "PUBLIC role had no table grants in information_schema.role_table_grants for these objects.",
-    "View dependency inventory (non-internal) was empty; DROP VIEW without CASCADE is expected to succeed."
+    "View dependency inventory (non-internal) was empty; DROP VIEW without CASCADE is expected to succeed.",
+    "This contract describes ACTUAL pre-change production state only — not the desired forward contained state.",
+    "Pre-change accounting_connections includes residual SELECT policy 'users can read their accounting connection metadata' (PUBLIC / user_id = auth.uid()).",
+    "Forward Stage-1 disposition: DROP that SELECT policy along with browser ALL/UPDATE policies; zero browser grants; service_role policies only.",
+    "Rollback intentionally restores the residual SELECT policy and browser grants, reopening HIGH-severity exposure (SECURITY_REGRESSION_BREAK_GLASS_ONLY)."
   ],
+  "stage1_forward_policy_disposition": {
+    "drop_policies": [
+      "Users can access own QB connection",
+      "users can update their accounting connections",
+      "users can read their accounting connection metadata"
+    ],
+    "retain_or_create_service_role_policies": [
+      "service_role_all_accounting_connections",
+      "service_role_all_quickbooks_connections"
+    ],
+    "browser_grants": "none",
+    "safe_column_browser_grants": "not_added"
+  },
   "objects": {
     "public.quickbooks_connections": {
       "kind": "table",

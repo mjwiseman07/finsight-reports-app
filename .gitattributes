@@ -9,3 +9,9 @@ supabase/migrations-draft/option-d-isolated-replay/substitutions/*.sql text eol=
 supabase/migrations-draft/option-d-isolated-replay/derived-baseline/*.sql text eol=lf
 supabase/migrations-draft/20260701043599_foundations_baseline.sql text eol=lf
 supabase/migrations-draft/recovered-production-history/*.sql text eol=lf
+
+# Stage-1 credential browser containment — force LF for seal-critical artifacts
+supabase/migrations/20260908031736_connection_credential_browser_containment.sql text eol=lf
+docs/security/connection-credential-browser-containment/** text eol=lf
+scripts/security/rehearse-credential-browser-containment.js text eol=lf
+tests/security/connection-credential-browser-containment.test.ts text eol=lf

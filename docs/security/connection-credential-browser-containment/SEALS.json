@@ -2,14 +2,10 @@
   "package": "connection-credential-browser-containment-stage1",
   "base_git_sha": "6cf3ea64718e2a5ba6d6e1365fbf37e0f18947a1",
   "migration_filename": "20260908031736_connection_credential_browser_containment.sql",
-  "seals_sha256": {
-    "PRE_CHANGE_CONTRACT.json": "f1eb6296ab796bbfc3ed8ae386640076018271b4c42da3bf3d29b219bedb8526",
-    "forward_migration": "d2739ae21af2f11400d10087457fd102b5ba2fba2f401d5b9a920bd584ae6bca",
-    "ROLLBACK_SECURITY_REGRESSION_BREAK_GLASS_ONLY.sql": "6a9b8d409912b954eb46d5bb215f8f09b9fbe591a168776353645ba56984a546",
-    "LOCAL_FIXTURE_SCHEMA.sql": "8b046f00d41217749ca21ccd3eb780b9616361092f889fce21efd5b56cf9ef02"
-  },
-  "local_rehearsal_verdict": "LOCAL_REHEARSAL_PASS",
-  "view_dependency_verdict": "CLEAR_NO_DEPENDENTS",
-  "application_compatibility_verdict": "APPLICATION_COMPATIBILITY_OK",
-  "production_apply": "NOT_AUTHORIZED_IN_THIS_PR_AUTHORING_TURN"
+  "seal_status": "PENDING_COMMIT1_REMEDIATION",
+  "notes": [
+    "Do not trust prior worktree CRLF hashes (d2739ae2… / 6a9b8d40… / f1eb6296…).",
+    "Commit-2 will publish SHA-256 and byte lengths from git cat-file blob after Commit-1."
+  ],
+  "production_apply": "NOT_AUTHORIZED"
 }
