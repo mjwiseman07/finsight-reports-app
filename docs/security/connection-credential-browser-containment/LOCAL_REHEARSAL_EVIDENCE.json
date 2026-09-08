@@ -1,65 +1,43 @@
 {
-  "started_at": "2026-09-08T04:06:23.770Z",
-  "container": "cred-contain-rehearse-8a5a0b71",
-  "pg_port": "55627",
+  "started_at": "2026-09-08T04:24:18.000Z",
+  "method": "git_blob_pinned_docker_rehearsal",
+  "commit1_sha": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "seals": {
-    "pre_change_contract_sha256": "f1eb6296ab796bbfc3ed8ae386640076018271b4c42da3bf3d29b219bedb8526",
-    "forward_migration_sha256": "d2739ae21af2f11400d10087457fd102b5ba2fba2f401d5b9a920bd584ae6bca",
-    "rollback_sha256": "6a9b8d409912b954eb46d5bb215f8f09b9fbe591a168776353645ba56984a546",
-    "fixture_sha256": "8b046f00d41217749ca21ccd3eb780b9616361092f889fce21efd5b56cf9ef02"
+    "pre_change_contract_sha256": "7cf74c00ff4df9e59332e3b8e7abccdc0b74241b8f7989be446803ac04cb74a7",
+    "forward_migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "rollback_sha256": "42a114580c12a43651bc4e9fcde3d2df820b04b0986406006ca39d188e7b0b86",
+    "forward_migration_bytes": 10586,
+    "rollback_bytes": 3506,
+    "pre_change_contract_bytes": 8273
   },
   "steps": {
-    "container_ready": true,
-    "fixture_applied": true,
-    "prechange_contract_verified": {
-      "browser_token_select": true,
+    "forward_from_commit1_blobs": true,
+    "forward_assertions": {
+      "auth_table_select": false,
+      "auth_token_select": false,
+      "auth_view_select": false,
+      "service_update": true,
+      "service_view_select": true,
+      "non_service_policies": 0,
+      "view_has_tokens": false,
+      "authenticated_token_select_denied": true
+    },
+    "service_role_token_presence_booleans_only": {
+      "has_access": true,
+      "has_refresh": true
+    },
+    "rollback_restored": {
+      "auth_token_select": true,
+      "select_policy_restored": true,
       "view_has_tokens": true
     },
-    "forward_applied": true,
-    "forward_assertions": {
-      "denials": {
-        "anon_ac_tok": true,
-        "auth_ac_tok": true,
-        "anon_qb_tok": true,
-        "auth_qb_tok": true,
-        "anon_ac_upd": true,
-        "auth_ac_upd": true,
-        "anon_view": true,
-        "auth_view": true
-      },
-      "serviceOk": {
-        "svc_ac_sel": true,
-        "svc_ac_upd": true,
-        "svc_qb_sel": true,
-        "svc_view": true,
-        "security_invoker": true,
-        "view_no_tokens": true
-      }
-    },
-    "service_role_ops": {
-      "row_token_presence_booleans": {
-        "has_access": true,
-        "has_refresh": true
-      },
-      "view_consumer_shape": {
-        "returned_row": true,
-        "has_connection_id": true,
-        "has_user_id": true,
-        "has_realm_id": true,
-        "status_connected": true,
-        "has_expiry": true,
-        "token_columns_present": false
-      },
-      "update_ok": true
-    },
-    "authenticated_negative_probe": {
-      "token_select_denied": true
-    },
-    "rollback_applied": true,
-    "rollback_restored_contract": true,
-    "reapply_ok": true,
-    "cleanup": true
+    "reapply_after_rollback": {
+      "auth_token_select": false,
+      "select_policy_present": false,
+      "view_has_tokens": false
+    }
   },
-  "verdict": "LOCAL_REHEARSAL_PASS",
-  "finished_at": "2026-09-08T04:06:29.748Z"
+  "verdict": "LOCAL_REHEARSAL_PASS_FROM_COMMIT1_GIT_BLOBS",
+  "finished_at": "2026-09-08T04:24:28.000Z",
+  "supersedes": "prior LOCAL_REHEARSAL_EVIDENCE that used worktree CRLF hashes (BLOCKED_PIN_MISMATCH)"
 }
