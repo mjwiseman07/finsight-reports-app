@@ -347,7 +347,6 @@ async function persistRefreshedToken(
           userId: conn.userId,
           tenantOrRealmId: conn.realmId,
           concurrencyToken: conn.concurrencyToken,
-          expectedRefreshToken: conn.refreshToken,
           expectedStatus: "connected",
         },
         {

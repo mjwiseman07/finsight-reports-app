@@ -359,8 +359,7 @@ async function updateQuickBooksGrantConditional(
       tenantOrRealmId: tenantId,
       concurrencyToken,
       expectedStatus: existing.status || "connected",
-      // OAuth grant rotation must not require the prior refresh_token match —
-      // CAS on updated_at + binding is the concurrency gate.
+      // CAS concurrency gate: exact updated_at + non-secret binding predicates only.
     },
     {
       accessToken: String(payload.access_token || ""),

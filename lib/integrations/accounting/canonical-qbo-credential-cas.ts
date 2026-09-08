@@ -2,7 +2,10 @@
  * Fail-closed optimistic concurrency for canonical QuickBooks credential writes
  * on public.accounting_connections.
  *
- * Concurrency token = row.updated_at (ISO). Never log tokens, hashes, realms, or IDs.
+ * Concurrency token = row.updated_at (ISO string equality). Never put tokens,
+ * token hashes, realms, or IDs into errors or logs. Never filter PostgREST with
+ * secret-valued columns (refresh_token / access_token) — those become URL query
+ * parameters via @supabase/postgrest-js `.eq()`.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -28,13 +31,8 @@ export type QboCredentialCasSnapshot = {
   connectionId: string;
   userId: string;
   tenantOrRealmId: string;
-  /** ISO updated_at from the row read before the write attempt. */
+  /** Exact ISO updated_at from the row read before the write attempt. */
   concurrencyToken: string;
-  /**
-   * When set, the UPDATE also requires refresh_token equality so a refresh that
-   * began before an OAuth rotation cannot overwrite the newer grant.
-   */
-  expectedRefreshToken?: string | null;
   /** Status required on the existing row (defaults to "connected"). */
   expectedStatus?: string;
 };
@@ -60,9 +58,24 @@ export type QboCredentialCasPatch = {
   clearSupersededBy?: boolean;
 };
 
+/** Columns permitted in PostgREST URL filters for credential CAS. */
+export const QBO_CREDENTIAL_CAS_URL_FILTER_COLUMNS = [
+  "id",
+  "provider",
+  "user_id",
+  "tenant_or_realm_id",
+  "status",
+  "superseded_by_connection_id",
+  "credentials_cleared_at",
+  "updated_at",
+] as const;
+
 /**
  * Conditionally update exactly one QuickBooks accounting_connections row.
  * Zero rows → stale_connection_state. More than one → invariant_multiple_rows.
+ *
+ * URL filters are limited to non-secret binding + concurrency predicates.
+ * Credential material belongs only in the PATCH body.
  */
 export async function updateCanonicalQboCredentialsConditional(
   admin: SupabaseClient,
@@ -110,7 +123,7 @@ export async function updateCanonicalQboCredentialsConditional(
   }
   if (patch.clearSupersededBy) payload.superseded_by_connection_id = null;
 
-  let query = admin
+  const { data, error } = await admin
     .from("accounting_connections")
     .update(payload)
     .eq("id", connectionId)
@@ -120,13 +133,9 @@ export async function updateCanonicalQboCredentialsConditional(
     .eq("status", expectedStatus)
     .is("superseded_by_connection_id", null)
     .is("credentials_cleared_at", null)
-    .eq("updated_at", concurrencyToken);
-
-  if (snapshot.expectedRefreshToken != null && snapshot.expectedRefreshToken !== "") {
-    query = query.eq("refresh_token", snapshot.expectedRefreshToken);
-  }
-
-  const { data, error } = await query.select("id, updated_at").limit(2);
+    .eq("updated_at", concurrencyToken)
+    .select("id, updated_at")
+    .limit(2);
 
   if (error) {
     throw new QboCredentialCasError(
@@ -173,12 +182,11 @@ export async function persistRefreshedQboCredentialsConditional(
   return updateCanonicalQboCredentialsConditional(
     admin,
     {
-      ...snapshot,
+      connectionId: snapshot.connectionId,
+      userId: snapshot.userId,
+      tenantOrRealmId: snapshot.tenantOrRealmId,
+      concurrencyToken: snapshot.concurrencyToken,
       expectedStatus: snapshot.expectedStatus || "connected",
-      expectedRefreshToken:
-        snapshot.expectedRefreshToken !== undefined
-          ? snapshot.expectedRefreshToken
-          : undefined,
     },
     {
       accessToken: args.accessToken,

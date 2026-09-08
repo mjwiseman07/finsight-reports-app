@@ -2,13 +2,13 @@
  * Deterministic tests for canonical QBO credential CAS.
  * Fake credentials only — no live Intuit / production data.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   QboCredentialCasError,
   persistRefreshedQboCredentialsConditional,
   updateCanonicalQboCredentialsConditional,
 } from "@/lib/integrations/accounting/canonical-qbo-credential-cas";
-import { persistCanonicalAccountingConnectionGrant } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
 
 type FakeRow = {
   id: string;
@@ -26,25 +26,38 @@ type FakeRow = {
   metadata_json?: Record<string, unknown>;
 };
 
-function createFakeAdmin(rows: FakeRow[]) {
+type FakeAdmin = {
+  from: (table: string) => unknown;
+  _store: FakeRow[];
+  _calls: Array<{ op: string; payload?: unknown; filters: Record<string, unknown> }>;
+};
+
+function asClient(admin: FakeAdmin): SupabaseClient {
+  return admin as unknown as SupabaseClient;
+}
+
+function createFakeAdmin(rows: FakeRow[]): FakeAdmin {
   const store = rows.map((r) => ({ ...r }));
-  const calls: Array<{ op: string; payload?: unknown; filters: Record<string, unknown> }> = [];
+  const calls: FakeAdmin["_calls"] = [];
 
   function matches(row: FakeRow, filters: Record<string, unknown>) {
     for (const [k, v] of Object.entries(filters)) {
       if (k.endsWith("__is")) {
-        const col = k.slice(0, -4);
-        if (v === null) {
-          if (row[col as keyof FakeRow] != null) return false;
-        }
+        const col = k.slice(0, -4) as keyof FakeRow;
+        if (v === null && row[col] != null) return false;
         continue;
       }
       if (k.endsWith("__in")) {
-        const col = k.slice(0, -4);
-        if (!(v as unknown[]).includes(row[col as keyof FakeRow])) return false;
+        const col = k.slice(0, -4) as keyof FakeRow;
+        if (!(v as unknown[]).includes(row[col])) return false;
         continue;
       }
-      if ((row as any)[k] !== v) return false;
+      if (k.endsWith("__neq")) {
+        const col = k.slice(0, -4) as keyof FakeRow;
+        if (row[col] === v) return false;
+        continue;
+      }
+      if (row[k as keyof FakeRow] !== v) return false;
     }
     return true;
   }
@@ -54,8 +67,10 @@ function createFakeAdmin(rows: FakeRow[]) {
     let payload: Record<string, unknown> | null = null;
     let op = initialOp;
     let limitN: number | null = null;
-    const api: any = {
+
+    const api = {
       select(_cols?: string) {
+        void _cols;
         return api;
       },
       eq(col: string, val: unknown) {
@@ -71,7 +86,6 @@ function createFakeAdmin(rows: FakeRow[]) {
         return api;
       },
       neq(col: string, val: unknown) {
-        // treat as filter exclusion
         filters[`${col}__neq`] = val;
         return api;
       },
@@ -96,57 +110,47 @@ function createFakeAdmin(rows: FakeRow[]) {
         payload = p;
         return api;
       },
-      then(resolve: (v: unknown) => void) {
-        return Promise.resolve(api.execute()).then(resolve);
+      then(resolve: (v: unknown) => void, reject?: (e: unknown) => void) {
+        return Promise.resolve(api.execute()).then(resolve, reject);
       },
       execute: async () => {
         calls.push({ op, payload: payload || undefined, filters: { ...filters } });
         if (op === "update") {
-          const matched = store.filter((r) => {
-            if (!matches(r, filters)) return false;
-            if (filters["status__neq"] != null && r.status === filters["status__neq"]) return false;
-            return true;
-          });
+          const matched = store.filter((r) => matches(r, filters));
           if (matched.length === 0) return { data: [], error: null };
-          for (const row of matched) {
-            Object.assign(row, payload);
-          }
+          for (const row of matched) Object.assign(row, payload);
           const out = matched.map((r) => ({ id: r.id, updated_at: r.updated_at }));
           return { data: limitN ? out.slice(0, limitN) : out, error: null };
         }
-        if (op === "select" || !payload) {
-          let matched = store.filter((r) => matches(r, filters));
-          if (limitN) matched = matched.slice(0, limitN);
-          return { data: matched, error: null };
-        }
-        if (op === "insert") {
+        if (op === "insert" && payload) {
           const id = `ins-${store.length + 1}`;
-          const row = {
+          store.push({
             id,
-            user_id: String(payload!.user_id),
-            provider: String(payload!.provider),
-            tenant_or_realm_id: String(payload!.tenant_or_realm_id || ""),
-            status: String(payload!.status || "connected"),
+            user_id: String(payload.user_id),
+            provider: String(payload.provider),
+            tenant_or_realm_id: String(payload.tenant_or_realm_id || ""),
+            status: String(payload.status || "connected"),
             superseded_by_connection_id: null,
             credentials_cleared_at: null,
-            updated_at: String(payload!.updated_at),
-            refresh_token: String(payload!.refresh_token || ""),
-            access_token: String(payload!.access_token || ""),
-            token_expires_at: String(payload!.token_expires_at || ""),
-            provider_environment: (payload!.provider_environment as string) || null,
-            metadata_json: (payload!.metadata_json as Record<string, unknown>) || {},
-          } as FakeRow;
-          store.push(row);
+            updated_at: String(payload.updated_at),
+            refresh_token: String(payload.refresh_token || ""),
+            access_token: String(payload.access_token || ""),
+            token_expires_at: String(payload.token_expires_at || ""),
+            provider_environment: (payload.provider_environment as string) || null,
+            metadata_json: (payload.metadata_json as Record<string, unknown>) || {},
+          });
           return { data: [{ id }], error: null };
         }
-        return { data: [], error: null };
+        let matched = store.filter((r) => matches(r, filters));
+        if (limitN) matched = matched.slice(0, limitN);
+        return { data: matched, error: null };
       },
     };
-    // Make await query work: thenable after chain ends with select()
+
     api.select = (_cols?: string) => {
+      void _cols;
       if (op === "update" || op === "insert") {
-        // select after update/insert — execute on await
-        const thenable: any = {
+        const thenable = {
           then(resolve: (v: unknown) => void, reject?: (e: unknown) => void) {
             return api.execute().then(resolve, reject);
           },
@@ -160,11 +164,13 @@ function createFakeAdmin(rows: FakeRow[]) {
       op = "select";
       return api;
     };
+
     return api;
   }
 
-  const admin = {
+  return {
     from(_table: string) {
+      void _table;
       return {
         select: (cols?: string) => makeQuery("select").select(cols),
         update: (p: Record<string, unknown>) => makeQuery("update").update(p),
@@ -174,7 +180,6 @@ function createFakeAdmin(rows: FakeRow[]) {
     _store: store,
     _calls: calls,
   };
-  return admin;
 }
 
 const baseRow = (): FakeRow => ({
@@ -197,13 +202,12 @@ describe("canonical QBO credential CAS", () => {
   it("refresh update succeeds with unchanged snapshot", async () => {
     const admin = createFakeAdmin([baseRow()]);
     const result = await persistRefreshedQboCredentialsConditional(
-      admin as any,
+      asClient(admin),
       {
         connectionId: "conn-1",
         userId: "user-1",
         tenantOrRealmId: "realm-ca",
         concurrencyToken: "2026-08-16T18:02:35.076Z",
-        expectedRefreshToken: "refresh-old",
       },
       {
         accessToken: "access-new",
@@ -221,13 +225,12 @@ describe("canonical QBO credential CAS", () => {
     const admin = createFakeAdmin([baseRow()]);
     await expect(
       persistRefreshedQboCredentialsConditional(
-        admin as any,
+        asClient(admin),
         {
           connectionId: "conn-1",
           userId: "user-1",
           tenantOrRealmId: "realm-ca",
           concurrencyToken: "2026-08-16T17:00:00.000Z",
-          expectedRefreshToken: "refresh-old",
         },
         {
           accessToken: "access-stale",
@@ -241,9 +244,8 @@ describe("canonical QBO credential CAS", () => {
 
   it("CDC started before callback cannot overwrite callback afterward", async () => {
     const admin = createFakeAdmin([baseRow()]);
-    // Callback wins first with CAS on original token (no refresh_token match required).
     await updateCanonicalQboCredentialsConditional(
-      admin as any,
+      asClient(admin),
       {
         connectionId: "conn-1",
         userId: "user-1",
@@ -263,16 +265,14 @@ describe("canonical QBO credential CAS", () => {
     expect(admin._store[0].refresh_token).toBe("refresh-oauth");
     expect(admin._store[0].provider_environment).toBe("sandbox");
 
-    // CDC still holds pre-callback snapshot + old refresh token → must fail.
     await expect(
       persistRefreshedQboCredentialsConditional(
-        admin as any,
+        asClient(admin),
         {
           connectionId: "conn-1",
           userId: "user-1",
           tenantOrRealmId: "realm-ca",
           concurrencyToken: "2026-08-16T18:02:35.076Z",
-          expectedRefreshToken: "refresh-old",
         },
         {
           accessToken: "access-cdc",
@@ -292,42 +292,40 @@ describe("canonical QBO credential CAS", () => {
       userId: "user-1",
       tenantOrRealmId: "realm-ca",
       concurrencyToken: "2026-08-16T18:02:35.076Z",
-      expectedRefreshToken: "refresh-old",
     };
-    const a = persistRefreshedQboCredentialsConditional(admin as any, snap, {
-      accessToken: "a1",
-      refreshToken: "r1",
-      tokenExpiresAt: "2099-01-01T00:00:00.000Z",
-      updatedAt: "2026-09-07T22:00:00.000Z",
-    });
-    const b = persistRefreshedQboCredentialsConditional(admin as any, snap, {
-      accessToken: "a2",
-      refreshToken: "r2",
-      tokenExpiresAt: "2099-01-01T00:00:00.000Z",
-      updatedAt: "2026-09-07T22:00:01.000Z",
-    });
-    const results = await Promise.allSettled([a, b]);
-    const fulfilled = results.filter((r) => r.status === "fulfilled");
-    const rejected = results.filter((r) => r.status === "rejected");
-    expect(fulfilled.length).toBe(1);
-    expect(rejected.length).toBe(1);
-    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(QboCredentialCasError);
+    const results = await Promise.allSettled([
+      persistRefreshedQboCredentialsConditional(asClient(admin), snap, {
+        accessToken: "a1",
+        refreshToken: "r1",
+        tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+        updatedAt: "2026-09-07T22:00:00.000Z",
+      }),
+      persistRefreshedQboCredentialsConditional(asClient(admin), snap, {
+        accessToken: "a2",
+        refreshToken: "r2",
+        tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+        updatedAt: "2026-09-07T22:00:01.000Z",
+      }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason).toBeInstanceOf(
+      QboCredentialCasError,
+    );
   });
 
-  it("wrong-owner / wrong-realm / wrong-provider / superseded / cleared fail closed", async () => {
+  it("wrong-owner / wrong-realm / superseded / cleared fail closed", async () => {
     const admin = createFakeAdmin([baseRow()]);
-    const attempts = [
+    for (const snap of [
       { userId: "other", tenantOrRealmId: "realm-ca" },
       { userId: "user-1", tenantOrRealmId: "realm-other" },
-    ];
-    for (const snap of attempts) {
+    ]) {
       await expect(
         persistRefreshedQboCredentialsConditional(
-          admin as any,
+          asClient(admin),
           {
             connectionId: "conn-1",
             concurrencyToken: "2026-08-16T18:02:35.076Z",
-            expectedRefreshToken: "refresh-old",
             ...snap,
           },
           {
@@ -342,13 +340,12 @@ describe("canonical QBO credential CAS", () => {
     admin._store[0].superseded_by_connection_id = "other";
     await expect(
       persistRefreshedQboCredentialsConditional(
-        admin as any,
+        asClient(admin),
         {
           connectionId: "conn-1",
           userId: "user-1",
           tenantOrRealmId: "realm-ca",
           concurrencyToken: "2026-08-16T18:02:35.076Z",
-          expectedRefreshToken: "refresh-old",
         },
         {
           accessToken: "x",
@@ -362,13 +359,12 @@ describe("canonical QBO credential CAS", () => {
     admin._store[0].credentials_cleared_at = "2026-01-01T00:00:00.000Z";
     await expect(
       persistRefreshedQboCredentialsConditional(
-        admin as any,
+        asClient(admin),
         {
           connectionId: "conn-1",
           userId: "user-1",
           tenantOrRealmId: "realm-ca",
           concurrencyToken: "2026-08-16T18:02:35.076Z",
-          expectedRefreshToken: "refresh-old",
         },
         {
           accessToken: "x",
@@ -382,13 +378,12 @@ describe("canonical QBO credential CAS", () => {
   it("null environment is preserved by refresh; only explicit patch sets env", async () => {
     const admin = createFakeAdmin([baseRow()]);
     await persistRefreshedQboCredentialsConditional(
-      admin as any,
+      asClient(admin),
       {
         connectionId: "conn-1",
         userId: "user-1",
         tenantOrRealmId: "realm-ca",
         concurrencyToken: "2026-08-16T18:02:35.076Z",
-        expectedRefreshToken: "refresh-old",
       },
       {
         accessToken: "a",
@@ -412,75 +407,9 @@ describe("canonical QBO credential CAS", () => {
 
 describe("persistCanonicalAccountingConnectionGrant CAS", () => {
   it("callback update succeeds with unchanged snapshot", async () => {
-    process.env.QB_ENVIRONMENT = "sandbox";
     const admin = createFakeAdmin([baseRow()]);
-    // selectConnectedGrant uses select().eq...order.limit — simplify by stubbing from()
-    const selectResult = {
-      data: [
-        {
-          id: "conn-1",
-          status: "connected",
-          metadata_json: {},
-          updated_at: "2026-08-16T18:02:35.076Z",
-          tenant_or_realm_id: "realm-ca",
-        },
-      ],
-      error: null,
-    };
-    const updateCalls: unknown[] = [];
-    const adminStub: any = {
-      from() {
-        return {
-          select() {
-            const q: any = {
-              eq() {
-                return q;
-              },
-              order() {
-                return q;
-              },
-              limit() {
-                return q;
-              },
-              then(resolve: (v: unknown) => void) {
-                resolve(selectResult);
-              },
-            };
-            return q;
-          },
-          update(payload: Record<string, unknown>) {
-            updateCalls.push(payload);
-            const q: any = {
-              eq() {
-                return q;
-              },
-              is() {
-                return q;
-              },
-              select() {
-                return {
-                  then(resolve: (v: unknown) => void) {
-                    // Simulate success matching CAS predicates
-                    admin._store = admin._store || [baseRow()];
-                    Object.assign(admin._store[0], payload);
-                    resolve({
-                      data: [{ id: "conn-1", updated_at: payload.updated_at }],
-                      error: null,
-                    });
-                  },
-                };
-              },
-            };
-            return q;
-          },
-        };
-      },
-      _store: [baseRow()],
-    };
-
-    // Use real CAS helper against createFakeAdmin for grant path via direct conditional
     const result = await updateCanonicalQboCredentialsConditional(
-      admin as any,
+      asClient(admin),
       {
         connectionId: "conn-1",
         userId: "user-1",
@@ -500,15 +429,13 @@ describe("persistCanonicalAccountingConnectionGrant CAS", () => {
     );
     expect(result.nextConcurrencyToken).toBe("2026-09-07T21:30:00.000Z");
     expect(admin._store[0].provider_environment).toBe("sandbox");
-    void persistCanonicalAccountingConnectionGrant;
-    void vi;
   });
 
   it("stale conflict never becomes insert", async () => {
     const admin = createFakeAdmin([baseRow()]);
     await expect(
       updateCanonicalQboCredentialsConditional(
-        admin as any,
+        asClient(admin),
         {
           connectionId: "conn-1",
           userId: "user-1",
@@ -526,5 +453,100 @@ describe("persistCanonicalAccountingConnectionGrant CAS", () => {
     ).rejects.toMatchObject({ code: "stale_connection_state" });
     expect(admin._store.length).toBe(1);
     expect(admin._calls.some((c) => c.op === "insert")).toBe(false);
+  });
+});
+
+describe("updated_at concurrency token string equality", () => {
+  const TOKEN = "2026-08-16T18:02:35.076Z";
+
+  it("exact updated_at token succeeds", async () => {
+    const admin = createFakeAdmin([{ ...baseRow(), updated_at: TOKEN }]);
+    await persistRefreshedQboCredentialsConditional(
+      asClient(admin),
+      {
+        connectionId: "conn-1",
+        userId: "user-1",
+        tenantOrRealmId: "realm-ca",
+        concurrencyToken: TOKEN,
+      },
+      {
+        accessToken: "access-exact",
+        refreshToken: "refresh-exact",
+        tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+        updatedAt: "2026-09-07T20:00:00.000Z",
+      },
+    );
+    expect(admin._store[0].access_token).toBe("access-exact");
+  });
+
+  it("semantically similar timestamp strings fail closed without overwrite or retry", async () => {
+    const variants = [
+      "2026-08-16T18:02:35.076000+00:00",
+      "2026-08-16T18:02:35.076+00:00",
+      "2026-08-16T18:02:35.076000Z",
+      "2026-08-16T18:02:35.077Z",
+      "2026-08-16T18:02:35.076",
+    ];
+    for (const concurrencyToken of variants) {
+      const admin = createFakeAdmin([{ ...baseRow(), updated_at: TOKEN }]);
+      const beforeCalls = admin._calls.length;
+      await expect(
+        persistRefreshedQboCredentialsConditional(
+          asClient(admin),
+          {
+            connectionId: "conn-1",
+            userId: "user-1",
+            tenantOrRealmId: "realm-ca",
+            concurrencyToken,
+          },
+          {
+            accessToken: "access-mismatch",
+            refreshToken: "refresh-mismatch",
+            tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+            updatedAt: "2026-09-07T20:00:00.000Z",
+          },
+        ),
+      ).rejects.toMatchObject({
+        code: "stale_connection_state",
+        name: "QboCredentialCasError",
+        message: "Connection state changed before credentials could be persisted",
+      });
+      expect(admin._store[0].access_token).toBe("access-old");
+      expect(admin._store[0].updated_at).toBe(TOKEN);
+      const updateCalls = admin._calls.filter((c) => c.op === "update");
+      expect(updateCalls.length).toBe(1);
+      expect(admin._calls.length).toBe(beforeCalls + 1);
+      expect(JSON.stringify(updateCalls[0].filters)).not.toMatch(
+        /access-mismatch|refresh-mismatch/,
+      );
+      expect(updateCalls[0].filters.updated_at).toBe(concurrencyToken);
+    }
+  });
+
+  it("does not normalize or weaken the concurrency token on conflict", async () => {
+    const admin = createFakeAdmin([{ ...baseRow(), updated_at: TOKEN }]);
+    try {
+      await persistRefreshedQboCredentialsConditional(
+        asClient(admin),
+        {
+          connectionId: "conn-1",
+          userId: "user-1",
+          tenantOrRealmId: "realm-ca",
+          concurrencyToken: "2026-08-16T18:02:35.076+00:00",
+        },
+        {
+          accessToken: "access-retry",
+          refreshToken: "refresh-retry",
+          tokenExpiresAt: "2099-01-01T00:00:00.000Z",
+        },
+      );
+      throw new Error("expected conflict");
+    } catch (err) {
+      expect(err).toBeInstanceOf(QboCredentialCasError);
+      expect((err as QboCredentialCasError).code).toBe("stale_connection_state");
+      const text = `${(err as Error).message} ${JSON.stringify(err)}`;
+      expect(text).not.toMatch(/access-retry|refresh-retry|18:02:35/);
+      expect(admin._calls.filter((c) => c.op === "update").length).toBe(1);
+    }
   });
 });

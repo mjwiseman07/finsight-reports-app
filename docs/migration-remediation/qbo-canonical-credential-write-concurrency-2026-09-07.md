@@ -7,7 +7,7 @@
 ## State machine
 
 ```
-read snapshot (id, user, realm, updated_at[, refresh_token])
+read snapshot (id, user, realm, updated_at)
         │
         ▼
  provider refresh / OAuth token exchange (in memory)
@@ -15,7 +15,6 @@ read snapshot (id, user, realm, updated_at[, refresh_token])
         ▼
  conditional UPDATE … WHERE binding + status + superseded IS NULL
    + credentials_cleared_at IS NULL + updated_at = snapshot
-   [+ refresh_token = snapshot.refresh for refresh writers]
         │
    ┌────┴────┐
    │         │
@@ -26,7 +25,7 @@ read snapshot (id, user, realm, updated_at[, refresh_token])
  >1 row    invariant_multiple_rows (fail closed)
 ```
 
-## Shared predicates
+## Shared predicates (non-secret only)
 
 | Predicate | Refresh writers | OAuth existing-row update |
 |-----------|-----------------|---------------------------|
@@ -38,8 +37,9 @@ read snapshot (id, user, realm, updated_at[, refresh_token])
 | `superseded_by_connection_id IS NULL` | yes | yes |
 | `credentials_cleared_at IS NULL` | yes | yes |
 | `updated_at = concurrencyToken` | yes | yes |
-| `refresh_token = original` | **yes** | no (grant rotation) |
 | Sets `provider_environment` | **never** | only with signed OAuth provenance |
+
+**Confidentiality:** PostgREST `.eq()` values are appended to the request URL query string by `@supabase/postgrest-js`. Secret columns (`refresh_token`, `access_token`) must never appear as URL filters. Credential material is confined to the PATCH body. Concurrent refresh vs OAuth safety relies on exact `updated_at` string equality plus binding predicates — not on secret-valued filters.
 
 Inserts remain a separate path with uniqueness / ambiguity protection. A stale CAS conflict **never** becomes an insert.
 
@@ -49,14 +49,14 @@ Intuit authorization codes are single-use. If callback exchange succeeds but CAS
 
 ## Why timing-only windows are insufficient
 
-Hourly `/api/quickbooks/cdc` can select a realm winner and hold a refresh result across a callback. Without CAS (and refresh-token equality on refresh writers), a late CDC persist can overwrite newer OAuth credentials. Clock skew relative to `:00` does not eliminate that race.
+Hourly `/api/quickbooks/cdc` can select a realm winner and hold a refresh result across a callback. Without CAS on `updated_at`, a late CDC persist can overwrite newer OAuth credentials. Clock skew relative to `:00` does not eliminate that race.
 
 ## Residual risks
 
 - Legacy `erp_connections` / `quickbooks_connections` refresh paths remain unconditional (intentional until #315).
 - Non-credential `updated_at` writers (metadata/disconnect) can still advance `updated_at` and cause refresh CAS misses (fail closed — safe).
 - Xero credential refresh is out of scope.
-- No schema version column; concurrency relies on `updated_at` ISO equality as stored by PostgREST.
+- No schema version column; concurrency relies on `updated_at` ISO equality as stored by PostgREST (string match; format mismatch fails closed).
 
 ## Target #2 sandbox reconnect relationship
 
