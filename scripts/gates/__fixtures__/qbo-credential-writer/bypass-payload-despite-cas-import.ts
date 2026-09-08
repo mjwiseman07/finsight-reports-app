@@ -4,7 +4,22 @@
  */
 import { persistRefreshedQboCredentialsConditional } from "@/lib/integrations/accounting/canonical-qbo-credential-cas";
 
-export async function looksLikeCasCaller(admin, snapshot, tokens) {
+type FixtureAdmin = {
+  from: (table: string) => {
+    update: (payload: Record<string, string>) => {
+      eq: (column: string, value: string) => Promise<void>;
+    };
+  };
+};
+
+type FixtureSnapshot = { id: string };
+type FixtureTokens = { access: string; refresh: string; expires: string };
+
+export async function looksLikeCasCaller(
+  admin: FixtureAdmin,
+  snapshot: FixtureSnapshot,
+  tokens: FixtureTokens,
+) {
   void persistRefreshedQboCredentialsConditional;
   const payload = {
     access_token: tokens.access,

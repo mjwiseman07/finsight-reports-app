@@ -147,7 +147,7 @@ function createFakeAdmin(rows: FakeRow[]): FakeAdmin {
       },
     };
 
-    api.select = (_cols?: string) => {
+    api.select = ((_cols?: string) => {
       void _cols;
       if (op === "update" || op === "insert") {
         const thenable = {
@@ -159,11 +159,11 @@ function createFakeAdmin(rows: FakeRow[]): FakeAdmin {
             return thenable;
           },
         };
-        return thenable;
+        return thenable as unknown as typeof api;
       }
       op = "select";
       return api;
-    };
+    }) as typeof api.select;
 
     return api;
   }

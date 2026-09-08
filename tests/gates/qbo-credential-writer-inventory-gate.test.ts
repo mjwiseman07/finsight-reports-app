@@ -17,8 +17,44 @@ const fixturesDir = path.join(
   "scripts/gates/__fixtures__/qbo-credential-writer",
 );
 
-async function loadScan() {
-  return import(pathToFileURL(scanPath).href);
+async function loadScan(): Promise<{
+  analyzeSource: (
+    sourceText: string,
+    fileRel: string,
+    filePath?: string,
+  ) => Array<{
+    classification: string;
+    enclosingFunction: string | null;
+    file: string;
+    line: number;
+  }>;
+  scanCredentialWriters: (opts: {
+    root?: string;
+    sourceFiles?: Array<{ rel: string; text: string }>;
+  }) => {
+    offenders: Array<{ classification: string }>;
+    findings: Array<{ classification: string }>;
+  };
+}> {
+  return import(pathToFileURL(scanPath).href) as Promise<{
+    analyzeSource: (
+      sourceText: string,
+      fileRel: string,
+      filePath?: string,
+    ) => Array<{
+      classification: string;
+      enclosingFunction: string | null;
+      file: string;
+      line: number;
+    }>;
+    scanCredentialWriters: (opts: {
+      root?: string;
+      sourceFiles?: Array<{ rel: string; text: string }>;
+    }) => {
+      offenders: Array<{ classification: string }>;
+      findings: Array<{ classification: string }>;
+    };
+  }>;
 }
 
 describe("qbo credential writer inventory gate fixtures", () => {

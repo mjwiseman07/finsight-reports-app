@@ -1,5 +1,15 @@
 /** Negative fixture: inline credential update without CAS — must be rejected. */
-export async function badInlineWriter(admin) {
+
+/** Minimal PostgREST-like chain used only for AST/gate fixtures. */
+type FixtureAdmin = {
+  from: (table: string) => {
+    update: (payload: Record<string, string>) => {
+      eq: (column: string, value: string) => Promise<void>;
+    };
+  };
+};
+
+export async function badInlineWriter(admin: FixtureAdmin) {
   await admin
     .from("accounting_connections")
     .update({
