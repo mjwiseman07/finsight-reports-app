@@ -12,7 +12,7 @@ import {
   QboOAuthEnvironmentStateError,
   verifyQboOAuthEnvironmentState,
 } from "@/lib/erp/quickbooks/oauth-environment-state";
-
+import { QboCredentialCasError } from "@/lib/integrations/accounting/canonical-qbo-credential-cas";
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
@@ -305,11 +305,15 @@ async function getImpl(request) {
           verifiedProviderEnvironment,
         });
       } catch (saveErr) {
+        if (saveErr instanceof QboCredentialCasError) {
+          console.error("[quickbooks/callback] super_admin_holder concurrency conflict", {
+            code: saveErr.code,
+          });
+          return redirectWithQbError(request, "connection_conflict");
+        }
         console.error("[quickbooks/callback] super_admin_holder accounting connection save failed", {
           message: saveErr?.message,
           code: saveErr?.code,
-          holderUserId: targetUserId,
-          erpConnectionId: savedErpConnection?.id || null,
         });
         return redirectWithQbError(request, "connection_save_failed");
       }
@@ -349,6 +353,12 @@ async function getImpl(request) {
           verifiedProviderEnvironment,
         });
       } catch (saveErr) {
+        if (saveErr instanceof QboCredentialCasError) {
+          console.error("[quickbooks/callback] lead concurrency conflict", {
+            code: saveErr.code,
+          });
+          return redirectWithQbError(request, "connection_conflict");
+        }
         console.error("[quickbooks/callback] lead connection save failed", {
           message: saveErr?.message,
           code: saveErr?.code,
@@ -443,10 +453,16 @@ async function getImpl(request) {
         verifiedProviderEnvironment,
       });
     } catch (saveErr) {
+      if (saveErr instanceof QboCredentialCasError) {
+        console.error("[quickbooks/callback] user dual-write concurrency conflict", {
+          code: saveErr.code,
+        });
+        // Authorization code is single-use; require a fresh operator-initiated OAuth.
+        return redirectWithQbError(request, "connection_conflict");
+      }
       console.error("[quickbooks/callback] user dual-write connection save failed", {
         message: saveErr?.message,
         code: saveErr?.code,
-        realmId,
       });
       return redirectWithQbError(request, "connection_save_failed");
     }

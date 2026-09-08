@@ -91,11 +91,14 @@ interface RawConnection {
   tokenSource: QBOTokenSource;
   storageTable: "accounting_connections" | ErpStorageTable;
   connectionId: string;
+  userId: string | null;
   accessToken: string | null;
   refreshToken: string | null;
   realmId: string | null;
   expiresAt: string | null;
   grantedScopes: string[];
+  /** ISO updated_at concurrency token for accounting_connections CAS. */
+  concurrencyToken: string | null;
 }
 
 function rowToAccountingConnection(data: Record<string, unknown>): RawConnection {
@@ -107,11 +110,13 @@ function rowToAccountingConnection(data: Record<string, unknown>): RawConnection
     tokenSource: "accounting_connections",
     storageTable: "accounting_connections",
     connectionId: data.id as string,
+    userId: (data.user_id as string) ?? null,
     accessToken: (data.access_token as string) ?? null,
     refreshToken: (data.refresh_token as string) ?? null,
     realmId,
     expiresAt: (data.token_expires_at as string) ?? null,
     grantedScopes: Array.isArray(data.scopes) ? (data.scopes as string[]) : [],
+    concurrencyToken: data.updated_at != null ? String(data.updated_at) : null,
   };
 }
 
@@ -131,7 +136,7 @@ export async function loadAccountingConnectionForScope(
     const { data, error } = await supabase
       .from("accounting_connections")
       .select(
-        "id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json",
+        "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json, updated_at",
       )
       .eq("user_id", ownerUserId)
       .eq("provider", "quickbooks")
@@ -151,7 +156,7 @@ export async function loadAccountingConnectionForScope(
     const { data, error } = await supabase
       .from("accounting_connections")
       .select(
-        "id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json, updated_at",
+        "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json, updated_at",
       )
       .eq("user_id", ownerUserId)
       .eq("provider", "quickbooks")
@@ -175,7 +180,7 @@ export async function loadAccountingConnectionForScope(
   const { data, error } = await supabase
     .from("accounting_connections")
     .select(
-      "id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json",
+      "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, metadata_json, updated_at",
     )
     .eq("user_id", ownerUserId)
     .eq("provider", "quickbooks")
@@ -243,11 +248,13 @@ async function loadFromErpTable(
     tokenSource: "erp_connections",
     storageTable: table,
     connectionId: row.id as string,
+    userId: (row.user_id as string) ?? null,
     accessToken: (row.access_token as string) ?? null,
     refreshToken: (row.refresh_token as string) ?? null,
     realmId: (row.realm_id as string) ?? null,
     expiresAt: (row.token_expiry as string) ?? null,
     grantedScopes: [QBO_SCOPE],
+    concurrencyToken: null,
   };
 }
 
@@ -323,16 +330,36 @@ async function persistRefreshedToken(
   expiresAt: string,
 ): Promise<void> {
   if (conn.storageTable === "accounting_connections") {
-    const { error } = await supabase
-      .from("accounting_connections")
-      .update({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        token_expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conn.connectionId);
-    if (error) throw new Error(`failed to persist accounting_connections token: ${error.message}`);
+    const { persistRefreshedQboCredentialsConditional, QboCredentialCasError } = await import(
+      "@/lib/integrations/accounting/canonical-qbo-credential-cas"
+    );
+    if (!conn.userId || !conn.realmId || !conn.concurrencyToken) {
+      throw new QboCredentialCasError(
+        "missing_concurrency_token",
+        "Connection concurrency token is missing",
+      );
+    }
+    try {
+      await persistRefreshedQboCredentialsConditional(
+        supabase,
+        {
+          connectionId: conn.connectionId,
+          userId: conn.userId,
+          tenantOrRealmId: conn.realmId,
+          concurrencyToken: conn.concurrencyToken,
+          expectedRefreshToken: conn.refreshToken,
+          expectedStatus: "connected",
+        },
+        {
+          accessToken,
+          refreshToken,
+          tokenExpiresAt: expiresAt,
+        },
+      );
+    } catch (err) {
+      if (err instanceof QboCredentialCasError) throw err;
+      throw new Error("failed to persist accounting_connections token");
+    }
     return;
   }
 
@@ -368,15 +395,34 @@ async function refreshConnectionInPlace(
   ownerUserId: string,
 ): Promise<QBOTokenBundle> {
   if (!conn.refreshToken) {
-    throw new Error(`connection ${conn.connectionId} has no refresh_token`);
+    throw new Error("connection has no refresh_token");
   }
   const token = await postRefresh(conn.refreshToken);
   const accessToken = token.access_token;
   const refreshToken = token.refresh_token || conn.refreshToken;
   const expiresAt = tokenExpiryFromResponse(token);
-  await persistRefreshedToken(supabase, conn, accessToken, refreshToken, expiresAt);
+  try {
+    await persistRefreshedToken(supabase, conn, accessToken, refreshToken, expiresAt);
+  } catch (err) {
+    const { QboCredentialCasError } = await import(
+      "@/lib/integrations/accounting/canonical-qbo-credential-cas"
+    );
+    if (err instanceof QboCredentialCasError) {
+      // Discard provider credentials from memory; do not retry with stale result.
+      void accessToken;
+      void refreshToken;
+      throw err;
+    }
+    throw err;
+  }
   return toBundle(
-    { ...conn, accessToken, refreshToken, expiresAt },
+    {
+      ...conn,
+      accessToken,
+      refreshToken,
+      expiresAt,
+      concurrencyToken: null,
+    },
     ownerUserId,
   );
 }
@@ -402,7 +448,7 @@ export async function resolveQBOTokenForAccountingConnection(
   const { data, error } = await supabase
     .from("accounting_connections")
     .select(
-      "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, status, provider",
+      "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, status, provider, updated_at",
     )
     .eq("id", accountingConnectionId)
     .maybeSingle();

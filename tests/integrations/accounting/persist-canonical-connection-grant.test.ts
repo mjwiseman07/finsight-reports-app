@@ -94,6 +94,14 @@ function createStoreAdmin(
         if (row.tenant_or_realm_id != null) return false;
         continue;
       }
+      if (key === "__is_superseded_null") {
+        if ((row as any).superseded_by_connection_id != null) return false;
+        continue;
+      }
+      if (key === "__is_cleared_null") {
+        if ((row as any).credentials_cleared_at != null) return false;
+        continue;
+      }
       if (key === "__neq_status") {
         if (row.status === value) return false;
         continue;
@@ -123,6 +131,12 @@ function createStoreAdmin(
       },
       is: (key: string, value: null) => {
         if (key === "tenant_or_realm_id" && value === null) filters.__is_null = true;
+        if (key === "superseded_by_connection_id" && value === null) {
+          filters.__is_superseded_null = true;
+        }
+        if (key === "credentials_cleared_at" && value === null) {
+          filters.__is_cleared_null = true;
+        }
         return api;
       },
       neq: (key: string, value: unknown) => {
@@ -144,7 +158,12 @@ function createStoreAdmin(
       },
       limit: async (n: number) => {
         if (updatePayload) {
-          const id = String(filters.id);
+          const matched = rows.filter((r) => matches(r, filters));
+          if (matched.length === 0) return { data: [], error: null };
+          if (matched.length > 1 && filters.id == null) {
+            return { data: [], error: { message: "ambiguous" } };
+          }
+          const id = String(filters.id || matched[0].id);
           const idx = rows.findIndex((r) => r.id === id);
           if (idx < 0) return { data: [], error: { message: "not found" } };
           if (failUpdateOnce) {
@@ -178,7 +197,8 @@ function createStoreAdmin(
             updated_at: String(updatePayload.updated_at || new Date().toISOString()),
           } as StoreRow;
           writes.push({ op: "update", id, payload: updatePayload });
-          return { data: [{ id }], error: null };
+          const out = [{ id, updated_at: rows[idx].updated_at }];
+          return { data: out.slice(0, n), error: null };
         }
 
         if (insertPayload) {

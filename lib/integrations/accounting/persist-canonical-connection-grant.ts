@@ -16,11 +16,17 @@ import {
   resolvePersistedQboProviderEnvironment,
   type PersistedQboProviderEnvironment,
 } from "@/lib/erp/quickbooks/persisted-provider-environment";
+import {
+  QboCredentialCasError,
+  updateCanonicalQboCredentialsConditional,
+} from "./canonical-qbo-credential-cas";
 import type {
   AccountingConnectionRecord,
   AccountingConnectionStatus,
   AccountingProvider,
 } from "./types";
+
+export { QboCredentialCasError };
 
 const REVIVABLE_STATUSES: AccountingConnectionStatus[] = [
   "pending",
@@ -95,7 +101,10 @@ export interface PersistCanonicalConnectionGrantResult {
   outcome: PersistCanonicalGrantOutcome;
 }
 
-type GrantRow = Pick<AccountingConnectionRecord, "id" | "status" | "metadata_json">;
+type GrantRow = Pick<AccountingConnectionRecord, "id" | "status" | "metadata_json"> & {
+  updated_at?: string | null;
+  tenant_or_realm_id?: string | null;
+};
 
 /** Partial unique index enforcing one connected grant per authority key. */
 export const ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX =
@@ -202,7 +211,7 @@ async function selectConnectedGrant(
 ): Promise<GrantRow | null> {
   const { data, error } = await admin
     .from("accounting_connections")
-    .select("id, status, metadata_json")
+    .select("id, status, metadata_json, updated_at, tenant_or_realm_id")
     .eq("user_id", userId)
     .eq("provider", provider)
     .eq("tenant_or_realm_id", tenantOrRealmId)
@@ -298,7 +307,11 @@ function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: 
   };
 }
 
-async function updateGrantById(
+/**
+ * Non-QuickBooks (or non-credential) updates only. QuickBooks credential
+ * updates must use updateCanonicalQboCredentialsConditional.
+ */
+async function updateGrantByIdUnconditional(
   admin: SupabaseClient,
   connectionId: string,
   payload: Record<string, unknown>,
@@ -312,6 +325,77 @@ async function updateGrantById(
   if (error) throw error;
   const id = data?.[0]?.id ? String(data[0].id) : connectionId;
   return id;
+}
+
+async function updateQuickBooksGrantConditional(
+  args: PersistCanonicalConnectionGrantArgs,
+  existing: GrantRow,
+  payload: Record<string, unknown>,
+  tenantId: string,
+): Promise<string> {
+  const concurrencyToken = String(existing.updated_at || "").trim();
+  if (!concurrencyToken) {
+    throw new QboCredentialCasError(
+      "missing_concurrency_token",
+      "Connection concurrency token is missing",
+    );
+  }
+  const providerEnvironment =
+    typeof payload.provider_environment === "string"
+      ? (payload.provider_environment as "sandbox" | "production")
+      : undefined;
+  if (!providerEnvironment) {
+    throw new QboProviderEnvironmentAuthorityError(
+      "missing",
+      "QuickBooks provider environment is required for credential persistence",
+    );
+  }
+
+  await updateCanonicalQboCredentialsConditional(
+    args.admin,
+    {
+      connectionId: existing.id,
+      userId: args.userId,
+      tenantOrRealmId: tenantId,
+      concurrencyToken,
+      expectedStatus: existing.status || "connected",
+      // OAuth grant rotation must not require the prior refresh_token match —
+      // CAS on updated_at + binding is the concurrency gate.
+    },
+    {
+      accessToken: String(payload.access_token || ""),
+      refreshToken: String(payload.refresh_token || ""),
+      tokenExpiresAt: String(payload.token_expires_at || ""),
+      updatedAt: String(payload.updated_at || args.nowIso || new Date().toISOString()),
+      providerEnvironment,
+      status: payload.status != null ? String(payload.status) : args.status,
+      externalEntityId:
+        payload.external_entity_id === undefined
+          ? undefined
+          : (payload.external_entity_id as string | null),
+      externalEntityName:
+        payload.external_entity_name === undefined
+          ? undefined
+          : (payload.external_entity_name as string | null),
+      scopes: Array.isArray(payload.scopes) ? (payload.scopes as string[]) : undefined,
+      metadataJson:
+        payload.metadata_json && typeof payload.metadata_json === "object"
+          ? (payload.metadata_json as Record<string, unknown>)
+          : undefined,
+      homeCurrency:
+        payload.home_currency === undefined
+          ? undefined
+          : (payload.home_currency as string | null),
+      qboEdition:
+        payload.qbo_edition === undefined ? undefined : (payload.qbo_edition as string | null),
+      qboSubscriptionStatus:
+        payload.qbo_subscription_status === undefined
+          ? undefined
+          : (payload.qbo_subscription_status as string | null),
+      clearSupersededBy: true,
+    },
+  );
+  return existing.id;
 }
 
 async function insertGrant(
@@ -366,19 +450,44 @@ export async function persistCanonicalAccountingConnectionGrant(
     const metadata = buildMergedMetadata(existing.metadata_json || {});
     const payload = buildWritePayload(args, metadata);
     try {
-      const connectionId = await updateGrantById(args.admin, existing.id, {
+      if (args.provider === "quickbooks") {
+        if (!tenantId) {
+          throw new QboCredentialCasError(
+            "missing_binding",
+            "QuickBooks credential updates require a realm binding",
+          );
+        }
+        const connectionId = await updateQuickBooksGrantConditional(
+          args,
+          existing,
+          { ...payload, superseded_by_connection_id: null },
+          tenantId,
+        );
+        return { connectionId, outcome };
+      }
+      const connectionId = await updateGrantByIdUnconditional(args.admin, existing.id, {
         ...payload,
         superseded_by_connection_id: null,
       });
       return { connectionId, outcome };
     } catch (error) {
+      if (error instanceof QboCredentialCasError) throw error;
       // Revive race: another request already created the connected grant.
       if (tenantId && isAccountingConnectionsUniqueViolation(error)) {
         const raced = await selectConnectedGrant(args.admin, args.userId, args.provider, tenantId);
         if (raced && raced.id !== existing.id) {
           const racedMetadata = buildMergedMetadata(raced.metadata_json || {});
           const racedPayload = buildWritePayload(args, racedMetadata);
-          const connectionId = await updateGrantById(args.admin, raced.id, {
+          if (args.provider === "quickbooks") {
+            const connectionId = await updateQuickBooksGrantConditional(
+              args,
+              raced,
+              { ...racedPayload, superseded_by_connection_id: null },
+              tenantId,
+            );
+            return { connectionId, outcome: "updated_connected" };
+          }
+          const connectionId = await updateGrantByIdUnconditional(args.admin, raced.id, {
             ...racedPayload,
             superseded_by_connection_id: null,
           });
