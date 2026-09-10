@@ -151,29 +151,24 @@ function main() {
     return;
   }
 
-  const headNow = String(git(["rev-parse", "HEAD"], { encoding: "utf8" })).trim();
+  const tipHead = String(git(["rev-parse", "HEAD"], { encoding: "utf8" })).trim();
   if (!args.prHead || !/^[0-9a-f]{40}$/i.test(args.prHead)) {
-    stop("MISSING_INPUT: --pr-head <full 40-char SHA> required", "MISSING_INPUT");
-  }
-  if (args.prHead !== headNow) {
-    stop(
-      `BLOCKED_PIN_MISMATCH: --pr-head ${args.prHead} != git HEAD ${headNow}`,
-      "BLOCKED_PIN_MISMATCH",
-    );
+    stop("MISSING_INPUT: --pr-head <full 40-char authorized freeze SHA> required", "MISSING_INPUT");
   }
 
   let auth;
   try {
-    const authBuf = loadBlob(args.prHead, AUTH_PATH);
+    // Authorization metadata is read from the current tip so seal publication commits can update the pin.
+    const authBuf = loadBlob(tipHead, AUTH_PATH);
     auth = JSON.parse(authBuf.toString("utf8"));
   } catch (err) {
-    stop(`failed to load TOOLING_AUTHORIZATION.json from ${args.prHead}: ${err.message}`);
+    stop(`failed to load TOOLING_AUTHORIZATION.json from HEAD ${tipHead}: ${err.message}`);
     return;
   }
 
   if (auth.authorized_pr_head !== args.prHead) {
     stop(
-      `BLOCKED_PIN_MISMATCH: authorization.authorized_pr_head ${auth.authorized_pr_head} != ${args.prHead}`,
+      `BLOCKED_PIN_MISMATCH: --pr-head ${args.prHead} != authorization.authorized_pr_head ${auth.authorized_pr_head}`,
       "BLOCKED_PIN_MISMATCH",
     );
   }
@@ -181,6 +176,9 @@ function main() {
   if (!Array.isArray(auth.tooling_modules) || auth.tooling_modules.length < 4) {
     stop("TOOLING_AUTHORIZATION missing tooling_modules", "AUTH_METADATA_INVALID");
   }
+
+  // Materialize authoritative modules from the freeze commit (not mutable tip worktree).
+  const freeze = auth.authorized_pr_head;
 
   let tempDir;
   const onSignal = () => {
@@ -191,7 +189,7 @@ function main() {
   process.on("SIGTERM", onSignal);
 
   try {
-    tempDir = materializeModules(args.prHead, auth.tooling_modules);
+    tempDir = materializeModules(freeze, auth.tooling_modules);
   } catch (err) {
     stop(err.message || err, "SELF_AUTHORITY_MATERIALIZE_FAIL");
     return;
@@ -224,9 +222,9 @@ function main() {
   const forward = [
     entry,
     "--pr-head",
-    args.prHead,
+    freeze,
     "--authorized-pr-head",
-    auth.authorized_pr_head,
+    freeze,
     ...args.forward,
   ];
 

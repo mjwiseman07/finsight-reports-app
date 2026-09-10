@@ -122,15 +122,18 @@ async function seedApplicatorWorld(client, opts = {}) {
 }
 
 function baseApplyInputs(databaseUrl, overrides = {}) {
-  const head = require("child_process")
-    .execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" })
-    .trim();
+  const freeze = JSON.parse(
+    require("fs").readFileSync(
+      "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
+      "utf8",
+    ),
+  ).authorized_pr_head;
   return {
     mode: "dry-run",
     applyAuthorizationToken: "",
     projectRef: EXPECTED_PROJECT_REF,
-    prHead: head,
-    authorizedPrHead: head,
+    prHead: freeze,
+    authorizedPrHead: freeze,
     artifactCommit: ARTIFACT_COMMIT,
     migrationPath: MIGRATION_PATH,
     migrationBlobOid: MIGRATION_BLOB_OID,

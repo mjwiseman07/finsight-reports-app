@@ -126,7 +126,7 @@ describe("applicator CLI argv credential prohibition", () => {
 });
 
 describe("self-authority launcher", () => {
-  it("stops when --pr-head mismatches git HEAD before DB", () => {
+  it("stops when --pr-head mismatches authorized freeze before DB", () => {
     const r = spawnSync(
       process.execPath,
       [
@@ -153,10 +153,19 @@ describe("self-authority launcher", () => {
   });
 
   it("refuses NODE_PATH substitution", () => {
-    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const auth = JSON.parse(
+      fs.readFileSync(
+        "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
+        "utf8",
+      ),
+    );
     const r = spawnSync(
       process.execPath,
-      ["scripts/security/launch-credential-browser-containment-apply.js", "--pr-head", head],
+      [
+        "scripts/security/launch-credential-browser-containment-apply.js",
+        "--pr-head",
+        auth.authorized_pr_head,
+      ],
       {
         cwd: ROOT,
         encoding: "utf8",

@@ -8,17 +8,11 @@ Use the bootstrap launcher (worktree may only bootstrap verification):
 
 ```
 node scripts/security/launch-credential-browser-containment-apply.js \
-  --pr-head <full-40-char-authorized-PR-HEAD> \
+  --pr-head 6e178416ec27d36b892ab969d1191adac1c96b0b \
   --mode dry-run
 ```
 
-The launcher:
-1. Equality-checks `--pr-head` against `git rev-parse HEAD` and `TOOLING_AUTHORIZATION.json`
-2. Loads applicator modules from exact Git blobs
-3. Verifies OID / SHA-256 / bytes
-4. Materializes LF bytes into a fresh temp directory
-5. Spawns only that materialized applicator
-6. Cleans the temp directory on exit
+`--pr-head` must equal `TOOLING_AUTHORIZATION.json` → `authorized_pr_head` (tooling freeze). Modules are materialized from that freeze commit’s Git blobs.
 
 Do **not** run `apply-credential-browser-containment.js` directly for production operations.
 
