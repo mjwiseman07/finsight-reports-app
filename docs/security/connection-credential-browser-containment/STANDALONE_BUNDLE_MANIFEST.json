@@ -1,10 +1,10 @@
 {
   "package": "credential-browser-containment-applicator-standalone",
   "bundle_path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-  "bundle_sha256": "c2ef7f00b6f4e898582ac0674a0679ab77e92dadaff1a922df5cfb2225c3d249",
+  "bundle_sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
   "bundle_bytes": 224526,
-  "bundle_oid_hash_object": "a16a1f941ee7983b00c8aa2298c156e3acaf591a",
-  "auth_seals_digest": "091888afc818ad7ca26d0b2a84f96db8ced48448fcbf55f8c4dce65bafa7c75e",
+  "bundle_oid_hash_object": "2316cfed5ca9460602d03026d66aa35d6d129329",
+  "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "lockfile_path": "package-lock.json",
   "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
   "pg_version": "8.21.0",
@@ -14,7 +14,7 @@
     "command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
     "esbuild_version": "0.25.0",
     "node": "v22.22.0",
-    "deterministic_note": "Rebuild with the same Node major + esbuild@0.25.0 from LF-normalized freeze sources and compare bundle_sha256. The committed git blob is authoritative for apply; rebuild is a verification gate, not a production step."
+    "deterministic_note": "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative."
   },
   "source_modules": [
     {
@@ -31,8 +31,8 @@
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",
-      "oid": "7ecdcbe145be071614d698a484151659b5db5884",
-      "sha256": "6e3cf9a840edf5e51247f9561ac85ff1436872f7bae4957e04c5ec9dc96e511a",
+      "oid": "348e16908798f9a98ed1987fdf8a8a977206d9b1",
+      "sha256": "6803736f53bb634e237de58effea002351cf58210e8e71029c6ba7f514d551a4",
       "bytes": 4399
     },
     {
@@ -54,5 +54,5 @@
       "network fetch"
     ]
   },
-  "built_at": "2026-09-10T04:17:39.871Z"
+  "built_at": "2026-09-10T04:23:03.023Z"
 }

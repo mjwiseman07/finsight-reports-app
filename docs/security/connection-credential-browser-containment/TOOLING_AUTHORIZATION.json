@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "d77b59eb177c5496edf466313d7b7fd86f09cd1c",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -16,11 +16,11 @@
     "key1": 1129464387,
     "key2": 539363592
   },
-  "auth_seals_digest": "091888afc818ad7ca26d0b2a84f96db8ced48448fcbf55f8c4dce65bafa7c75e",
+  "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "a16a1f941ee7983b00c8aa2298c156e3acaf591a",
-    "sha256": "c2ef7f00b6f4e898582ac0674a0679ab77e92dadaff1a922df5cfb2225c3d249",
+    "oid": "2316cfed5ca9460602d03026d66aa35d6d129329",
+    "sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
     "bytes": 224526,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
@@ -43,8 +43,8 @@
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",
-      "oid": "7ecdcbe145be071614d698a484151659b5db5884",
-      "sha256": "6e3cf9a840edf5e51247f9561ac85ff1436872f7bae4957e04c5ec9dc96e511a",
+      "oid": "348e16908798f9a98ed1987fdf8a8a977206d9b1",
+      "sha256": "6803736f53bb634e237de58effea002351cf58210e8e71029c6ba7f514d551a4",
       "bytes": 4399
     },
     {

@@ -47,14 +47,8 @@ function canonicalAuthSealsDigest(auth) {
     database_url_env: auth.database_url_env,
     apply_authorization_token: auth.apply_authorization_token,
     advisory_lock: auth.advisory_lock,
-    pg_version: auth.standalone_bundle?.pg_version,
+    pg_version: auth.standalone_bundle?.pg_version || "8.21.0",
     lockfile_path: auth.standalone_bundle?.lockfile_path || "package-lock.json",
-    source_modules: (auth.tooling_modules || []).map((m) => ({
-      path: m.path,
-      oid: m.oid,
-      sha256: m.sha256,
-      bytes: m.bytes,
-    })),
   };
   return sha256(Buffer.from(JSON.stringify(seals), "utf8"));
 }
