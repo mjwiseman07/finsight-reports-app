@@ -1,31 +1,52 @@
 #!/usr/bin/env node
 /**
  * Disposable local rehearsal for Stage-1 credential browser containment.
+ * SQL authority: git cat-file blob ONLY (never worktree filesystem bytes).
  * Uses a temporary Postgres Docker container. No production contact.
  */
+"use strict";
+
 const { spawnSync, execFileSync } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("pg");
 
-const ROOT = path.resolve(__dirname, "../..");
-const DOC = path.join(ROOT, "docs/security/connection-credential-browser-containment");
-const MIGRATION = path.join(
+const {
+  ARTIFACT_COMMIT,
+  MIGRATION_PATH,
+  MIGRATION_BLOB_OID,
+  MIGRATION_SHA256,
+  MIGRATION_BYTES,
+  ROLLBACK_PATH,
+  CONTRACT_PATH,
+  FIXTURE_PATH,
+} = require("./credential-browser-containment-constants");
+const {
   ROOT,
-  "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
-);
-const FIXTURE = path.join(DOC, "LOCAL_FIXTURE_SCHEMA.sql");
-const ROLLBACK = path.join(DOC, "ROLLBACK_SECURITY_REGRESSION_BREAK_GLASS_ONLY.sql");
-const CONTRACT = path.join(DOC, "PRE_CHANGE_CONTRACT.json");
+  loadAndVerifyGitBlob,
+  assertNoDropCascade,
+} = require("./git-blob-authority");
+
+const DOC = path.join(ROOT, "docs/security/connection-credential-browser-containment");
 const EVIDENCE = path.join(DOC, "LOCAL_REHEARSAL_EVIDENCE.json");
 
 const CONTAINER = `cred-contain-rehearse-${crypto.randomBytes(4).toString("hex")}`;
 const PG_PORT = String(55432 + Math.floor(Math.random() * 200));
 const PG_URL = `postgres://postgres:postgres@127.0.0.1:${PG_PORT}/postgres`;
 
-function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+function resolveHeadCommit() {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  }).trim();
+}
+
+function resolveArtifactCommit(seals) {
+  const fromEnv = process.env.CONTAINMENT_ARTIFACT_COMMIT;
+  if (fromEnv) return fromEnv;
+  if (seals?.commit1_sha) return seals.commit1_sha;
+  return ARTIFACT_COMMIT;
 }
 
 function docker(args, opts = {}) {
@@ -65,12 +86,6 @@ async function waitReady(attempts = 40) {
   throw new Error("Postgres container did not become ready");
 }
 
-function assertNoCascade(sql) {
-  if (/\bDROP\s+(VIEW|TABLE|SCHEMA|FUNCTION|MATERIALIZED\s+VIEW)\b[\s\S]{0,200}?\bCASCADE\b/i.test(sql)) {
-    throw new Error("DROP ... CASCADE detected in SQL artifact");
-  }
-}
-
 async function probePrivileges(client) {
   const { rows } = await client.query(`
     select
@@ -88,9 +103,70 @@ async function probePrivileges(client) {
       has_table_privilege('service_role','public.qbo_connections_unified','SELECT') as svc_view,
       (select reloptions::text from pg_class c join pg_namespace n on n.oid=c.relnamespace
         where n.nspname='public' and c.relname='qbo_connections_unified') as view_opts,
-      pg_get_viewdef('public.qbo_connections_unified'::regclass, true) as view_def
+      pg_get_viewdef('public.qbo_connections_unified'::regclass, true) as view_def,
+      exists(
+        select 1 from pg_policy p
+        join pg_class cl on cl.oid=p.polrelid
+        join pg_namespace n on n.oid=cl.relnamespace
+        where n.nspname='public' and cl.relname='accounting_connections'
+          and p.polname='users can read their accounting connection metadata'
+      ) as residual_select
   `);
   return rows[0];
+}
+
+function loadPinnedArtifacts() {
+  // SEALS.json is published at PR HEAD (Commit-2); sealed SQL lives at commit1.
+  const head = resolveHeadCommit();
+  const sealsLoaded = loadAndVerifyGitBlob({
+    commit: head,
+    path: "docs/security/connection-credential-browser-containment/SEALS.json",
+  });
+  const seals = JSON.parse(sealsLoaded.buffer.toString("utf8"));
+  if (seals.seal_status !== "COMMITTED_BLOB_SEALED") {
+    throw new Error(`SEALS not COMMITTED_BLOB_SEALED (got ${seals.seal_status})`);
+  }
+
+  const artifactCommit = resolveArtifactCommit(seals);
+
+  const migration = loadAndVerifyGitBlob({
+    commit: artifactCommit,
+    path: MIGRATION_PATH,
+    expectedOid: seals.git_blob_oids.forward_migration || MIGRATION_BLOB_OID,
+    expectedSha256: seals.seals_sha256.forward_migration || MIGRATION_SHA256,
+    expectedBytes: seals.byte_lengths.forward_migration || MIGRATION_BYTES,
+  });
+
+  const rollback = loadAndVerifyGitBlob({
+    commit: artifactCommit,
+    path: ROLLBACK_PATH,
+    expectedOid: seals.git_blob_oids.rollback,
+    expectedSha256: seals.seals_sha256.rollback,
+    expectedBytes: seals.byte_lengths.rollback,
+  });
+
+  const contract = loadAndVerifyGitBlob({
+    commit: artifactCommit,
+    path: CONTRACT_PATH,
+    expectedOid: seals.git_blob_oids.pre_change_contract,
+    expectedSha256: seals.seals_sha256.pre_change_contract,
+    expectedBytes: seals.byte_lengths.pre_change_contract,
+  });
+
+  const fixture = loadAndVerifyGitBlob({
+    commit: artifactCommit,
+    path: FIXTURE_PATH,
+  });
+
+  return {
+    seals,
+    head,
+    artifactCommit,
+    migration,
+    rollback,
+    contract,
+    fixture,
+  };
 }
 
 async function main() {
@@ -98,17 +174,46 @@ async function main() {
     started_at: new Date().toISOString(),
     container: CONTAINER,
     pg_port: PG_PORT,
-    seals: {
-      pre_change_contract_sha256: sha256File(CONTRACT),
-      forward_migration_sha256: sha256File(MIGRATION),
-      rollback_sha256: sha256File(ROLLBACK),
-      fixture_sha256: sha256File(FIXTURE),
-    },
+    source_authority: "git_blob",
+    sqlApplicationAttempts: 0,
     steps: {},
   };
 
-  assertNoCascade(fs.readFileSync(MIGRATION, "utf8"));
-  assertNoCascade(fs.readFileSync(ROLLBACK, "utf8"));
+  let pinned;
+  try {
+    pinned = loadPinnedArtifacts();
+  } catch (err) {
+    evidence.verdict = "LOCAL_REHEARSAL_BLOCKED_PIN_MISMATCH";
+    evidence.error = err.message;
+    evidence.sqlApplicationAttempts = 0;
+    fs.writeFileSync(EVIDENCE, JSON.stringify(evidence, null, 2));
+    console.error(JSON.stringify({ verdict: evidence.verdict, error: err.message, sqlApplicationAttempts: 0 }, null, 2));
+    process.exit(2);
+    return;
+  }
+
+  evidence.artifact_commit = pinned.artifactCommit;
+  evidence.pr_head = pinned.head;
+  evidence.seals = {
+    pre_change_contract_sha256: pinned.contract.sha256,
+    forward_migration_sha256: pinned.migration.sha256,
+    rollback_sha256: pinned.rollback.sha256,
+    fixture_sha256: pinned.fixture.sha256,
+    forward_migration_oid: pinned.migration.oid,
+    rollback_oid: pinned.rollback.oid,
+    contract_oid: pinned.contract.oid,
+  };
+  evidence.source = {
+    kind: "git_blob",
+    seals_commit: pinned.head,
+    artifact_commit: pinned.artifactCommit,
+  };
+
+  const migrationSql = pinned.migration.buffer.toString("utf8");
+  const rollbackSql = pinned.rollback.buffer.toString("utf8");
+  const fixtureSql = pinned.fixture.buffer.toString("utf8");
+  assertNoDropCascade(migrationSql);
+  assertNoDropCascade(rollbackSql);
 
   let dockerStarted = false;
   try {
@@ -116,9 +221,11 @@ async function main() {
   } catch (err) {
     evidence.verdict = "LOCAL_REHEARSAL_BLOCKED";
     evidence.reason = `Docker unavailable: ${err.message}`;
+    evidence.sqlApplicationAttempts = 0;
     fs.writeFileSync(EVIDENCE, JSON.stringify(evidence, null, 2));
     console.error(JSON.stringify({ verdict: evidence.verdict, reason: evidence.reason }, null, 2));
     process.exit(2);
+    return;
   }
 
   try {
@@ -139,7 +246,7 @@ async function main() {
     evidence.steps.container_ready = true;
 
     await withClient(async (client) => {
-      await client.query(fs.readFileSync(FIXTURE, "utf8"));
+      await client.query(fixtureSql);
       evidence.steps.fixture_applied = true;
 
       const before = await probePrivileges(client);
@@ -149,9 +256,11 @@ async function main() {
       evidence.steps.prechange_contract_verified = {
         browser_token_select: true,
         view_has_tokens: /access_token|refresh_token/i.test(before.view_def),
+        residual_select: before.residual_select === true,
       };
 
-      await client.query(fs.readFileSync(MIGRATION, "utf8"));
+      evidence.sqlApplicationAttempts += 1;
+      await client.query(migrationSql);
       evidence.steps.forward_applied = true;
 
       const after = await probePrivileges(client);
@@ -164,6 +273,7 @@ async function main() {
         auth_ac_upd: after.auth_ac_upd === false,
         anon_view: after.anon_view === false,
         auth_view: after.auth_view === false,
+        residual_select_gone: after.residual_select === false,
       };
       const serviceOk = {
         svc_ac_sel: after.svc_ac_sel === true,
@@ -178,7 +288,6 @@ async function main() {
       }
       evidence.steps.forward_assertions = { denials, serviceOk };
 
-      // Service-role fake row ops (boolean presence only; do not log token bodies)
       await client.query("SET ROLE service_role");
       const { rows: svcRows } = await client.query(`
         select
@@ -204,7 +313,6 @@ async function main() {
         update_ok: true,
       };
 
-      // Negative probes as authenticated: expect privilege denial, no body logging
       await client.query("SET ROLE authenticated");
       let denied = false;
       try {
@@ -216,26 +324,39 @@ async function main() {
       if (!denied) throw new Error("authenticated SELECT access_token was not denied");
       evidence.steps.authenticated_negative_probe = { token_select_denied: true };
 
-      await client.query(fs.readFileSync(ROLLBACK, "utf8"));
+      evidence.sqlApplicationAttempts += 1;
+      await client.query(rollbackSql);
       evidence.steps.rollback_applied = true;
       const rolled = await probePrivileges(client);
-      if (!rolled.auth_ac_tok || !/access_token/i.test(rolled.view_def)) {
+      if (!rolled.auth_ac_tok || !/access_token/i.test(rolled.view_def) || !rolled.residual_select) {
         throw new Error("Rollback did not restore sealed exposure contract");
       }
       evidence.steps.rollback_restored_contract = true;
 
-      await client.query(fs.readFileSync(MIGRATION, "utf8"));
+      evidence.sqlApplicationAttempts += 1;
+      await client.query(migrationSql);
       const reapplied = await probePrivileges(client);
-      if (reapplied.auth_ac_tok || /access_token/i.test(reapplied.view_def)) {
+      if (reapplied.auth_ac_tok || /access_token/i.test(reapplied.view_def) || reapplied.residual_select) {
         throw new Error("Reapply forward migration did not re-contain");
       }
       evidence.steps.reapply_ok = true;
     });
 
-    evidence.verdict = "LOCAL_REHEARSAL_PASS";
+    evidence.verdict = "LOCAL_REHEARSAL_PASS_FROM_COMMIT_GIT_BLOBS";
     evidence.finished_at = new Date().toISOString();
     fs.writeFileSync(EVIDENCE, JSON.stringify(evidence, null, 2));
-    console.log(JSON.stringify({ verdict: evidence.verdict, seals: evidence.seals }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          verdict: evidence.verdict,
+          source_authority: evidence.source_authority,
+          seals: evidence.seals,
+          sqlApplicationAttempts: evidence.sqlApplicationAttempts,
+        },
+        null,
+        2,
+      ),
+    );
   } catch (err) {
     evidence.verdict = evidence.verdict || "LOCAL_REHEARSAL_FAIL";
     evidence.error = err.message;
@@ -255,7 +376,7 @@ async function main() {
         evidence.steps.cleanup = true;
         fs.writeFileSync(EVIDENCE, JSON.stringify(evidence, null, 2));
       } catch {
-        // ignore cleanup failures; container is --rm
+        // ignore
       }
     }
   }

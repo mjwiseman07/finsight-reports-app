@@ -119,4 +119,18 @@ describe("connection credential browser containment git-blob seals", () => {
     expect(seals.commit1_sha).toMatch(/^[a-f0-9]{40}$/);
     expect(seals.notes?.join(" ") || "").not.toMatch(/d2739ae21af2f11400d10087457fd102b5ba2fba2f401d5b9a920bd584ae6bca/);
   });
+
+  it("rehearsal script never falls back to filesystem SQL for sealed artifacts", () => {
+    const src = readFileSync(
+      join(ROOT, "scripts/security/rehearse-credential-browser-containment.js"),
+      "utf8",
+    );
+    expect(src).toMatch(/loadAndVerifyGitBlob/);
+    expect(src).toMatch(/source_authority: "git_blob"/);
+    expect(src).not.toMatch(/readFileSync\(\s*MIGRATION/);
+    expect(src).not.toMatch(/readFileSync\(\s*ROLLBACK/);
+    expect(src).not.toMatch(/readFileSync\(\s*CONTRACT/);
+    expect(src).not.toMatch(/readFileSync\(\s*FIXTURE/);
+    expect(src).not.toMatch(/sha256File\(/);
+  });
 });

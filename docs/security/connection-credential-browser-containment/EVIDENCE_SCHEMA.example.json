@@ -1,0 +1,51 @@
+{
+  "mechanism": "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+  "mode": "dry-run | apply",
+  "verdict_examples": ["DRY_RUN_READY", "DRY_RUN_BLOCKED", "APPLY_COMMITTED", "APPLY_ROLLED_BACK", "APPLY_BLOCKED"],
+  "sqlApplicationAttempts": 0,
+  "source_authority": {
+    "kind": "git_blob",
+    "commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+    "path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
+    "oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "bytes": 10586
+  },
+  "advisory_lock": {
+    "name": "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
+    "key1": 1129464387,
+    "key2": 539363592
+  },
+  "project_ref_expected": "jzmdgwwiestcmmeuhhkr",
+  "prior_history_count": 185,
+  "prior_history_manifest": [
+    {
+      "version": "20260101000000",
+      "name": "example_only",
+      "statement_count": 1,
+      "statements_digest": "<sha256 of statements joined by newline; never raw SQL in durable public logs>"
+    }
+  ],
+  "pre_change_probe": {
+    "residual_select_policy": true,
+    "qb_browser_policy": true,
+    "auth_token_select": true,
+    "view_has_tokens": true,
+    "view_dependents": 0,
+    "ac_rls": true,
+    "qb_rls": true,
+    "view_owner": "postgres"
+  },
+  "target2": {
+    "fingerprint": "d331891f0424",
+    "matching_rows": 1,
+    "has_token_presence_boolean": true
+  },
+  "database_url": "postgres://***redacted***",
+  "forbidden_in_evidence": [
+    "database passwords",
+    "access_token values",
+    "refresh_token values",
+    "raw statements bodies from prior history"
+  ]
+}

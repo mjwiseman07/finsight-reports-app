@@ -1,43 +1,77 @@
 {
-  "started_at": "2026-09-08T04:24:18.000Z",
-  "method": "git_blob_pinned_docker_rehearsal",
-  "commit1_sha": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "started_at": "2026-09-10T03:23:00.671Z",
+  "container": "cred-contain-rehearse-dc6269e8",
+  "pg_port": "55441",
+  "source_authority": "git_blob",
+  "sqlApplicationAttempts": 3,
+  "steps": {
+    "container_ready": true,
+    "fixture_applied": true,
+    "prechange_contract_verified": {
+      "browser_token_select": true,
+      "view_has_tokens": true,
+      "residual_select": true
+    },
+    "forward_applied": true,
+    "forward_assertions": {
+      "denials": {
+        "anon_ac_tok": true,
+        "auth_ac_tok": true,
+        "anon_qb_tok": true,
+        "auth_qb_tok": true,
+        "anon_ac_upd": true,
+        "auth_ac_upd": true,
+        "anon_view": true,
+        "auth_view": true,
+        "residual_select_gone": true
+      },
+      "serviceOk": {
+        "svc_ac_sel": true,
+        "svc_ac_upd": true,
+        "svc_qb_sel": true,
+        "svc_view": true,
+        "security_invoker": true,
+        "view_no_tokens": true
+      }
+    },
+    "service_role_ops": {
+      "row_token_presence_booleans": {
+        "has_access": true,
+        "has_refresh": true
+      },
+      "view_consumer_shape": {
+        "connection_id": "11111111-1111-1111-1111-111111111111",
+        "user_id": "22222222-2222-2222-2222-222222222222",
+        "realm_id": "fake-realm-local",
+        "status": "connected",
+        "has_expiry": true
+      },
+      "update_ok": true
+    },
+    "authenticated_negative_probe": {
+      "token_select_denied": true
+    },
+    "rollback_applied": true,
+    "rollback_restored_contract": true,
+    "reapply_ok": true,
+    "cleanup": true
+  },
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "pr_head": "c7a83dc5c727ffd1ce628221a790897569d747f6",
   "seals": {
     "pre_change_contract_sha256": "7cf74c00ff4df9e59332e3b8e7abccdc0b74241b8f7989be446803ac04cb74a7",
     "forward_migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
     "rollback_sha256": "42a114580c12a43651bc4e9fcde3d2df820b04b0986406006ca39d188e7b0b86",
-    "forward_migration_bytes": 10586,
-    "rollback_bytes": 3506,
-    "pre_change_contract_bytes": 8273
+    "fixture_sha256": "469eaa3f584100e4ebbb64e4f7c48f427f86fededa23995f6505af03fd97a3a5",
+    "forward_migration_oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "rollback_oid": "e64eb6c4adeb4956b70705541c8700fc64c718c4",
+    "contract_oid": "ad148acdc11dbd2e70b5349d15227e0083ba0493"
   },
-  "steps": {
-    "forward_from_commit1_blobs": true,
-    "forward_assertions": {
-      "auth_table_select": false,
-      "auth_token_select": false,
-      "auth_view_select": false,
-      "service_update": true,
-      "service_view_select": true,
-      "non_service_policies": 0,
-      "view_has_tokens": false,
-      "authenticated_token_select_denied": true
-    },
-    "service_role_token_presence_booleans_only": {
-      "has_access": true,
-      "has_refresh": true
-    },
-    "rollback_restored": {
-      "auth_token_select": true,
-      "select_policy_restored": true,
-      "view_has_tokens": true
-    },
-    "reapply_after_rollback": {
-      "auth_token_select": false,
-      "select_policy_present": false,
-      "view_has_tokens": false
-    }
+  "source": {
+    "kind": "git_blob",
+    "seals_commit": "c7a83dc5c727ffd1ce628221a790897569d747f6",
+    "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9"
   },
-  "verdict": "LOCAL_REHEARSAL_PASS_FROM_COMMIT1_GIT_BLOBS",
-  "finished_at": "2026-09-08T04:24:28.000Z",
-  "supersedes": "prior LOCAL_REHEARSAL_EVIDENCE that used worktree CRLF hashes (BLOCKED_PIN_MISMATCH)"
+  "verdict": "LOCAL_REHEARSAL_PASS_FROM_COMMIT_GIT_BLOBS",
+  "finished_at": "2026-09-10T03:23:02.517Z"
 }
