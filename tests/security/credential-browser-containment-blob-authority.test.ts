@@ -38,11 +38,18 @@ describe("git-blob authority (containment)", () => {
   });
 
   it("rejects wrong SHA-256 with zero SQL attempts before DB", async () => {
+    const auth = JSON.parse(
+      fs.readFileSync(
+        "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
+        "utf8",
+      ),
+    );
     const evidence = await runApplicator({
       mode: "dry-run",
       projectRef: "jzmdgwwiestcmmeuhhkr",
       prHead: "c".repeat(40),
       authorizedPrHead: "c".repeat(40),
+      authSealsDigest: auth.auth_seals_digest,
       artifactCommit: ARTIFACT_COMMIT,
       migrationPath: MIGRATION_PATH,
       migrationBlobOid: MIGRATION_BLOB_OID,
