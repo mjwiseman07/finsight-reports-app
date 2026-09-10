@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "PENDING_AFTER_COMMIT",
+  "authorized_pr_head": "6e178416ec27d36b892ab969d1191adac1c96b0b",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -44,7 +44,8 @@
   ],
   "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",
   "notes": [
-    "authorized_pr_head is published in the seal-publication commit after tooling bytes are frozen.",
-    "Launcher materializes tooling_modules from git blobs at authorized_pr_head before any DB connection."
+    "authorized_pr_head is the tooling freeze commit whose module blob seals are authoritative.",
+    "Launcher materializes tooling_modules from git blobs at authorized_pr_head before any DB connection.",
+    "Pass --pr-head equal to authorized_pr_head (not merely a later docs tip)."
   ]
 }
