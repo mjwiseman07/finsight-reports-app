@@ -20,6 +20,11 @@ const {
   TARGET2,
   DATABASE_URL_ENV,
   APPLY_AUTHORIZATION_TOKEN,
+  ATTESTED_FREEZE_ENV,
+  GIT_CWD_ENV,
+  EXPECTED_AUTH_SEALS_DIGEST,
+  EXPECTED_STANDALONE_BUNDLE_SHA256,
+  AUTHORIZED_TOOLING_FREEZE,
 } = require("./credential-browser-containment-constants");
 const {
   loadAndVerifyGitBlob,
@@ -142,6 +147,8 @@ function buildEvidenceBase(inputs) {
     project_ref_expected: EXPECTED_PROJECT_REF,
     project_ref_provided: inputs.projectRef,
     pr_head: inputs.prHead,
+    authorized_tooling_freeze: inputs.authorizedPrHead,
+    evidence_tip: inputs.evidenceTip || null,
     artifact_commit: inputs.artifactCommit,
     migration_path: inputs.migrationPath,
     migration_version: inputs.version,
@@ -153,8 +160,97 @@ function buildEvidenceBase(inputs) {
     },
     source_authority: null,
     sqlApplicationAttempts: 0,
+    databaseConnectionAttempts: 0,
+    advisory_lock_acquired: false,
     database_url_channel: redactedUrlEvidence(),
   };
+}
+
+function resolveGitCwd(inputs) {
+  const env = inputs.env || process.env;
+  const fromInput = inputs.cwd || env[GIT_CWD_ENV];
+  if (fromInput && typeof fromInput === "string" && fromInput.trim()) {
+    return fromInput.trim();
+  }
+  return process.cwd();
+}
+
+/**
+ * Defense-in-depth freeze / payload pin (does not replace launcher verification).
+ */
+function assertFreezeDefenseInDepth(inputs) {
+  const env = inputs.env || process.env;
+  if (inputs.prHead !== inputs.authorizedPrHead) {
+    const e = new Error(
+      `BLOCKED_PIN_MISMATCH: prHead ${inputs.prHead} != authorizedPrHead ${inputs.authorizedPrHead}`,
+    );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (!/^[0-9a-f]{40}$/i.test(inputs.authorizedPrHead)) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: authorizedPrHead must be full 40-char SHA");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.evidenceTip) {
+    if (!/^[0-9a-f]{40}$/i.test(inputs.evidenceTip)) {
+      const e = new Error("BLOCKED_PIN_MISMATCH: evidenceTip must be full 40-char SHA when provided");
+      e.code = "BLOCKED_PIN_MISMATCH";
+      throw e;
+    }
+    if (inputs.authorizedPrHead.toLowerCase() === inputs.evidenceTip.toLowerCase()) {
+      const e = new Error(
+        "BLOCKED_PIN_MISMATCH: evidence tip cannot be used as tooling freeze",
+      );
+      e.code = "BLOCKED_PIN_MISMATCH";
+      throw e;
+    }
+  }
+
+  const attested = env[ATTESTED_FREEZE_ENV];
+  if (!attested || attested !== inputs.authorizedPrHead) {
+    const e = new Error(
+      `BLOCKED_PIN_MISMATCH: ${ATTESTED_FREEZE_ENV} attestation missing or != authorized freeze`,
+    );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+
+  if (
+    AUTHORIZED_TOOLING_FREEZE &&
+    AUTHORIZED_TOOLING_FREEZE !== "PENDING_AFTER_COMMIT" &&
+    inputs.authorizedPrHead !== AUTHORIZED_TOOLING_FREEZE
+  ) {
+    const e = new Error(
+      `BLOCKED_PIN_MISMATCH: authorizedPrHead != sealed AUTHORIZED_TOOLING_FREEZE`,
+    );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+
+  if (
+    EXPECTED_AUTH_SEALS_DIGEST &&
+    !EXPECTED_AUTH_SEALS_DIGEST.startsWith("PENDING_") &&
+    inputs.authSealsDigest !== EXPECTED_AUTH_SEALS_DIGEST
+  ) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: authorization seals digest mismatch");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+
+  // When running as the sealed standalone bundle, optional marker only.
+  // Whole-file self-hash is not used (digest-in-file fixed-point). Launcher
+  // verifies committed bundle OID/SHA/bytes before spawn.
+  if (inputs.requireStandaloneBundleSelfHash) {
+    if (
+      !EXPECTED_STANDALONE_BUNDLE_SHA256 ||
+      EXPECTED_STANDALONE_BUNDLE_SHA256.startsWith("PENDING_")
+    ) {
+      const e = new Error("BLOCKED_PIN_MISMATCH: standalone bundle sha pin not published");
+      e.code = "BLOCKED_PIN_MISMATCH";
+      throw e;
+    }
+  }
 }
 
 function assertModeContract(inputs) {
@@ -221,18 +317,7 @@ function assertInputPins(inputs) {
     e.code = "BLOCKED_PIN_MISMATCH";
     throw e;
   }
-  if (inputs.prHead !== inputs.authorizedPrHead) {
-    const e = new Error(
-      `BLOCKED_PIN_MISMATCH: prHead ${inputs.prHead} != authorizedPrHead ${inputs.authorizedPrHead}`,
-    );
-    e.code = "BLOCKED_PIN_MISMATCH";
-    throw e;
-  }
-  if (!/^[0-9a-f]{40}$/i.test(inputs.prHead)) {
-    const e = new Error("BLOCKED_PIN_MISMATCH: prHead must be full 40-char SHA");
-    e.code = "BLOCKED_PIN_MISMATCH";
-    throw e;
-  }
+  assertFreezeDefenseInDepth(inputs);
   if (inputs.artifactCommit !== ARTIFACT_COMMIT) {
     const e = new Error(
       `BLOCKED_PIN_MISMATCH: artifactCommit got ${inputs.artifactCommit}, expected ${ARTIFACT_COMMIT}`,
@@ -525,7 +610,7 @@ function loadSealedMigration(inputs) {
     expectedOid: inputs.migrationBlobOid,
     expectedSha256: inputs.migrationSha256,
     expectedBytes: inputs.migrationBytes,
-    cwd: inputs.cwd,
+    cwd: resolveGitCwd(inputs),
   });
   const fullSql = loaded.buffer.toString("utf8");
   assertNoDropCascade(fullSql);
@@ -619,6 +704,7 @@ async function runDryRun(inputs) {
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
     evidence.sqlApplicationAttempts = 0;
+    evidence.databaseConnectionAttempts = 0;
     return evidence;
   }
 
@@ -632,6 +718,7 @@ async function runDryRun(inputs) {
   };
 
   try {
+    evidence.databaseConnectionAttempts = 1;
     await withClient(databaseUrl, async (client) => {
       await client.query("SET default_transaction_read_only = on");
       await assertVersionAbsent(client, inputs.version);
@@ -693,6 +780,7 @@ async function runApply(inputs) {
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
     evidence.sqlApplicationAttempts = 0;
+    evidence.databaseConnectionAttempts = 0;
     return evidence;
   }
 
@@ -709,6 +797,7 @@ async function runApply(inputs) {
   let commitPhase = "pre_commit";
 
   try {
+    evidence.databaseConnectionAttempts = 1;
     await withClient(databaseUrl, async (client) => {
       await client.query("BEGIN");
       await client.query("SET LOCAL statement_timeout = '15s'");
@@ -717,6 +806,7 @@ async function runApply(inputs) {
         ADVISORY_LOCK.key1,
         ADVISORY_LOCK.key2,
       ]);
+      evidence.advisory_lock_acquired = true;
 
       await assertVersionAbsent(client, inputs.version);
       await assertHistoryCount(client, PRIOR_HISTORY_COUNT);

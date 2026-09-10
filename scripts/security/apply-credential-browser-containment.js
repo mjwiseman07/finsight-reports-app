@@ -75,6 +75,15 @@ function parseArgs(argv) {
       case "--authorized-pr-head":
         out.authorizedPrHead = next();
         break;
+      case "--evidence-tip":
+        out.evidenceTip = next();
+        break;
+      case "--auth-seals-digest":
+        out.authSealsDigest = next();
+        break;
+      case "--require-standalone-self-hash":
+        out.requireStandaloneBundleSelfHash = true;
+        break;
       case "--artifact-commit":
         out.artifactCommit = next();
         break;
@@ -175,6 +184,7 @@ async function main() {
         {
           verdict: "BLOCKED",
           sqlApplicationAttempts: 0,
+          databaseConnectionAttempts: 0,
           error: sanitizeError(err),
           error_sanitized: sanitizeValue(err),
         },
@@ -197,6 +207,9 @@ async function main() {
     projectRef: args.projectRef,
     prHead: args.prHead,
     authorizedPrHead: args.authorizedPrHead || args.prHead,
+    evidenceTip: args.evidenceTip,
+    authSealsDigest: args.authSealsDigest,
+    requireStandaloneBundleSelfHash: !!args.requireStandaloneBundleSelfHash,
     artifactCommit: args.artifactCommit,
     migrationPath: args.migrationPath,
     migrationBlobOid: args.migrationBlobOid,
@@ -227,6 +240,7 @@ main().catch((err) => {
       {
         verdict: "BLOCKED",
         sqlApplicationAttempts: 0,
+        databaseConnectionAttempts: 0,
         error: sanitizeError(err),
         error_sanitized: sanitizeValue(err),
       },

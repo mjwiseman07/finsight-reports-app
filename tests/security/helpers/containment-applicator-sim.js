@@ -128,12 +128,20 @@ function baseApplyInputs(databaseUrl, overrides = {}) {
       "utf8",
     ),
   ).authorized_pr_head;
-  return {
+  const tip = require("child_process")
+    .execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" })
+    .trim();
+  const {
+    ATTESTED_FREEZE_ENV,
+  } = require("../../../scripts/security/credential-browser-containment-constants.js");
+
+  const merged = {
     mode: "dry-run",
     applyAuthorizationToken: "",
     projectRef: EXPECTED_PROJECT_REF,
     prHead: freeze,
     authorizedPrHead: freeze,
+    evidenceTip: tip !== freeze ? tip : undefined,
     artifactCommit: ARTIFACT_COMMIT,
     migrationPath: MIGRATION_PATH,
     migrationBlobOid: MIGRATION_BLOB_OID,
@@ -142,9 +150,21 @@ function baseApplyInputs(databaseUrl, overrides = {}) {
     version: MIGRATION_VERSION,
     name: MIGRATION_NAME,
     target2Fingerprint: TARGET2.fingerprint,
-    env: { [DATABASE_URL_ENV]: databaseUrl },
     ...overrides,
   };
+  const attestedFreeze = merged.authorizedPrHead || merged.prHead || freeze;
+  merged.env = {
+    [DATABASE_URL_ENV]: databaseUrl,
+    [ATTESTED_FREEZE_ENV]: attestedFreeze,
+    ...(overrides.env || {}),
+  };
+  if (!overrides.env || overrides.env[ATTESTED_FREEZE_ENV] == null) {
+    merged.env[ATTESTED_FREEZE_ENV] = attestedFreeze;
+  }
+  if (merged.evidenceTip && merged.evidenceTip === merged.authorizedPrHead) {
+    delete merged.evidenceTip;
+  }
+  return merged;
 }
 
 module.exports = {

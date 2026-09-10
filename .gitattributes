@@ -20,4 +20,6 @@ scripts/security/credential-browser-containment-*.js text eol=lf
 scripts/security/git-blob-authority.js text eol=lf
 tests/security/connection-credential-browser-containment.test.ts text eol=lf
 tests/security/credential-browser-containment-*.test.ts text eol=lf
-tests/security/helpers/containment-applicator-sim.js text eol=lf
+scripts/security/helpers/containment-applicator-sim.js text eol=lf
+scripts/security/build-containment-applicator-standalone-bundle.js text eol=lf
+scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs text eol=lf

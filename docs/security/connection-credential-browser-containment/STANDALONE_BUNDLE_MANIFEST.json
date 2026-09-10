@@ -1,0 +1,58 @@
+{
+  "package": "credential-browser-containment-applicator-standalone",
+  "bundle_path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+  "bundle_sha256": "c2ef7f00b6f4e898582ac0674a0679ab77e92dadaff1a922df5cfb2225c3d249",
+  "bundle_bytes": 224526,
+  "bundle_oid_hash_object": "a16a1f941ee7983b00c8aa2298c156e3acaf591a",
+  "auth_seals_digest": "091888afc818ad7ca26d0b2a84f96db8ced48448fcbf55f8c4dce65bafa7c75e",
+  "lockfile_path": "package-lock.json",
+  "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+  "pg_version": "8.21.0",
+  "pg_resolved": "https://registry.npmjs.org/pg/-/pg-8.21.0.tgz",
+  "pg_integrity": "sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==",
+  "build": {
+    "command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0",
+    "node": "v22.22.0",
+    "deterministic_note": "Rebuild with the same Node major + esbuild@0.25.0 from LF-normalized freeze sources and compare bundle_sha256. The committed git blob is authoritative for apply; rebuild is a verification gate, not a production step."
+  },
+  "source_modules": [
+    {
+      "path": "scripts/security/apply-credential-browser-containment.js",
+      "oid": "dfd130aaa0bf66c9645352d1facbedf557a1db26",
+      "sha256": "e95047759982f4a3163ae404570264e7ea67285030bb0a9b4b09e59139d28798",
+      "bytes": 7010
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-apply-core.js",
+      "oid": "e9bae84d78f067ed1c08e0157a07da1390d83e71",
+      "sha256": "28a0edc07f0814715f4ac3f7f85d04a25944000bba083cfab1ad19404492f19a",
+      "bytes": 34079
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-constants.js",
+      "oid": "7ecdcbe145be071614d698a484151659b5db5884",
+      "sha256": "6e3cf9a840edf5e51247f9561ac85ff1436872f7bae4957e04c5ec9dc96e511a",
+      "bytes": 4399
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    }
+  ],
+  "inventory": {
+    "includes": [
+      "applicator CLI/core/constants/git-blob-authority",
+      "pg@8.21.0 and esbuild-resolved runtime dependency graph"
+    ],
+    "excludes_at_runtime": [
+      "repository node_modules",
+      "NODE_PATH",
+      "global packages",
+      "network fetch"
+    ]
+  },
+  "built_at": "2026-09-10T04:17:39.871Z"
+}

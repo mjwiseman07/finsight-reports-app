@@ -50,9 +50,13 @@ describe("git-blob authority (containment)", () => {
       migrationBytes: MIGRATION_BYTES,
       version: "20260908031736",
       name: "connection_credential_browser_containment",
-      env: { [DATABASE_URL_ENV]: "postgres://u:p@127.0.0.1:1/db" },
+      env: {
+        [DATABASE_URL_ENV]: "postgres://u:p@127.0.0.1:1/db",
+        CONTAINMENT_ATTESTED_FREEZE: "c".repeat(40),
+      },
     });
     expect(evidence.sqlApplicationAttempts).toBe(0);
+    expect(evidence.databaseConnectionAttempts).toBe(0);
   });
 
   it("treats CRLF worktree drift as irrelevant to git blob authority", () => {

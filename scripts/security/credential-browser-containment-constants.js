@@ -39,6 +39,40 @@ const DATABASE_URL_ENV = "CONTAINMENT_APPLY_DATABASE_URL";
 /** Exact apply authorization token (not a secret credential; an explicit operator intent pin). */
 const APPLY_AUTHORIZATION_TOKEN = "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736";
 
+/**
+ * Env attestation set only by the verified launcher after tip-auth checks.
+ * Not a credential. Must equal authorized tooling freeze (never the evidence tip).
+ */
+const ATTESTED_FREEZE_ENV = "CONTAINMENT_ATTESTED_FREEZE";
+
+/** Repo path for git cat-file of sealed SQL (not an executable module path). */
+const GIT_CWD_ENV = "CONTAINMENT_GIT_CWD";
+
+/**
+ * Digest of authorization seals excluding authorized_pr_head (tip-published).
+ * Filled by build-containment-applicator-standalone-bundle.js before seal.
+ */
+const EXPECTED_AUTH_SEALS_DIGEST =
+  "6e1e56cb0cbcbb7a08c9625a2dc283fa98f343eeb4eb44aea30067da1c0c3fe1";
+
+/**
+ * SHA-256 of the committed standalone applicator bundle bytes (documentation pin).
+ * Runtime authority for the bundle hash is TOOLING_AUTHORIZATION + launcher verification.
+ * Not used for whole-file self-hash (embedding the digest changes the digest).
+ */
+const EXPECTED_STANDALONE_BUNDLE_SHA256 =
+  "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
+
+/**
+ * Exact executable tooling freeze (40-hex). Published after freeze commit identity
+ * is known; until then PENDING_AFTER_COMMIT. Core rejects PENDING in apply/dry-run
+ * when running the sealed standalone bundle path.
+ */
+const AUTHORIZED_TOOLING_FREEZE = "PENDING_AFTER_COMMIT";
+
+const STANDALONE_BUNDLE_PATH =
+  "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs";
+
 const ROLLBACK_PATH =
   "docs/security/connection-credential-browser-containment/ROLLBACK_SECURITY_REGRESSION_BREAK_GLASS_ONLY.sql";
 const CONTRACT_PATH =
@@ -56,7 +90,7 @@ const TARGET2 = Object.freeze({
   provider: "quickbooks",
 });
 
-/** Modules that must be loaded from committed Git blobs (never trusted from worktree). */
+/** Source modules sealed alongside the standalone bundle (review/SBOM). */
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-credential-browser-containment.js",
   "scripts/security/credential-browser-containment-apply-core.js",
@@ -77,6 +111,12 @@ module.exports = {
   PRIOR_HISTORY_COUNT,
   DATABASE_URL_ENV,
   APPLY_AUTHORIZATION_TOKEN,
+  ATTESTED_FREEZE_ENV,
+  GIT_CWD_ENV,
+  EXPECTED_AUTH_SEALS_DIGEST,
+  EXPECTED_STANDALONE_BUNDLE_SHA256,
+  AUTHORIZED_TOOLING_FREEZE,
+  STANDALONE_BUNDLE_PATH,
   ROLLBACK_PATH,
   CONTRACT_PATH,
   FIXTURE_PATH,
