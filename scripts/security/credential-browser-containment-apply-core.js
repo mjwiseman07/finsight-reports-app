@@ -1,6 +1,7 @@
 /**
  * GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY core (testable).
  * Default path is dry-run/read-only. Never logs credentials or token values.
+ * Database URL: CONTAINMENT_APPLY_DATABASE_URL env only (never argv).
  */
 "use strict";
 
@@ -11,8 +12,14 @@ const {
   PRIOR_HISTORY_COUNT,
   MIGRATION_VERSION,
   MIGRATION_NAME,
+  MIGRATION_PATH,
+  MIGRATION_BLOB_OID,
+  MIGRATION_SHA256,
+  MIGRATION_BYTES,
+  ARTIFACT_COMMIT,
   TARGET2,
-  CONTRACT_PATH,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
 } = require("./credential-browser-containment-constants");
 const {
   loadAndVerifyGitBlob,
@@ -21,16 +28,111 @@ const {
   sha256Buffer,
 } = require("./git-blob-authority");
 
-function sanitizeError(err) {
-  const msg = String(err && err.message ? err.message : err);
-  return msg
-    .replace(/postgres(?:ql)?:\/\/[^\s)]+/gi, "postgres://***")
-    .replace(/password=[^&\s]+/gi, "password=***")
-    .replace(/Bearer\s+[A-Za-z0-9._\-]+/g, "Bearer ***");
+class IndeterminateCommitError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = "IndeterminateCommitError";
+    this.code = "INDETERMINATE_OUTCOME";
+    this.cause = cause;
+  }
 }
 
-function redactedUrl(_url) {
-  return "postgres://***redacted***";
+function redactString(input) {
+  let s = String(input ?? "");
+  s = s.replace(/postgres(?:ql)?:\/\/[^\s)'"`]+/gi, "postgres://***");
+  s = s.replace(/(?:mongodb|mysql|redis):\/\/[^\s)'"`]+/gi, "[redacted-url]");
+  s = s.replace(/([?&](?:password|pass|pwd|token|secret|api[_-]?key)=)[^&\s)'"`]+/gi, "$1***");
+  s = s.replace(/(password|passwd|pwd)\s*[:=]\s*[^\s)'"`]+/gi, "$1=***");
+  s = s.replace(/Bearer\s+[A-Za-z0-9._\-]+/g, "Bearer ***");
+  s = s.replace(/CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*[^\s)'"`]+/gi, `${DATABASE_URL_ENV}=***`);
+  // user:pass@host
+  s = s.replace(/\/\/([^:@\s/'"]+):([^@\s/'"]+)@/g, "//***:***@");
+  // percent-encoded password-ish sequences after %3A
+  s = s.replace(/%3A[A-Za-z0-9._~\-%]+/gi, "%3A***");
+  return s;
+}
+
+function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
+  if (depth > 8) return "[depth-limited]";
+  if (value == null) return value;
+  if (typeof value === "string") return redactString(value);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "bigint") return String(value);
+  if (typeof value === "function") return "[function]";
+  if (Buffer.isBuffer(value)) return `[buffer:${value.length}]`;
+  if (typeof value === "object") {
+    if (seen.has(value)) return "[circular]";
+    seen.add(value);
+    if (value instanceof Error) {
+      return {
+        name: value.name,
+        message: redactString(value.message),
+        code: value.code || undefined,
+        stack: value.stack ? redactString(value.stack) : undefined,
+        cause: value.cause ? sanitizeValue(value.cause, depth + 1, seen) : undefined,
+      };
+    }
+    if (Array.isArray(value)) {
+      return value.map((v) => sanitizeValue(v, depth + 1, seen));
+    }
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const key = String(k).toLowerCase();
+      if (
+        key.includes("password") ||
+        key.includes("connectionstring") ||
+        key.includes("database_url") ||
+        key.includes("databaseurl") ||
+        key === "argv" ||
+        key === "config" ||
+        key === "connectionparameters" ||
+        key === "access_token" ||
+        key === "refresh_token"
+      ) {
+        out[k] = "[redacted]";
+        continue;
+      }
+      out[k] = sanitizeValue(v, depth + 1, seen);
+    }
+    return out;
+  }
+  return redactString(value);
+}
+
+function sanitizeError(err) {
+  const sanitized = sanitizeValue(err);
+  if (sanitized && typeof sanitized === "object" && sanitized.message) {
+    return sanitized.message;
+  }
+  return redactString(err && err.message ? err.message : err);
+}
+
+function redactedUrlEvidence() {
+  return `${DATABASE_URL_ENV}=***redacted***`;
+}
+
+/**
+ * Resolve DB URL from protected env channel only.
+ */
+function resolveDatabaseUrlFromEnv(env = process.env) {
+  if (Object.prototype.hasOwnProperty.call(env, "DATABASE_URL") && env.DATABASE_URL) {
+    const e = new Error("PROHIBITED_CREDENTIAL_CHANNEL: generic DATABASE_URL is forbidden");
+    e.code = "PROHIBITED_CREDENTIAL_CHANNEL";
+    throw e;
+  }
+  const raw = env[DATABASE_URL_ENV];
+  if (raw == null || String(raw).trim() === "") {
+    const e = new Error(`MISSING_INPUT: ${DATABASE_URL_ENV}`);
+    e.code = "MISSING_INPUT";
+    throw e;
+  }
+  const url = String(raw);
+  if (!/^postgres(ql)?:\/\//i.test(url)) {
+    const e = new Error(`MALFORMED_DATABASE_URL: ${DATABASE_URL_ENV} must be a postgres URL`);
+    e.code = "MALFORMED_DATABASE_URL";
+    throw e;
+  }
+  return url;
 }
 
 function buildEvidenceBase(inputs) {
@@ -51,11 +153,46 @@ function buildEvidenceBase(inputs) {
     },
     source_authority: null,
     sqlApplicationAttempts: 0,
-    database_url: redactedUrl(inputs.databaseUrl),
+    database_url_channel: redactedUrlEvidence(),
   };
 }
 
+function assertModeContract(inputs) {
+  const mode = inputs.mode;
+  const token = inputs.applyAuthorizationToken;
+  if (mode !== "dry-run" && mode !== "apply") {
+    const e = new Error(`BLOCKED_MODE: unknown mode ${mode}`);
+    e.code = "BLOCKED_MODE";
+    throw e;
+  }
+  if (mode === "dry-run") {
+    if (token != null && token !== "") {
+      const e = new Error(
+        "BLOCKED_MODE: dry-run must not carry apply authorization token",
+      );
+      e.code = "BLOCKED_MODE";
+      throw e;
+    }
+    if (inputs.applyAuthorized === true) {
+      const e = new Error("BLOCKED_MODE: dry-run cannot carry applyAuthorized");
+      e.code = "BLOCKED_MODE";
+      throw e;
+    }
+  }
+  if (mode === "apply") {
+    if (token !== APPLY_AUTHORIZATION_TOKEN) {
+      const e = new Error(
+        "APPLY_NOT_AUTHORIZED: exact --i-authorize-production-apply token required",
+      );
+      e.code = "APPLY_NOT_AUTHORIZED";
+      throw e;
+    }
+  }
+}
+
 function assertInputPins(inputs) {
+  assertModeContract(inputs);
+
   const required = [
     "mode",
     "projectRef",
@@ -67,7 +204,7 @@ function assertInputPins(inputs) {
     "migrationBytes",
     "version",
     "name",
-    "databaseUrl",
+    "authorizedPrHead",
   ];
   for (const k of required) {
     if (inputs[k] === undefined || inputs[k] === null || inputs[k] === "") {
@@ -76,10 +213,50 @@ function assertInputPins(inputs) {
       throw e;
     }
   }
+
   if (inputs.projectRef !== EXPECTED_PROJECT_REF) {
     const e = new Error(
       `BLOCKED_PIN_MISMATCH: project ref got ${inputs.projectRef}, expected ${EXPECTED_PROJECT_REF}`,
     );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.prHead !== inputs.authorizedPrHead) {
+    const e = new Error(
+      `BLOCKED_PIN_MISMATCH: prHead ${inputs.prHead} != authorizedPrHead ${inputs.authorizedPrHead}`,
+    );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (!/^[0-9a-f]{40}$/i.test(inputs.prHead)) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: prHead must be full 40-char SHA");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.artifactCommit !== ARTIFACT_COMMIT) {
+    const e = new Error(
+      `BLOCKED_PIN_MISMATCH: artifactCommit got ${inputs.artifactCommit}, expected ${ARTIFACT_COMMIT}`,
+    );
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.migrationPath !== MIGRATION_PATH) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: migrationPath mismatch");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.migrationBlobOid !== MIGRATION_BLOB_OID) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: migration blob OID mismatch");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (inputs.migrationSha256 !== MIGRATION_SHA256) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: migration SHA-256 mismatch");
+    e.code = "BLOCKED_PIN_MISMATCH";
+    throw e;
+  }
+  if (Number(inputs.migrationBytes) !== MIGRATION_BYTES) {
+    const e = new Error("BLOCKED_PIN_MISMATCH: migration bytes mismatch");
     e.code = "BLOCKED_PIN_MISMATCH";
     throw e;
   }
@@ -95,21 +272,6 @@ function assertInputPins(inputs) {
       `BLOCKED_PIN_MISMATCH: name got ${inputs.name}, expected ${MIGRATION_NAME}`,
     );
     e.code = "BLOCKED_PIN_MISMATCH";
-    throw e;
-  }
-  if (!/^[0-9a-f]{40}$/i.test(inputs.prHead)) {
-    const e = new Error("BLOCKED_PIN_MISMATCH: prHead must be full 40-char SHA");
-    e.code = "BLOCKED_PIN_MISMATCH";
-    throw e;
-  }
-  if (!/^[0-9a-f]{40}$/i.test(inputs.artifactCommit)) {
-    const e = new Error("BLOCKED_PIN_MISMATCH: artifactCommit must be full 40-char SHA");
-    e.code = "BLOCKED_PIN_MISMATCH";
-    throw e;
-  }
-  if (inputs.mode === "apply" && !inputs.applyAuthorized) {
-    const e = new Error("APPLY_NOT_AUTHORIZED: pass apply opt-in flag for real apply");
-    e.code = "APPLY_NOT_AUTHORIZED";
     throw e;
   }
 }
@@ -161,9 +323,6 @@ async function assertHistoryCount(client, expected) {
   }
 }
 
-/**
- * Catalog probes matching sealed pre-change exposure (metadata only).
- */
 async function probePreChangeContract(client) {
   const { rows } = await client.query(`
     SELECT
@@ -237,9 +396,6 @@ function assertPreChangeMatch(probe) {
   }
 }
 
-/**
- * Target #2 check: booleans/fingerprints only — never selects token columns.
- */
 async function probeTarget2(client, fingerprint = TARGET2.fingerprint) {
   const { rows } = await client.query(
     `
@@ -274,7 +430,6 @@ async function probeTarget2(client, fingerprint = TARGET2.fingerprint) {
     fingerprint,
     matching_rows: rows[0].matching_rows,
     has_token_presence_boolean: rows[0].matching_with_token_presence > 0,
-    // never emit token values
   };
 }
 
@@ -344,9 +499,24 @@ function manifestsEqual(a, b) {
   return true;
 }
 
-/**
- * Load migration blob and verify pins. Does not open a database.
- */
+function isConnectionUncertaintyError(err) {
+  const msg = String(err && err.message ? err.message : err);
+  const code = err && err.code;
+  return (
+    err instanceof IndeterminateCommitError ||
+    code === "INDETERMINATE_OUTCOME" ||
+    code === "ECONNRESET" ||
+    code === "EPIPE" ||
+    code === "ETIMEDOUT" ||
+    code === "57P01" ||
+    code === "57P02" ||
+    code === "57P03" ||
+    /connection (terminated|closed|ended|refused|reset)|timeout|sock|not queryable|server closed/i.test(
+      msg,
+    )
+  );
+}
+
 function loadSealedMigration(inputs) {
   assertInputPins(inputs);
   const loaded = loadAndVerifyGitBlob({
@@ -363,16 +533,90 @@ function loadSealedMigration(inputs) {
   return { loaded, fullSql, innerSql };
 }
 
+async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorManifest) {
+  const result = {
+    classification: "INDETERMINATE_REQUIRES_OPERATOR",
+    version_present: null,
+    statement_match: null,
+    containment_ok: null,
+  };
+  try {
+    await withClient(databaseUrl, async (client) => {
+      await client.query("SET default_transaction_read_only = on");
+      const { rows } = await client.query(
+        `SELECT version, name, statements FROM supabase_migrations.schema_migrations WHERE version = $1`,
+        [inputs.version],
+      );
+      if (rows.length === 0) {
+        result.version_present = false;
+        try {
+          const probe = await probePreChangeContract(client);
+          assertPreChangeMatch(probe);
+          result.pre_change_restored = true;
+        } catch {
+          result.pre_change_restored = false;
+        }
+        if (priorManifest) {
+          const now = await captureHistoryManifest(client);
+          result.prior_manifest_unchanged = manifestsEqual(now, priorManifest);
+        }
+        result.classification =
+          result.pre_change_restored && result.prior_manifest_unchanged !== false
+            ? "NOT_APPLIED_CONFIRMED"
+            : "INDETERMINATE_REQUIRES_OPERATOR";
+        return;
+      }
+      result.version_present = true;
+      const stmts = rows[0].statements || [];
+      result.statement_count = stmts.length;
+      result.statement_match =
+        stmts.length === 1 &&
+        stmts[0] === packed.fullSql &&
+        sha256Buffer(Buffer.from(stmts[0], "utf8")) === packed.loaded.sha256;
+      try {
+        await assertContainedPrivileges(client);
+        result.containment_ok = true;
+      } catch {
+        result.containment_ok = false;
+      }
+      if (priorManifest) {
+        const now = await captureHistoryManifest(client);
+        const priorOnly = now.filter((r) => r.version !== inputs.version);
+        result.prior_manifest_unchanged = manifestsEqual(priorOnly, priorManifest);
+      }
+      if (
+        result.statement_match &&
+        result.containment_ok &&
+        result.prior_manifest_unchanged !== false
+      ) {
+        result.classification = "APPLIED_CONFIRMED_AFTER_RECONCILIATION";
+      } else {
+        result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
+      }
+    });
+  } catch (err) {
+    result.reconcile_error = sanitizeError(err);
+    result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
+  }
+  result.operator_note =
+    "No automatic retry or rollback. New authorization required before any further mutation.";
+  return result;
+}
+
 async function runDryRun(inputs) {
   const evidence = buildEvidenceBase(inputs);
   evidence.mode = "dry-run";
 
+  let databaseUrl;
   let packed;
   try {
+    assertInputPins(inputs);
+    databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
     packed = loadSealedMigration(inputs);
   } catch (err) {
     evidence.verdict = "DRY_RUN_BLOCKED";
     evidence.error = sanitizeError(err);
+    evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
     evidence.sqlApplicationAttempts = 0;
     return evidence;
@@ -388,7 +632,7 @@ async function runDryRun(inputs) {
   };
 
   try {
-    await withClient(inputs.databaseUrl, async (client) => {
+    await withClient(databaseUrl, async (client) => {
       await client.query("SET default_transaction_read_only = on");
       await assertVersionAbsent(client, inputs.version);
       await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
@@ -409,17 +653,14 @@ async function runDryRun(inputs) {
         view_owner: probe.view_owner,
       };
 
-      if (!inputs.skipTarget2Check) {
-        const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
-        assertTarget2Ok(t2);
-        evidence.target2 = {
-          fingerprint: t2.fingerprint,
-          matching_rows: t2.matching_rows,
-          has_token_presence_boolean: t2.has_token_presence_boolean,
-        };
-      }
+      const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+      assertTarget2Ok(t2);
+      evidence.target2 = {
+        fingerprint: t2.fingerprint,
+        matching_rows: t2.matching_rows,
+        has_token_presence_boolean: t2.has_token_presence_boolean,
+      };
 
-      // Prove no mutation in dry-run
       await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
       await assertVersionAbsent(client, inputs.version);
     });
@@ -429,6 +670,7 @@ async function runDryRun(inputs) {
   } catch (err) {
     evidence.verdict = "DRY_RUN_BLOCKED";
     evidence.error = sanitizeError(err);
+    evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "DRY_RUN_FAIL";
     evidence.sqlApplicationAttempts = 0;
   }
@@ -439,12 +681,16 @@ async function runApply(inputs) {
   const evidence = buildEvidenceBase(inputs);
   evidence.mode = "apply";
 
+  let databaseUrl;
   let packed;
   try {
+    assertInputPins(inputs);
+    databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
     packed = loadSealedMigration(inputs);
   } catch (err) {
     evidence.verdict = "APPLY_BLOCKED";
     evidence.error = sanitizeError(err);
+    evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
     evidence.sqlApplicationAttempts = 0;
     return evidence;
@@ -460,10 +706,10 @@ async function runApply(inputs) {
   };
 
   let priorManifest = null;
+  let commitPhase = "pre_commit";
 
   try {
-    await withClient(inputs.databaseUrl, async (client) => {
-      // Single connection for the write transaction
+    await withClient(databaseUrl, async (client) => {
       await client.query("BEGIN");
       await client.query("SET LOCAL statement_timeout = '15s'");
       await client.query("SET LOCAL lock_timeout = '5s'");
@@ -480,15 +726,13 @@ async function runApply(inputs) {
       const probe = await probePreChangeContract(client);
       assertPreChangeMatch(probe);
 
-      if (!inputs.skipTarget2Check) {
-        const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
-        assertTarget2Ok(t2);
-        evidence.target2 = {
-          fingerprint: t2.fingerprint,
-          matching_rows: t2.matching_rows,
-          has_token_presence_boolean: t2.has_token_presence_boolean,
-        };
-      }
+      const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+      assertTarget2Ok(t2);
+      evidence.target2 = {
+        fingerprint: t2.fingerprint,
+        matching_rows: t2.matching_rows,
+        has_token_presence_boolean: t2.has_token_presence_boolean,
+      };
 
       if (inputs.injectFailure === "before_sql") {
         throw new Error("INJECTED_FAILURE_BEFORE_SQL");
@@ -501,7 +745,6 @@ async function runApply(inputs) {
         throw new Error("INJECTED_FAILURE_BEFORE_HISTORY");
       }
 
-      // Parameterized insert of the COMPLETE unmodified migration file
       await client.query(
         `INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
          VALUES ($1, $2, ARRAY[$3]::text[])`,
@@ -513,7 +756,6 @@ async function runApply(inputs) {
       }
 
       if (inputs.injectFailure === "mutate_prior") {
-        // Detectable prior-history mutation attempt — must roll back
         const victim = priorManifest[0];
         if (victim) {
           await client.query(
@@ -561,18 +803,54 @@ async function runApply(inputs) {
 
       await assertContainedPrivileges(client);
 
+      if (inputs.injectFailure === "before_commit") {
+        throw new Error("INJECTED_FAILURE_BEFORE_COMMIT");
+      }
+
+      commitPhase = "committing";
+      if (inputs.injectFailure === "during_commit") {
+        throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_DURING_COMMIT");
+      }
       await client.query("COMMIT");
+      commitPhase = "committed";
+
+      if (inputs.injectFailure === "after_commit_ack") {
+        throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_AFTER_COMMIT_ACK");
+      }
+
       evidence.verdict = "APPLY_COMMITTED";
       evidence.stored_statement_digest = packed.loaded.sha256;
       evidence.stored_statement_bytes = packed.loaded.bytes;
     });
   } catch (err) {
+    const uncertain =
+      commitPhase === "committing" ||
+      commitPhase === "committed" ||
+      (err instanceof IndeterminateCommitError);
+
+    if (uncertain || (commitPhase === "committing" && isConnectionUncertaintyError(err))) {
+      evidence.verdict = "INDETERMINATE_OUTCOME";
+      evidence.error = sanitizeError(err);
+      evidence.error_sanitized = sanitizeValue(err);
+      evidence.error_code = "INDETERMINATE_OUTCOME";
+      evidence.commit_phase = commitPhase;
+      evidence.reconciliation = await reconcileAfterIndeterminate(
+        databaseUrl,
+        inputs,
+        packed,
+        priorManifest,
+      );
+      // Never auto-retry / auto-rollback
+      return evidence;
+    }
+
     evidence.verdict = "APPLY_ROLLED_BACK";
     evidence.error = sanitizeError(err);
+    evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "APPLY_FAIL";
-    // Post-failure read-only verification on a fresh connection
+    evidence.commit_phase = commitPhase;
     try {
-      await withClient(inputs.databaseUrl, async (client) => {
+      await withClient(databaseUrl, async (client) => {
         await client.query("SET default_transaction_read_only = on");
         const { rows } = await client.query(
           `SELECT count(*)::int AS c FROM supabase_migrations.schema_migrations WHERE version = $1`,
@@ -604,9 +882,6 @@ async function runApply(inputs) {
   return evidence;
 }
 
-/**
- * Entry: mode dry-run (default) or apply.
- */
 async function runApplicator(inputs) {
   const mode = inputs.mode || "dry-run";
   if (mode === "dry-run") {
@@ -632,7 +907,12 @@ module.exports = {
   probeTarget2,
   assertContainedPrivileges,
   assertPreChangeMatch,
+  assertInputPins,
+  resolveDatabaseUrlFromEnv,
   sanitizeError,
+  sanitizeValue,
+  IndeterminateCommitError,
   ADVISORY_LOCK,
-  CONTRACT_PATH,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
 };

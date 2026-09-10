@@ -30,12 +30,23 @@ const MIGRATION_NAME = "connection_credential_browser_containment";
 
 const PRIOR_HISTORY_COUNT = 185;
 
+/**
+ * Session-only DB URL channel. Never argv. Never generic DATABASE_URL.
+ * Value must never be printed or written into evidence.
+ */
+const DATABASE_URL_ENV = "CONTAINMENT_APPLY_DATABASE_URL";
+
+/** Exact apply authorization token (not a secret credential; an explicit operator intent pin). */
+const APPLY_AUTHORIZATION_TOKEN = "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736";
+
 const ROLLBACK_PATH =
   "docs/security/connection-credential-browser-containment/ROLLBACK_SECURITY_REGRESSION_BREAK_GLASS_ONLY.sql";
 const CONTRACT_PATH =
   "docs/security/connection-credential-browser-containment/PRE_CHANGE_CONTRACT.json";
 const FIXTURE_PATH =
   "docs/security/connection-credential-browser-containment/LOCAL_FIXTURE_SCHEMA.sql";
+const TOOLING_AUTHORIZATION_PATH =
+  "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json";
 
 /** Target #2 binding check uses non-token columns only. */
 const TARGET2 = Object.freeze({
@@ -44,6 +55,14 @@ const TARGET2 = Object.freeze({
   status: "connected",
   provider: "quickbooks",
 });
+
+/** Modules that must be loaded from committed Git blobs (never trusted from worktree). */
+const SELF_AUTHORITY_MODULES = Object.freeze([
+  "scripts/security/apply-credential-browser-containment.js",
+  "scripts/security/credential-browser-containment-apply-core.js",
+  "scripts/security/credential-browser-containment-constants.js",
+  "scripts/security/git-blob-authority.js",
+]);
 
 module.exports = {
   ADVISORY_LOCK,
@@ -56,8 +75,12 @@ module.exports = {
   MIGRATION_VERSION,
   MIGRATION_NAME,
   PRIOR_HISTORY_COUNT,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
   ROLLBACK_PATH,
   CONTRACT_PATH,
   FIXTURE_PATH,
+  TOOLING_AUTHORIZATION_PATH,
   TARGET2,
+  SELF_AUTHORITY_MODULES,
 };

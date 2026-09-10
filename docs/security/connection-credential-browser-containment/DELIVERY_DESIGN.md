@@ -1,39 +1,29 @@
 # GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY
 
-Future production delivery mechanism for migration version `20260908031736` only.
-**Executable applicator:** `scripts/security/apply-credential-browser-containment.js`  
-**NOT EXECUTED against production in tooling authoring.** No production apply/dry-run is authorized by this turn.
+Executable delivery mechanism for migration version `20260908031736` only.
+**Launcher:** `scripts/security/launch-credential-browser-containment-apply.js`  
+**NOT EXECUTED against production in tooling remediation.** No production apply/dry-run is authorized by this turn.
+
+## Self-authority
+Authoritative applicator modules are loaded from committed Git blobs at `authorized_pr_head`, materialized to a temp directory, and executed with a controlled environment (`NODE_PATH` / preload loaders forbidden). Worktree code may bootstrap verification only.
+
+## Credential channel
+`CONTAINMENT_APPLY_DATABASE_URL` only. Argv database URLs are prohibited.
 
 ## Advisory lock (fixed committed constant)
 - Name: `CREDENTIAL_BROWSER_CONTAINMENT_STAGE1`
 - `SELECT pg_advisory_xact_lock(0x43524243, 0x20260908);`
-- See `ADVISORY_LOCK.json`
 
 ## Forbid
-- `supabase db push`
-- `supabase db push --include-all`
-- replaying missing/local-only migrations
-- rewriting or repairing unrelated `schema_migrations` rows
-- `supabase migration repair` without executing forward SQL
-- raw SQL that leaves the version without non-empty `statements[]`
-- MCP `apply_migration` (server-generated version ≠ `20260908031736`)
-- any approach that mutates the existing 185 production history rows
-- worktree SQL bytes / filesystem fallbacks
-- string interpolation for history insertion
+- `supabase db push` / `--include-all`
+- migration repair / MCP alternate versioning
+- worktree SQL / worktree applicator execution for production ops
+- `--database-url` / generic `DATABASE_URL`
+- automatic retry after indeterminate COMMIT
 
-## Required workflow (single bounded transaction)
-1. Load exact bytes via `git cat-file blob <artifact-commit>:<path>` for
-   `supabase/migrations/20260908031736_connection_credential_browser_containment.sql`.
-2. Verify blob OID, SHA-256, byte length, UTF-8 LF, no BOM against published Commit-2 seals.
-3. Preflight (dry-run default): version `20260908031736` absent; object/grant/view fingerprints match sealed pre-change; count of prior history rows = 185; target #2 sandbox fingerprint booleans only.
-4. `BEGIN;` + timeouts + `pg_advisory_xact_lock` using the committed constant above.
-5. Execute only the migration **inner body** after deterministically removing its single outer `BEGIN;` / `COMMIT;` pair.
-6. Parameterized `INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
-   VALUES ($1, $2, ARRAY[$3]::text[])` where `$3` is the exact full committed migration file (including outer BEGIN/COMMIT).
-7. Verify `statements[1]` digests to the sealed SHA-256; `array_length(statements,1)=1`; statements non-empty.
-8. Run privilege/view/RLS probes (no token values).
-9. Assert all prior 185 history rows remain digest-identical (version set unchanged except the one new row).
-10. `COMMIT;` on success. On any failure: `ROLLBACK;` then read-only verify version absent + pre-change restored.
-
-## Safety proof intent
-Atomic SQL + history recording; exact git blob authority; no multi-version replay; fail-closed; `sqlApplicationAttempts: 0` on any pin mismatch.
+## Required workflow
+1. Launch via self-authority launcher with `--pr-head` equality-checked to authorized HEAD.
+2. Load migration via `git cat-file blob` from artifact commit; verify OID/SHA/bytes.
+3. Dry-run default: read-only; `sqlApplicationAttempts: 0`.
+4. Apply: single connection transaction + advisory xact lock; strip outer BEGIN/COMMIT; parameterized history insert of full sealed file; verify digests + prior 185-row manifest; privilege probes; COMMIT.
+5. Uncertain COMMIT → `INDETERMINATE_OUTCOME` + read-only reconciliation; no auto-retry.

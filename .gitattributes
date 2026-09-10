@@ -15,6 +15,7 @@ supabase/migrations/20260908031736_connection_credential_browser_containment.sql
 docs/security/connection-credential-browser-containment/** text eol=lf
 scripts/security/rehearse-credential-browser-containment.js text eol=lf
 scripts/security/apply-credential-browser-containment.js text eol=lf
+scripts/security/launch-credential-browser-containment-apply.js text eol=lf
 scripts/security/credential-browser-containment-*.js text eol=lf
 scripts/security/git-blob-authority.js text eol=lf
 tests/security/connection-credential-browser-containment.test.ts text eol=lf

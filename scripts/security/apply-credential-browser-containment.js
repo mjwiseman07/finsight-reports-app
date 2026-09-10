@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 /**
- * GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY CLI
- *
- * Default: dry-run / read-only.
- * Real apply requires --apply and all explicit pin inputs.
- *
- * NEVER prints database credentials or token values.
- * This authorization forbids production connections (including dry-run).
+ * Inner applicator CLI — intended to run only from a verified materialized temp tree.
+ * Database URL: CONTAINMENT_APPLY_DATABASE_URL (env only). --database-url is prohibited.
  */
 "use strict";
 
@@ -20,35 +15,65 @@ const {
   MIGRATION_VERSION,
   MIGRATION_NAME,
   ADVISORY_LOCK,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
 } = require("./credential-browser-containment-constants");
-const { runApplicator, sanitizeError } = require("./credential-browser-containment-apply-core");
+const {
+  runApplicator,
+  sanitizeError,
+  sanitizeValue,
+} = require("./credential-browser-containment-apply-core");
 
 function parseArgs(argv) {
   const out = {
     mode: "dry-run",
-    applyAuthorized: false,
-    skipTarget2Check: false,
+    applyAuthorizationToken: "",
   };
+  let sawMode = false;
+  let sawApplyToken = false;
+
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     const next = () => {
       i += 1;
+      if (argv[i] === undefined) {
+        throw new Error(`MISSING_ARG_VALUE: ${a}`);
+      }
       return argv[i];
     };
     switch (a) {
-      case "--mode":
+      case "--mode": {
+        if (sawMode) throw new Error("BLOCKED_MODE: duplicate --mode");
+        sawMode = true;
         out.mode = next();
         break;
-      case "--apply":
-      case "--i-authorize-production-apply":
-        out.applyAuthorized = true;
-        out.mode = "apply";
+      }
+      case "--i-authorize-production-apply": {
+        if (sawApplyToken) {
+          throw new Error("BLOCKED_MODE: duplicate --i-authorize-production-apply");
+        }
+        sawApplyToken = true;
+        out.applyAuthorizationToken = next();
         break;
+      }
+      case "--apply":
+        throw new Error(
+          "BLOCKED_MODE: bare --apply is prohibited; use --mode apply and --i-authorize-production-apply <exact-token>",
+        );
+      case "--database-url":
+      case "--databaseUrl":
+      case "--db-url":
+        throw new Error(
+          `PROHIBITED_CREDENTIAL_CHANNEL: ${a} is forbidden; set ${DATABASE_URL_ENV} only`,
+        );
       case "--project-ref":
         out.projectRef = next();
         break;
       case "--pr-head":
         out.prHead = next();
+        break;
+      case "--authorized-pr-head":
+        out.authorizedPrHead = next();
         break;
       case "--artifact-commit":
         out.artifactCommit = next();
@@ -71,15 +96,13 @@ function parseArgs(argv) {
       case "--name":
         out.name = next();
         break;
-      case "--database-url":
-        out.databaseUrl = next();
-        break;
       case "--target2-fingerprint":
         out.target2Fingerprint = next();
         break;
       case "--skip-target2-check":
-        out.skipTarget2Check = true;
-        break;
+        throw new Error(
+          "BLOCKED_MODE: --skip-target2-check removed; not available in production applicator",
+        );
       case "--help":
       case "-h":
         out.help = true;
@@ -88,6 +111,15 @@ function parseArgs(argv) {
         throw new Error(`unknown argument: ${a}`);
     }
   }
+
+  if (out.mode === "apply" && !sawApplyToken) {
+    throw new Error(
+      "APPLY_NOT_AUTHORIZED: --mode apply requires --i-authorize-production-apply <exact-token>",
+    );
+  }
+  if (out.mode === "dry-run" && sawApplyToken) {
+    throw new Error("BLOCKED_MODE: dry-run must not include apply authorization token");
+  }
   return out;
 }
 
@@ -95,10 +127,14 @@ function printHelp() {
   const help = {
     mechanism: "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
     default_mode: "dry-run",
+    database_url_channel: DATABASE_URL_ENV,
     advisory_lock: ADVISORY_LOCK,
-    required_for_any_run: [
+    apply_token_name: "--i-authorize-production-apply",
+    apply_token_value_hint: "(exact committed token; not printed here as operational guidance uses runbook)",
+    required_pins: [
       "--project-ref",
       "--pr-head",
+      "--authorized-pr-head",
       "--artifact-commit",
       "--migration-path",
       "--migration-blob-oid",
@@ -106,10 +142,8 @@ function printHelp() {
       "--migration-bytes",
       "--version",
       "--name",
-      "--database-url",
     ],
-    apply_extra: ["--apply"],
-    expected_defaults: {
+    expected: {
       project_ref: EXPECTED_PROJECT_REF,
       artifact_commit: ARTIFACT_COMMIT,
       migration_path: MIGRATION_PATH,
@@ -120,11 +154,12 @@ function printHelp() {
       name: MIGRATION_NAME,
     },
     forbids: [
-      "supabase db push",
-      "--include-all",
-      "migration repair",
-      "MCP alternate versioning",
+      "--database-url",
+      "DATABASE_URL",
+      "bare --apply",
+      "--skip-target2-check",
       "worktree SQL",
+      "supabase db push",
     ],
   };
   process.stdout.write(`${JSON.stringify(help, null, 2)}\n`);
@@ -136,7 +171,16 @@ async function main() {
     args = parseArgs(process.argv);
   } catch (err) {
     process.stdout.write(
-      `${JSON.stringify({ verdict: "BLOCKED", sqlApplicationAttempts: 0, error: sanitizeError(err) }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          verdict: "BLOCKED",
+          sqlApplicationAttempts: 0,
+          error: sanitizeError(err),
+          error_sanitized: sanitizeValue(err),
+        },
+        null,
+        2,
+      )}\n`,
     );
     process.exitCode = 2;
     return;
@@ -147,12 +191,12 @@ async function main() {
     return;
   }
 
-  // Never echo database URL
   const evidence = await runApplicator({
     mode: args.mode,
-    applyAuthorized: args.applyAuthorized,
+    applyAuthorizationToken: args.applyAuthorizationToken || "",
     projectRef: args.projectRef,
     prHead: args.prHead,
+    authorizedPrHead: args.authorizedPrHead || args.prHead,
     artifactCommit: args.artifactCommit,
     migrationPath: args.migrationPath,
     migrationBlobOid: args.migrationBlobOid,
@@ -160,14 +204,18 @@ async function main() {
     migrationBytes: args.migrationBytes,
     version: args.version,
     name: args.name,
-    databaseUrl: args.databaseUrl,
     target2Fingerprint: args.target2Fingerprint,
-    skipTarget2Check: args.skipTarget2Check,
+    env: process.env,
   });
 
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
-  if (evidence.verdict === "DRY_RUN_READY" || evidence.verdict === "APPLY_COMMITTED") {
-    process.exitCode = 0;
+  if (
+    evidence.verdict === "DRY_RUN_READY" ||
+    evidence.verdict === "APPLY_COMMITTED" ||
+    evidence.verdict === "INDETERMINATE_OUTCOME"
+  ) {
+    // Indeterminate exits non-zero so operators do not treat as success.
+    process.exitCode = evidence.verdict === "INDETERMINATE_OUTCOME" ? 3 : 0;
   } else {
     process.exitCode = 1;
   }
@@ -175,7 +223,19 @@ async function main() {
 
 main().catch((err) => {
   process.stdout.write(
-    `${JSON.stringify({ verdict: "BLOCKED", sqlApplicationAttempts: 0, error: sanitizeError(err) }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        verdict: "BLOCKED",
+        sqlApplicationAttempts: 0,
+        error: sanitizeError(err),
+        error_sanitized: sanitizeValue(err),
+      },
+      null,
+      2,
+    )}\n`,
   );
   process.exitCode = 2;
 });
+
+// Token constant referenced so tests can import expected value via constants module.
+void APPLY_AUTHORIZATION_TOKEN;

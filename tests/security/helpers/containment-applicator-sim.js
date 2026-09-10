@@ -20,6 +20,8 @@ const {
   PRIOR_HISTORY_COUNT,
   TARGET2,
   ADVISORY_LOCK,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
 } = require("../../../scripts/security/credential-browser-containment-constants.js");
 const { loadAndVerifyGitBlob } = require("../../../scripts/security/git-blob-authority.js");
 
@@ -84,7 +86,6 @@ async function seedApplicatorWorld(client, opts = {}) {
   });
   await client.query(fixture.buffer.toString("utf8"));
 
-  // Point target #2 fingerprint at the fixture row (non-token columns only).
   await client.query(
     `
     UPDATE public.accounting_connections
@@ -121,11 +122,15 @@ async function seedApplicatorWorld(client, opts = {}) {
 }
 
 function baseApplyInputs(databaseUrl, overrides = {}) {
+  const head = require("child_process")
+    .execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" })
+    .trim();
   return {
     mode: "dry-run",
-    applyAuthorized: false,
+    applyAuthorizationToken: "",
     projectRef: EXPECTED_PROJECT_REF,
-    prHead: "c7a83dc5c727ffd1ce628221a790897569d747f6",
+    prHead: head,
+    authorizedPrHead: head,
     artifactCommit: ARTIFACT_COMMIT,
     migrationPath: MIGRATION_PATH,
     migrationBlobOid: MIGRATION_BLOB_OID,
@@ -133,9 +138,8 @@ function baseApplyInputs(databaseUrl, overrides = {}) {
     migrationBytes: MIGRATION_BYTES,
     version: MIGRATION_VERSION,
     name: MIGRATION_NAME,
-    databaseUrl,
     target2Fingerprint: TARGET2.fingerprint,
-    skipTarget2Check: false,
+    env: { [DATABASE_URL_ENV]: databaseUrl },
     ...overrides,
   };
 }
@@ -150,4 +154,6 @@ module.exports = {
   MIGRATION_SHA256,
   MIGRATION_BYTES,
   PRIOR_HISTORY_COUNT,
+  DATABASE_URL_ENV,
+  APPLY_AUTHORIZATION_TOKEN,
 };

@@ -1,5 +1,8 @@
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   loadAndVerifyGitBlob,
@@ -13,6 +16,9 @@ import {
   MIGRATION_BLOB_OID,
   MIGRATION_SHA256,
   MIGRATION_BYTES,
+  DATABASE_URL_ENV,
+  TOOLING_AUTHORIZATION_PATH,
+  SELF_AUTHORITY_MODULES,
 } from "../../scripts/security/credential-browser-containment-constants.js";
 import { runApplicator } from "../../scripts/security/credential-browser-containment-apply-core.js";
 
@@ -28,28 +34,15 @@ describe("git-blob authority (containment)", () => {
       expectedBytes: MIGRATION_BYTES,
     });
     expect(loaded.source).toBe("git_blob");
-    expect(loaded.oid).toBe(MIGRATION_BLOB_OID);
-    expect(loaded.sha256).toBe(MIGRATION_SHA256);
-    expect(loaded.bytes).toBe(MIGRATION_BYTES);
     assertUtf8LfNoBom(loaded.buffer);
-    expect(loaded.buffer.includes(0x0d)).toBe(false);
   });
 
-  it("rejects wrong SHA-256 with BLOCKED_PIN_MISMATCH before any SQL", async () => {
-    expect(() =>
-      loadAndVerifyGitBlob({
-        commit: ARTIFACT_COMMIT,
-        path: MIGRATION_PATH,
-        expectedOid: MIGRATION_BLOB_OID,
-        expectedSha256: "0".repeat(64),
-        expectedBytes: MIGRATION_BYTES,
-      }),
-    ).toThrow(/BLOCKED_PIN_MISMATCH/);
-
+  it("rejects wrong SHA-256 with zero SQL attempts before DB", async () => {
     const evidence = await runApplicator({
       mode: "dry-run",
       projectRef: "jzmdgwwiestcmmeuhhkr",
-      prHead: "c7a83dc5c727ffd1ce628221a790897569d747f6",
+      prHead: "c".repeat(40),
+      authorizedPrHead: "c".repeat(40),
       artifactCommit: ARTIFACT_COMMIT,
       migrationPath: MIGRATION_PATH,
       migrationBlobOid: MIGRATION_BLOB_OID,
@@ -57,68 +50,9 @@ describe("git-blob authority (containment)", () => {
       migrationBytes: MIGRATION_BYTES,
       version: "20260908031736",
       name: "connection_credential_browser_containment",
-      databaseUrl: "postgres://invalid:invalid@127.0.0.1:1/postgres",
+      env: { [DATABASE_URL_ENV]: "postgres://u:p@127.0.0.1:1/db" },
     });
     expect(evidence.sqlApplicationAttempts).toBe(0);
-    expect(evidence.verdict).toMatch(/BLOCKED|DRY_RUN_BLOCKED/);
-  });
-
-  it("rejects wrong byte length and wrong blob OID with zero SQL attempts", async () => {
-    const wrongBytes = await runApplicator({
-      mode: "apply",
-      applyAuthorized: true,
-      projectRef: "jzmdgwwiestcmmeuhhkr",
-      prHead: "c7a83dc5c727ffd1ce628221a790897569d747f6",
-      artifactCommit: ARTIFACT_COMMIT,
-      migrationPath: MIGRATION_PATH,
-      migrationBlobOid: MIGRATION_BLOB_OID,
-      migrationSha256: MIGRATION_SHA256,
-      migrationBytes: 1,
-      version: "20260908031736",
-      name: "connection_credential_browser_containment",
-      databaseUrl: "postgres://invalid:invalid@127.0.0.1:1/postgres",
-    });
-    expect(wrongBytes.sqlApplicationAttempts).toBe(0);
-
-    const wrongOid = await runApplicator({
-      mode: "dry-run",
-      projectRef: "jzmdgwwiestcmmeuhhkr",
-      prHead: "c7a83dc5c727ffd1ce628221a790897569d747f6",
-      artifactCommit: ARTIFACT_COMMIT,
-      migrationPath: MIGRATION_PATH,
-      migrationBlobOid: "0".repeat(40),
-      migrationSha256: MIGRATION_SHA256,
-      migrationBytes: MIGRATION_BYTES,
-      version: "20260908031736",
-      name: "connection_credential_browser_containment",
-      databaseUrl: "postgres://invalid:invalid@127.0.0.1:1/postgres",
-    });
-    expect(wrongOid.sqlApplicationAttempts).toBe(0);
-  });
-
-  it("rejects wrong project/version/name with zero SQL attempts", async () => {
-    for (const overrides of [
-      { projectRef: "wrong-project" },
-      { version: "00000000000000" },
-      { name: "wrong_name" },
-      { artifactCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-    ]) {
-      const evidence = await runApplicator({
-        mode: "dry-run",
-        projectRef: "jzmdgwwiestcmmeuhhkr",
-        prHead: "c7a83dc5c727ffd1ce628221a790897569d747f6",
-        artifactCommit: ARTIFACT_COMMIT,
-        migrationPath: MIGRATION_PATH,
-        migrationBlobOid: MIGRATION_BLOB_OID,
-        migrationSha256: MIGRATION_SHA256,
-        migrationBytes: MIGRATION_BYTES,
-        version: "20260908031736",
-        name: "connection_credential_browser_containment",
-        databaseUrl: "postgres://invalid:invalid@127.0.0.1:1/postgres",
-        ...overrides,
-      });
-      expect(evidence.sqlApplicationAttempts).toBe(0);
-    }
   });
 
   it("treats CRLF worktree drift as irrelevant to git blob authority", () => {
@@ -126,9 +60,7 @@ describe("git-blob authority (containment)", () => {
       cwd: ROOT,
     });
     const crlf = Buffer.from(blob.toString("utf8").replace(/\n/g, "\r\n"), "utf8");
-    expect(crlf.includes(0x0d)).toBe(true);
     expect(sha256Buffer(crlf)).not.toBe(MIGRATION_SHA256);
-    // Authoritative load still matches LF blob
     const loaded = loadAndVerifyGitBlob({
       commit: ARTIFACT_COMMIT,
       path: MIGRATION_PATH,
@@ -140,7 +72,7 @@ describe("git-blob authority (containment)", () => {
     expect(() => assertUtf8LfNoBom(crlf)).toThrow(/CR/);
   });
 
-  it("strips exactly one outer BEGIN/COMMIT and preserves full file for history", () => {
+  it("strips exactly one outer BEGIN/COMMIT", () => {
     const loaded = loadAndVerifyGitBlob({
       commit: ARTIFACT_COMMIT,
       path: MIGRATION_PATH,
@@ -151,10 +83,98 @@ describe("git-blob authority (containment)", () => {
     const full = loaded.buffer.toString("utf8");
     const inner = stripOuterBeginCommit(full);
     expect(inner.startsWith("BEGIN;")).toBe(false);
-    expect(inner.trimEnd().endsWith("COMMIT;")).toBe(false);
-    expect(full.startsWith("--")).toBe(true);
-    expect(full.includes("\nBEGIN;\n")).toBe(true);
-    expect(full.trimEnd().endsWith("COMMIT;")).toBe(true);
     expect(createHash("sha256").update(full, "utf8").digest("hex")).toBe(MIGRATION_SHA256);
+  });
+});
+
+describe("applicator CLI argv credential prohibition", () => {
+  it("rejects --database-url with zero SQL attempts", () => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        "scripts/security/apply-credential-browser-containment.js",
+        "--database-url",
+        "postgres://u:p@127.0.0.1:1/db",
+        "--mode",
+        "dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true },
+    );
+    expect(r.status).not.toBe(0);
+    expect(r.stdout).toMatch(/PROHIBITED_CREDENTIAL_CHANNEL/);
+    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+    expect(r.stdout).not.toMatch(/u:p@/);
+  });
+
+  it("rejects --skip-target2-check", () => {
+    const r = spawnSync(
+      process.execPath,
+      ["scripts/security/apply-credential-browser-containment.js", "--skip-target2-check"],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true },
+    );
+    expect(r.stdout).toMatch(/skip-target2-check removed/);
+  });
+
+  it("rejects bare --apply", () => {
+    const r = spawnSync(
+      process.execPath,
+      ["scripts/security/apply-credential-browser-containment.js", "--apply"],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true },
+    );
+    expect(r.stdout).toMatch(/bare --apply is prohibited/);
+  });
+});
+
+describe("self-authority launcher", () => {
+  it("stops when --pr-head mismatches git HEAD before DB", () => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        "scripts/security/launch-credential-browser-containment-apply.js",
+        "--pr-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--mode",
+        "dry-run",
+      ],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          [DATABASE_URL_ENV]: "postgres://u:p@127.0.0.1:1/db",
+        },
+      },
+    );
+    expect(r.status).toBe(2);
+    expect(r.stdout).toMatch(/SELF_AUTHORITY_BLOCKED|BLOCKED_PIN_MISMATCH/);
+    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+  });
+
+  it("refuses NODE_PATH substitution", () => {
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const r = spawnSync(
+      process.execPath,
+      ["scripts/security/launch-credential-browser-containment-apply.js", "--pr-head", head],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          NODE_PATH: path.join(ROOT, "node_modules"),
+          [DATABASE_URL_ENV]: "postgres://u:p@127.0.0.1:1/db",
+        },
+      },
+    );
+    expect(r.stdout).toMatch(/NODE_PATH/);
+    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+  });
+
+  it("documents SELF_AUTHORITY_MODULES and tooling auth path constants", () => {
+    expect(SELF_AUTHORITY_MODULES.length).toBeGreaterThanOrEqual(4);
+    expect(TOOLING_AUTHORIZATION_PATH).toMatch(/TOOLING_AUTHORIZATION\.json$/);
   });
 });

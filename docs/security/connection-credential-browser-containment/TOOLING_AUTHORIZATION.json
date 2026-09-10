@@ -1,0 +1,50 @@
+{
+  "package": "connection-credential-browser-containment-stage1-tooling",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
+  "migration_blob_oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+  "migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+  "migration_bytes": 10586,
+  "migration_version": "20260908031736",
+  "migration_name": "connection_credential_browser_containment",
+  "database_url_env": "CONTAINMENT_APPLY_DATABASE_URL",
+  "apply_authorization_token": "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
+  "advisory_lock": {
+    "name": "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
+    "key1": 1129464387,
+    "key2": 539363592
+  },
+  "tooling_modules": [
+    {
+      "path": "scripts/security/apply-credential-browser-containment.js",
+      "oid": "4017a77c9539482274ecf715448ee039b08088a6",
+      "sha256": "4177e4f101a9a35e4588d2326b51bdd96bb0921043dabe6496eea1e3d05e633c",
+      "bytes": 6498
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-apply-core.js",
+      "oid": "e541474e255a690bdc80515bcddbc40c7c46ce1d",
+      "sha256": "adcf2a53d3cdc1b159c770899b0ca5e2cb591dd6afcdf63de8bf4dc9ef012a93",
+      "bytes": 31062
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-constants.js",
+      "oid": "591b72850933054662c7a7c10edf000440ff2f0b",
+      "sha256": "0d749fcc4bb941e515276e60e936a44ff95f2002dc796f8ac5081b95ce60690c",
+      "bytes": 2843
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    }
+  ],
+  "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",
+  "notes": [
+    "authorized_pr_head is published in the seal-publication commit after tooling bytes are frozen.",
+    "Launcher materializes tooling_modules from git blobs at authorized_pr_head before any DB connection."
+  ]
+}
