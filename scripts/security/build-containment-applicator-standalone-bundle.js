@@ -46,6 +46,53 @@ function writeLf(file, text) {
   fs.writeFileSync(file, lf(text), { encoding: "utf8" });
 }
 
+function scanBundleContent(source) {
+  const externalRequire = [
+    ...source.matchAll(/require\(["']([^"']+)["']\)/g),
+  ].map((m) => m[1]);
+  const unresolved = externalRequire.filter(
+    (id) =>
+      !id.startsWith(".") &&
+      !id.startsWith("node:") &&
+      !id.startsWith("util/") &&
+      ![
+        "fs",
+        "path",
+        "os",
+        "crypto",
+        "child_process",
+        "util",
+        "events",
+        "stream",
+        "buffer",
+        "url",
+        "net",
+        "tls",
+        "dns",
+        "http",
+        "https",
+        "zlib",
+        "assert",
+        "string_decoder",
+        "punycode",
+        "querystring",
+        "module",
+        "process",
+        "constants",
+        "tty",
+        "readline",
+      ].includes(id),
+  );
+  const pgNativeRefs = (source.match(/pg-native/g) || []).length;
+  const hasUnresolvedPgNativeRequire = /require\(["']pg-native["']\)/.test(source);
+  return {
+    unresolved_external_requires: unresolved,
+    pg_native_token_count: pgNativeRefs,
+    has_unresolved_require_pg_native: hasUnresolvedPgNativeRequire,
+    fail_closed_stub_present: source.includes("PG_NATIVE_DISABLED"),
+  };
+}
+
 function moduleSeal(rel) {
   // Ensure LF on disk before hashing for seal publication on Windows.
   const p = path.join(ROOT, rel);
@@ -59,6 +106,7 @@ function moduleSeal(rel) {
 }
 
 function canonicalAuthSealsDigest(authLike) {
+  // Stable digest excludes tip-published authorized_pr_head and mutable module seals.
   const seals = {
     artifact_commit: authLike.artifact_commit,
     project_ref: authLike.project_ref,
@@ -73,18 +121,16 @@ function canonicalAuthSealsDigest(authLike) {
     advisory_lock: authLike.advisory_lock,
     pg_version: "8.21.0",
     lockfile_path: "package-lock.json",
-    source_modules: authLike.tooling_modules.map((m) => ({
-      path: m.path,
-      oid: m.oid,
-      sha256: m.sha256,
-      bytes: m.bytes,
-    })),
   };
   return sha256(Buffer.from(JSON.stringify(seals), "utf8"));
 }
 
 function runEsbuild() {
   fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
+  const pgNativeStub = path.join(
+    ROOT,
+    "scripts/security/stubs/pg-native-failclosed.js",
+  );
   const r = spawnSync(
     process.platform === "win32" ? "npx.cmd" : "npx",
     [
@@ -95,6 +141,7 @@ function runEsbuild() {
       "--platform=node",
       "--format=cjs",
       `--outfile=${OUT_FILE}`,
+      `--alias:pg-native=${pgNativeStub}`,
       "--log-level=warning",
     ],
     { cwd: ROOT, encoding: "utf8", windowsHide: true, shell: true },
@@ -234,8 +281,10 @@ function main() {
       esbuild_version: ESBUILD_VERSION,
       node: process.version,
       deterministic_note:
-        "Rebuild with the same Node major + esbuild@0.25.0 from LF-normalized freeze sources and compare bundle_sha256. The committed git blob is authoritative for apply; rebuild is a verification gate, not a production step.",
+        "Rebuild with the same Node major + esbuild@0.25.0 from LF-normalized freeze sources and compare bundle_sha256. esbuild may embed non-byte-stable metadata; the committed git blob is authoritative for apply. content_scan detects unexpected external requires. Rebuild is a verification gate, not a production step.",
+      pg_native_alias: "scripts/security/stubs/pg-native-failclosed.js",
     },
+    content_scan: scanBundleContent(finalBuf.toString("utf8")),
     source_modules: toolingModules,
     inventory: {
       includes: [

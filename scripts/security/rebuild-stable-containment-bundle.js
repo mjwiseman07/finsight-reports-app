@@ -22,6 +22,9 @@ const SOURCES = [
   "scripts/security/credential-browser-containment-constants.js",
   "scripts/security/git-blob-authority.js",
 ];
+const BOOTSTRAP_REL = "scripts/security/bootstrap-credential-browser-containment.ps1";
+const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
+const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
 
 function sha256(b) {
   return crypto.createHash("sha256").update(b).digest("hex");
@@ -41,6 +44,53 @@ function seal(rel) {
     oid: execFileSync("git", ["hash-object", rel], { encoding: "utf8" }).trim(),
     sha256: sha256(buf),
     bytes: buf.length,
+  };
+}
+
+function scanBundle(source) {
+  const externalRequire = [...source.matchAll(/require\(["']([^"']+)["']\)/g)].map(
+    (m) => m[1],
+  );
+  const nodeBuiltins = new Set([
+    "fs",
+    "path",
+    "os",
+    "crypto",
+    "child_process",
+    "util",
+    "util/types",
+    "events",
+    "stream",
+    "buffer",
+    "url",
+    "net",
+    "tls",
+    "dns",
+    "http",
+    "https",
+    "zlib",
+    "assert",
+    "string_decoder",
+    "punycode",
+    "querystring",
+    "module",
+    "process",
+    "constants",
+    "tty",
+    "readline",
+  ]);
+  const unresolved = externalRequire.filter(
+    (id) =>
+      !id.startsWith(".") &&
+      !id.startsWith("node:") &&
+      !nodeBuiltins.has(id) &&
+      !id.startsWith("util/"),
+  );
+  return {
+    unresolved_external_requires: unresolved,
+    pg_native_token_count: (source.match(/pg-native/g) || []).length,
+    has_unresolved_require_pg_native: /require\(["']pg-native["']\)/.test(source),
+    fail_closed_stub_present: source.includes("PG_NATIVE_DISABLED"),
   };
 }
 
@@ -89,6 +139,7 @@ const r = spawnSync(
     "--platform=node",
     "--format=cjs",
     `--outfile=${OUT}`,
+    `--alias:pg-native=${path.join(ROOT, "scripts/security/stubs/pg-native-failclosed.js")}`,
     "--log-level=warning",
   ],
   { cwd: ROOT, encoding: "utf8", shell: true, windowsHide: true },
@@ -102,7 +153,23 @@ const emb = (fs.readFileSync(OUT, "utf8").match(
 if (emb !== dig) throw new Error(`embedded mismatch ${emb} vs ${dig}`);
 
 const modules = SOURCES.map(seal);
+const bootstrapSeal = seal(BOOTSTRAP_REL);
+const enterSeal = seal(ENTER_REL);
+const stubSeal = seal(STUB_REL);
 const buf = fs.readFileSync(OUT);
+const bundleSrc = buf.toString("utf8");
+const contentScan = scanBundle(bundleSrc);
+if (contentScan.has_unresolved_require_pg_native) {
+  throw new Error("bundle still has unresolved require('pg-native')");
+}
+if (!contentScan.fail_closed_stub_present) {
+  throw new Error("bundle missing PG_NATIVE_DISABLED fail-closed stub");
+}
+if (contentScan.unresolved_external_requires.length > 0) {
+  throw new Error(
+    `unresolved external requires: ${contentScan.unresolved_external_requires.join(",")}`,
+  );
+}
 const bundleSha = sha256(buf);
 const bundleOid = execFileSync("git", ["hash-object", OUT_REL], {
   encoding: "utf8",
@@ -133,6 +200,20 @@ const auth = {
     key2: 539363592,
   },
   auth_seals_digest: dig,
+  native_bootstrap: {
+    path: BOOTSTRAP_REL,
+    oid: bootstrapSeal.oid,
+    sha256: bootstrapSeal.sha256,
+    bytes: bootstrapSeal.bytes,
+    invoke: "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>",
+  },
+  native_entry: {
+    path: ENTER_REL,
+    oid: enterSeal.oid,
+    sha256: enterSeal.sha256,
+    bytes: enterSeal.bytes,
+  },
+  pg_native_stub: stubSeal,
   standalone_bundle: {
     path: OUT_REL,
     oid: bundleOid,
@@ -143,13 +224,15 @@ const auth = {
     lockfile_oid: lockOid,
     build_command: "node scripts/security/build-containment-applicator-standalone-bundle.js",
     esbuild_version: "0.25.0",
+    content_scan: contentScan,
   },
   tooling_modules: modules,
   launcher_bootstrap_only: "scripts/security/launch-credential-browser-containment-apply.js",
   notes: [
     "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
-    "Launcher materializes standalone_bundle from freeze git blobs before any DB connection.",
+    "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
+    "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
   ],
 };
 writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
@@ -172,20 +255,25 @@ writeLf(
         command: "node scripts/security/build-containment-applicator-standalone-bundle.js",
         esbuild_version: "0.25.0",
         node: process.version,
+        pg_native_alias: STUB_REL,
         deterministic_note:
-          "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative.",
+          "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative. content_scan detects unexpected external requires if byte identity drifts.",
       },
+      content_scan: contentScan,
       source_modules: modules,
+      native_bootstrap: bootstrapSeal,
       inventory: {
         includes: [
           "applicator CLI/core/constants/git-blob-authority",
           "pg@8.21.0 and esbuild-resolved runtime dependency graph",
+          "pg-native fail-closed stub alias",
         ],
         excludes_at_runtime: [
           "repository node_modules",
           "NODE_PATH",
           "global packages",
           "network fetch",
+          "external pg-native",
         ],
       },
       built_at: new Date().toISOString(),
@@ -195,4 +283,18 @@ writeLf(
   )}\n`,
 );
 
-console.log(JSON.stringify({ dig, emb, bundleSha, bundleOid, bytes: buf.length }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      dig,
+      emb,
+      bundleSha,
+      bundleOid,
+      bytes: buf.length,
+      bootstrap: bootstrapSeal,
+      contentScan,
+    },
+    null,
+    2,
+  ),
+);

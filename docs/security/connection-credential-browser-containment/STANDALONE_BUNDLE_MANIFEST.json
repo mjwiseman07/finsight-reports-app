@@ -1,9 +1,9 @@
 {
   "package": "credential-browser-containment-applicator-standalone",
   "bundle_path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-  "bundle_sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
-  "bundle_bytes": 224526,
-  "bundle_oid_hash_object": "2316cfed5ca9460602d03026d66aa35d6d129329",
+  "bundle_sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
+  "bundle_bytes": 224887,
+  "bundle_oid_hash_object": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "lockfile_path": "package-lock.json",
   "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -14,7 +14,14 @@
     "command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
     "esbuild_version": "0.25.0",
     "node": "v22.22.0",
-    "deterministic_note": "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative."
+    "pg_native_alias": "scripts/security/stubs/pg-native-failclosed.js",
+    "deterministic_note": "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative. content_scan detects unexpected external requires if byte identity drifts."
+  },
+  "content_scan": {
+    "unresolved_external_requires": [],
+    "pg_native_token_count": 3,
+    "has_unresolved_require_pg_native": false,
+    "fail_closed_stub_present": true
   },
   "source_modules": [
     {
@@ -42,17 +49,25 @@
       "bytes": 5444
     }
   ],
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "39f66408e7fba14477a6c906534dab8eaf2536ea",
+    "sha256": "c7c155c9b4964f53ab87b437d8d809072d3a50f945dc5bb98aa7461abf1ce80f",
+    "bytes": 17478
+  },
   "inventory": {
     "includes": [
       "applicator CLI/core/constants/git-blob-authority",
-      "pg@8.21.0 and esbuild-resolved runtime dependency graph"
+      "pg@8.21.0 and esbuild-resolved runtime dependency graph",
+      "pg-native fail-closed stub alias"
     ],
     "excludes_at_runtime": [
       "repository node_modules",
       "NODE_PATH",
       "global packages",
-      "network fetch"
+      "network fetch",
+      "external pg-native"
     ]
   },
-  "built_at": "2026-09-10T04:23:03.023Z"
+  "built_at": "2026-09-11T02:38:43.793Z"
 }

@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "32d4ff2f15d3bd42bee86511cf6018298146eab0",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -17,16 +17,41 @@
     "key2": 539363592
   },
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "39f66408e7fba14477a6c906534dab8eaf2536ea",
+    "sha256": "c7c155c9b4964f53ab87b437d8d809072d3a50f945dc5bb98aa7461abf1ce80f",
+    "bytes": 17478,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
+  "native_entry": {
+    "path": "scripts/security/enter-containment-apply.ps1",
+    "oid": "58f52a4549ee655ab8b25da48d7b3fe272f6cc0c",
+    "sha256": "eb11ab08f1ebe99bec632608edc34ff7798666bc375c87420140e1163696ba11",
+    "bytes": 8285
+  },
+  "pg_native_stub": {
+    "path": "scripts/security/stubs/pg-native-failclosed.js",
+    "oid": "be863827a98b6d9d2e104a4e24381d72a6a955ae",
+    "sha256": "010b5c492d742a56db0dbe07656477a3a039c8bbe09113469d4a662c41f9429c",
+    "bytes": 262
+  },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "2316cfed5ca9460602d03026d66aa35d6d129329",
-    "sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
-    "bytes": 224526,
+    "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
+    "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
+    "bytes": 224887,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
     "build_command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
-    "esbuild_version": "0.25.0"
+    "esbuild_version": "0.25.0",
+    "content_scan": {
+      "unresolved_external_requires": [],
+      "pg_native_token_count": 3,
+      "has_unresolved_require_pg_native": false,
+      "fail_closed_stub_present": true
+    }
   },
   "tooling_modules": [
     {
@@ -58,6 +83,7 @@
   "notes": [
     "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
-    "Launcher materializes standalone_bundle from freeze git blobs before any DB connection."
+    "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
+    "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node."
   ]
 }

@@ -4691,6 +4691,18 @@ var require_pg_pool = __commonJS({
   }
 });
 
+// scripts/security/stubs/pg-native-failclosed.js
+var require_pg_native_failclosed = __commonJS({
+  "scripts/security/stubs/pg-native-failclosed.js"() {
+    "use strict";
+    var err = new Error(
+      "PG_NATIVE_DISABLED: sealed containment applicator forbids pg-native resolution"
+    );
+    err.code = "PG_NATIVE_DISABLED";
+    throw err;
+  }
+});
+
 // node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
   "node_modules/pg/lib/native/query.js"(exports2, module2) {
@@ -4838,7 +4850,7 @@ var require_client2 = __commonJS({
     var nodeUtils = require("util");
     var Native;
     try {
-      Native = require("pg-native");
+      Native = require_pg_native_failclosed();
     } catch (e) {
       throw e;
     }
