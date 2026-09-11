@@ -521,6 +521,16 @@ try {
     $parsePsi.RedirectStandardOutput = $true
     $parsePsi.RedirectStandardError = $true
     $parsePsi.CreateNoWindow = $true
+    # Never let hostile inherited NODE_* affect the frame-tool Node process
+    foreach ($k in @(
+        "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
+        "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
+        "npm_config_node_options", "npm_node_execpath"
+      )) {
+      if ($parsePsi.EnvironmentVariables.ContainsKey($k)) {
+        [void]$parsePsi.EnvironmentVariables.Remove($k)
+      }
+    }
     $parseProc = New-Object System.Diagnostics.Process
     $parseProc.StartInfo = $parsePsi
     [void]$parseProc.Start()
