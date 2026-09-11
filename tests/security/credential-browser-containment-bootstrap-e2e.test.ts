@@ -470,11 +470,22 @@ describe("native PowerShell bootstrap trust boundary", () => {
       "@echo off\necho SHIM_CMD\r\nexit /b 0\r\n",
     );
     fs.writeFileSync(path.join(shimDir, "node.bat"), "@echo SHIM_BAT\r\n");
+    // Keep system + git dirs so powershell/git resolve, but exclude dirs that provide node.exe.
+    const sysRoot = process.env.SystemRoot || "C:\\Windows";
+    const gitDir = path.dirname(
+      execFileSync("where.exe", ["git"], { encoding: "utf8" }).trim().split(/\r?\n/)[0],
+    );
+    const systemPath = [
+      path.join(sysRoot, "System32"),
+      path.join(sysRoot, "System32", "WindowsPowerShell", "v1.0"),
+      sysRoot,
+      gitDir,
+    ].join(path.delimiter);
     try {
       const r = runBootstrap({
         freeze,
         env: {
-          PATH: shimDir,
+          PATH: `${shimDir}${path.delimiter}${systemPath}`,
           CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
         },
       });
