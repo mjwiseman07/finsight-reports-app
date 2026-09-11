@@ -109,6 +109,14 @@ function Clear-TempPath([string]$Path) {
   }
 }
 
+function Test-ProhibitedNodeEnvPresent([string]$Name) {
+  $fromEnvApi = [Environment]::GetEnvironmentVariable($Name, "Process")
+  if ($null -ne $fromEnvApi -and $fromEnvApi -ne "") { return $true }
+  $item = Get-Item -LiteralPath "Env:$Name" -ErrorAction SilentlyContinue
+  if ($null -ne $item -and $null -ne $item.Value -and $item.Value -ne "") { return $true }
+  return $false
+}
+
 $repo = Invoke-GitText -GitArgs @("rev-parse", "--show-toplevel") -WorkDir (Get-Location).Path
 $tip = Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $repo
 $authPath = "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json"
@@ -173,17 +181,32 @@ try {
       if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
     }) -join " "
 
-  # Strip Node injection from nested PowerShell env (still pre-Node). Pass DB URL
-  # through by name only — never inspect value into evidence.
+  # Strip Node injection from nested PowerShell env (still pre-Node). Derive sanitization
+  # sentinel from actual removals; overwrite any operator-supplied sentinel value.
   $removeKeys = @(
     "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
     "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
     "npm_config_node_options", "npm_node_execpath", "DATABASE_URL"
   )
+  $stripped = $false
   foreach ($k in $removeKeys) {
+    $wasPresent = $false
     if ($psi.EnvironmentVariables.ContainsKey($k)) {
+      $v = $psi.EnvironmentVariables[$k]
+      if ($null -ne $v -and $v -ne "") { $wasPresent = $true }
       [void]$psi.EnvironmentVariables.Remove($k)
     }
+    elseif (Test-ProhibitedNodeEnvPresent -Name $k) {
+      $wasPresent = $true
+    }
+    if ($wasPresent) { $stripped = $true }
+  }
+  $sentinelName = "CONTAINMENT_NATIVE_ENV_SANITIZED"
+  if ($psi.EnvironmentVariables.ContainsKey($sentinelName)) {
+    [void]$psi.EnvironmentVariables.Remove($sentinelName)
+  }
+  if ($stripped) {
+    $psi.EnvironmentVariables[$sentinelName] = "1"
   }
 
   $proc = New-Object System.Diagnostics.Process
@@ -206,6 +229,7 @@ try {
         sqlApplicationAttempts     = 0
         databaseConnectionAttempts = 0
         nodeProcessStarted         = $false
+        unsafeInheritedNodeEnvironmentRemoved = $stripped
         cleanup                    = $cleanup
       })
     exit 2

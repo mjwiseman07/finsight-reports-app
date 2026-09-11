@@ -133,8 +133,85 @@ function Clear-TempPath {
   }
 }
 
+function Test-ProhibitedNodeEnvPresent {
+  param([string]$Name)
+  $fromEnvApi = [Environment]::GetEnvironmentVariable($Name, "Process")
+  if ($null -ne $fromEnvApi -and $fromEnvApi -ne "") { return $true }
+  $item = Get-Item -LiteralPath "Env:$Name" -ErrorAction SilentlyContinue
+  if ($null -ne $item -and $null -ne $item.Value -and $item.Value -ne "") { return $true }
+  return $false
+}
+
+function Resolve-SealedNodeExe {
+  <#
+    Application-only resolution of node.exe to an absolute path.
+    Does not use bare "node", PATHEXT, aliases, functions, scripts, or .cmd/.bat shims.
+  #>
+  $cmds = @(Get-Command -Name "node.exe" -CommandType Application -ErrorAction SilentlyContinue)
+  if (-not $cmds -or $cmds.Count -lt 1) {
+    return @{ ok = $false; code = "NODE_EXE_NOT_FOUND"; message = "no Application node.exe on PATH" }
+  }
+  $src = [string]$cmds[0].Source
+  if (-not $src) {
+    return @{ ok = $false; code = "NODE_EXE_NOT_FOUND"; message = "node.exe Application source empty" }
+  }
+  $full = [System.IO.Path]::GetFullPath($src)
+  $ext = [System.IO.Path]::GetExtension($full)
+  if ($ext -ne ".exe") {
+    return @{ ok = $false; code = "NODE_EXE_REJECTED_NON_EXE"; message = "resolved node path is not .exe" }
+  }
+  $base = [System.IO.Path]::GetFileName($full)
+  if ($base -ne "node.exe") {
+    return @{ ok = $false; code = "NODE_EXE_REJECTED_BASENAME"; message = "resolved basename is not node.exe" }
+  }
+  if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
+    return @{ ok = $false; code = "NODE_EXE_MISSING_FILE"; message = "resolved node.exe path does not exist" }
+  }
+  $item = Get-Item -LiteralPath $full -Force
+  if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+    return @{ ok = $false; code = "NODE_EXE_REJECTED_REPARSE"; message = "resolved node.exe is a reparse point" }
+  }
+  # Version probe with the same absolute path (no PATH / PATHEXT re-resolution)
+  $verPsi = New-Object System.Diagnostics.ProcessStartInfo
+  $verPsi.FileName = $full
+  $verPsi.Arguments = "-v"
+  $verPsi.UseShellExecute = $false
+  $verPsi.RedirectStandardOutput = $true
+  $verPsi.RedirectStandardError = $true
+  $verPsi.CreateNoWindow = $true
+  $verProc = New-Object System.Diagnostics.Process
+  $verProc.StartInfo = $verPsi
+  try {
+    [void]$verProc.Start()
+    $verOut = ($verProc.StandardOutput.ReadToEnd() + $verProc.StandardError.ReadToEnd()).Trim()
+    $verProc.WaitForExit()
+    if ($verProc.ExitCode -ne 0 -or -not ($verOut -match '^v\d+\.\d+\.\d+')) {
+      return @{ ok = $false; code = "NODE_EXE_VERSION_FAIL"; message = "node.exe -v failed or malformed" }
+    }
+  }
+  catch {
+    return @{ ok = $false; code = "NODE_EXE_VERSION_FAIL"; message = "node.exe -v could not start" }
+  }
+  $sha = $null
+  try {
+    $bytes = [System.IO.File]::ReadAllBytes($full)
+    $sha = Get-Sha256Hex -Bytes $bytes
+  }
+  catch {
+    $sha = $null
+  }
+  return @{
+    ok           = $true
+    path         = $full
+    basename     = "node.exe"
+    version      = $verOut
+    sha256       = $sha
+  }
+}
+
 $script:tempRoot = $null
 $script:cleanupResult = $null
+$script:nodeProvenance = $null
 
 try {
   if (-not $RepoRoot) {
@@ -231,9 +308,10 @@ try {
   }
 
   # Sanitized child environment: strip Node injection; pass DB URL env by name only (do not read value into evidence)
-  $unsafeRemoved = $false
+  # Do not synthesize PATHEXT. Resolution of node.exe is Application-absolute and does not depend on PATHEXT.
+  $unsafeRemovedLocal = $false
   $childEnv = New-Object "System.Collections.Generic.Dictionary[string,string]"
-  foreach ($key in @("PATH", "SystemRoot", "TEMP", "TMP", "USERPROFILE", "HOME", "LANG", "PATHEXT", "ComSpec", "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE")) {
+  foreach ($key in @("PATH", "SystemRoot", "TEMP", "TMP", "USERPROFILE", "HOME", "LANG", "ComSpec", "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE")) {
     $val = [Environment]::GetEnvironmentVariable($key, "Process")
     if ($null -ne $val -and $val -ne "") {
       $childEnv[$key] = $val
@@ -248,26 +326,45 @@ try {
   $childEnv["CONTAINMENT_ATTESTED_FREEZE"] = $freeze
   $childEnv["CONTAINMENT_GIT_CWD"] = $RepoRoot
 
-  foreach ($bad in @(
-      "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
-      "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
-      "npm_config_node_options", "npm_node_execpath",
-      "DATABASE_URL"
-    )) {
-    $present = $false
-    $fromEnvApi = [Environment]::GetEnvironmentVariable($bad, "Process")
-    if ($null -ne $fromEnvApi -and $fromEnvApi -ne "") { $present = $true }
-    if (-not $present) {
-      $item = Get-Item -LiteralPath "Env:$bad" -ErrorAction SilentlyContinue
-      if ($null -ne $item -and $null -ne $item.Value -and $item.Value -ne "") { $present = $true }
-    }
-    if ($present) {
-      $unsafeRemoved = $true
+  $prohibitedNodeEnv = @(
+    "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
+    "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
+    "npm_config_node_options", "npm_node_execpath",
+    "DATABASE_URL"
+  )
+  foreach ($bad in $prohibitedNodeEnv) {
+    if (Test-ProhibitedNodeEnvPresent -Name $bad) {
+      $unsafeRemovedLocal = $true
     }
     # intentionally not copied into childEnv
   }
 
-  # Build Node argv allowlist: executable + bundle + applicator flags only
+  # Entry-derived sentinel: trusted entry overwrites this; bootstrap ORs with local detection.
+  # Never pass the sentinel to the Node child.
+  $entrySanitized = $false
+  $sentinelName = "CONTAINMENT_NATIVE_ENV_SANITIZED"
+  if ([Environment]::GetEnvironmentVariable($sentinelName, "Process") -eq "1") {
+    $entrySanitized = $true
+  }
+  $unsafeRemoved = [bool]($unsafeRemovedLocal -or $entrySanitized)
+
+  # Resolve node.exe once (Application-only); same absolute path for version check and child spawn
+  $nodeRes = Resolve-SealedNodeExe
+  if (-not $nodeRes.ok) {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code $nodeRes.code -Phase "resolve_node_exe" -Message $nodeRes.message -Extra @{
+      tipHead = $tipHead; freeze = $freeze; bundleOid = $bundleOid; bundleSha = $bundleSha
+      unsafeRemoved = $unsafeRemoved; cleanup = $script:cleanupResult
+    }
+  }
+  $nodeExe = [string]$nodeRes.path
+  $script:nodeProvenance = @{
+    basename = [string]$nodeRes.basename
+    version  = [string]$nodeRes.version
+    sha256   = $(if ($nodeRes.sha256) { [string]$nodeRes.sha256 } else { $null })
+  }
+
+  # Build Node argv allowlist: absolute node.exe + bundle + applicator flags only (no user Node flags before bundle)
   $nodeArgs = @(
     $bundleDest,
     "--pr-head", $freeze,
@@ -295,7 +392,6 @@ try {
     $nodeArgs += $fa
   }
 
-  $nodeExe = (Get-Command node -ErrorAction Stop).Source
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $nodeExe
   $psi.UseShellExecute = $false
@@ -402,6 +498,7 @@ try {
       bundle_bytes                          = $bundleBytes.Length
       nodeProcessStarted                    = $true
       unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
+      node                                  = $script:nodeProvenance
       cleanup                               = $script:cleanupResult
       cwd_was_temp                          = $true
       entry                                 = "powershell_bootstrap"

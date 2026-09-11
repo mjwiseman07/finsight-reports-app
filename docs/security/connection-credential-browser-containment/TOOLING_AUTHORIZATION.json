@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "fc3596cf5487473dec1cb5e6e288d954e8261af4",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -19,16 +19,17 @@
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "bbd91b21461746dad70d7ed6c10cee5ecffbddbf",
-    "sha256": "7951c3e2158de55932e629c6292596bd5200ffd680eca48c58b374d8ee01fc70",
-    "bytes": 18507,
-    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+    "oid": "cfb6a30a9d899067baf60c7bd859e6c807f39b1b",
+    "sha256": "3ba7866bdfa6a4a4dbbd4d1afa1d00c64c49518a2bcc690584cd37747a0b51c3",
+    "bytes": 22537,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>",
+    "node_resolution": "Get-Command -Name node.exe -CommandType Application → absolute .exe only; no PATHEXT; no bare node"
   },
   "native_entry": {
     "path": "scripts/security/enter-containment-apply.ps1",
-    "oid": "58f52a4549ee655ab8b25da48d7b3fe272f6cc0c",
-    "sha256": "eb11ab08f1ebe99bec632608edc34ff7798666bc375c87420140e1163696ba11",
-    "bytes": 8285
+    "oid": "33ce07cf816be0f0232af85031962ed60035df24",
+    "sha256": "cb9fca9a51ee5007a1aa3f02b487e39282f43d6beaf21c5a14e23a0e8edb0943",
+    "bytes": 9282
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",

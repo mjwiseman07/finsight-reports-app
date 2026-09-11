@@ -58,6 +58,9 @@ Do **not** pass the evidence tip SHA when it differs from the freeze.
 
 The bootstrap never connects to PostgreSQL, never inspects `CONTAINMENT_APPLY_DATABASE_URL` values into evidence, never executes SQL, and does not load PowerShell profiles or third-party modules.
 
+### Node resolution contract
+Bootstrap resolves **`node.exe` only** via `Get-Command -Name node.exe -CommandType Application`, then uses that absolute path for both `-v` verification and child spawn. It does **not** invoke bare `node`, depend on `PATHEXT`, or accept `.cmd`/`.bat`/alias/function/script shims. No operator `-NodeExecutable` override. Evidence records only basename, version, and optional binary SHA-256 (no broad filesystem paths).
+
 ## Legacy Node launcher (defense-in-depth only)
 ```
 node scripts/security/launch-credential-browser-containment-apply.js \

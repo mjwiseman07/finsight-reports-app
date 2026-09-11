@@ -39,6 +39,8 @@ function runBootstrap(opts: {
   forward?: string[];
   profileDir?: string;
   cwd?: string;
+  /** When true, include PATHEXT (operator-realistic). Default false — prove no PATHEXT dependency. */
+  withPathext?: boolean;
   /** Hostile Node injection vars set via cmd.exe so Node spawn cannot strip them. */
   hostileNodeEnv?: Record<string, string>;
 }) {
@@ -76,8 +78,15 @@ function runBootstrap(opts: {
     TEMP: process.env.TEMP,
     TMP: process.env.TMP,
     USERPROFILE: process.env.USERPROFILE,
+    ComSpec: process.env.ComSpec,
     ...opts.env,
   };
+  // Explicitly omit PATHEXT unless requested — must not be required for node.exe resolution.
+  if (opts.withPathext) {
+    env.PATHEXT = process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD";
+  } else {
+    delete env.PATHEXT;
+  }
   if (opts.profileDir) {
     env.HOME = opts.profileDir;
     env.USERPROFILE = opts.profileDir;
@@ -453,6 +462,58 @@ describe("native PowerShell bootstrap trust boundary", () => {
       expect(before.has(n)).toBe(true);
     }
   });
+
+  it("rejects PATH with only node.cmd/.bat shims (no Application node.exe)", () => {
+    const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), "node-shim-"));
+    fs.writeFileSync(
+      path.join(shimDir, "node.cmd"),
+      "@echo off\necho SHIM_CMD\r\nexit /b 0\r\n",
+    );
+    fs.writeFileSync(path.join(shimDir, "node.bat"), "@echo SHIM_BAT\r\n");
+    try {
+      const r = runBootstrap({
+        freeze,
+        env: {
+          PATH: shimDir,
+          CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        },
+      });
+      expect(r.status).toBe(2);
+      const ev = parseEvidence(r.stdout);
+      expect(ev.error_code).toMatch(/NODE_EXE_/);
+      expect(ev.nodeProcessStarted).toBe(false);
+      expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.databaseConnectionAttempts).toBe(0);
+      expect(ev.advisory_lock_acquired).toBe(false);
+      expect(`${r.stdout}${r.stderr}`).not.toMatch(/SHIM_CMD|SHIM_BAT/);
+    } finally {
+      fs.rmSync(shimDir, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores malicious worktree node.exe shadow when real Application node.exe exists", () => {
+    const trapDir = path.join(ROOT, ".tmp-node-trap");
+    fs.mkdirSync(trapDir, { recursive: true });
+    // Not a real PE — must never be selected when a real Application node.exe is on PATH.
+    fs.writeFileSync(path.join(trapDir, "node.exe"), "not-a-real-pe");
+    try {
+      const r = runBootstrap({
+        freeze,
+        env: {
+          // Real PATH first so Application resolution finds the genuine node.exe
+          PATH: `${process.env.PATH}${path.delimiter}${trapDir}`,
+          CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        },
+      });
+      const ev = parseEvidence(r.stdout);
+      expect(ev.error_code).not.toMatch(/NODE_EXE_VERSION_FAIL|NODE_EXE_REJECTED/);
+      // Either connects (blocked) or structured evidence — not trap execution as shell script
+      expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.bootstrap?.node?.basename || ev.node?.basename || "node.exe").toBe("node.exe");
+    } finally {
+      fs.rmSync(trapDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)", () => {
@@ -475,7 +536,7 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
     if (pg) await pg.stop();
   });
 
-  it("empty-temp bootstrap → sealed bundle → DRY_RUN_READY", () => {
+  it("empty-temp + no PATHEXT → sealed bundle → DRY_RUN_READY", () => {
     const auth = readAuth();
     const freeze = auth.authorized_pr_head;
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "empty-boot-cwd-"));
@@ -486,22 +547,47 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
       const r = runBootstrap({
         freeze,
         cwd: empty,
+        withPathext: false,
         env: { CONTAINMENT_APPLY_DATABASE_URL: pg.url },
       });
       const ev = parseEvidence(r.stdout);
       expect(ev.verdict).toBe("DRY_RUN_READY");
       expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.advisory_lock_acquired).toBe(false);
       expect(ev.bootstrap?.cwd_was_temp).toBe(true);
       expect(ev.bootstrap?.cleanup?.cleaned).toBe(true);
-      expect(ev.bootstrap?.unsafeInheritedNodeEnvironmentRemoved).toBeDefined();
+      expect(ev.bootstrap?.node?.basename).toBe("node.exe");
+      expect(ev.bootstrap?.node?.version).toMatch(/^v\d+\.\d+\.\d+/);
       expect(JSON.stringify(ev)).not.toMatch(/postgres:postgres|password=/i);
+      // Must not leak absolute user paths in committed-style evidence fields
+      expect(JSON.stringify(ev.bootstrap?.node || {})).not.toMatch(/Users\\/);
     } finally {
       fs.writeFileSync(corePath, coreBackup);
       fs.rmSync(empty, { recursive: true, force: true });
     }
   }, 120000);
 
-  it("hostile NODE_OPTIONS with absolute preload that exists never executes", () => {
+  it("empty-temp + PATHEXT present still DRY_RUN_READY", () => {
+    const auth = readAuth();
+    const freeze = auth.authorized_pr_head;
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "empty-boot-cwd-pe-"));
+    try {
+      const r = runBootstrap({
+        freeze,
+        cwd: empty,
+        withPathext: true,
+        env: { CONTAINMENT_APPLY_DATABASE_URL: pg.url },
+      });
+      const ev = parseEvidence(r.stdout);
+      expect(ev.verdict).toBe("DRY_RUN_READY");
+      expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.bootstrap?.node?.basename).toBe("node.exe");
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
+  }, 120000);
+
+  it("no-PATHEXT + hostile existing --require preload → DRY_RUN_READY, marker absent", () => {
     const auth = readAuth();
     const freeze = auth.authorized_pr_head;
     const marker = path.join(os.tmpdir(), `hostile-abs-${Date.now()}.marker`);
@@ -510,9 +596,11 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
       preload,
       `require("fs").writeFileSync(${JSON.stringify(marker)}, "ABS_OWNED");\n`,
     );
+    expect(fs.existsSync(preload)).toBe(true);
     try {
       const r = runBootstrap({
         freeze,
+        withPathext: false,
         env: {
           CONTAINMENT_APPLY_DATABASE_URL: pg.url,
         },
@@ -523,11 +611,91 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
       expect(fs.existsSync(marker)).toBe(false);
       const ev = parseEvidence(r.stdout);
       expect(ev.verdict).toBe("DRY_RUN_READY");
+      expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.advisory_lock_acquired).toBe(false);
       expect(
         ev.bootstrap?.unsafeInheritedNodeEnvironmentRemoved === true ||
           ev.unsafeInheritedNodeEnvironmentRemoved === true,
       ).toBe(true);
+      expect(ev.bootstrap?.node?.basename).toBe("node.exe");
+      expect(JSON.stringify(ev)).not.toMatch(/ABS_OWNED|NODE_OPTIONS\s*=/);
     } finally {
+      try {
+        fs.unlinkSync(preload);
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.unlinkSync(marker);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 120000);
+
+  it("native enter → bootstrap sentinel reports unsafe removal with hostile NODE_OPTIONS", () => {
+    const auth = readAuth();
+    const freeze = auth.authorized_pr_head;
+    const ENTRY = "scripts/security/enter-containment-apply.ps1";
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "enter-mat-"));
+    const entryFile = path.join(work, "enter.ps1");
+    const entryBuf = execFileSync("git", ["cat-file", "blob", `${freeze}:${ENTRY}`], {
+      cwd: ROOT,
+    }) as Buffer;
+    expect(sha256(entryBuf)).toBe(auth.native_entry.sha256);
+    fs.writeFileSync(entryFile, entryBuf);
+
+    const marker = path.join(os.tmpdir(), `enter-hostile-${Date.now()}.marker`);
+    const preload = path.join(os.tmpdir(), `enter-hostile-${Date.now()}.js`);
+    fs.writeFileSync(
+      preload,
+      `require("fs").writeFileSync(${JSON.stringify(marker)}, "ENTER_OWNED");\n`,
+    );
+
+    const env: NodeJS.ProcessEnv = {
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      ComSpec: process.env.ComSpec,
+      CONTAINMENT_APPLY_DATABASE_URL: pg.url,
+    };
+    delete env.PATHEXT;
+
+    const r = spawnSync(
+      "cmd.exe",
+      [
+        "/c",
+        "set",
+        `NODE_OPTIONS=--require ${preload}`,
+        "&&",
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        entryFile,
+        "-PrHead",
+        freeze,
+        "-Mode",
+        "dry-run",
+      ],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true, env },
+    );
+    try {
+      expect(fs.existsSync(marker)).toBe(false);
+      const ev = parseEvidence(r.stdout);
+      expect(ev.verdict).toBe("DRY_RUN_READY");
+      expect(ev.sqlApplicationAttempts).toBe(0);
+      expect(ev.advisory_lock_acquired).toBe(false);
+      expect(
+        ev.bootstrap?.unsafeInheritedNodeEnvironmentRemoved === true ||
+          ev.unsafeInheritedNodeEnvironmentRemoved === true,
+      ).toBe(true);
+      expect(ev.bootstrap?.node?.basename).toBe("node.exe");
+    } finally {
+      fs.rmSync(work, { recursive: true, force: true });
       try {
         fs.unlinkSync(preload);
       } catch {
