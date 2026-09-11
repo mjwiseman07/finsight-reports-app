@@ -254,7 +254,14 @@ try {
       "npm_config_node_options", "npm_node_execpath",
       "DATABASE_URL"
     )) {
-    if ($null -ne [Environment]::GetEnvironmentVariable($bad, "Process")) {
+    $present = $false
+    $fromEnvApi = [Environment]::GetEnvironmentVariable($bad, "Process")
+    if ($null -ne $fromEnvApi -and $fromEnvApi -ne "") { $present = $true }
+    if (-not $present) {
+      $item = Get-Item -LiteralPath "Env:$bad" -ErrorAction SilentlyContinue
+      if ($null -ne $item -and $null -ne $item.Value -and $item.Value -ne "") { $present = $true }
+    }
+    if ($present) {
       $unsafeRemoved = $true
     }
     # intentionally not copied into childEnv
@@ -387,18 +394,31 @@ try {
   # Enrich JSON with bootstrap metadata without re-serializing secrets
   try {
     $parsed = $stdout | ConvertFrom-Json
-    $parsed | Add-Member -NotePropertyName bootstrap -NotePropertyValue ([ordered]@{
-        tip_head       = $tipHead
-        tooling_freeze = $freeze
-        bundle_oid     = $bundleOid
-        bundle_sha256  = $bundleSha
-        bundle_bytes   = $bundleBytes.Length
-        nodeProcessStarted = $true
-        unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
-        cleanup        = $script:cleanupResult
-        cwd_was_temp   = $true
-        entry          = "powershell_bootstrap"
-      }) -Force
+    $bootMeta = [ordered]@{
+      tip_head                              = $tipHead
+      tooling_freeze                        = $freeze
+      bundle_oid                            = $bundleOid
+      bundle_sha256                         = $bundleSha
+      bundle_bytes                          = $bundleBytes.Length
+      nodeProcessStarted                    = $true
+      unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
+      cleanup                               = $script:cleanupResult
+      cwd_was_temp                          = $true
+      entry                                 = "powershell_bootstrap"
+    }
+    if ($parsed.PSObject.Properties.Name -contains "bootstrap") {
+      $parsed.bootstrap = $bootMeta
+    }
+    else {
+      $parsed | Add-Member -NotePropertyName bootstrap -NotePropertyValue $bootMeta -Force
+    }
+    # Also surface the boolean at top-level for simple consumers
+    if ($parsed.PSObject.Properties.Name -contains "unsafeInheritedNodeEnvironmentRemoved") {
+      $parsed.unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
+    }
+    else {
+      $parsed | Add-Member -NotePropertyName unsafeInheritedNodeEnvironmentRemoved -NotePropertyValue $unsafeRemoved -Force
+    }
     Write-BootstrapEvidence -Object $parsed
   }
   catch {
