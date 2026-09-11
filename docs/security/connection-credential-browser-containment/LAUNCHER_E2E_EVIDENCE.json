@@ -1,7 +1,7 @@
 {
   "kind": "LAUNCHER_STANDALONE_BUNDLE_E2E",
   "generated_at": "2026-09-11T02:46:20.726Z",
-  "evidence_tip": "a58af1e4e7120914f34d99e9a26a62f388979b38",
+  "evidence_tip": "6083e2a7f0f521733fb61ac154b5f46be8f3ada0",
   "tooling_freeze": "fc3596cf5487473dec1cb5e6e288d954e8261af4",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "native_bootstrap_seal": {
