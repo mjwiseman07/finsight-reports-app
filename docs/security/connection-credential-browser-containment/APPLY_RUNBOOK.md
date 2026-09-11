@@ -1,7 +1,15 @@
 # Apply runbook — GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY (native PowerShell bootstrap)
 
-**Status:** Tooling remediation (pre-Node PowerShell bootstrap + sealed standalone bundle); awaiting fresh independent operational re-review.  
+**Status:** CONTAINMENT_EVIDENCE_V1 transport remediation; awaiting fresh independent operational re-review.  
 **Production apply / dry-run:** NOT authorized by this tooling turn.
+
+## Evidence framing (stdout)
+
+Child stdout must contain **exactly one** frame:
+
+`CONTAINMENT_EVIDENCE_V1:<base64url-utf8-json>`
+
+Progress goes to stderr. See `EVIDENCE_PROTOCOL_V1.md`. Do not scrape mixed console text for JSON.
 
 ## Native entry (required trust root)
 
