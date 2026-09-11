@@ -1,23 +1,23 @@
 {
   "kind": "NATIVE_BOOTSTRAP_STANDALONE_BUNDLE_E2E",
-  "generated_at": "2026-09-11T02:40:02.075Z",
-  "evidence_tip": "PENDING_TIP_AFTER_PIN",
-  "tooling_freeze": "00383cbfb7033796bfef7cf0b16e332ae069a749",
+  "generated_at": "2026-09-11T02:42:49.191Z",
+  "evidence_tip": "PENDING_AFTER_TIP_PIN",
+  "tooling_freeze": "fc3596cf5487473dec1cb5e6e288d954e8261af4",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
-  "native_bootstrap": {
+  "native_bootstrap_seal": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "39f66408e7fba14477a6c906534dab8eaf2536ea",
-    "sha256": "c7c155c9b4964f53ab87b437d8d809072d3a50f945dc5bb98aa7461abf1ce80f",
-    "bytes": 17478,
+    "oid": "bbd91b21461746dad70d7ed6c10cee5ecffbddbf",
+    "sha256": "7951c3e2158de55932e629c6292596bd5200ffd680eca48c58b374d8ee01fc70",
+    "bytes": 18507,
     "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
-  "native_entry": {
+  "native_entry_seal": {
     "path": "scripts/security/enter-containment-apply.ps1",
     "oid": "58f52a4549ee655ab8b25da48d7b3fe272f6cc0c",
     "sha256": "eb11ab08f1ebe99bec632608edc34ff7798666bc375c87420140e1163696ba11",
     "bytes": 8285
   },
-  "standalone_bundle": {
+  "standalone_bundle_seal": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
     "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
     "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
@@ -35,9 +35,14 @@
     "sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
     "bytes": 10586
   },
+  "superseded_evidence_tips": [
+    "1485f69a844abe22359cd0c7c879c3a148defa0e",
+    "3a209372558c7530c5dc008de3621bcb20022c37",
+    "ea37b7c592d2b0c5198cb8e5da031bbbc42b6ec9"
+  ],
   "path": "powershell -NoProfile bootstrap -> git cat-file bundle -> temp -> sanitized Node child",
+  "production_dry_run_authorized": false,
   "notes": [
-    "Evidence tip filled after tip pin commit.",
-    "Production dry-run not authorized; awaiting independent operational re-review."
+    "Awaiting independent operational re-review. Do not claim production dry-run readiness."
   ]
 }

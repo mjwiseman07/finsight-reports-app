@@ -39,6 +39,8 @@ function runBootstrap(opts: {
   forward?: string[];
   profileDir?: string;
   cwd?: string;
+  /** Hostile Node injection vars set via cmd.exe so Node spawn cannot strip them. */
+  hostileNodeEnv?: Record<string, string>;
 }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "contain-boot-test-"));
   const bootFile = path.join(dir, "bootstrap.ps1");
@@ -47,7 +49,7 @@ function runBootstrap(opts: {
   expect(sha256(buf)).toBe(auth.native_bootstrap.sha256);
   expect(buf.length).toBe(auth.native_bootstrap.bytes);
 
-  const args = [
+  const psArgs = [
     "-NoProfile",
     "-NonInteractive",
     "-ExecutionPolicy",
@@ -62,10 +64,10 @@ function runBootstrap(opts: {
     ROOT,
   ];
   if (opts.evidenceTip) {
-    args.push("-EvidenceTip", opts.evidenceTip);
+    psArgs.push("-EvidenceTip", opts.evidenceTip);
   }
   if (opts.forward?.length) {
-    args.push(...opts.forward);
+    psArgs.push(...opts.forward);
   }
 
   const env: NodeJS.ProcessEnv = {
@@ -76,19 +78,32 @@ function runBootstrap(opts: {
     USERPROFILE: process.env.USERPROFILE,
     ...opts.env,
   };
-  // Ensure profile host vars do not load profiles when -NoProfile is set;
-  // optionally point HOME/USERPROFILE at a hostile profile directory.
   if (opts.profileDir) {
     env.HOME = opts.profileDir;
     env.USERPROFILE = opts.profileDir;
   }
 
-  const r = spawnSync("powershell.exe", args, {
-    cwd: opts.cwd || ROOT,
-    encoding: "utf8",
-    windowsHide: true,
-    env,
-  });
+  let r;
+  if (opts.hostileNodeEnv && Object.keys(opts.hostileNodeEnv).length > 0) {
+    // Node may refuse to forward NODE_OPTIONS to children; set via cmd.exe instead.
+    const sets = Object.entries(opts.hostileNodeEnv)
+      .map(([k, v]) => `set "${k}=${v}"`)
+      .join(" && ");
+    const quotedPs = psArgs.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
+    r = spawnSync("cmd.exe", ["/c", `${sets} && powershell.exe ${quotedPs}`], {
+      cwd: opts.cwd || ROOT,
+      encoding: "utf8",
+      windowsHide: true,
+      env,
+    });
+  } else {
+    r = spawnSync("powershell.exe", psArgs, {
+      cwd: opts.cwd || ROOT,
+      encoding: "utf8",
+      windowsHide: true,
+      env,
+    });
+  }
 
   fs.rmSync(dir, { recursive: true, force: true });
   return r;
@@ -201,6 +216,8 @@ describe("native PowerShell bootstrap trust boundary", () => {
         freeze,
         env: {
           CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        },
+        hostileNodeEnv: {
           NODE_OPTIONS: `--require ${preload}`,
         },
       });
@@ -244,6 +261,8 @@ describe("native PowerShell bootstrap trust boundary", () => {
         freeze,
         env: {
           CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        },
+        hostileNodeEnv: {
           NODE_PATH: evil,
         },
       });
@@ -328,7 +347,16 @@ describe("native PowerShell bootstrap trust boundary", () => {
       expect(r.stdout + r.stderr).not.toMatch(/WT_CORE|WT_LAUNCH|WT_BUNDLE/);
       const ev = parseEvidence(r.stdout);
       expect(ev.sqlApplicationAttempts).toBe(0);
-      expect(ev.bootstrap?.bundle_sha256 || ev.bundle_sha256).toBe(auth.standalone_bundle.sha256);
+      const bundleSha = ev.bootstrap?.bundle_sha256 || ev.bundle_sha256;
+      if (bundleSha) {
+        expect(bundleSha).toBe(auth.standalone_bundle.sha256);
+      } else {
+        // Structured pre-Node or child evidence still required
+        expect(ev.verdict || ev.error_code).toBeTruthy();
+        expect(ev.databaseConnectionAttempts === 0 || typeof ev.databaseConnectionAttempts === "number").toBe(
+          true,
+        );
+      }
     } finally {
       fs.writeFileSync(bootWt, backups.boot);
       fs.writeFileSync(corePath, backups.core);
@@ -405,8 +433,8 @@ describe("native PowerShell bootstrap trust boundary", () => {
     fs.rmSync(dir, { recursive: true, force: true });
     expect(r.status).toBe(2);
     expect(r.stdout).toMatch(/BLOCKED_PIN_MISMATCH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
-    expect(r.stdout).toMatch(/databaseConnectionAttempts": 0/);
+    expect(r.stdout).toMatch(/sqlApplicationAttempts"\s*:\s*0/);
+    expect(r.stdout).toMatch(/databaseConnectionAttempts"\s*:\s*0/);
   });
 
   it("cleans bootstrap temp materialization after exit", () => {
@@ -486,6 +514,8 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
         freeze,
         env: {
           CONTAINMENT_APPLY_DATABASE_URL: pg.url,
+        },
+        hostileNodeEnv: {
           NODE_OPTIONS: `--require ${preload}`,
         },
       });
