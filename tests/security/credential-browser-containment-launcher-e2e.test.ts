@@ -97,9 +97,10 @@ describe("standalone launcher end-to-end", () => {
       },
     );
     expect(r.status).toBe(2);
-    expect(r.stdout).toMatch(/BLOCKED_PIN_MISMATCH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
-    expect(r.stdout).toMatch(/databaseConnectionAttempts": 0/);
+    const evPin = parseEvidence(r.stdout);
+    expect(String(evPin.reason_code || evPin.error_code || evPin.error)).toMatch(/BLOCKED_PIN_MISMATCH/);
+    expect(evPin.sqlApplicationAttempts).toBe(0);
+    expect(evPin.databaseConnectionAttempts).toBe(0);
   });
 
   it("rejects NODE_PATH with structured evidence", () => {
@@ -119,8 +120,9 @@ describe("standalone launcher end-to-end", () => {
       },
     );
     expect(r.status).toBe(2);
-    expect(r.stdout).toMatch(/NODE_PATH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+    const evNode = parseEvidence(r.stdout);
+    expect(String(evNode.error || evNode.reason_code || "")).toMatch(/NODE_PATH/);
+    expect(evNode.sqlApplicationAttempts).toBe(0);
   });
 
   it("rejects invalid bundle sha in a temp auth substitution via freeze blob check", () => {
@@ -155,7 +157,7 @@ describe("standalone launcher end-to-end", () => {
       env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
     });
     fs.rmSync(dir, { recursive: true, force: true });
-    expect(help.stdout).toMatch(/GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY/);
+    expect(help.stderr || help.stdout).toMatch(/GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY/);
     expect(`${help.stdout}${help.stderr || ""}`).not.toMatch(/Cannot find module 'pg'/);
   });
 

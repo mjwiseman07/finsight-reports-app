@@ -491,8 +491,8 @@ try {
   $toolFile = Join-Path $parseDir "containment-evidence-frame-tool.js"
   try {
     [System.IO.File]::WriteAllText($stdoutFile, [string]$stdout)
-    $protoBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-protocol.js") -WorkDir $repo
-    $toolBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-frame-tool.js") -WorkDir $repo
+    $protoBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-protocol.js") -WorkDir $RepoRoot
+    $toolBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-frame-tool.js") -WorkDir $RepoRoot
     [System.IO.File]::WriteAllBytes($protoFile, $protoBytes)
     [System.IO.File]::WriteAllBytes($toolFile, $toolBytes)
 

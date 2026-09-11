@@ -4,7 +4,7 @@ const {
   extractEvidenceFrame,
   legacyHeuristicExtractJson,
   PROTOCOL_PREFIX,
-} = require("../../scripts/security/containment-evidence-protocol.js");
+} = require("../../../scripts/security/containment-evidence-protocol.js");
 
 /**
  * Parse native entry/bootstrap/launcher stdout that must be a V1 evidence frame.

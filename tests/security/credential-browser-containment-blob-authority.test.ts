@@ -99,6 +99,8 @@ describe("git-blob authority (containment)", () => {
 });
 
 describe("applicator CLI argv credential prohibition", () => {
+  const { parseContainmentStdout } = require("./helpers/containment-evidence.js");
+
   it("rejects --database-url with zero SQL attempts", () => {
     const r = spawnSync(
       process.execPath,
@@ -112,9 +114,10 @@ describe("applicator CLI argv credential prohibition", () => {
       { cwd: ROOT, encoding: "utf8", windowsHide: true },
     );
     expect(r.status).not.toBe(0);
-    expect(r.stdout).toMatch(/PROHIBITED_CREDENTIAL_CHANNEL/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
-    expect(r.stdout).not.toMatch(/u:p@/);
+    const ev = parseContainmentStdout(r.stdout);
+    expect(String(ev.error || ev.reason_code)).toMatch(/PROHIBITED_CREDENTIAL_CHANNEL/);
+    expect(ev.sqlApplicationAttempts).toBe(0);
+    expect(JSON.stringify(ev)).not.toMatch(/u:p@/);
   });
 
   it("rejects --skip-target2-check", () => {
@@ -123,7 +126,8 @@ describe("applicator CLI argv credential prohibition", () => {
       ["scripts/security/apply-credential-browser-containment.js", "--skip-target2-check"],
       { cwd: ROOT, encoding: "utf8", windowsHide: true },
     );
-    expect(r.stdout).toMatch(/skip-target2-check removed/);
+    const ev = parseContainmentStdout(r.stdout);
+    expect(String(ev.error || "")).toMatch(/skip-target2-check removed/);
   });
 
   it("rejects bare --apply", () => {
@@ -132,11 +136,14 @@ describe("applicator CLI argv credential prohibition", () => {
       ["scripts/security/apply-credential-browser-containment.js", "--apply"],
       { cwd: ROOT, encoding: "utf8", windowsHide: true },
     );
-    expect(r.stdout).toMatch(/bare --apply is prohibited/);
+    const ev = parseContainmentStdout(r.stdout);
+    expect(String(ev.error || "")).toMatch(/bare --apply is prohibited/);
   });
 });
 
 describe("self-authority launcher", () => {
+  const { parseContainmentStdout } = require("./helpers/containment-evidence.js");
+
   it("stops when --pr-head mismatches authorized freeze before DB", () => {
     const r = spawnSync(
       process.execPath,
@@ -159,8 +166,10 @@ describe("self-authority launcher", () => {
       },
     );
     expect(r.status).toBe(2);
-    expect(r.stdout).toMatch(/SELF_AUTHORITY_BLOCKED|BLOCKED_PIN_MISMATCH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+    const ev = parseContainmentStdout(r.stdout);
+    expect(String(ev.verdict || ev.result_code)).toMatch(/SELF_AUTHORITY_BLOCKED|BLOCKED/);
+    expect(String(ev.reason_code || ev.error_code || ev.error)).toMatch(/BLOCKED_PIN_MISMATCH/);
+    expect(ev.sqlApplicationAttempts).toBe(0);
   });
 
   it("refuses NODE_PATH substitution", () => {
@@ -189,8 +198,9 @@ describe("self-authority launcher", () => {
         },
       },
     );
-    expect(r.stdout).toMatch(/NODE_PATH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts": 0/);
+    const ev = parseContainmentStdout(r.stdout);
+    expect(String(ev.error || ev.reason_code || "")).toMatch(/NODE_PATH/);
+    expect(ev.sqlApplicationAttempts).toBe(0);
   });
 
   it("documents SELF_AUTHORITY_MODULES and tooling auth path constants", () => {

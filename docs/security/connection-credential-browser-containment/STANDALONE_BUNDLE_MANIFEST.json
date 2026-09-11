@@ -57,9 +57,9 @@
   ],
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "15d32045f3f89f2715016c04279b902634a410a7",
-    "sha256": "e36dd937b298c29df90f97cb8fd1325a84706bb0e42f940bcdaa92b5d2de401f",
-    "bytes": 24232
+    "oid": "adca8ba51cf5c2ed1ca1a74abceace24de13223c",
+    "sha256": "370b3bb20ceaf08ea6cc7931a47c5305f4b42790591628f822c8510561a285be",
+    "bytes": 24240
   },
   "inventory": {
     "includes": [
@@ -75,5 +75,5 @@
       "external pg-native"
     ]
   },
-  "built_at": "2026-09-11T05:46:24.464Z"
+  "built_at": "2026-09-11T05:54:23.586Z"
 }

@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "d901adc2fd0c5ccdb48c50e7e110e72862f84a36",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -19,9 +19,9 @@
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "15d32045f3f89f2715016c04279b902634a410a7",
-    "sha256": "e36dd937b298c29df90f97cb8fd1325a84706bb0e42f940bcdaa92b5d2de401f",
-    "bytes": 24232,
+    "oid": "adca8ba51cf5c2ed1ca1a74abceace24de13223c",
+    "sha256": "370b3bb20ceaf08ea6cc7931a47c5305f4b42790591628f822c8510561a285be",
+    "bytes": 24240,
     "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
   "native_entry": {

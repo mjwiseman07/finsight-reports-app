@@ -59,14 +59,6 @@ function canonicalAuthSealsDigest(auth) {
   return sha256(Buffer.from(JSON.stringify(seals), "utf8"));
 }
 
-const {
-  extractEvidenceFrame,
-  writeEvidenceFrameToStdout,
-  buildWrapperFallback,
-  encodeEvidenceFrame,
-  normalizeApplicatorEvidence,
-} = require("./containment-evidence-protocol");
-
 function stop(reason, code, extra = {}) {
   const evidence = buildWrapperFallback({
     result_code: "SELF_AUTHORITY_BLOCKED",
