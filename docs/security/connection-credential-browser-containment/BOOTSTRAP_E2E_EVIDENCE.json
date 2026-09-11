@@ -1,7 +1,7 @@
 {
   "kind": "NATIVE_BOOTSTRAP_STANDALONE_BUNDLE_E2E",
-  "generated_at": "2026-09-11T02:42:49.191Z",
-  "evidence_tip": "PENDING_AFTER_TIP_PIN",
+  "generated_at": "2026-09-11T02:46:20.725Z",
+  "evidence_tip": "a58af1e4e7120914f34d99e9a26a62f388979b38",
   "tooling_freeze": "fc3596cf5487473dec1cb5e6e288d954e8261af4",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "native_bootstrap_seal": {
@@ -42,7 +42,25 @@
   ],
   "path": "powershell -NoProfile bootstrap -> git cat-file bundle -> temp -> sanitized Node child",
   "production_dry_run_authorized": false,
+  "hostile_node_options": {
+    "inherited": true,
+    "preload_marker_created": false,
+    "unsafeInheritedNodeEnvironmentRemoved": true,
+    "sqlApplicationAttempts": 0,
+    "databaseConnectionAttempts": 1,
+    "advisory_lock_acquired": false,
+    "nodeProcessStarted": true,
+    "verdict": "DRY_RUN_BLOCKED",
+    "note": "Hostile preload must never execute; marker must remain absent."
+  },
+  "dependency_closure": {
+    "unresolved_external_requires": [],
+    "pg_native_token_count": 3,
+    "has_unresolved_require_pg_native": false,
+    "fail_closed_stub_present": true
+  },
   "notes": [
-    "Awaiting independent operational re-review. Do not claim production dry-run readiness."
+    "Awaiting independent operational re-review. Do not claim production dry-run readiness.",
+    "Docker unavailable in this tooling environment; disposable-PG DRY_RUN_READY path covered by suite skip when docker absent."
   ]
 }

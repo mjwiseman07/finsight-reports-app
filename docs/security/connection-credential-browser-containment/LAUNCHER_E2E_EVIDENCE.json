@@ -1,37 +1,42 @@
 {
   "kind": "LAUNCHER_STANDALONE_BUNDLE_E2E",
-  "generated_at": "2026-09-10T04:25:16.353Z",
-  "evidence_tip": "1485f69a844abe22359cd0c7c879c3a148defa0e",
-  "tooling_freeze": "32d4ff2f15d3bd42bee86511cf6018298146eab0",
+  "generated_at": "2026-09-11T02:46:20.726Z",
+  "evidence_tip": "a58af1e4e7120914f34d99e9a26a62f388979b38",
+  "tooling_freeze": "fc3596cf5487473dec1cb5e6e288d954e8261af4",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "native_bootstrap_seal": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "bbd91b21461746dad70d7ed6c10cee5ecffbddbf",
+    "sha256": "7951c3e2158de55932e629c6292596bd5200ffd680eca48c58b374d8ee01fc70",
+    "bytes": 18507,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "2316cfed5ca9460602d03026d66aa35d6d129329",
-    "sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
-    "bytes": 224526,
-    "pg_version": "8.21.0"
+    "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
+    "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
+    "bytes": 224887,
+    "pg_version": "8.21.0",
+    "content_scan": {
+      "unresolved_external_requires": [],
+      "pg_native_token_count": 3,
+      "has_unresolved_require_pg_native": false,
+      "fail_closed_stub_present": true
+    }
   },
   "migration_seal": {
     "oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
     "sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
     "bytes": 10586
   },
-  "path": "launcher -> git cat-file bundle -> temp materialize -> child execute",
-  "worktree_core_corrupted_during_run": true,
-  "verdict": "DRY_RUN_READY",
-  "sqlApplicationAttempts": 0,
-  "databaseConnectionAttempts": 1,
-  "launcher": {
-    "tip_head": "1485f69a844abe22359cd0c7c879c3a148defa0e",
-    "tooling_freeze": "32d4ff2f15d3bd42bee86511cf6018298146eab0",
-    "bundle_oid": "2316cfed5ca9460602d03026d66aa35d6d129329",
-    "bundle_sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
-    "bundle_bytes": 224526,
-    "cleanup": {
-      "cleaned": true,
-      "path_redacted": true
-    },
-    "cwd_was_temp": true,
-    "node_path_set": false
-  }
+  "superseded_evidence_tips": [
+    "1485f69a844abe22359cd0c7c879c3a148defa0e",
+    "3a209372558c7530c5dc008de3621bcb20022c37",
+    "ea37b7c592d2b0c5198cb8e5da031bbbc42b6ec9"
+  ],
+  "path": "defense-in-depth Node launcher remains; required entry is PowerShell bootstrap",
+  "production_dry_run_authorized": false,
+  "notes": [
+    "Supersedes prior tip-labeled launcher evidence at 1485f69a / 3a209372."
+  ]
 }

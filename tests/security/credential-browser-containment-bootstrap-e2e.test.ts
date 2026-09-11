@@ -85,12 +85,13 @@ function runBootstrap(opts: {
 
   let r;
   if (opts.hostileNodeEnv && Object.keys(opts.hostileNodeEnv).length > 0) {
-    // Node may refuse to forward NODE_OPTIONS to children; set via cmd.exe instead.
-    const sets = Object.entries(opts.hostileNodeEnv)
-      .map(([k, v]) => `set "${k}=${v}"`)
-      .join(" && ");
-    const quotedPs = psArgs.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
-    r = spawnSync("cmd.exe", ["/c", `${sets} && powershell.exe ${quotedPs}`], {
+    // Node may refuse to forward NODE_OPTIONS to children; set via cmd.exe argv form.
+    const cmdArgs = ["/c"];
+    for (const [k, v] of Object.entries(opts.hostileNodeEnv)) {
+      cmdArgs.push("set", `${k}=${v}`, "&&");
+    }
+    cmdArgs.push("powershell.exe", ...psArgs);
+    r = spawnSync("cmd.exe", cmdArgs, {
       cwd: opts.cwd || ROOT,
       encoding: "utf8",
       windowsHide: true,
