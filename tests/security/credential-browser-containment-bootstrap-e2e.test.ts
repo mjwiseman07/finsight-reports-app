@@ -148,12 +148,6 @@ describe("native PowerShell bootstrap trust boundary", () => {
   });
 
   it("rejects wrong freeze before Node with structured zero attempts", () => {
-    const r = runBootstrap({
-      freeze: "a".repeat(40),
-      env: { CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db" },
-    });
-    // materialize used opts.freeze which doesn't exist — catch via direct wrong PrHead
-    // against tip auth by invoking tip-materialized bootstrap with wrong head:
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "contain-boot-wrong-"));
     const bootFile = path.join(dir, "bootstrap.ps1");
     materializeBootstrapFromFreeze(freeze, bootFile);
@@ -193,7 +187,6 @@ describe("native PowerShell bootstrap trust boundary", () => {
     expect(ev.databaseConnectionAttempts).toBe(0);
     expect(ev.nodeProcessStarted).toBe(false);
     expect(ev.advisory_lock_acquired).toBe(false);
-    void r;
   });
 
   it("strips hostile NODE_OPTIONS so preload never executes", () => {

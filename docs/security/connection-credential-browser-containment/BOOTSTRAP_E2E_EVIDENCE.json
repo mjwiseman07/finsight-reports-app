@@ -1,0 +1,43 @@
+{
+  "kind": "NATIVE_BOOTSTRAP_STANDALONE_BUNDLE_E2E",
+  "generated_at": "2026-09-11T02:40:02.075Z",
+  "evidence_tip": "PENDING_TIP_AFTER_PIN",
+  "tooling_freeze": "00383cbfb7033796bfef7cf0b16e332ae069a749",
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "39f66408e7fba14477a6c906534dab8eaf2536ea",
+    "sha256": "c7c155c9b4964f53ab87b437d8d809072d3a50f945dc5bb98aa7461abf1ce80f",
+    "bytes": 17478,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
+  "native_entry": {
+    "path": "scripts/security/enter-containment-apply.ps1",
+    "oid": "58f52a4549ee655ab8b25da48d7b3fe272f6cc0c",
+    "sha256": "eb11ab08f1ebe99bec632608edc34ff7798666bc375c87420140e1163696ba11",
+    "bytes": 8285
+  },
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+    "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
+    "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
+    "bytes": 224887,
+    "pg_version": "8.21.0",
+    "content_scan": {
+      "unresolved_external_requires": [],
+      "pg_native_token_count": 3,
+      "has_unresolved_require_pg_native": false,
+      "fail_closed_stub_present": true
+    }
+  },
+  "migration_seal": {
+    "oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "bytes": 10586
+  },
+  "path": "powershell -NoProfile bootstrap -> git cat-file bundle -> temp -> sanitized Node child",
+  "notes": [
+    "Evidence tip filled after tip pin commit.",
+    "Production dry-run not authorized; awaiting independent operational re-review."
+  ]
+}
