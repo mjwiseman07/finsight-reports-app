@@ -10,6 +10,12 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const {
+  extractEvidenceFrame,
+  writeEvidenceFrameToStdout,
+  buildWrapperFallback,
+  normalizeApplicatorEvidence,
+} = require("./containment-evidence-protocol");
 
 const ROOT = path.resolve(__dirname, "../..");
 const AUTH_PATH =
@@ -53,23 +59,36 @@ function canonicalAuthSealsDigest(auth) {
   return sha256(Buffer.from(JSON.stringify(seals), "utf8"));
 }
 
+const {
+  extractEvidenceFrame,
+  writeEvidenceFrameToStdout,
+  buildWrapperFallback,
+  encodeEvidenceFrame,
+  normalizeApplicatorEvidence,
+} = require("./containment-evidence-protocol");
+
 function stop(reason, code, extra = {}) {
-  const evidence = {
+  const evidence = buildWrapperFallback({
+    result_code: "SELF_AUTHORITY_BLOCKED",
     verdict: "SELF_AUTHORITY_BLOCKED",
+    reason_code: code,
     error_code: code,
     phase: extra.phase || "launcher",
     error: String(reason).slice(0, 500),
-    sqlApplicationAttempts: 0,
     databaseConnectionAttempts: 0,
-    advisory_lock_acquired: false,
-    database_connected: false,
-    tip_head: extra.tipHead || null,
-    tooling_freeze: extra.freeze || null,
-    bundle_oid: extra.bundleOid || null,
-    bundle_sha256: extra.bundleSha || null,
-    cleanup: extra.cleanup != null ? extra.cleanup : null,
-  };
-  process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+    sqlApplicationAttempts: 0,
+    nodeProcessStarted: false,
+    child_output_received: false,
+    cleanup: extra.cleanup != null ? extra.cleanup : { completed: true },
+    extra: {
+      tip_head: extra.tipHead || null,
+      tooling_freeze: extra.freeze || null,
+      bundle_oid: extra.bundleOid || null,
+      bundle_sha256: extra.bundleSha || null,
+      database_connected: false,
+    },
+  });
+  writeEvidenceFrameToStdout(evidence);
   process.exit(2);
 }
 
@@ -157,22 +176,9 @@ function materializeBundle(freeze, bundleSpec) {
 }
 
 function extractJsonEvidence(stdout) {
-  const text = String(stdout || "").trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(text.slice(start, end + 1));
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
+  // Legacy name retained for tests; delegates to V1 frame extractor.
+  const r = extractEvidenceFrame(stdout);
+  return r.ok ? r.evidence : null;
 }
 
 function main() {
@@ -358,64 +364,71 @@ function main() {
     process.removeListener("SIGINT", onSignal);
     process.removeListener("SIGTERM", onSignal);
 
-    const parsed = extractJsonEvidence(result.stdout);
+    const extracted = extractEvidenceFrame(result.stdout);
     if (result.error && result.error.code === "ETIMEDOUT") {
-      const ev = {
-        verdict: "SELF_AUTHORITY_BLOCKED",
-        error_code: "CHILD_TIMEOUT",
-        phase: "child_execute",
-        error: "child process timed out",
-        sqlApplicationAttempts: 0,
-        databaseConnectionAttempts: 0,
-        tip_head: tipHead,
-        tooling_freeze: freeze,
-        bundle_oid: materialized.oid,
-        bundle_sha256: materialized.digest,
-        cleanup: cleanupResult,
-      };
-      process.stdout.write(`${JSON.stringify(ev, null, 2)}\n`);
+      writeEvidenceFrameToStdout(
+        buildWrapperFallback({
+          result_code: "SELF_AUTHORITY_BLOCKED",
+          reason_code: "CHILD_TIMEOUT",
+          phase: "child_execute",
+          error: "child process timed out",
+          nodeProcessStarted: true,
+          child_output_received: Boolean(result.stdout || result.stderr),
+          cleanup: cleanupResult,
+          extra: {
+            tip_head: tipHead,
+            tooling_freeze: freeze,
+            bundle_oid: materialized.oid,
+            bundle_sha256: materialized.digest,
+          },
+        }),
+      );
       process.exit(2);
     }
 
-    if (!parsed) {
-      const scrubbed = String(result.stderr || result.stdout || "")
+    if (!extracted.ok) {
+      const scrubbed = String(result.stderr || "")
         .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "postgres://***")
         .replace(/CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*\S+/gi, "CONTAINMENT_APPLY_DATABASE_URL=***")
         .slice(0, 400);
-      const ev = {
-        verdict: "SELF_AUTHORITY_BLOCKED",
-        error_code:
-          result.status === 0 ? "CHILD_MALFORMED_EVIDENCE" : "CHILD_START_OR_CRASH",
-        phase: "child_execute",
-        error: scrubbed || "child produced no parseable evidence JSON",
-        sqlApplicationAttempts: 0,
-        databaseConnectionAttempts: 0,
+      writeEvidenceFrameToStdout(
+        buildWrapperFallback({
+          result_code: "SELF_AUTHORITY_BLOCKED",
+          reason_code: extracted.code || "APPLICATOR_EVIDENCE_MISSING",
+          phase: extracted.phase || "child_execute",
+          error: scrubbed || extracted.code || "child produced no valid evidence frame",
+          nodeProcessStarted: true,
+          child_output_received: Boolean(String(result.stdout || "").trim()),
+          cleanup: cleanupResult,
+          extra: {
+            tip_head: tipHead,
+            tooling_freeze: freeze,
+            bundle_oid: materialized.oid,
+            bundle_sha256: materialized.digest,
+            child_exit_status: result.status,
+            missing_or_invalid: extracted.missing_or_invalid || null,
+          },
+        }),
+      );
+      process.exit(2);
+    }
+
+    // Enrich with launcher metadata (non-secret); do not invent applicator counters
+    const parsed = normalizeApplicatorEvidence({
+      ...extracted.evidence,
+      launcher: {
         tip_head: tipHead,
         tooling_freeze: freeze,
         bundle_oid: materialized.oid,
         bundle_sha256: materialized.digest,
+        bundle_bytes: materialized.bytes,
         cleanup: cleanupResult,
-        child_exit_status: result.status,
-      };
-      process.stdout.write(`${JSON.stringify(ev, null, 2)}\n`);
-      process.exit(2);
-    }
+        cwd_was_temp: true,
+        node_path_set: false,
+      },
+    });
 
-    // Enrich with launcher metadata (non-secret)
-    parsed.launcher = {
-      tip_head: tipHead,
-      tooling_freeze: freeze,
-      bundle_oid: materialized.oid,
-      bundle_sha256: materialized.digest,
-      bundle_bytes: materialized.bytes,
-      cleanup: cleanupResult,
-      cwd_was_temp: true,
-      node_path_set: false,
-    };
-    if (parsed.sqlApplicationAttempts == null) parsed.sqlApplicationAttempts = 0;
-    if (parsed.databaseConnectionAttempts == null) parsed.databaseConnectionAttempts = 0;
-
-    process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
+    writeEvidenceFrameToStdout(parsed);
     process.exit(result.status == null ? 1 : result.status);
   } catch (err) {
     cleanupResult = cleanup(tempDir);

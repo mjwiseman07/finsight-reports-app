@@ -32,6 +32,10 @@ const {
   assertNoDropCascade,
   sha256Buffer,
 } = require("./git-blob-authority");
+const {
+  classifyDatabaseUrl,
+  normalizeApplicatorEvidence,
+} = require("./containment-evidence-protocol");
 
 class IndeterminateCommitError extends Error {
   constructor(message, cause) {
@@ -118,32 +122,47 @@ function redactedUrlEvidence() {
 
 /**
  * Resolve DB URL from protected env channel only.
+ * Attaches sanitized uri_diagnostics on the thrown error or returns { url, uri_diagnostics }.
  */
-function resolveDatabaseUrlFromEnv(env = process.env) {
+function resolveDatabaseUrlFromEnv(env = process.env, expectedProjectRef = EXPECTED_PROJECT_REF) {
   if (Object.prototype.hasOwnProperty.call(env, "DATABASE_URL") && env.DATABASE_URL) {
     const e = new Error("PROHIBITED_CREDENTIAL_CHANNEL: generic DATABASE_URL is forbidden");
     e.code = "PROHIBITED_CREDENTIAL_CHANNEL";
+    e.uri_diagnostics = classifyDatabaseUrl(env.DATABASE_URL, expectedProjectRef);
+    e.phase = "uri_validate";
     throw e;
   }
   const raw = env[DATABASE_URL_ENV];
   if (raw == null || String(raw).trim() === "") {
     const e = new Error(`MISSING_INPUT: ${DATABASE_URL_ENV}`);
     e.code = "MISSING_INPUT";
+    e.uri_diagnostics = classifyDatabaseUrl("", expectedProjectRef);
+    e.phase = "uri_validate";
     throw e;
   }
   const url = String(raw);
-  if (!/^postgres(ql)?:\/\//i.test(url)) {
+  const uri_diagnostics = classifyDatabaseUrl(url, expectedProjectRef);
+  if (!uri_diagnostics.structurally_valid_postgres_uri) {
     const e = new Error(`MALFORMED_DATABASE_URL: ${DATABASE_URL_ENV} must be a postgres URL`);
     e.code = "MALFORMED_DATABASE_URL";
+    e.uri_diagnostics = uri_diagnostics;
+    e.phase = "uri_validate";
     throw e;
   }
-  return url;
+  return { url, uri_diagnostics };
 }
 
 function buildEvidenceBase(inputs) {
   return {
     mechanism: "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+    evidence_source: "sealed_applicator",
+    protocol_version: 1,
+    schema_version: 1,
     mode: inputs.mode,
+    read_only: inputs.mode !== "apply",
+    phase: "applicator_init",
+    result_code: "BLOCKED",
+    reason_code: "INIT",
     project_ref_expected: EXPECTED_PROJECT_REF,
     project_ref_provided: inputs.projectRef,
     pr_head: inputs.prHead,
@@ -163,7 +182,40 @@ function buildEvidenceBase(inputs) {
     databaseConnectionAttempts: 0,
     advisory_lock_acquired: false,
     database_url_channel: redactedUrlEvidence(),
+    cleanup: { completed: false },
+    credential_redaction_confirmation: {
+      url_in_evidence: false,
+      url_in_argv: false,
+      values_undisclosed: true,
+    },
   };
+}
+
+function finalizeEvidence(evidence) {
+  const verdict = evidence.verdict || evidence.result_code || "BLOCKED";
+  evidence.verdict = verdict;
+  evidence.result_code = evidence.result_code || verdict;
+  evidence.reason_code =
+    evidence.reason_code ||
+    evidence.error_code ||
+    (typeof evidence.error === "string" ? evidence.error.split(":")[0].trim() : verdict);
+  evidence.phase = evidence.phase || "applicator";
+  evidence.evidence_source = evidence.evidence_source || "sealed_applicator";
+  evidence.read_only =
+    typeof evidence.read_only === "boolean" ? evidence.read_only : evidence.mode !== "apply";
+  if (!evidence.cleanup || typeof evidence.cleanup !== "object") {
+    evidence.cleanup = { completed: true };
+  } else if (evidence.cleanup.completed == null) {
+    evidence.cleanup.completed = true;
+  }
+  if (!evidence.credential_redaction_confirmation) {
+    evidence.credential_redaction_confirmation = {
+      url_in_evidence: false,
+      url_in_argv: false,
+      values_undisclosed: true,
+    };
+  }
+  return normalizeApplicatorEvidence(evidence);
 }
 
 function resolveGitCwd(inputs) {
@@ -696,16 +748,22 @@ async function runDryRun(inputs) {
   let packed;
   try {
     assertInputPins(inputs);
-    databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+    const resolvedDry = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+    databaseUrl = resolvedDry.url;
+    evidence.uri_diagnostics = resolvedDry.uri_diagnostics;
     packed = loadSealedMigration(inputs);
   } catch (err) {
     evidence.verdict = "DRY_RUN_BLOCKED";
+    evidence.result_code = "DRY_RUN_BLOCKED";
     evidence.error = sanitizeError(err);
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
+    evidence.reason_code = err.code || "PIN_OR_LOAD_FAIL";
+    evidence.phase = err.phase || "pre_connect";
+    if (err.uri_diagnostics) evidence.uri_diagnostics = err.uri_diagnostics;
     evidence.sqlApplicationAttempts = 0;
     evidence.databaseConnectionAttempts = 0;
-    return evidence;
+    return finalizeEvidence(evidence);
   }
 
   evidence.source_authority = {
@@ -754,14 +812,20 @@ async function runDryRun(inputs) {
 
     evidence.sqlApplicationAttempts = 0;
     evidence.verdict = "DRY_RUN_READY";
+    evidence.result_code = "DRY_RUN_READY";
+    evidence.reason_code = "DRY_RUN_READY";
+    evidence.phase = "dry_run_complete";
   } catch (err) {
     evidence.verdict = "DRY_RUN_BLOCKED";
+    evidence.result_code = "DRY_RUN_BLOCKED";
     evidence.error = sanitizeError(err);
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "DRY_RUN_FAIL";
+    evidence.reason_code = err.code || "DRY_RUN_FAIL";
+    evidence.phase = err.phase || "dry_run_queries";
     evidence.sqlApplicationAttempts = 0;
   }
-  return evidence;
+  return finalizeEvidence(evidence);
 }
 
 async function runApply(inputs) {
@@ -772,16 +836,22 @@ async function runApply(inputs) {
   let packed;
   try {
     assertInputPins(inputs);
-    databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+    const resolvedApply = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+    databaseUrl = resolvedApply.url;
+    evidence.uri_diagnostics = resolvedApply.uri_diagnostics;
     packed = loadSealedMigration(inputs);
   } catch (err) {
     evidence.verdict = "APPLY_BLOCKED";
+    evidence.result_code = "APPLY_BLOCKED";
     evidence.error = sanitizeError(err);
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
+    evidence.reason_code = err.code || "PIN_OR_LOAD_FAIL";
+    evidence.phase = err.phase || "pre_connect";
+    if (err.uri_diagnostics) evidence.uri_diagnostics = err.uri_diagnostics;
     evidence.sqlApplicationAttempts = 0;
     evidence.databaseConnectionAttempts = 0;
-    return evidence;
+    return finalizeEvidence(evidence);
   }
 
   evidence.source_authority = {
@@ -909,6 +979,9 @@ async function runApply(inputs) {
       }
 
       evidence.verdict = "APPLY_COMMITTED";
+      evidence.result_code = "APPLY_COMMITTED";
+      evidence.reason_code = "APPLY_COMMITTED";
+      evidence.phase = "apply_committed";
       evidence.stored_statement_digest = packed.loaded.sha256;
       evidence.stored_statement_bytes = packed.loaded.bytes;
     });
@@ -920,6 +993,9 @@ async function runApply(inputs) {
 
     if (uncertain || (commitPhase === "committing" && isConnectionUncertaintyError(err))) {
       evidence.verdict = "INDETERMINATE_OUTCOME";
+      evidence.result_code = "INDETERMINATE_OUTCOME";
+      evidence.reason_code = "INDETERMINATE_OUTCOME";
+      evidence.phase = "apply_indeterminate";
       evidence.error = sanitizeError(err);
       evidence.error_sanitized = sanitizeValue(err);
       evidence.error_code = "INDETERMINATE_OUTCOME";
@@ -931,10 +1007,13 @@ async function runApply(inputs) {
         priorManifest,
       );
       // Never auto-retry / auto-rollback
-      return evidence;
+      return finalizeEvidence(evidence);
     }
 
     evidence.verdict = "APPLY_ROLLED_BACK";
+    evidence.result_code = "APPLY_ROLLED_BACK";
+    evidence.reason_code = err.code || "APPLY_FAIL";
+    evidence.phase = "apply_rolled_back";
     evidence.error = sanitizeError(err);
     evidence.error_sanitized = sanitizeValue(err);
     evidence.error_code = err.code || "APPLY_FAIL";
@@ -969,7 +1048,7 @@ async function runApply(inputs) {
     }
   }
 
-  return evidence;
+  return finalizeEvidence(evidence);
 }
 
 async function runApplicator(inputs) {
@@ -982,9 +1061,12 @@ async function runApplicator(inputs) {
   }
   const evidence = buildEvidenceBase({ ...inputs, mode });
   evidence.verdict = "BLOCKED";
+  evidence.result_code = "BLOCKED";
+  evidence.reason_code = "UNKNOWN_MODE";
+  evidence.phase = "mode_select";
   evidence.error = `unknown mode: ${mode}`;
   evidence.sqlApplicationAttempts = 0;
-  return evidence;
+  return finalizeEvidence(evidence);
 }
 
 module.exports = {
@@ -999,6 +1081,8 @@ module.exports = {
   assertPreChangeMatch,
   assertInputPins,
   resolveDatabaseUrlFromEnv,
+  classifyDatabaseUrl,
+  finalizeEvidence,
   sanitizeError,
   sanitizeValue,
   IndeterminateCommitError,

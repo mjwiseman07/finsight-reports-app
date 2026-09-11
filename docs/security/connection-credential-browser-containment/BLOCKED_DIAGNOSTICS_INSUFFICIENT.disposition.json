@@ -1,0 +1,13 @@
+{
+  "disposition": "BLOCKED_DIAGNOSTICS_INSUFFICIENT",
+  "retained_evidence_sha256": "65f15ddd64306b4c978409ca29d2004c13148a41879dd313cf30434bc652c259",
+  "retained_evidence_basename": "PRODUCTION_DRY_RUN_EVIDENCE.json",
+  "retained_evidence_dir_basename": "containment-prod-dryrun-318",
+  "do_not_reinterpret_as": [
+    "invalid_url",
+    "confirmed_production_connection",
+    "confirmed_applicator_counters"
+  ],
+  "observed_wrapper_text": "failed to parse applicator evidence",
+  "note": "Prior operator ceremony lost the sealed applicator structured result. Retained as diagnostic-failure proof only. Superseded by CONTAINMENT_EVIDENCE_V1 transport remediation."
+}

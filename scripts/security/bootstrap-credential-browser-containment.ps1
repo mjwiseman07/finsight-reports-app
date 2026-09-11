@@ -35,10 +35,66 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function ConvertTo-Base64Url([byte[]]$Bytes) {
+  $b64 = [Convert]::ToBase64String($Bytes)
+  return (($b64.TrimEnd('=')) -replace '\+', '-' -replace '/', '_')
+}
+
 function Write-BootstrapEvidence {
   param($Object)
-  $json = $Object | ConvertTo-Json -Depth 12 -Compress:$false
-  [Console]::Out.WriteLine($json)
+  # Emit exactly one CONTAINMENT_EVIDENCE_V1 frame on stdout.
+  $json = $Object | ConvertTo-Json -Depth 20 -Compress
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  $frame = "CONTAINMENT_EVIDENCE_V1:" + (ConvertTo-Base64Url -Bytes $bytes)
+  [Console]::Out.WriteLine($frame)
+}
+
+function New-WrapperFallbackObject {
+  param(
+    [string]$Code,
+    [string]$Phase,
+    [string]$Message,
+    [hashtable]$Extra = @{}
+  )
+  $msg = [string]$Message
+  if ($msg.Length -gt 500) { $msg = $msg.Substring(0, 500) }
+  return [ordered]@{
+    protocol_version              = 1
+    schema_version                = 1
+    result_code                   = "BOOTSTRAP_BLOCKED"
+    verdict                       = "BOOTSTRAP_BLOCKED"
+    reason_code                   = $Code
+    error_code                    = $Code
+    phase                         = $Phase
+    evidence_source               = "native_wrapper_fallback"
+    mode                          = $Mode
+    read_only                     = $true
+    error                         = $msg
+    sqlApplicationAttempts        = 0
+    databaseConnectionAttempts    = 0
+    nodeProcessStarted            = $(if ($Extra.ContainsKey("nodeProcessStarted")) { [bool]$Extra.nodeProcessStarted } else { $false })
+    advisory_lock_acquired        = $false
+    database_connected            = $false
+    tip_head                      = $(if ($Extra.ContainsKey("tipHead")) { $Extra.tipHead } else { $null })
+    tooling_freeze                = $(if ($Extra.ContainsKey("freeze")) { $Extra.freeze } else { $null })
+    bundle_oid                    = $(if ($Extra.ContainsKey("bundleOid")) { $Extra.bundleOid } else { $null })
+    bundle_sha256                 = $(if ($Extra.ContainsKey("bundleSha")) { $Extra.bundleSha } else { $null })
+    bootstrap_sha256              = $(if ($Extra.ContainsKey("bootstrapSha")) { $Extra.bootstrapSha } else { $null })
+    unsafeInheritedNodeEnvironmentRemoved = $(if ($Extra.ContainsKey("unsafeRemoved")) { [bool]$Extra.unsafeRemoved } else { $false })
+    cleanup                       = $(if ($Extra.ContainsKey("cleanup")) { $Extra.cleanup } else { @{ completed = $true } })
+    credential_redaction_confirmation = @{
+      url_in_evidence = $false
+      url_in_argv     = $false
+      values_undisclosed = $true
+    }
+    wrapper = [ordered]@{
+      reason_code                 = $Code
+      phase                       = $Phase
+      nodeProcessStarted          = $(if ($Extra.ContainsKey("nodeProcessStarted")) { [bool]$Extra.nodeProcessStarted } else { $false })
+      child_output_received       = $(if ($Extra.ContainsKey("child_output_received")) { [bool]$Extra.child_output_received } else { $false })
+      counters_are_wrapper_observed = $true
+    }
+  }
 }
 
 function Stop-Bootstrap {
@@ -48,27 +104,7 @@ function Stop-Bootstrap {
     [string]$Message,
     [hashtable]$Extra = @{}
   )
-  $msg = [string]$Message
-  if ($msg.Length -gt 500) { $msg = $msg.Substring(0, 500) }
-  $ev = [ordered]@{
-    verdict                       = "BOOTSTRAP_BLOCKED"
-    error_code                    = $Code
-    phase                         = $Phase
-    error                         = $msg
-    sqlApplicationAttempts        = 0
-    databaseConnectionAttempts    = 0
-    nodeProcessStarted            = $false
-    advisory_lock_acquired        = $false
-    database_connected            = $false
-    tip_head                      = $(if ($Extra.ContainsKey("tipHead")) { $Extra.tipHead } else { $null })
-    tooling_freeze                = $(if ($Extra.ContainsKey("freeze")) { $Extra.freeze } else { $null })
-    bundle_oid                    = $(if ($Extra.ContainsKey("bundleOid")) { $Extra.bundleOid } else { $null })
-    bundle_sha256                 = $(if ($Extra.ContainsKey("bundleSha")) { $Extra.bundleSha } else { $null })
-    bootstrap_sha256              = $(if ($Extra.ContainsKey("bootstrapSha")) { $Extra.bootstrapSha } else { $null })
-    unsafeInheritedNodeEnvironmentRemoved = $(if ($Extra.ContainsKey("unsafeRemoved")) { [bool]$Extra.unsafeRemoved } else { $false })
-    cleanup                       = $(if ($Extra.ContainsKey("cleanup")) { $Extra.cleanup } else { $null })
-  }
-  Write-BootstrapEvidence -Object $ev
+  Write-BootstrapEvidence -Object (New-WrapperFallbackObject -Code $Code -Phase $Phase -Message $Message -Extra $Extra)
   exit 2
 }
 
@@ -439,57 +475,27 @@ try {
   $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
   $script:tempRoot = $null
 
-  # Scrub stderr for DSN-looking tokens before any relay
+  # Scrub stderr for DSN-looking tokens (stderr only; never persist raw stdout after parse)
+  $scrubbedStderr = ""
   if ($stderr) {
-    $scrubbed = [regex]::Replace($stderr, "postgres(?:ql)?://[^\s]+", "postgres://***")
-    $scrubbed = [regex]::Replace($scrubbed, "CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*\S+", "CONTAINMENT_APPLY_DATABASE_URL=***")
-    if ($scrubbed.Trim().Length -gt 0 -and $stdout.Trim().Length -eq 0) {
-      # Child crashed without JSON — wrap
-      $wrap = [ordered]@{
-        verdict                    = "BOOTSTRAP_BLOCKED"
-        error_code                 = "CHILD_START_OR_CRASH"
-        phase                      = "child_execute"
-        error                      = $scrubbed.Substring(0, [Math]::Min(400, $scrubbed.Length))
-        sqlApplicationAttempts     = 0
-        databaseConnectionAttempts = 0
-        nodeProcessStarted         = $true
-        tip_head                   = $tipHead
-        tooling_freeze             = $freeze
-        bundle_oid                 = $bundleOid
-        bundle_sha256              = $bundleSha
-        unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
-        cleanup                    = $script:cleanupResult
-        child_exit_status          = $exit
-      }
-      Write-BootstrapEvidence -Object $wrap
-      exit 2
-    }
+    $scrubbedStderr = [regex]::Replace($stderr, "postgres(?:ql)?://[^\s]+", "postgres://***")
+    $scrubbedStderr = [regex]::Replace($scrubbedStderr, "CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*\S+", "CONTAINMENT_APPLY_DATABASE_URL=***")
   }
 
-  if (-not $stdout -or -not ($stdout.Trim().StartsWith("{"))) {
-    $wrap = [ordered]@{
-      verdict                    = "BOOTSTRAP_BLOCKED"
-      error_code                 = "CHILD_MALFORMED_EVIDENCE"
-      phase                      = "child_execute"
-      error                      = "child produced no parseable evidence JSON"
-      sqlApplicationAttempts     = 0
-      databaseConnectionAttempts = 0
-      nodeProcessStarted         = $started
-      tip_head                   = $tipHead
-      tooling_freeze             = $freeze
-      bundle_oid                 = $bundleOid
-      bundle_sha256              = $bundleSha
-      unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
-      cleanup                    = $script:cleanupResult
-      child_exit_status          = $exit
-    }
-    Write-BootstrapEvidence -Object $wrap
-    exit 2
-  }
-
-  # Enrich JSON with bootstrap metadata without re-serializing secrets
+  # Materialize frame tool from freeze into a fresh temp for parse/enrich (not the cleaned child dir)
+  $parseDir = Join-Path ([System.IO.Path]::GetTempPath()) ("containment-evparse-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $parseDir | Out-Null
+  $stdoutFile = Join-Path $parseDir "child-stdout.txt"
+  $enrichFile = Join-Path $parseDir "enrich.json"
+  $protoFile = Join-Path $parseDir "containment-evidence-protocol.js"
+  $toolFile = Join-Path $parseDir "containment-evidence-frame-tool.js"
   try {
-    $parsed = $stdout | ConvertFrom-Json
+    [System.IO.File]::WriteAllText($stdoutFile, [string]$stdout)
+    $protoBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-protocol.js") -WorkDir $repo
+    $toolBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-frame-tool.js") -WorkDir $repo
+    [System.IO.File]::WriteAllBytes($protoFile, $protoBytes)
+    [System.IO.File]::WriteAllBytes($toolFile, $toolBytes)
+
     $bootMeta = [ordered]@{
       tip_head                              = $tipHead
       tooling_freeze                        = $freeze
@@ -502,29 +508,47 @@ try {
       cleanup                               = $script:cleanupResult
       cwd_was_temp                          = $true
       entry                                 = "powershell_bootstrap"
+      child_exit_status                     = $exit
     }
-    if ($parsed.PSObject.Properties.Name -contains "bootstrap") {
-      $parsed.bootstrap = $bootMeta
-    }
-    else {
-      $parsed | Add-Member -NotePropertyName bootstrap -NotePropertyValue $bootMeta -Force
-    }
-    # Also surface the boolean at top-level for simple consumers
-    if ($parsed.PSObject.Properties.Name -contains "unsafeInheritedNodeEnvironmentRemoved") {
-      $parsed.unsafeInheritedNodeEnvironmentRemoved = $unsafeRemoved
-    }
-    else {
-      $parsed | Add-Member -NotePropertyName unsafeInheritedNodeEnvironmentRemoved -NotePropertyValue $unsafeRemoved -Force
-    }
-    Write-BootstrapEvidence -Object $parsed
-  }
-  catch {
-    # Relay raw stdout if enrichment fails but looked like JSON
-    [Console]::Out.WriteLine($stdout.TrimEnd())
-  }
+    $bootMetaJson = ($bootMeta | ConvertTo-Json -Depth 8 -Compress)
+    [System.IO.File]::WriteAllText($enrichFile, $bootMetaJson)
 
-  if ($null -eq $exit) { exit 1 }
-  exit $exit
+    $parsePsi = New-Object System.Diagnostics.ProcessStartInfo
+    $parsePsi.FileName = $nodeExe
+    $parsePsi.Arguments = "`"$toolFile`" parse-and-enrich `"$stdoutFile`" `"$enrichFile`""
+    $parsePsi.WorkingDirectory = $parseDir
+    $parsePsi.UseShellExecute = $false
+    $parsePsi.RedirectStandardOutput = $true
+    $parsePsi.RedirectStandardError = $true
+    $parsePsi.CreateNoWindow = $true
+    $parseProc = New-Object System.Diagnostics.Process
+    $parseProc.StartInfo = $parsePsi
+    [void]$parseProc.Start()
+    $frameOut = $parseProc.StandardOutput.ReadToEnd()
+    $parseErr = $parseProc.StandardError.ReadToEnd()
+    $parseProc.WaitForExit()
+
+    if (-not $frameOut -or -not $frameOut.Trim().StartsWith("CONTAINMENT_EVIDENCE_V1:")) {
+      Write-BootstrapEvidence -Object (New-WrapperFallbackObject -Code "APPLICATOR_EVIDENCE_MISSING" -Phase "evidence_extract" -Message "frame tool produced no evidence frame" -Extra @{
+          tipHead = $tipHead; freeze = $freeze; bundleOid = $bundleOid; bundleSha = $bundleSha
+          unsafeRemoved = $unsafeRemoved; cleanup = $script:cleanupResult
+          nodeProcessStarted = $true; child_output_received = [bool]$stdout
+        })
+      exit 2
+    }
+
+    [Console]::Out.WriteLine($frameOut.TrimEnd())
+    # Nonzero child exit must not suppress valid structured evidence (already emitted)
+    if ($null -eq $exit) { exit 1 }
+    exit $exit
+  }
+  finally {
+    try {
+      if (Test-Path -LiteralPath $parseDir) {
+        Remove-Item -LiteralPath $parseDir -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+  }
 }
 catch {
   $script:cleanupResult = Clear-TempPath -Path $script:tempRoot

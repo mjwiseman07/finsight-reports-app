@@ -21,10 +21,14 @@ const SOURCES = [
   "scripts/security/credential-browser-containment-apply-core.js",
   "scripts/security/credential-browser-containment-constants.js",
   "scripts/security/git-blob-authority.js",
+  "scripts/security/containment-evidence-protocol.js",
 ];
+const FRAME_TOOL_REL = "scripts/security/containment-evidence-frame-tool.js";
 const BOOTSTRAP_REL = "scripts/security/bootstrap-credential-browser-containment.ps1";
 const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
 const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
+const CEREMONY_REL =
+  "scripts/security/operator-containment-production-dryrun-ceremony.ps1";
 
 function sha256(b) {
   return crypto.createHash("sha256").update(b).digest("hex");
@@ -156,6 +160,9 @@ const modules = SOURCES.map(seal);
 const bootstrapSeal = seal(BOOTSTRAP_REL);
 const enterSeal = seal(ENTER_REL);
 const stubSeal = seal(STUB_REL);
+const frameToolSeal = seal(FRAME_TOOL_REL);
+const ceremonySeal = seal(CEREMONY_REL);
+const protocolSeal = modules.find((m) => m.path.endsWith("containment-evidence-protocol.js"));
 const buf = fs.readFileSync(OUT);
 const bundleSrc = buf.toString("utf8");
 const contentScan = scanBundle(bundleSrc);
@@ -213,6 +220,17 @@ const auth = {
     sha256: enterSeal.sha256,
     bytes: enterSeal.bytes,
   },
+  evidence_protocol: {
+    id: "CONTAINMENT_EVIDENCE_V1",
+    frame: "CONTAINMENT_EVIDENCE_V1:<base64url-utf8-json>",
+    schema_version: 1,
+    path: protocolSeal.path,
+    oid: protocolSeal.oid,
+    sha256: protocolSeal.sha256,
+    bytes: protocolSeal.bytes,
+    frame_tool: frameToolSeal,
+  },
+  operator_ceremony: ceremonySeal,
   pg_native_stub: stubSeal,
   standalone_bundle: {
     path: OUT_REL,

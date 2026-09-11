@@ -2,6 +2,7 @@
 /**
  * Inner applicator CLI — intended to run only from a verified materialized temp tree.
  * Database URL: CONTAINMENT_APPLY_DATABASE_URL (env only). --database-url is prohibited.
+ * stdout: exactly one CONTAINMENT_EVIDENCE_V1 frame. Progress goes to stderr.
  */
 "use strict";
 
@@ -23,6 +24,10 @@ const {
   sanitizeError,
   sanitizeValue,
 } = require("./credential-browser-containment-apply-core");
+const {
+  writeEvidenceFrameToStdout,
+  buildWrapperFallback,
+} = require("./containment-evidence-protocol");
 
 function parseArgs(argv) {
   const out = {
@@ -135,11 +140,11 @@ function parseArgs(argv) {
 function printHelp() {
   const help = {
     mechanism: "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+    evidence_protocol: "CONTAINMENT_EVIDENCE_V1",
     default_mode: "dry-run",
     database_url_channel: DATABASE_URL_ENV,
     advisory_lock: ADVISORY_LOCK,
     apply_token_name: "--i-authorize-production-apply",
-    apply_token_value_hint: "(exact committed token; not printed here as operational guidance uses runbook)",
     required_pins: [
       "--project-ref",
       "--pr-head",
@@ -171,7 +176,32 @@ function printHelp() {
       "supabase db push",
     ],
   };
-  process.stdout.write(`${JSON.stringify(help, null, 2)}\n`);
+  // Help is operator-facing on stderr so stdout remains frame-only in apply paths.
+  process.stderr.write(`${JSON.stringify(help, null, 2)}\n`);
+}
+
+function emitBlocked(err, exitCode) {
+  const fallback = buildWrapperFallback({
+    result_code: "BLOCKED",
+    reason_code: err.code || "BLOCKED",
+    phase: err.phase || "cli",
+    mode: "dry-run",
+    error: sanitizeError(err),
+    error_code: err.code || "BLOCKED",
+    databaseConnectionAttempts: 0,
+    sqlApplicationAttempts: 0,
+    nodeProcessStarted: true,
+    child_output_received: false,
+    extra: {
+      evidence_source: "sealed_applicator",
+      error_sanitized: sanitizeValue(err),
+      uri_diagnostics: err.uri_diagnostics,
+    },
+  });
+  // Prefer sealed_applicator for CLI parse failures inside the applicator process
+  fallback.evidence_source = "sealed_applicator";
+  writeEvidenceFrameToStdout(fallback);
+  process.exitCode = exitCode;
 }
 
 async function main() {
@@ -179,20 +209,7 @@ async function main() {
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          verdict: "BLOCKED",
-          sqlApplicationAttempts: 0,
-          databaseConnectionAttempts: 0,
-          error: sanitizeError(err),
-          error_sanitized: sanitizeValue(err),
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    process.exitCode = 2;
+    emitBlocked(err, 2);
     return;
   }
 
@@ -221,13 +238,13 @@ async function main() {
     env: process.env,
   });
 
-  process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+  writeEvidenceFrameToStdout(evidence);
   if (
     evidence.verdict === "DRY_RUN_READY" ||
+    evidence.result_code === "DRY_RUN_READY" ||
     evidence.verdict === "APPLY_COMMITTED" ||
     evidence.verdict === "INDETERMINATE_OUTCOME"
   ) {
-    // Indeterminate exits non-zero so operators do not treat as success.
     process.exitCode = evidence.verdict === "INDETERMINATE_OUTCOME" ? 3 : 0;
   } else {
     process.exitCode = 1;
@@ -235,21 +252,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  process.stdout.write(
-    `${JSON.stringify(
-      {
-        verdict: "BLOCKED",
-        sqlApplicationAttempts: 0,
-        databaseConnectionAttempts: 0,
-        error: sanitizeError(err),
-        error_sanitized: sanitizeValue(err),
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  process.exitCode = 2;
+  emitBlocked(err, 2);
 });
 
-// Token constant referenced so tests can import expected value via constants module.
 void APPLY_AUTHORIZATION_TOKEN;

@@ -120,10 +120,10 @@ function runBootstrap(opts: {
 }
 
 function parseEvidence(stdout: string) {
-  const t = stdout.trim();
-  const start = t.indexOf("{");
-  if (start < 0) throw new Error(`no JSON in stdout: ${t.slice(0, 200)}`);
-  return JSON.parse(t.slice(start));
+  const {
+    parseContainmentStdout,
+  } = require("./helpers/containment-evidence.js");
+  return parseContainmentStdout(stdout);
 }
 
 const dockerOk = (() => {
@@ -320,7 +320,7 @@ describe("native PowerShell bootstrap trust boundary", () => {
         env: { CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db" },
       });
       expect(fs.existsSync(marker)).toBe(false);
-      expect(r.stdout).toMatch(/\{/);
+      expect(r.stdout).toMatch(/CONTAINMENT_EVIDENCE_V1:/);
     } finally {
       fs.rmSync(profileDir, { recursive: true, force: true });
       try {
@@ -442,9 +442,11 @@ describe("native PowerShell bootstrap trust boundary", () => {
     );
     fs.rmSync(dir, { recursive: true, force: true });
     expect(r.status).toBe(2);
-    expect(r.stdout).toMatch(/BLOCKED_PIN_MISMATCH/);
-    expect(r.stdout).toMatch(/sqlApplicationAttempts"\s*:\s*0/);
-    expect(r.stdout).toMatch(/databaseConnectionAttempts"\s*:\s*0/);
+    const ev = parseEvidence(r.stdout);
+    expect(ev.reason_code || ev.error_code).toMatch(/BLOCKED_PIN_MISMATCH/);
+    expect(ev.sqlApplicationAttempts).toBe(0);
+    expect(ev.databaseConnectionAttempts).toBe(0);
+    expect(ev.evidence_source).toBe("native_wrapper_fallback");
   });
 
   it("cleans bootstrap temp materialization after exit", () => {

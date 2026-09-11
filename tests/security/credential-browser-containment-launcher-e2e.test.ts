@@ -36,6 +36,11 @@ const dockerOk = (() => {
   }
 })();
 
+function parseEvidence(stdout: string) {
+  const { parseContainmentStdout } = require("./helpers/containment-evidence.js");
+  return parseContainmentStdout(stdout);
+}
+
 describe("standalone launcher end-to-end", () => {
   const auth = readAuth();
   const freeze = auth.authorized_pr_head;
@@ -64,7 +69,7 @@ describe("standalone launcher end-to-end", () => {
       },
     );
     expect(r.status).toBe(2);
-    const ev = JSON.parse(r.stdout);
+    const ev = parseEvidence(r.stdout);
     expect(ev.verdict).toBe("SELF_AUTHORITY_BLOCKED");
     expect(ev.sqlApplicationAttempts).toBe(0);
     expect(ev.databaseConnectionAttempts).toBe(0);
@@ -181,7 +186,7 @@ describe("standalone launcher end-to-end", () => {
       expect(r.stdout + r.stderr).not.toMatch(/MALICIOUS_WORKTREE_PG/);
       expect(r.stdout + r.stderr).not.toMatch(/MALICIOUS_WORKTREE_CORE/);
       // Should get applicator evidence or connection failure — not worktree throw
-      expect(r.stdout).toMatch(/verdict/);
+      expect(r.stdout).toMatch(/CONTAINMENT_EVIDENCE_V1:/);
     } finally {
       fs.writeFileSync(corePath, coreBackup);
       if (backup) fs.writeFileSync(trap, backup);
@@ -254,7 +259,7 @@ describe.skipIf(!dockerOk)("launcher success path (local disposable postgres)", 
           },
         },
       );
-      const ev = JSON.parse(r.stdout);
+      const ev = parseEvidence(r.stdout);
       expect(ev.verdict).toBe("DRY_RUN_READY");
       expect(ev.sqlApplicationAttempts).toBe(0);
       expect(ev.launcher?.bundle_sha256).toBe(auth.standalone_bundle.sha256);

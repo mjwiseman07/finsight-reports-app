@@ -96,6 +96,7 @@ const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/credential-browser-containment-apply-core.js",
   "scripts/security/credential-browser-containment-constants.js",
   "scripts/security/git-blob-authority.js",
+  "scripts/security/containment-evidence-protocol.js",
 ]);
 
 module.exports = {

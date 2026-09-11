@@ -32,6 +32,7 @@ const SOURCE_MODULES = [
   "scripts/security/credential-browser-containment-apply-core.js",
   "scripts/security/credential-browser-containment-constants.js",
   "scripts/security/git-blob-authority.js",
+  "scripts/security/containment-evidence-protocol.js",
 ];
 
 function sha256(buf) {

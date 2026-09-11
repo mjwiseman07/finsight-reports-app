@@ -47,7 +47,8 @@ var require_credential_browser_containment_constants = __commonJS({
       "scripts/security/apply-credential-browser-containment.js",
       "scripts/security/credential-browser-containment-apply-core.js",
       "scripts/security/credential-browser-containment-constants.js",
-      "scripts/security/git-blob-authority.js"
+      "scripts/security/git-blob-authority.js",
+      "scripts/security/containment-evidence-protocol.js"
     ]);
     module2.exports = {
       ADVISORY_LOCK: ADVISORY_LOCK2,
@@ -5328,6 +5329,471 @@ var require_git_blob_authority = __commonJS({
   }
 });
 
+// scripts/security/containment-evidence-protocol.js
+var require_containment_evidence_protocol = __commonJS({
+  "scripts/security/containment-evidence-protocol.js"(exports2, module2) {
+    "use strict";
+    var PROTOCOL_ID = "CONTAINMENT_EVIDENCE_V1";
+    var PROTOCOL_PREFIX = `${PROTOCOL_ID}:`;
+    var SCHEMA_VERSION = 1;
+    var MAX_PAYLOAD_BYTES = 256 * 1024;
+    var HOST_CLASSES = Object.freeze([
+      "session_pooler",
+      "direct",
+      "transaction_pooler",
+      "unknown",
+      "malformed_uri"
+    ]);
+    var RESULT_CODES = Object.freeze([
+      "DRY_RUN_READY",
+      "DRY_RUN_BLOCKED",
+      "APPLY_COMMITTED",
+      "APPLY_BLOCKED",
+      "APPLY_ROLLED_BACK",
+      "INDETERMINATE_OUTCOME",
+      "BLOCKED",
+      "BOOTSTRAP_BLOCKED",
+      "SELF_AUTHORITY_BLOCKED"
+    ]);
+    function isPlainObject(v) {
+      return v !== null && typeof v === "object" && !Array.isArray(v);
+    }
+    function base64UrlEncode(buf) {
+      return Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+    function base64UrlDecode(s) {
+      if (typeof s !== "string" || !/^[A-Za-z0-9_-]*$/.test(s)) {
+        const e = new Error("APPLICATOR_EVIDENCE_BASE64URL_INVALID");
+        e.code = "APPLICATOR_EVIDENCE_BASE64URL_INVALID";
+        throw e;
+      }
+      const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - s.length % 4);
+      const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + pad;
+      try {
+        return Buffer.from(b64, "base64");
+      } catch (err) {
+        const e = new Error("APPLICATOR_EVIDENCE_BASE64URL_INVALID");
+        e.code = "APPLICATOR_EVIDENCE_BASE64URL_INVALID";
+        throw e;
+      }
+    }
+    function classifyDatabaseUrl(raw, expectedProjectRef) {
+      const diagnostics = {
+        structurally_valid_postgres_uri: false,
+        project_match: false,
+        host_class: "unknown",
+        expected_port_match: false,
+        database_name_match: false,
+        username_class_match: false,
+        ssl_requirement_match: false
+      };
+      if (raw == null || String(raw).trim() === "") {
+        diagnostics.host_class = "malformed_uri";
+        return diagnostics;
+      }
+      const text = String(raw);
+      if (!/^postgres(ql)?:\/\//i.test(text)) {
+        diagnostics.host_class = "malformed_uri";
+        return diagnostics;
+      }
+      let u;
+      try {
+        u = new URL(text);
+      } catch {
+        diagnostics.host_class = "malformed_uri";
+        return diagnostics;
+      }
+      diagnostics.structurally_valid_postgres_uri = true;
+      const host = (u.hostname || "").toLowerCase();
+      const port = u.port ? Number(u.port) : 5432;
+      const dbName = decodeURIComponent((u.pathname || "").replace(/^\//, "") || "");
+      const user = decodeURIComponent(u.username || "");
+      const sslmode = (u.searchParams.get("sslmode") || "").toLowerCase();
+      if (host.includes("pooler.supabase.com")) {
+        diagnostics.host_class = port === 6543 ? "transaction_pooler" : "session_pooler";
+      } else if (host.endsWith(".supabase.co") || host.includes("db.")) {
+        diagnostics.host_class = "direct";
+      } else {
+        diagnostics.host_class = "unknown";
+      }
+      diagnostics.expected_port_match = port === 5432;
+      diagnostics.database_name_match = dbName === "postgres";
+      const ref = String(expectedProjectRef || "");
+      diagnostics.username_class_match = Boolean(ref) && user.includes(`.${ref}`);
+      diagnostics.project_match = Boolean(ref) && (user.includes(`.${ref}`) || host.includes(ref) || text.includes(ref));
+      diagnostics.ssl_requirement_match = sslmode === "require" || sslmode === "verify-full" || sslmode === "verify-ca";
+      return diagnostics;
+    }
+    function requiredString(obj, key, errors) {
+      if (typeof obj[key] !== "string" || obj[key].length === 0) {
+        errors.push(key);
+      }
+    }
+    function requiredBoolean(obj, key, errors) {
+      if (typeof obj[key] !== "boolean") {
+        errors.push(key);
+      }
+    }
+    function requiredNumber(obj, key, errors) {
+      if (typeof obj[key] !== "number" || !Number.isFinite(obj[key])) {
+        errors.push(key);
+      }
+    }
+    function validateEvidenceSchema(obj) {
+      const errors = [];
+      if (!isPlainObject(obj)) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_SCHEMA_INVALID",
+          phase: "evidence_schema",
+          missing_or_invalid: ["root"]
+        };
+      }
+      if (obj.protocol_version !== SCHEMA_VERSION && obj.schema_version !== SCHEMA_VERSION) {
+        if (typeof obj.protocol_version === "number" && obj.protocol_version !== SCHEMA_VERSION) {
+          return {
+            ok: false,
+            code: "APPLICATOR_EVIDENCE_PROTOCOL_VERSION_MISMATCH",
+            phase: "evidence_schema",
+            missing_or_invalid: ["protocol_version"]
+          };
+        }
+        if (typeof obj.schema_version === "number" && obj.schema_version !== SCHEMA_VERSION) {
+          return {
+            ok: false,
+            code: "APPLICATOR_EVIDENCE_PROTOCOL_VERSION_MISMATCH",
+            phase: "evidence_schema",
+            missing_or_invalid: ["schema_version"]
+          };
+        }
+        errors.push("protocol_version|schema_version");
+      }
+      requiredString(obj, "result_code", errors);
+      requiredString(obj, "reason_code", errors);
+      requiredString(obj, "phase", errors);
+      requiredString(obj, "evidence_source", errors);
+      requiredString(obj, "mode", errors);
+      requiredNumber(obj, "databaseConnectionAttempts", errors);
+      requiredNumber(obj, "sqlApplicationAttempts", errors);
+      requiredBoolean(obj, "advisory_lock_acquired", errors);
+      requiredBoolean(obj, "read_only", errors);
+      if (obj.evidence_source !== "sealed_applicator" && obj.evidence_source !== "native_wrapper_fallback") {
+        errors.push("evidence_source");
+      }
+      if (obj.mode !== "dry-run" && obj.mode !== "apply") {
+        errors.push("mode");
+      }
+      if (!isPlainObject(obj.cleanup)) {
+        errors.push("cleanup");
+      }
+      if (!isPlainObject(obj.credential_redaction_confirmation)) {
+        errors.push("credential_redaction_confirmation");
+      }
+      if (obj.uri_diagnostics != null) {
+        if (!isPlainObject(obj.uri_diagnostics)) {
+          errors.push("uri_diagnostics");
+        } else {
+          const d = obj.uri_diagnostics;
+          for (const k of [
+            "structurally_valid_postgres_uri",
+            "project_match",
+            "expected_port_match",
+            "database_name_match",
+            "username_class_match",
+            "ssl_requirement_match"
+          ]) {
+            if (typeof d[k] !== "boolean") errors.push(`uri_diagnostics.${k}`);
+          }
+          if (!HOST_CLASSES.includes(d.host_class)) {
+            errors.push("uri_diagnostics.host_class");
+          }
+        }
+      }
+      if (errors.length) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_SCHEMA_INVALID",
+          phase: "evidence_schema",
+          missing_or_invalid: errors
+        };
+      }
+      return { ok: true };
+    }
+    function encodeEvidenceFrame(evidence) {
+      const schema = validateEvidenceSchema(evidence);
+      if (!schema.ok) {
+        const e = new Error(schema.code);
+        e.code = schema.code;
+        e.details = schema;
+        throw e;
+      }
+      const json = JSON.stringify(evidence);
+      const buf = Buffer.from(json, "utf8");
+      if (buf.length > MAX_PAYLOAD_BYTES) {
+        const e = new Error("APPLICATOR_EVIDENCE_PAYLOAD_TOO_LARGE");
+        e.code = "APPLICATOR_EVIDENCE_PAYLOAD_TOO_LARGE";
+        throw e;
+      }
+      return `${PROTOCOL_PREFIX}${base64UrlEncode(buf)}`;
+    }
+    function extractEvidenceFrame(stdout) {
+      const text = String(stdout || "").replace(/^\uFEFF/, "");
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      const frames = lines.filter((l) => l.trimStart().startsWith(PROTOCOL_PREFIX));
+      const nonFrames = lines.filter((l) => !l.trimStart().startsWith(PROTOCOL_PREFIX));
+      if (frames.length === 0) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_MISSING",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      if (frames.length > 1) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_MULTIPLE",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      if (nonFrames.length > 0) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_STDOUT_POLLUTED",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      const line = frames[0].trim();
+      if (!line.startsWith(PROTOCOL_PREFIX)) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_MISSING",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      if (line.startsWith("CONTAINMENT_EVIDENCE_") && !line.startsWith(PROTOCOL_PREFIX)) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_PROTOCOL_VERSION_MISMATCH",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      const payload = line.slice(PROTOCOL_PREFIX.length);
+      if (!payload) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_INCOMPLETE_FRAME",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      let buf;
+      try {
+        buf = base64UrlDecode(payload);
+      } catch (err) {
+        return {
+          ok: false,
+          code: err.code || "APPLICATOR_EVIDENCE_BASE64URL_INVALID",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      if (buf.length > MAX_PAYLOAD_BYTES) {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_PAYLOAD_TOO_LARGE",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      let jsonText;
+      try {
+        jsonText = buf.toString("utf8");
+        if (jsonText.includes("\uFFFD") && buf.includes(255)) {
+          return {
+            ok: false,
+            code: "APPLICATOR_EVIDENCE_UTF8_INVALID",
+            phase: "evidence_extract",
+            evidence: null
+          };
+        }
+      } catch {
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_UTF8_INVALID",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      let obj;
+      try {
+        obj = JSON.parse(jsonText);
+      } catch {
+        if (!jsonText.trim().endsWith("}")) {
+          return {
+            ok: false,
+            code: "APPLICATOR_EVIDENCE_INCOMPLETE_FRAME",
+            phase: "evidence_extract",
+            evidence: null
+          };
+        }
+        return {
+          ok: false,
+          code: "APPLICATOR_EVIDENCE_JSON_INVALID",
+          phase: "evidence_extract",
+          evidence: null
+        };
+      }
+      const schema = validateEvidenceSchema(obj);
+      if (!schema.ok) {
+        return {
+          ok: false,
+          code: schema.code,
+          phase: schema.phase,
+          evidence: null,
+          missing_or_invalid: schema.missing_or_invalid
+        };
+      }
+      return { ok: true, code: null, phase: "evidence_extract", evidence: obj };
+    }
+    function legacyHeuristicExtractJson(stdout) {
+      const text = String(stdout || "").trim();
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch {
+        const start = text.indexOf("{");
+        const end = text.lastIndexOf("}");
+        if (start >= 0 && end > start) {
+          try {
+            return JSON.parse(text.slice(start, end + 1));
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      }
+    }
+    function redactSecrets(input) {
+      let s = String(input ?? "");
+      s = s.replace(/postgres(?:ql)?:\/\/[^\s)'"`]+/gi, "postgres://***");
+      s = s.replace(/([?&](?:password|pass|pwd|token|secret)=)[^&\s)'"`]+/gi, "$1***");
+      s = s.replace(/(password|passwd|pwd)\s*[:=]\s*[^\s)'"`]+/gi, "$1=***");
+      s = s.replace(/CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*\S+/gi, "CONTAINMENT_APPLY_DATABASE_URL=***");
+      return s;
+    }
+    function normalizeApplicatorEvidence(partial) {
+      const verdict = partial.verdict || partial.result_code || "BLOCKED";
+      const result_code = partial.result_code || verdict;
+      const reason_code = partial.reason_code || partial.error_code || (typeof partial.error === "string" && partial.error.match(/^[A-Z][A-Z0-9_]+/) ? partial.error.split(":")[0].trim() : result_code);
+      const phase = partial.phase || "applicator";
+      const evidence_source = partial.evidence_source || "sealed_applicator";
+      const out = {
+        protocol_version: SCHEMA_VERSION,
+        schema_version: SCHEMA_VERSION,
+        result_code,
+        reason_code: String(reason_code),
+        phase: String(phase),
+        evidence_source,
+        mode: partial.mode === "apply" ? "apply" : "dry-run",
+        read_only: typeof partial.read_only === "boolean" ? partial.read_only : partial.mode !== "apply",
+        databaseConnectionAttempts: typeof partial.databaseConnectionAttempts === "number" ? partial.databaseConnectionAttempts : 0,
+        sqlApplicationAttempts: typeof partial.sqlApplicationAttempts === "number" ? partial.sqlApplicationAttempts : 0,
+        advisory_lock_acquired: Boolean(partial.advisory_lock_acquired),
+        cleanup: isPlainObject(partial.cleanup) ? partial.cleanup : { completed: true },
+        credential_redaction_confirmation: isPlainObject(
+          partial.credential_redaction_confirmation
+        ) ? partial.credential_redaction_confirmation : {
+          url_in_evidence: false,
+          url_in_argv: false,
+          values_undisclosed: true
+        }
+      };
+      const deny = /* @__PURE__ */ new Set([
+        "database_url",
+        "connectionString",
+        "password",
+        "url"
+      ]);
+      for (const [k, v] of Object.entries(partial)) {
+        if (out[k] !== void 0) continue;
+        if (deny.has(k)) continue;
+        if (v === void 0) continue;
+        if (typeof v === "string") {
+          out[k] = redactSecrets(v);
+        } else {
+          out[k] = v;
+        }
+      }
+      if (typeof out.error === "string") out.error = redactSecrets(out.error);
+      if (typeof out.reason_code === "string") out.reason_code = redactSecrets(out.reason_code);
+      out.verdict = out.verdict || out.result_code;
+      if (typeof out.verdict === "string") out.verdict = redactSecrets(out.verdict);
+      return out;
+    }
+    function writeEvidenceFrameToStdout2(evidence) {
+      const normalized = normalizeApplicatorEvidence(evidence);
+      const frame = encodeEvidenceFrame(normalized);
+      process.stdout.write(`${frame}
+`);
+      return normalized;
+    }
+    function buildWrapperFallback2(fields) {
+      return normalizeApplicatorEvidence({
+        evidence_source: "native_wrapper_fallback",
+        result_code: fields.result_code || "BOOTSTRAP_BLOCKED",
+        verdict: fields.verdict || fields.result_code || "BOOTSTRAP_BLOCKED",
+        reason_code: fields.reason_code || fields.error_code || "WRAPPER_FALLBACK",
+        phase: fields.phase || "wrapper",
+        mode: fields.mode || "dry-run",
+        read_only: true,
+        databaseConnectionAttempts: typeof fields.databaseConnectionAttempts === "number" ? fields.databaseConnectionAttempts : 0,
+        sqlApplicationAttempts: typeof fields.sqlApplicationAttempts === "number" ? fields.sqlApplicationAttempts : 0,
+        advisory_lock_acquired: false,
+        cleanup: fields.cleanup || { completed: true },
+        credential_redaction_confirmation: fields.credential_redaction_confirmation || {
+          url_in_evidence: false,
+          url_in_argv: false,
+          values_undisclosed: true
+        },
+        wrapper: {
+          reason_code: fields.reason_code || fields.error_code || "WRAPPER_FALLBACK",
+          phase: fields.phase || "wrapper",
+          nodeProcessStarted: Boolean(fields.nodeProcessStarted),
+          child_output_received: Boolean(fields.child_output_received),
+          counters_are_wrapper_observed: true,
+          error: fields.error || null
+        },
+        error: fields.error,
+        error_code: fields.error_code || fields.reason_code,
+        ...fields.extra
+      });
+    }
+    module2.exports = {
+      PROTOCOL_ID,
+      PROTOCOL_PREFIX,
+      SCHEMA_VERSION,
+      MAX_PAYLOAD_BYTES,
+      HOST_CLASSES,
+      RESULT_CODES,
+      base64UrlEncode,
+      base64UrlDecode,
+      classifyDatabaseUrl,
+      validateEvidenceSchema,
+      encodeEvidenceFrame,
+      extractEvidenceFrame,
+      legacyHeuristicExtractJson,
+      normalizeApplicatorEvidence,
+      writeEvidenceFrameToStdout: writeEvidenceFrameToStdout2,
+      buildWrapperFallback: buildWrapperFallback2
+    };
+  }
+});
+
 // scripts/security/credential-browser-containment-apply-core.js
 var require_credential_browser_containment_apply_core = __commonJS({
   "scripts/security/credential-browser-containment-apply-core.js"(exports2, module2) {
@@ -5359,6 +5825,10 @@ var require_credential_browser_containment_apply_core = __commonJS({
       assertNoDropCascade,
       sha256Buffer
     } = require_git_blob_authority();
+    var {
+      classifyDatabaseUrl,
+      normalizeApplicatorEvidence
+    } = require_containment_evidence_protocol();
     var IndeterminateCommitError = class extends Error {
       constructor(message, cause) {
         super(message);
@@ -5425,30 +5895,44 @@ var require_credential_browser_containment_apply_core = __commonJS({
     function redactedUrlEvidence() {
       return `${DATABASE_URL_ENV2}=***redacted***`;
     }
-    function resolveDatabaseUrlFromEnv(env = process.env) {
+    function resolveDatabaseUrlFromEnv(env = process.env, expectedProjectRef = EXPECTED_PROJECT_REF2) {
       if (Object.prototype.hasOwnProperty.call(env, "DATABASE_URL") && env.DATABASE_URL) {
         const e = new Error("PROHIBITED_CREDENTIAL_CHANNEL: generic DATABASE_URL is forbidden");
         e.code = "PROHIBITED_CREDENTIAL_CHANNEL";
+        e.uri_diagnostics = classifyDatabaseUrl(env.DATABASE_URL, expectedProjectRef);
+        e.phase = "uri_validate";
         throw e;
       }
       const raw = env[DATABASE_URL_ENV2];
       if (raw == null || String(raw).trim() === "") {
         const e = new Error(`MISSING_INPUT: ${DATABASE_URL_ENV2}`);
         e.code = "MISSING_INPUT";
+        e.uri_diagnostics = classifyDatabaseUrl("", expectedProjectRef);
+        e.phase = "uri_validate";
         throw e;
       }
       const url = String(raw);
-      if (!/^postgres(ql)?:\/\//i.test(url)) {
+      const uri_diagnostics = classifyDatabaseUrl(url, expectedProjectRef);
+      if (!uri_diagnostics.structurally_valid_postgres_uri) {
         const e = new Error(`MALFORMED_DATABASE_URL: ${DATABASE_URL_ENV2} must be a postgres URL`);
         e.code = "MALFORMED_DATABASE_URL";
+        e.uri_diagnostics = uri_diagnostics;
+        e.phase = "uri_validate";
         throw e;
       }
-      return url;
+      return { url, uri_diagnostics };
     }
     function buildEvidenceBase(inputs) {
       return {
         mechanism: "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+        evidence_source: "sealed_applicator",
+        protocol_version: 1,
+        schema_version: 1,
         mode: inputs.mode,
+        read_only: inputs.mode !== "apply",
+        phase: "applicator_init",
+        result_code: "BLOCKED",
+        reason_code: "INIT",
         project_ref_expected: EXPECTED_PROJECT_REF2,
         project_ref_provided: inputs.projectRef,
         pr_head: inputs.prHead,
@@ -5467,8 +5951,36 @@ var require_credential_browser_containment_apply_core = __commonJS({
         sqlApplicationAttempts: 0,
         databaseConnectionAttempts: 0,
         advisory_lock_acquired: false,
-        database_url_channel: redactedUrlEvidence()
+        database_url_channel: redactedUrlEvidence(),
+        cleanup: { completed: false },
+        credential_redaction_confirmation: {
+          url_in_evidence: false,
+          url_in_argv: false,
+          values_undisclosed: true
+        }
       };
+    }
+    function finalizeEvidence(evidence) {
+      const verdict = evidence.verdict || evidence.result_code || "BLOCKED";
+      evidence.verdict = verdict;
+      evidence.result_code = evidence.result_code || verdict;
+      evidence.reason_code = evidence.reason_code || evidence.error_code || (typeof evidence.error === "string" ? evidence.error.split(":")[0].trim() : verdict);
+      evidence.phase = evidence.phase || "applicator";
+      evidence.evidence_source = evidence.evidence_source || "sealed_applicator";
+      evidence.read_only = typeof evidence.read_only === "boolean" ? evidence.read_only : evidence.mode !== "apply";
+      if (!evidence.cleanup || typeof evidence.cleanup !== "object") {
+        evidence.cleanup = { completed: true };
+      } else if (evidence.cleanup.completed == null) {
+        evidence.cleanup.completed = true;
+      }
+      if (!evidence.credential_redaction_confirmation) {
+        evidence.credential_redaction_confirmation = {
+          url_in_evidence: false,
+          url_in_argv: false,
+          values_undisclosed: true
+        };
+      }
+      return normalizeApplicatorEvidence(evidence);
     }
     function resolveGitCwd(inputs) {
       const env = inputs.env || process.env;
@@ -5913,16 +6425,22 @@ var require_credential_browser_containment_apply_core = __commonJS({
       let packed;
       try {
         assertInputPins(inputs);
-        databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        const resolvedDry = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        databaseUrl = resolvedDry.url;
+        evidence.uri_diagnostics = resolvedDry.uri_diagnostics;
         packed = loadSealedMigration(inputs);
       } catch (err) {
         evidence.verdict = "DRY_RUN_BLOCKED";
+        evidence.result_code = "DRY_RUN_BLOCKED";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
         evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
+        evidence.reason_code = err.code || "PIN_OR_LOAD_FAIL";
+        evidence.phase = err.phase || "pre_connect";
+        if (err.uri_diagnostics) evidence.uri_diagnostics = err.uri_diagnostics;
         evidence.sqlApplicationAttempts = 0;
         evidence.databaseConnectionAttempts = 0;
-        return evidence;
+        return finalizeEvidence(evidence);
       }
       evidence.source_authority = {
         kind: "git_blob",
@@ -5965,14 +6483,20 @@ var require_credential_browser_containment_apply_core = __commonJS({
         });
         evidence.sqlApplicationAttempts = 0;
         evidence.verdict = "DRY_RUN_READY";
+        evidence.result_code = "DRY_RUN_READY";
+        evidence.reason_code = "DRY_RUN_READY";
+        evidence.phase = "dry_run_complete";
       } catch (err) {
         evidence.verdict = "DRY_RUN_BLOCKED";
+        evidence.result_code = "DRY_RUN_BLOCKED";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
         evidence.error_code = err.code || "DRY_RUN_FAIL";
+        evidence.reason_code = err.code || "DRY_RUN_FAIL";
+        evidence.phase = err.phase || "dry_run_queries";
         evidence.sqlApplicationAttempts = 0;
       }
-      return evidence;
+      return finalizeEvidence(evidence);
     }
     async function runApply(inputs) {
       const evidence = buildEvidenceBase(inputs);
@@ -5981,16 +6505,22 @@ var require_credential_browser_containment_apply_core = __commonJS({
       let packed;
       try {
         assertInputPins(inputs);
-        databaseUrl = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        const resolvedApply = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        databaseUrl = resolvedApply.url;
+        evidence.uri_diagnostics = resolvedApply.uri_diagnostics;
         packed = loadSealedMigration(inputs);
       } catch (err) {
         evidence.verdict = "APPLY_BLOCKED";
+        evidence.result_code = "APPLY_BLOCKED";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
         evidence.error_code = err.code || "PIN_OR_LOAD_FAIL";
+        evidence.reason_code = err.code || "PIN_OR_LOAD_FAIL";
+        evidence.phase = err.phase || "pre_connect";
+        if (err.uri_diagnostics) evidence.uri_diagnostics = err.uri_diagnostics;
         evidence.sqlApplicationAttempts = 0;
         evidence.databaseConnectionAttempts = 0;
-        return evidence;
+        return finalizeEvidence(evidence);
       }
       evidence.source_authority = {
         kind: "git_blob",
@@ -6099,6 +6629,9 @@ var require_credential_browser_containment_apply_core = __commonJS({
             throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_AFTER_COMMIT_ACK");
           }
           evidence.verdict = "APPLY_COMMITTED";
+          evidence.result_code = "APPLY_COMMITTED";
+          evidence.reason_code = "APPLY_COMMITTED";
+          evidence.phase = "apply_committed";
           evidence.stored_statement_digest = packed.loaded.sha256;
           evidence.stored_statement_bytes = packed.loaded.bytes;
         });
@@ -6106,6 +6639,9 @@ var require_credential_browser_containment_apply_core = __commonJS({
         const uncertain = commitPhase === "committing" || commitPhase === "committed" || err instanceof IndeterminateCommitError;
         if (uncertain || commitPhase === "committing" && isConnectionUncertaintyError(err)) {
           evidence.verdict = "INDETERMINATE_OUTCOME";
+          evidence.result_code = "INDETERMINATE_OUTCOME";
+          evidence.reason_code = "INDETERMINATE_OUTCOME";
+          evidence.phase = "apply_indeterminate";
           evidence.error = sanitizeError2(err);
           evidence.error_sanitized = sanitizeValue2(err);
           evidence.error_code = "INDETERMINATE_OUTCOME";
@@ -6116,9 +6652,12 @@ var require_credential_browser_containment_apply_core = __commonJS({
             packed,
             priorManifest
           );
-          return evidence;
+          return finalizeEvidence(evidence);
         }
         evidence.verdict = "APPLY_ROLLED_BACK";
+        evidence.result_code = "APPLY_ROLLED_BACK";
+        evidence.reason_code = err.code || "APPLY_FAIL";
+        evidence.phase = "apply_rolled_back";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
         evidence.error_code = err.code || "APPLY_FAIL";
@@ -6152,7 +6691,7 @@ var require_credential_browser_containment_apply_core = __commonJS({
           };
         }
       }
-      return evidence;
+      return finalizeEvidence(evidence);
     }
     async function runApplicator2(inputs) {
       const mode = inputs.mode || "dry-run";
@@ -6164,9 +6703,12 @@ var require_credential_browser_containment_apply_core = __commonJS({
       }
       const evidence = buildEvidenceBase({ ...inputs, mode });
       evidence.verdict = "BLOCKED";
+      evidence.result_code = "BLOCKED";
+      evidence.reason_code = "UNKNOWN_MODE";
+      evidence.phase = "mode_select";
       evidence.error = `unknown mode: ${mode}`;
       evidence.sqlApplicationAttempts = 0;
-      return evidence;
+      return finalizeEvidence(evidence);
     }
     module2.exports = {
       runApplicator: runApplicator2,
@@ -6180,6 +6722,8 @@ var require_credential_browser_containment_apply_core = __commonJS({
       assertPreChangeMatch,
       assertInputPins,
       resolveDatabaseUrlFromEnv,
+      classifyDatabaseUrl,
+      finalizeEvidence,
       sanitizeError: sanitizeError2,
       sanitizeValue: sanitizeValue2,
       IndeterminateCommitError,
@@ -6209,6 +6753,10 @@ var {
   sanitizeError,
   sanitizeValue
 } = require_credential_browser_containment_apply_core();
+var {
+  writeEvidenceFrameToStdout,
+  buildWrapperFallback
+} = require_containment_evidence_protocol();
 function parseArgs(argv) {
   const out = {
     mode: "dry-run",
@@ -6317,11 +6865,11 @@ function parseArgs(argv) {
 function printHelp() {
   const help = {
     mechanism: "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+    evidence_protocol: "CONTAINMENT_EVIDENCE_V1",
     default_mode: "dry-run",
     database_url_channel: DATABASE_URL_ENV,
     advisory_lock: ADVISORY_LOCK,
     apply_token_name: "--i-authorize-production-apply",
-    apply_token_value_hint: "(exact committed token; not printed here as operational guidance uses runbook)",
     required_pins: [
       "--project-ref",
       "--pr-head",
@@ -6353,29 +6901,37 @@ function printHelp() {
       "supabase db push"
     ]
   };
-  process.stdout.write(`${JSON.stringify(help, null, 2)}
+  process.stderr.write(`${JSON.stringify(help, null, 2)}
 `);
+}
+function emitBlocked(err, exitCode) {
+  const fallback = buildWrapperFallback({
+    result_code: "BLOCKED",
+    reason_code: err.code || "BLOCKED",
+    phase: err.phase || "cli",
+    mode: "dry-run",
+    error: sanitizeError(err),
+    error_code: err.code || "BLOCKED",
+    databaseConnectionAttempts: 0,
+    sqlApplicationAttempts: 0,
+    nodeProcessStarted: true,
+    child_output_received: false,
+    extra: {
+      evidence_source: "sealed_applicator",
+      error_sanitized: sanitizeValue(err),
+      uri_diagnostics: err.uri_diagnostics
+    }
+  });
+  fallback.evidence_source = "sealed_applicator";
+  writeEvidenceFrameToStdout(fallback);
+  process.exitCode = exitCode;
 }
 async function main() {
   let args;
   try {
     args = parseArgs(process.argv);
   } catch (err) {
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          verdict: "BLOCKED",
-          sqlApplicationAttempts: 0,
-          databaseConnectionAttempts: 0,
-          error: sanitizeError(err),
-          error_sanitized: sanitizeValue(err)
-        },
-        null,
-        2
-      )}
-`
-    );
-    process.exitCode = 2;
+    emitBlocked(err, 2);
     return;
   }
   if (args.help) {
@@ -6401,28 +6957,13 @@ async function main() {
     target2Fingerprint: args.target2Fingerprint,
     env: process.env
   });
-  process.stdout.write(`${JSON.stringify(evidence, null, 2)}
-`);
-  if (evidence.verdict === "DRY_RUN_READY" || evidence.verdict === "APPLY_COMMITTED" || evidence.verdict === "INDETERMINATE_OUTCOME") {
+  writeEvidenceFrameToStdout(evidence);
+  if (evidence.verdict === "DRY_RUN_READY" || evidence.result_code === "DRY_RUN_READY" || evidence.verdict === "APPLY_COMMITTED" || evidence.verdict === "INDETERMINATE_OUTCOME") {
     process.exitCode = evidence.verdict === "INDETERMINATE_OUTCOME" ? 3 : 0;
   } else {
     process.exitCode = 1;
   }
 }
 main().catch((err) => {
-  process.stdout.write(
-    `${JSON.stringify(
-      {
-        verdict: "BLOCKED",
-        sqlApplicationAttempts: 0,
-        databaseConnectionAttempts: 0,
-        error: sanitizeError(err),
-        error_sanitized: sanitizeValue(err)
-      },
-      null,
-      2
-    )}
-`
-  );
-  process.exitCode = 2;
+  emitBlocked(err, 2);
 });

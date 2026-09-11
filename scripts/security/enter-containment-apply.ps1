@@ -39,8 +39,28 @@ $ErrorActionPreference = "Stop"
 
 function Write-EntryEvidence {
   param($Object)
-  $json = $Object | ConvertTo-Json -Depth 12 -Compress:$false
-  [Console]::Out.WriteLine($json)
+  # Ensure minimal V1 schema fields for wrapper fallbacks
+  if (-not $Object.protocol_version) { $Object.protocol_version = 1 }
+  if (-not $Object.schema_version) { $Object.schema_version = 1 }
+  if (-not $Object.result_code) { $Object.result_code = $Object.verdict }
+  if (-not $Object.reason_code) { $Object.reason_code = $Object.error_code }
+  if (-not $Object.evidence_source) { $Object.evidence_source = "native_wrapper_fallback" }
+  if (-not $Object.mode) { $Object.mode = $Mode }
+  if ($null -eq $Object.read_only) { $Object.read_only = $true }
+  if ($null -eq $Object.advisory_lock_acquired) { $Object.advisory_lock_acquired = $false }
+  if (-not $Object.cleanup) { $Object.cleanup = @{ completed = $true } }
+  if (-not $Object.credential_redaction_confirmation) {
+    $Object.credential_redaction_confirmation = @{
+      url_in_evidence = $false
+      url_in_argv = $false
+      values_undisclosed = $true
+    }
+  }
+  $json = $Object | ConvertTo-Json -Depth 12 -Compress
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  $b64 = [Convert]::ToBase64String($bytes)
+  $b64url = (($b64.TrimEnd('=')) -replace '\+', '-' -replace '/', '_')
+  [Console]::Out.WriteLine("CONTAINMENT_EVIDENCE_V1:$b64url")
 }
 
 function Stop-Entry {

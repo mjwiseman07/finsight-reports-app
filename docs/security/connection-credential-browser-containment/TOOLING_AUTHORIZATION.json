@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "a51152b07de07353c1a0c7eaa6c692a65b609685",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -19,17 +19,37 @@
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "cfb6a30a9d899067baf60c7bd859e6c807f39b1b",
-    "sha256": "3ba7866bdfa6a4a4dbbd4d1afa1d00c64c49518a2bcc690584cd37747a0b51c3",
-    "bytes": 22537,
-    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>",
-    "node_resolution": "Get-Command -Name node.exe -CommandType Application → absolute .exe only; no PATHEXT; no bare node"
+    "oid": "15d32045f3f89f2715016c04279b902634a410a7",
+    "sha256": "e36dd937b298c29df90f97cb8fd1325a84706bb0e42f940bcdaa92b5d2de401f",
+    "bytes": 24232,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
   "native_entry": {
     "path": "scripts/security/enter-containment-apply.ps1",
-    "oid": "33ce07cf816be0f0232af85031962ed60035df24",
-    "sha256": "cb9fca9a51ee5007a1aa3f02b487e39282f43d6beaf21c5a14e23a0e8edb0943",
-    "bytes": 9282
+    "oid": "374cf979c5195deb1375b019f8770bf06d09b350",
+    "sha256": "7279da2af533fe57b6d261ef97dde71228a9ebc278ea007fc400895eb9e59993",
+    "bytes": 10398
+  },
+  "evidence_protocol": {
+    "id": "CONTAINMENT_EVIDENCE_V1",
+    "frame": "CONTAINMENT_EVIDENCE_V1:<base64url-utf8-json>",
+    "schema_version": 1,
+    "path": "scripts/security/containment-evidence-protocol.js",
+    "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+    "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+    "bytes": 16255,
+    "frame_tool": {
+      "path": "scripts/security/containment-evidence-frame-tool.js",
+      "oid": "ddcdbdb35dd06b7195c4d3368adb9790a97545cc",
+      "sha256": "9eca2afd66c10458f39f23fd99125e8401d0bccb5b567ba91e02a75e836a579a",
+      "bytes": 2627
+    }
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
+    "oid": "6ec7d0fe6fc080d7df4fb7ae626f9957a4028fa4",
+    "sha256": "125e06c8392ed6fb6502f9e2b6235a82e46aebc135e5cf88ee1d3057a13dc3db",
+    "bytes": 10776
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",
@@ -39,9 +59,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
-    "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
-    "bytes": 224887,
+    "oid": "8f9ad8a4964ea175cdb859c45aa9db71adf450ee",
+    "sha256": "bd6a91f3844777130c2121a27a8d89740526d513523432b3fbe121f83a543785",
+    "bytes": 245961,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -57,27 +77,33 @@
   "tooling_modules": [
     {
       "path": "scripts/security/apply-credential-browser-containment.js",
-      "oid": "dfd130aaa0bf66c9645352d1facbedf557a1db26",
-      "sha256": "e95047759982f4a3163ae404570264e7ea67285030bb0a9b4b09e59139d28798",
-      "bytes": 7010
+      "oid": "dae6fbf21eececb8773b597a8b20c7278b78a27e",
+      "sha256": "8ce8dae0e85cdbd6fe6eaaa65131fb09ccb6b74169df8490c7813589eb392757",
+      "bytes": 7255
     },
     {
       "path": "scripts/security/credential-browser-containment-apply-core.js",
-      "oid": "e9bae84d78f067ed1c08e0157a07da1390d83e71",
-      "sha256": "28a0edc07f0814715f4ac3f7f85d04a25944000bba083cfab1ad19404492f19a",
-      "bytes": 34079
+      "oid": "5c21b8b4b7c164d415ea6a4598ad5b8fc22e9e91",
+      "sha256": "55a445645b6b0b4ff6e0ac2b6cc1ca3a2a5457a75e59fdeb7c04151866f6e77d",
+      "bytes": 37824
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",
-      "oid": "348e16908798f9a98ed1987fdf8a8a977206d9b1",
-      "sha256": "6803736f53bb634e237de58effea002351cf58210e8e71029c6ba7f514d551a4",
-      "bytes": 4399
+      "oid": "6c8b48ceb84b0482caad7ec609491243f7711e99",
+      "sha256": "0e8dec713b6bb7b6eee336c9f9ecac0379c050d3b481bd9316b413aeab33ea3b",
+      "bytes": 4454
     },
     {
       "path": "scripts/security/git-blob-authority.js",
       "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
       "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
       "bytes": 5444
+    },
+    {
+      "path": "scripts/security/containment-evidence-protocol.js",
+      "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+      "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+      "bytes": 16255
     }
   ],
   "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",
