@@ -33,6 +33,7 @@ const SOURCE_MODULES = [
   "scripts/security/credential-browser-containment-constants.js",
   "scripts/security/git-blob-authority.js",
   "scripts/security/containment-evidence-protocol.js",
+  "scripts/security/containment-tls-ca.js",
 ];
 
 function sha256(buf) {
@@ -182,6 +183,7 @@ function main() {
     migration_version: "20260908031736",
     migration_name: "connection_credential_browser_containment",
     database_url_env: "CONTAINMENT_APPLY_DATABASE_URL",
+    ssl_rootcert_env: "CONTAINMENT_APPLY_SSL_ROOTCERT",
     apply_authorization_token: "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
     advisory_lock: {
       name: "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",

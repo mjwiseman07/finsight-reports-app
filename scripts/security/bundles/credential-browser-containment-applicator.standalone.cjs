@@ -26,6 +26,7 @@ var require_credential_browser_containment_constants = __commonJS({
     var MIGRATION_NAME2 = "connection_credential_browser_containment";
     var PRIOR_HISTORY_COUNT = 185;
     var DATABASE_URL_ENV2 = "CONTAINMENT_APPLY_DATABASE_URL";
+    var SSL_ROOTCERT_ENV = "CONTAINMENT_APPLY_SSL_ROOTCERT";
     var APPLY_AUTHORIZATION_TOKEN2 = "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736";
     var ATTESTED_FREEZE_ENV = "CONTAINMENT_ATTESTED_FREEZE";
     var GIT_CWD_ENV = "CONTAINMENT_GIT_CWD";
@@ -48,7 +49,8 @@ var require_credential_browser_containment_constants = __commonJS({
       "scripts/security/credential-browser-containment-apply-core.js",
       "scripts/security/credential-browser-containment-constants.js",
       "scripts/security/git-blob-authority.js",
-      "scripts/security/containment-evidence-protocol.js"
+      "scripts/security/containment-evidence-protocol.js",
+      "scripts/security/containment-tls-ca.js"
     ]);
     module2.exports = {
       ADVISORY_LOCK: ADVISORY_LOCK2,
@@ -62,6 +64,7 @@ var require_credential_browser_containment_constants = __commonJS({
       MIGRATION_NAME: MIGRATION_NAME2,
       PRIOR_HISTORY_COUNT,
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
+      SSL_ROOTCERT_ENV,
       APPLY_AUTHORIZATION_TOKEN: APPLY_AUTHORIZATION_TOKEN2,
       ATTESTED_FREEZE_ENV,
       GIT_CWD_ENV,
@@ -5794,6 +5797,213 @@ var require_containment_evidence_protocol = __commonJS({
   }
 });
 
+// scripts/security/containment-tls-ca.js
+var require_containment_tls_ca = __commonJS({
+  "scripts/security/containment-tls-ca.js"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var path = require("path");
+    var crypto = require("crypto");
+    var tls = require("tls");
+    var { X509Certificate } = require("crypto");
+    var { SSL_ROOTCERT_ENV } = require_credential_browser_containment_constants();
+    var FORBIDDEN_SSLMODES = /* @__PURE__ */ new Set([
+      "disable",
+      "allow",
+      "prefer",
+      "no-verify"
+    ]);
+    function isLoopbackHost(hostname) {
+      const h = String(hostname || "").toLowerCase();
+      return h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "[::1]";
+    }
+    function assertNoTlsBypass(env = process.env) {
+      const reject = String(env.NODE_TLS_REJECT_UNAUTHORIZED ?? "").trim();
+      if (reject === "0") {
+        const e = new Error(
+          "BLOCKED_TLS_BYPASS: NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden"
+        );
+        e.code = "BLOCKED_TLS_BYPASS";
+        e.phase = "tls_policy";
+        throw e;
+      }
+    }
+    function parseDatabaseUrl(databaseUrl) {
+      let u;
+      try {
+        u = new URL(databaseUrl);
+      } catch {
+        const e = new Error("BLOCKED_URI_INVALID: cannot parse database URL");
+        e.code = "BLOCKED_URI_INVALID";
+        e.phase = "tls_policy";
+        throw e;
+      }
+      return u;
+    }
+    function assertUrlTlsPolicy(databaseUrl) {
+      const u = parseDatabaseUrl(databaseUrl);
+      const sslmode = (u.searchParams.get("sslmode") || "").toLowerCase();
+      if (FORBIDDEN_SSLMODES.has(sslmode)) {
+        const e = new Error(
+          `BLOCKED_TLS_BYPASS: sslmode=${sslmode || "(empty)"} is forbidden`
+        );
+        e.code = "BLOCKED_TLS_BYPASS";
+        e.phase = "tls_policy";
+        throw e;
+      }
+      if (u.searchParams.has("sslrootcert") || u.searchParams.has("sslcert") || u.searchParams.has("sslkey")) {
+        const e = new Error(
+          "BLOCKED_TLS_CA_IN_URI: CA/cert paths must use CONTAINMENT_APPLY_SSL_ROOTCERT env, not URL query"
+        );
+        e.code = "BLOCKED_TLS_CA_IN_URI";
+        e.phase = "tls_policy";
+        throw e;
+      }
+      for (const [k, v] of u.searchParams.entries()) {
+        const blob = `${k}=${v}`.toLowerCase();
+        if (blob.includes("no-verify") || blob.includes("rejectunauthorized=false")) {
+          const e = new Error("BLOCKED_TLS_BYPASS: TLS verification disable token in URL");
+          e.code = "BLOCKED_TLS_BYPASS";
+          e.phase = "tls_policy";
+          throw e;
+        }
+      }
+      return u;
+    }
+    function loadCaFromEnv(env = process.env) {
+      const caPath = env[SSL_ROOTCERT_ENV];
+      if (!caPath || !String(caPath).trim()) {
+        return null;
+      }
+      const resolved = path.resolve(String(caPath).trim());
+      let pem;
+      try {
+        pem = fs.readFileSync(resolved);
+      } catch (err) {
+        const e = new Error(
+          `BLOCKED_TLS_CA_UNREADABLE: cannot read ${SSL_ROOTCERT_ENV}`
+        );
+        e.code = "BLOCKED_TLS_CA_UNREADABLE";
+        e.phase = "tls_policy";
+        e.cause = err;
+        throw e;
+      }
+      const text = pem.toString("utf8");
+      if (!/-----BEGIN CERTIFICATE-----/.test(text)) {
+        const e = new Error("BLOCKED_TLS_CA_INVALID: PEM certificate marker missing");
+        e.code = "BLOCKED_TLS_CA_INVALID";
+        e.phase = "tls_policy";
+        throw e;
+      }
+      let x509;
+      try {
+        x509 = new X509Certificate(pem);
+      } catch (err) {
+        const e = new Error("BLOCKED_TLS_CA_INVALID: X509 parse failed");
+        e.code = "BLOCKED_TLS_CA_INVALID";
+        e.phase = "tls_policy";
+        e.cause = err;
+        throw e;
+      }
+      return {
+        pem: text,
+        path_resolved: resolved,
+        der_sha256: crypto.createHash("sha256").update(x509.raw).digest("hex"),
+        pem_sha256: crypto.createHash("sha256").update(pem).digest("hex"),
+        bytes: pem.length,
+        valid_from: x509.validFrom,
+        valid_to: x509.validTo,
+        self_signed: x509.subject === x509.issuer,
+        subject_class: /supabase/i.test(x509.subject) ? "supabase_named" : "other"
+      };
+    }
+    function sanitizeCaEvidence(ca) {
+      if (!ca) {
+        return {
+          ca_provided: false,
+          path_redacted: true
+        };
+      }
+      return {
+        ca_provided: true,
+        path_redacted: true,
+        der_sha256: ca.der_sha256,
+        pem_sha256: ca.pem_sha256,
+        bytes: ca.bytes,
+        valid_from: ca.valid_from,
+        valid_to: ca.valid_to,
+        self_signed: ca.self_signed,
+        subject_class: ca.subject_class
+      };
+    }
+    function buildPgClientOptions(databaseUrl, env = process.env) {
+      assertNoTlsBypass(env);
+      const u = assertUrlTlsPolicy(databaseUrl);
+      const loopback = isLoopbackHost(u.hostname);
+      const ca = loadCaFromEnv(env);
+      if (!loopback && !ca) {
+        const e = new Error(
+          `BLOCKED_TLS_CA_REQUIRED: non-loopback targets require ${SSL_ROOTCERT_ENV}`
+        );
+        e.code = "BLOCKED_TLS_CA_REQUIRED";
+        e.phase = "tls_policy";
+        throw e;
+      }
+      const cleaned = new URL(u.toString());
+      cleaned.searchParams.delete("sslmode");
+      cleaned.searchParams.delete("uselibpqcompat");
+      if (!ca) {
+        return {
+          connectionString: cleaned.toString(),
+          ssl: false,
+          tls_evidence: {
+            mode: "loopback_no_tls",
+            hostname_verification: "n/a",
+            ca: sanitizeCaEvidence(null)
+          }
+        };
+      }
+      const ssl = {
+        rejectUnauthorized: true,
+        ca: ca.pem,
+        checkServerIdentity: tls.checkServerIdentity,
+        minVersion: "TLSv1.2"
+      };
+      return {
+        connectionString: cleaned.toString(),
+        ssl,
+        tls_evidence: {
+          mode: "verify_full_explicit_ca",
+          hostname_verification: "enabled",
+          reject_unauthorized: true,
+          ca: sanitizeCaEvidence(ca)
+        }
+      };
+    }
+    function classifyTlsError(err) {
+      const code = String(err && (err.code || err.message) || "");
+      if (/SELF_SIGNED_CERT_IN_CHAIN/i.test(code)) return "SELF_SIGNED_CERT_IN_CHAIN";
+      if (/UNABLE_TO_VERIFY_LEAF_SIGNATURE/i.test(code)) return "UNABLE_TO_VERIFY_LEAF_SIGNATURE";
+      if (/CERT_HAS_EXPIRED/i.test(code)) return "CERT_HAS_EXPIRED";
+      if (/ERR_TLS_CERT_ALTNAME_INVALID|Hostname\/IP does not match/i.test(code))
+        return "HOSTNAME_MISMATCH";
+      if (/BLOCKED_TLS_/i.test(code)) return err.code;
+      return err && err.code ? err.code : "TLS_FAIL";
+    }
+    module2.exports = {
+      SSL_ROOTCERT_ENV,
+      FORBIDDEN_SSLMODES,
+      isLoopbackHost,
+      assertNoTlsBypass,
+      assertUrlTlsPolicy,
+      loadCaFromEnv,
+      sanitizeCaEvidence,
+      buildPgClientOptions,
+      classifyTlsError
+    };
+  }
+});
+
 // scripts/security/credential-browser-containment-apply-core.js
 var require_credential_browser_containment_apply_core = __commonJS({
   "scripts/security/credential-browser-containment-apply-core.js"(exports2, module2) {
@@ -5829,6 +6039,10 @@ var require_credential_browser_containment_apply_core = __commonJS({
       classifyDatabaseUrl,
       normalizeApplicatorEvidence
     } = require_containment_evidence_protocol();
+    var {
+      buildPgClientOptions,
+      classifyTlsError
+    } = require_containment_tls_ca();
     var IndeterminateCommitError = class extends Error {
       constructor(message, cause) {
         super(message);
@@ -5875,7 +6089,7 @@ var require_credential_browser_containment_apply_core = __commonJS({
         const out = {};
         for (const [k, v] of Object.entries(value)) {
           const key = String(k).toLowerCase();
-          if (key.includes("password") || key.includes("connectionstring") || key.includes("database_url") || key.includes("databaseurl") || key === "argv" || key === "config" || key === "connectionparameters" || key === "access_token" || key === "refresh_token") {
+          if (key.includes("password") || key.includes("connectionstring") || key.includes("database_url") || key.includes("databaseurl") || key.includes("sslrootcert") || key === "ca" || key === "argv" || key === "config" || key === "connectionparameters" || key === "access_token" || key === "refresh_token") {
             out[k] = "[redacted]";
             continue;
           }
@@ -6150,11 +6364,18 @@ var require_credential_browser_containment_apply_core = __commonJS({
         throw e;
       }
     }
-    async function withClient(databaseUrl, fn) {
-      const client = new Client({ connectionString: databaseUrl });
+    async function withClient(databaseUrl, fn, env = process.env, onReadyToConnect = null) {
+      const opts = buildPgClientOptions(databaseUrl, env);
+      if (typeof onReadyToConnect === "function") {
+        onReadyToConnect(opts.tls_evidence);
+      }
+      const client = new Client({
+        connectionString: opts.connectionString,
+        ssl: opts.ssl
+      });
       await client.connect();
       try {
-        return await fn(client);
+        return await fn(client, opts.tls_evidence);
       } finally {
         await client.end().catch(() => {
         });
@@ -6360,7 +6581,7 @@ var require_credential_browser_containment_apply_core = __commonJS({
       const innerSql = stripOuterBeginCommit(fullSql);
       return { loaded, fullSql, innerSql };
     }
-    async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorManifest) {
+    async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorManifest, env = process.env) {
       const result = {
         classification: "INDETERMINATE_REQUIRES_OPERATOR",
         version_present: null,
@@ -6410,7 +6631,7 @@ var require_credential_browser_containment_apply_core = __commonJS({
           } else {
             result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
           }
-        });
+        }, env);
       } catch (err) {
         result.reconcile_error = sanitizeError2(err);
         result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
@@ -6451,36 +6672,45 @@ var require_credential_browser_containment_apply_core = __commonJS({
         bytes: packed.loaded.bytes
       };
       try {
-        evidence.databaseConnectionAttempts = 1;
-        await withClient(databaseUrl, async (client) => {
-          await client.query("SET default_transaction_read_only = on");
-          await assertVersionAbsent(client, inputs.version);
-          await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-          const manifest = await captureHistoryManifest(client);
-          evidence.prior_history_manifest = manifest;
-          evidence.prior_history_count = manifest.length;
-          const probe = await probePreChangeContract(client);
-          assertPreChangeMatch(probe);
-          evidence.pre_change_probe = {
-            residual_select_policy: probe.residual_select_policy,
-            qb_browser_policy: probe.qb_browser_policy,
-            auth_token_select: probe.auth_ac_tok,
-            view_has_tokens: probe.view_has_access_token && probe.view_has_refresh_token,
-            view_dependents: Number(probe.view_dependents),
-            ac_rls: probe.ac_rls,
-            qb_rls: probe.qb_rls,
-            view_owner: probe.view_owner
-          };
-          const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
-          assertTarget2Ok(t2);
-          evidence.target2 = {
-            fingerprint: t2.fingerprint,
-            matching_rows: t2.matching_rows,
-            has_token_presence_boolean: t2.has_token_presence_boolean
-          };
-          await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-          await assertVersionAbsent(client, inputs.version);
-        });
+        evidence.databaseConnectionAttempts = 0;
+        const env = inputs.env || process.env;
+        await withClient(
+          databaseUrl,
+          async (client) => {
+            await client.query("SET default_transaction_read_only = on");
+            await assertVersionAbsent(client, inputs.version);
+            await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
+            const manifest = await captureHistoryManifest(client);
+            evidence.prior_history_manifest = manifest;
+            evidence.prior_history_count = manifest.length;
+            const probe = await probePreChangeContract(client);
+            assertPreChangeMatch(probe);
+            evidence.pre_change_probe = {
+              residual_select_policy: probe.residual_select_policy,
+              qb_browser_policy: probe.qb_browser_policy,
+              auth_token_select: probe.auth_ac_tok,
+              view_has_tokens: probe.view_has_access_token && probe.view_has_refresh_token,
+              view_dependents: Number(probe.view_dependents),
+              ac_rls: probe.ac_rls,
+              qb_rls: probe.qb_rls,
+              view_owner: probe.view_owner
+            };
+            const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+            assertTarget2Ok(t2);
+            evidence.target2 = {
+              fingerprint: t2.fingerprint,
+              matching_rows: t2.matching_rows,
+              has_token_presence_boolean: t2.has_token_presence_boolean
+            };
+            await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
+            await assertVersionAbsent(client, inputs.version);
+          },
+          env,
+          (tlsEv) => {
+            evidence.tls = tlsEv;
+            evidence.databaseConnectionAttempts = 1;
+          }
+        );
         evidence.sqlApplicationAttempts = 0;
         evidence.verdict = "DRY_RUN_READY";
         evidence.result_code = "DRY_RUN_READY";
@@ -6491,9 +6721,13 @@ var require_credential_browser_containment_apply_core = __commonJS({
         evidence.result_code = "DRY_RUN_BLOCKED";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
-        evidence.error_code = err.code || "DRY_RUN_FAIL";
-        evidence.reason_code = err.code || "DRY_RUN_FAIL";
+        const tlsCode = classifyTlsError(err);
+        evidence.error_code = tlsCode || err.code || "DRY_RUN_FAIL";
+        evidence.reason_code = tlsCode || err.code || "DRY_RUN_FAIL";
         evidence.phase = err.phase || "dry_run_queries";
+        if (err.phase === "tls_policy") {
+          evidence.databaseConnectionAttempts = 0;
+        }
         evidence.sqlApplicationAttempts = 0;
       }
       return finalizeEvidence(evidence);
@@ -6532,109 +6766,118 @@ var require_credential_browser_containment_apply_core = __commonJS({
       };
       let priorManifest = null;
       let commitPhase = "pre_commit";
+      const env = inputs.env || process.env;
       try {
-        evidence.databaseConnectionAttempts = 1;
-        await withClient(databaseUrl, async (client) => {
-          await client.query("BEGIN");
-          await client.query("SET LOCAL statement_timeout = '15s'");
-          await client.query("SET LOCAL lock_timeout = '5s'");
-          await client.query("SELECT pg_advisory_xact_lock($1::int, $2::int)", [
-            ADVISORY_LOCK2.key1,
-            ADVISORY_LOCK2.key2
-          ]);
-          evidence.advisory_lock_acquired = true;
-          await assertVersionAbsent(client, inputs.version);
-          await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-          priorManifest = await captureHistoryManifest(client);
-          evidence.prior_history_count = priorManifest.length;
-          const probe = await probePreChangeContract(client);
-          assertPreChangeMatch(probe);
-          const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
-          assertTarget2Ok(t2);
-          evidence.target2 = {
-            fingerprint: t2.fingerprint,
-            matching_rows: t2.matching_rows,
-            has_token_presence_boolean: t2.has_token_presence_boolean
-          };
-          if (inputs.injectFailure === "before_sql") {
-            throw new Error("INJECTED_FAILURE_BEFORE_SQL");
-          }
-          evidence.sqlApplicationAttempts = 1;
-          await client.query(packed.innerSql);
-          if (inputs.injectFailure === "before_history") {
-            throw new Error("INJECTED_FAILURE_BEFORE_HISTORY");
-          }
-          await client.query(
-            `INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
+        evidence.databaseConnectionAttempts = 0;
+        await withClient(
+          databaseUrl,
+          async (client) => {
+            await client.query("BEGIN");
+            await client.query("SET LOCAL statement_timeout = '15s'");
+            await client.query("SET LOCAL lock_timeout = '5s'");
+            await client.query("SELECT pg_advisory_xact_lock($1::int, $2::int)", [
+              ADVISORY_LOCK2.key1,
+              ADVISORY_LOCK2.key2
+            ]);
+            evidence.advisory_lock_acquired = true;
+            await assertVersionAbsent(client, inputs.version);
+            await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
+            priorManifest = await captureHistoryManifest(client);
+            evidence.prior_history_count = priorManifest.length;
+            const probe = await probePreChangeContract(client);
+            assertPreChangeMatch(probe);
+            const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+            assertTarget2Ok(t2);
+            evidence.target2 = {
+              fingerprint: t2.fingerprint,
+              matching_rows: t2.matching_rows,
+              has_token_presence_boolean: t2.has_token_presence_boolean
+            };
+            if (inputs.injectFailure === "before_sql") {
+              throw new Error("INJECTED_FAILURE_BEFORE_SQL");
+            }
+            evidence.sqlApplicationAttempts = 1;
+            await client.query(packed.innerSql);
+            if (inputs.injectFailure === "before_history") {
+              throw new Error("INJECTED_FAILURE_BEFORE_HISTORY");
+            }
+            await client.query(
+              `INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
          VALUES ($1, $2, ARRAY[$3]::text[])`,
-            [inputs.version, inputs.name, packed.fullSql]
-          );
-          if (inputs.injectFailure === "after_history") {
-            throw new Error("INJECTED_FAILURE_AFTER_HISTORY");
-          }
-          if (inputs.injectFailure === "mutate_prior") {
-            const victim = priorManifest[0];
-            if (victim) {
-              await client.query(
-                `UPDATE supabase_migrations.schema_migrations
+              [inputs.version, inputs.name, packed.fullSql]
+            );
+            if (inputs.injectFailure === "after_history") {
+              throw new Error("INJECTED_FAILURE_AFTER_HISTORY");
+            }
+            if (inputs.injectFailure === "mutate_prior") {
+              const victim = priorManifest[0];
+              if (victim) {
+                await client.query(
+                  `UPDATE supabase_migrations.schema_migrations
              SET name = name || '_MUTATED'
              WHERE version = $1`,
-                [victim.version]
-              );
+                  [victim.version]
+                );
+              }
             }
-          }
-          const { rows: stored } = await client.query(
-            `SELECT version, name, statements
+            const { rows: stored } = await client.query(
+              `SELECT version, name, statements
          FROM supabase_migrations.schema_migrations
          WHERE version = $1`,
-            [inputs.version]
-          );
-          if (stored.length !== 1) {
-            throw new Error("HISTORY_INSERT_VERIFY_FAIL: version row count != 1");
-          }
-          const stmts = stored[0].statements || [];
-          if (stmts.length !== 1) {
-            throw new Error(`HISTORY_INSERT_VERIFY_FAIL: statement count ${stmts.length} != 1`);
-          }
-          if (stmts[0] !== packed.fullSql) {
-            throw new Error("HISTORY_INSERT_VERIFY_FAIL: statements[1] != sealed full migration file");
-          }
-          if (sha256Buffer(Buffer.from(stmts[0], "utf8")) !== packed.loaded.sha256) {
-            throw new Error("HISTORY_INSERT_VERIFY_FAIL: stored statement digest mismatch");
-          }
-          if (Buffer.byteLength(stmts[0], "utf8") !== packed.loaded.bytes) {
-            throw new Error("HISTORY_INSERT_VERIFY_FAIL: stored statement byte length mismatch");
-          }
-          const postManifest = await captureHistoryManifest(client);
-          const priorOnly = postManifest.filter((r) => r.version !== inputs.version);
-          if (!manifestsEqual(priorOnly, priorManifest)) {
-            throw new Error("PRIOR_HISTORY_MUTATION_DETECTED");
-          }
-          if (postManifest.length !== PRIOR_HISTORY_COUNT + 1) {
-            throw new Error(
-              `HISTORY_COUNT_AFTER_MISMATCH: got ${postManifest.length}, expected ${PRIOR_HISTORY_COUNT + 1}`
+              [inputs.version]
             );
+            if (stored.length !== 1) {
+              throw new Error("HISTORY_INSERT_VERIFY_FAIL: version row count != 1");
+            }
+            const stmts = stored[0].statements || [];
+            if (stmts.length !== 1) {
+              throw new Error(`HISTORY_INSERT_VERIFY_FAIL: statement count ${stmts.length} != 1`);
+            }
+            if (stmts[0] !== packed.fullSql) {
+              throw new Error("HISTORY_INSERT_VERIFY_FAIL: statements[1] != sealed full migration file");
+            }
+            if (sha256Buffer(Buffer.from(stmts[0], "utf8")) !== packed.loaded.sha256) {
+              throw new Error("HISTORY_INSERT_VERIFY_FAIL: stored statement digest mismatch");
+            }
+            if (Buffer.byteLength(stmts[0], "utf8") !== packed.loaded.bytes) {
+              throw new Error("HISTORY_INSERT_VERIFY_FAIL: stored statement byte length mismatch");
+            }
+            const postManifest = await captureHistoryManifest(client);
+            const priorOnly = postManifest.filter((r) => r.version !== inputs.version);
+            if (!manifestsEqual(priorOnly, priorManifest)) {
+              throw new Error("PRIOR_HISTORY_MUTATION_DETECTED");
+            }
+            if (postManifest.length !== PRIOR_HISTORY_COUNT + 1) {
+              throw new Error(
+                `HISTORY_COUNT_AFTER_MISMATCH: got ${postManifest.length}, expected ${PRIOR_HISTORY_COUNT + 1}`
+              );
+            }
+            await assertContainedPrivileges(client);
+            if (inputs.injectFailure === "before_commit") {
+              throw new Error("INJECTED_FAILURE_BEFORE_COMMIT");
+            }
+            commitPhase = "committing";
+            if (inputs.injectFailure === "during_commit") {
+              throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_DURING_COMMIT");
+            }
+            await client.query("COMMIT");
+            commitPhase = "committed";
+            if (inputs.injectFailure === "after_commit_ack") {
+              throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_AFTER_COMMIT_ACK");
+            }
+            evidence.verdict = "APPLY_COMMITTED";
+            evidence.result_code = "APPLY_COMMITTED";
+            evidence.reason_code = "APPLY_COMMITTED";
+            evidence.phase = "apply_committed";
+            evidence.stored_statement_digest = packed.loaded.sha256;
+            evidence.stored_statement_bytes = packed.loaded.bytes;
+          },
+          env,
+          (tlsEv) => {
+            evidence.tls = tlsEv;
+            evidence.databaseConnectionAttempts = 1;
           }
-          await assertContainedPrivileges(client);
-          if (inputs.injectFailure === "before_commit") {
-            throw new Error("INJECTED_FAILURE_BEFORE_COMMIT");
-          }
-          commitPhase = "committing";
-          if (inputs.injectFailure === "during_commit") {
-            throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_DURING_COMMIT");
-          }
-          await client.query("COMMIT");
-          commitPhase = "committed";
-          if (inputs.injectFailure === "after_commit_ack") {
-            throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_AFTER_COMMIT_ACK");
-          }
-          evidence.verdict = "APPLY_COMMITTED";
-          evidence.result_code = "APPLY_COMMITTED";
-          evidence.reason_code = "APPLY_COMMITTED";
-          evidence.phase = "apply_committed";
-          evidence.stored_statement_digest = packed.loaded.sha256;
-          evidence.stored_statement_bytes = packed.loaded.bytes;
-        });
+        );
       } catch (err) {
         const uncertain = commitPhase === "committing" || commitPhase === "committed" || err instanceof IndeterminateCommitError;
         if (uncertain || commitPhase === "committing" && isConnectionUncertaintyError(err)) {
@@ -6650,7 +6893,8 @@ var require_credential_browser_containment_apply_core = __commonJS({
             databaseUrl,
             inputs,
             packed,
-            priorManifest
+            priorManifest,
+            env
           );
           return finalizeEvidence(evidence);
         }
@@ -6684,7 +6928,7 @@ var require_credential_browser_containment_apply_core = __commonJS({
               const now = await captureHistoryManifest(client);
               evidence.rollback_verify.prior_manifest_unchanged = manifestsEqual(now, priorManifest);
             }
-          });
+          }, env);
         } catch (verifyErr) {
           evidence.rollback_verify = {
             error: sanitizeError2(verifyErr)

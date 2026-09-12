@@ -36,6 +36,10 @@ const {
   classifyDatabaseUrl,
   normalizeApplicatorEvidence,
 } = require("./containment-evidence-protocol");
+const {
+  buildPgClientOptions,
+  classifyTlsError,
+} = require("./containment-tls-ca");
 
 class IndeterminateCommitError extends Error {
   constructor(message, cause) {
@@ -92,6 +96,8 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
         key.includes("connectionstring") ||
         key.includes("database_url") ||
         key.includes("databaseurl") ||
+        key.includes("sslrootcert") ||
+        key === "ca" ||
         key === "argv" ||
         key === "config" ||
         key === "connectionparameters" ||
@@ -415,11 +421,18 @@ function assertInputPins(inputs) {
   }
 }
 
-async function withClient(databaseUrl, fn) {
-  const client = new Client({ connectionString: databaseUrl });
+async function withClient(databaseUrl, fn, env = process.env, onReadyToConnect = null) {
+  const opts = buildPgClientOptions(databaseUrl, env);
+  if (typeof onReadyToConnect === "function") {
+    onReadyToConnect(opts.tls_evidence);
+  }
+  const client = new Client({
+    connectionString: opts.connectionString,
+    ssl: opts.ssl,
+  });
   await client.connect();
   try {
-    return await fn(client);
+    return await fn(client, opts.tls_evidence);
   } finally {
     await client.end().catch(() => {});
   }
@@ -672,7 +685,7 @@ function loadSealedMigration(inputs) {
   return { loaded, fullSql, innerSql };
 }
 
-async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorManifest) {
+async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorManifest, env = process.env) {
   const result = {
     classification: "INDETERMINATE_REQUIRES_OPERATOR",
     version_present: null,
@@ -732,7 +745,7 @@ async function reconcileAfterIndeterminate(databaseUrl, inputs, packed, priorMan
       } else {
         result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
       }
-    });
+    }, env);
   } catch (err) {
     result.reconcile_error = sanitizeError(err);
     result.classification = "INDETERMINATE_REQUIRES_OPERATOR";
@@ -778,39 +791,48 @@ async function runDryRun(inputs) {
   };
 
   try {
-    evidence.databaseConnectionAttempts = 1;
-    await withClient(databaseUrl, async (client) => {
-      await client.query("SET default_transaction_read_only = on");
-      await assertVersionAbsent(client, inputs.version);
-      await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-      const manifest = await captureHistoryManifest(client);
-      evidence.prior_history_manifest = manifest;
-      evidence.prior_history_count = manifest.length;
+    evidence.databaseConnectionAttempts = 0;
+    const env = inputs.env || process.env;
+    await withClient(
+      databaseUrl,
+      async (client) => {
+        await client.query("SET default_transaction_read_only = on");
+        await assertVersionAbsent(client, inputs.version);
+        await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
+        const manifest = await captureHistoryManifest(client);
+        evidence.prior_history_manifest = manifest;
+        evidence.prior_history_count = manifest.length;
 
-      const probe = await probePreChangeContract(client);
-      assertPreChangeMatch(probe);
-      evidence.pre_change_probe = {
-        residual_select_policy: probe.residual_select_policy,
-        qb_browser_policy: probe.qb_browser_policy,
-        auth_token_select: probe.auth_ac_tok,
-        view_has_tokens: probe.view_has_access_token && probe.view_has_refresh_token,
-        view_dependents: Number(probe.view_dependents),
-        ac_rls: probe.ac_rls,
-        qb_rls: probe.qb_rls,
-        view_owner: probe.view_owner,
-      };
+        const probe = await probePreChangeContract(client);
+        assertPreChangeMatch(probe);
+        evidence.pre_change_probe = {
+          residual_select_policy: probe.residual_select_policy,
+          qb_browser_policy: probe.qb_browser_policy,
+          auth_token_select: probe.auth_ac_tok,
+          view_has_tokens: probe.view_has_access_token && probe.view_has_refresh_token,
+          view_dependents: Number(probe.view_dependents),
+          ac_rls: probe.ac_rls,
+          qb_rls: probe.qb_rls,
+          view_owner: probe.view_owner,
+        };
 
-      const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
-      assertTarget2Ok(t2);
-      evidence.target2 = {
-        fingerprint: t2.fingerprint,
-        matching_rows: t2.matching_rows,
-        has_token_presence_boolean: t2.has_token_presence_boolean,
-      };
+        const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+        assertTarget2Ok(t2);
+        evidence.target2 = {
+          fingerprint: t2.fingerprint,
+          matching_rows: t2.matching_rows,
+          has_token_presence_boolean: t2.has_token_presence_boolean,
+        };
 
-      await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-      await assertVersionAbsent(client, inputs.version);
-    });
+        await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
+        await assertVersionAbsent(client, inputs.version);
+      },
+      env,
+      (tlsEv) => {
+        evidence.tls = tlsEv;
+        evidence.databaseConnectionAttempts = 1;
+      },
+    );
 
     evidence.sqlApplicationAttempts = 0;
     evidence.verdict = "DRY_RUN_READY";
@@ -822,9 +844,13 @@ async function runDryRun(inputs) {
     evidence.result_code = "DRY_RUN_BLOCKED";
     evidence.error = sanitizeError(err);
     evidence.error_sanitized = sanitizeValue(err);
-    evidence.error_code = err.code || "DRY_RUN_FAIL";
-    evidence.reason_code = err.code || "DRY_RUN_FAIL";
+    const tlsCode = classifyTlsError(err);
+    evidence.error_code = tlsCode || err.code || "DRY_RUN_FAIL";
+    evidence.reason_code = tlsCode || err.code || "DRY_RUN_FAIL";
     evidence.phase = err.phase || "dry_run_queries";
+    if (err.phase === "tls_policy") {
+      evidence.databaseConnectionAttempts = 0;
+    }
     evidence.sqlApplicationAttempts = 0;
   }
   return finalizeEvidence(evidence);
@@ -867,10 +893,13 @@ async function runApply(inputs) {
 
   let priorManifest = null;
   let commitPhase = "pre_commit";
+  const env = inputs.env || process.env;
 
   try {
-    evidence.databaseConnectionAttempts = 1;
-    await withClient(databaseUrl, async (client) => {
+    evidence.databaseConnectionAttempts = 0;
+    await withClient(
+      databaseUrl,
+      async (client) => {
       await client.query("BEGIN");
       await client.query("SET LOCAL statement_timeout = '15s'");
       await client.query("SET LOCAL lock_timeout = '5s'");
@@ -986,7 +1015,13 @@ async function runApply(inputs) {
       evidence.phase = "apply_committed";
       evidence.stored_statement_digest = packed.loaded.sha256;
       evidence.stored_statement_bytes = packed.loaded.bytes;
-    });
+    },
+      env,
+      (tlsEv) => {
+        evidence.tls = tlsEv;
+        evidence.databaseConnectionAttempts = 1;
+      },
+    );
   } catch (err) {
     const uncertain =
       commitPhase === "committing" ||
@@ -1007,6 +1042,7 @@ async function runApply(inputs) {
         inputs,
         packed,
         priorManifest,
+        env,
       );
       // Never auto-retry / auto-rollback
       return finalizeEvidence(evidence);
@@ -1042,7 +1078,7 @@ async function runApply(inputs) {
           const now = await captureHistoryManifest(client);
           evidence.rollback_verify.prior_manifest_unchanged = manifestsEqual(now, priorManifest);
         }
-      });
+      }, env);
     } catch (verifyErr) {
       evidence.rollback_verify = {
         error: sanitizeError(verifyErr),

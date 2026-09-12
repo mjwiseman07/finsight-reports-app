@@ -359,6 +359,16 @@ try {
   if ($dbPresent) {
     $childEnv[$dbEnvName] = [Environment]::GetEnvironmentVariable($dbEnvName, "Process")
   }
+  $caEnvName = "CONTAINMENT_APPLY_SSL_ROOTCERT"
+  $caPresent = $null -ne [Environment]::GetEnvironmentVariable($caEnvName, "Process") -and [Environment]::GetEnvironmentVariable($caEnvName, "Process") -ne ""
+  if ($caPresent) {
+    $childEnv[$caEnvName] = [Environment]::GetEnvironmentVariable($caEnvName, "Process")
+  }
+  # Fail closed: never forward TLS bypass
+  if ([Environment]::GetEnvironmentVariable("NODE_TLS_REJECT_UNAUTHORIZED", "Process") -eq "0") {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BLOCKED_TLS_BYPASS" -Phase "tls_policy" -Message "NODE_TLS_REJECT_UNAUTHORIZED=0 forbidden" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+  }
   $childEnv["CONTAINMENT_ATTESTED_FREEZE"] = $freeze
   $childEnv["CONTAINMENT_GIT_CWD"] = $RepoRoot
 
@@ -366,7 +376,7 @@ try {
     "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
     "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
     "npm_config_node_options", "npm_node_execpath",
-    "DATABASE_URL"
+    "DATABASE_URL", "NODE_TLS_REJECT_UNAUTHORIZED"
   )
   foreach ($bad in $prohibitedNodeEnv) {
     if (Test-ProhibitedNodeEnvPresent -Name $bad) {

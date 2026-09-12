@@ -225,7 +225,8 @@ try {
   $removeKeys = @(
     "NODE_OPTIONS", "NODE_PATH", "NODE_REPL_EXTERNAL_MODULE",
     "NODE_IGNORE_NEXT_LOADER_HEADERS", "NODE_CHANNEL_FD",
-    "npm_config_node_options", "npm_node_execpath", "DATABASE_URL"
+    "npm_config_node_options", "npm_node_execpath", "DATABASE_URL",
+    "NODE_TLS_REJECT_UNAUTHORIZED"
   )
   $stripped = $false
   foreach ($k in $removeKeys) {
