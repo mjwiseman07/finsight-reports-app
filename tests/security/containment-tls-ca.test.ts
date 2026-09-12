@@ -1,6 +1,8 @@
 /**
- * Mandatory TLS CA channel tests — zero skips.
+ * Mandatory TLS trust-root tests — embedded official CA; zero skips.
  * Missing Docker/OpenSSL fails the gate explicitly (no describe.skipIf).
+ * Disposable SSL uses in-memory synthetic CA via testTrustedCaPem only
+ * (never CONTAINMENT_APPLY_SSL_ROOTCERT / filesystem trust).
  */
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import fs from "node:fs";
@@ -13,18 +15,17 @@ import { Client } from "pg";
 import {
   buildPgClientOptions,
   assertNoTlsBypass,
+  assertNoCaPathChannel,
   sanitizeCaEvidence,
   classifyTlsError,
-  loadCaFromEnv,
+  loadOfficialEmbeddedCa,
+  loadPinnedCaFromPem,
+  OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+  FORBIDDEN_SSL_ROOTCERT_ENV,
 } from "../../scripts/security/containment-tls-ca.js";
-
-const { SSL_ROOTCERT_ENV } =
-  require("../../scripts/security/credential-browser-containment-constants.js");
-
-const OFFICIAL_CA_DER =
-  "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa";
-const OFFICIAL_CA_URL =
-  "https://raw.githubusercontent.com/supabase/cli/develop/apps/cli-go/internal/gen/types/templates/prod-ca-2021.crt";
+import {
+  OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+} from "../../scripts/security/embedded-supabase-prod-ca-2021.js";
 
 function resolveOpenSsl() {
   const candidates = [
@@ -60,23 +61,6 @@ function requireDocker() {
   }
 }
 
-function ensureOfficialCa() {
-  const p = path.join(os.tmpdir(), "official-prod-ca-2021.crt");
-  if (!fs.existsSync(p) || fs.statSync(p).size < 100) {
-    const r = spawnSync(
-      "curl.exe",
-      ["-sL", OFFICIAL_CA_URL, "-o", p, "-w", "%{http_code}"],
-      { encoding: "utf8", windowsHide: true },
-    );
-    if ((r.stdout || "").trim() !== "200" || !fs.existsSync(p)) {
-      throw new Error(
-        "MANDATORY_DEP_MISSING: cannot fetch official Supabase prod-ca-2021.crt",
-      );
-    }
-  }
-  return p;
-}
-
 function openssl(bin, args) {
   const r = spawnSync(bin, args, { encoding: "utf8", windowsHide: true });
   if (r.status !== 0) {
@@ -108,7 +92,6 @@ function makeCa(bin, dir, name, days) {
   const key = path.join(dir, `${name}.key`);
   const crt = path.join(dir, `${name}.crt`);
   openssl(bin, ["genrsa", "-out", key, "2048"]);
-  // OpenSSL 3.5 (Git for Windows) rejects combining -sha256 with -extfile on req.
   openssl(bin, [
     "req",
     "-x509",
@@ -123,7 +106,7 @@ function makeCa(bin, dir, name, days) {
     "-subj",
     `/CN=${name}`,
   ]);
-  return { key, crt };
+  return { key, crt, pem: fs.readFileSync(crt, "utf8") };
 }
 
 function makeServer(bin, dir, ca, cn, dnsNames, ipNames = ["127.0.0.1"]) {
@@ -188,14 +171,17 @@ function makeValidityWindowCas(dir) {
   if (!fs.existsSync(expired) || !fs.existsSync(future)) {
     throw new Error("MANDATORY_DEP_MISSING: validity CA PEMs not produced");
   }
-  return { expired, future };
+  return {
+    expiredPem: fs.readFileSync(expired, "utf8"),
+    futurePem: fs.readFileSync(future, "utf8"),
+  };
 }
 
-async function waitPgSsl(url, caPath, attempts = 90) {
+async function waitPgSsl(url, trustedCaPem, attempts = 90) {
   let last = null;
   for (let i = 0; i < attempts; i += 1) {
     try {
-      const opts = buildPgClientOptions(url, { [SSL_ROOTCERT_ENV]: caPath });
+      const opts = buildPgClientOptions(url, {}, { testTrustedCaPem: trustedCaPem });
       const c = new Client({
         connectionString: opts.connectionString,
         ssl: opts.ssl,
@@ -214,7 +200,23 @@ async function waitPgSsl(url, caPath, attempts = 90) {
   );
 }
 
-describe("containment-tls-ca policy (mandatory)", () => {
+describe("containment-tls-ca embedded trust root (mandatory)", () => {
+  it("accepts exact embedded official CA fingerprint", () => {
+    const loaded = loadOfficialEmbeddedCa();
+    expect(loaded.der_sha256).toBe(OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256);
+    expect(loaded.source).toBe("embedded_official_supabase_ca");
+    expect(loaded.pinned).toBe(true);
+  });
+
+  it("rejects modified embedded CA before connection", () => {
+    const tampered =
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM.replace(/[A-Za-z0-9+/]{16}/, "AAAAAAAAAAAAAAAA") ||
+      "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n";
+    expect(() =>
+      loadPinnedCaFromPem(tampered, OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256),
+    ).toThrow(/BLOCKED_TLS_CA_PIN_MISMATCH|BLOCKED_TLS_CA_INVALID/);
+  });
+
   it("refuses NODE_TLS_REJECT_UNAUTHORIZED=0", () => {
     expect(() => assertNoTlsBypass({ NODE_TLS_REJECT_UNAUTHORIZED: "0" })).toThrow(
       /BLOCKED_TLS_BYPASS/,
@@ -236,61 +238,86 @@ describe("containment-tls-ca policy (mandatory)", () => {
     ).toThrow(/BLOCKED_TLS_CA_IN_URI/);
   });
 
-  it("missing CA fails closed before connection for non-loopback", () => {
-    expect(() =>
-      buildPgClientOptions(
-        "postgres://u:p@aws-0-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require",
-        {},
-      ),
-    ).toThrow(/BLOCKED_TLS_CA_REQUIRED/);
+  it("non-loopback uses embedded official CA with rejectUnauthorized+hostname check", () => {
+    const opts = buildPgClientOptions(
+      "postgres://u:p@aws-0-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require",
+      {},
+    );
+    expect(opts.ssl.rejectUnauthorized).toBe(true);
+    expect(opts.ssl.checkServerIdentity).toBe(tls.checkServerIdentity);
+    expect(opts.tls_evidence.mode).toBe("verify_full_embedded_ca");
+    expect(opts._pinned_ca_der_sha256).toBe(
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+    );
+    expect(opts.ssl.ca).toContain("BEGIN CERTIFICATE");
   });
 
-  it("malformed CA fails before connection", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-mal-"));
-    const bad = path.join(dir, "bad.pem");
-    fs.writeFileSync(bad, "not-a-certificate\n");
-    expect(() => loadCaFromEnv({ [SSL_ROOTCERT_ENV]: bad })).toThrow(
-      /BLOCKED_TLS_CA_INVALID/,
+  it("CA-path env fails closed and cannot supply trust", () => {
+    expect(() =>
+      assertNoCaPathChannel({ [FORBIDDEN_SSL_ROOTCERT_ENV]: "C:\\hostile\\ca.pem" }),
+    ).toThrow(/BLOCKED_TLS_CA_PATH_FORBIDDEN/);
+    expect(() =>
+      buildPgClientOptions(
+        "postgres://u:p@db.example.com:5432/postgres?sslmode=require",
+        { [FORBIDDEN_SSL_ROOTCERT_ENV]: path.join(os.tmpdir(), "hostile.pem") },
+      ),
+    ).toThrow(/BLOCKED_TLS_CA_PATH_FORBIDDEN/);
+  });
+
+  it("expired and not-yet-valid certificates rejected before connection", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-validity-"));
+    const { expiredPem, futurePem } = makeValidityWindowCas(dir);
+    expect(() => loadPinnedCaFromPem(expiredPem)).toThrow(/BLOCKED_TLS_CA_EXPIRED/);
+    expect(() => loadPinnedCaFromPem(futurePem)).toThrow(
+      /BLOCKED_TLS_CA_NOT_YET_VALID/,
     );
-    expect(String(bad)).toContain("ca-mal-");
     try {
-      loadCaFromEnv({ [SSL_ROOTCERT_ENV]: bad });
+      loadPinnedCaFromPem(expiredPem);
     } catch (e) {
-      expect(String(e.message)).not.toContain(dir);
+      expect(e.code).toBe("BLOCKED_TLS_CA_EXPIRED");
       expect(e.phase).toBe("tls_policy");
+      expect(String(e.message)).not.toContain("BEGIN CERTIFICATE");
+      expect(String(e.message)).not.toContain(dir);
     }
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("sanitized evidence never includes PEM or filesystem paths", () => {
-    const bin = resolveOpenSsl();
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-san-"));
-    const ca = makeCa(bin, dir, "SanCA", 2);
-    const loaded = loadCaFromEnv({ [SSL_ROOTCERT_ENV]: ca.crt });
+    const loaded = loadOfficialEmbeddedCa();
     const san = sanitizeCaEvidence(loaded);
     const blob = JSON.stringify(san);
     expect(blob).not.toContain("BEGIN CERTIFICATE");
-    expect(blob).not.toContain(dir);
     expect(san.path_redacted).toBe(true);
-    expect(san.pinned).toBe(true);
-    fs.rmSync(dir, { recursive: true, force: true });
+    expect(san.source).toBe("embedded_official_supabase_ca");
   });
 
-  it("pins official Supabase CA DER fingerprint", () => {
-    const p = ensureOfficialCa();
-    const loaded = loadCaFromEnv({ [SSL_ROOTCERT_ENV]: p });
-    expect(loaded.der_sha256).toBe(OFFICIAL_CA_DER);
+  it("static gate: ceremony/bootstrap must not assign CA-path trust env", () => {
+    const ceremony = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
+      ),
+      "utf8",
+    );
+    const bootstrap = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "scripts/security/bootstrap-credential-browser-containment.ps1",
+      ),
+      "utf8",
+    );
+    expect(ceremony).not.toMatch(/\$env:CONTAINMENT_APPLY_SSL_ROOTCERT\s*=/);
+    expect(bootstrap).not.toMatch(/\$childEnv\[\$caEnvName\]\s*=/);
+    expect(ceremony).toMatch(/embedded official Supabase CA/i);
+    expect(bootstrap).toMatch(/BLOCKED_TLS_CA_PATH_FORBIDDEN/);
   });
 });
 
-describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => {
+describe("disposable Postgres TLS (mandatory Docker+OpenSSL, in-memory CA)", () => {
   let opensslBin;
   let dir;
   let goodCa;
-  let goodCaBackup;
   let wrongCa;
-  let expiredCaPath;
-  let futureCaPath;
   let server;
   let mismatchServer;
   let container;
@@ -300,17 +327,12 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
   beforeAll(async () => {
     requireDocker();
     opensslBin = resolveOpenSsl();
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-tls-mandatory-"));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-tls-embedded-"));
     goodCa = makeCa(opensslBin, dir, "GoodCA", 2);
-    goodCaBackup = path.join(dir, "GoodCA.backup.crt");
-    fs.copyFileSync(goodCa.crt, goodCaBackup);
     wrongCa = makeCa(opensslBin, dir, "WrongCA", 2);
-    const validity = makeValidityWindowCas(dir);
-    expiredCaPath = validity.expired;
-    futureCaPath = validity.future;
-    server = makeServer(opensslBin, dir, goodCa, "pg-local", [
-      "localhost",
-    ], ["127.0.0.1"]);
+    server = makeServer(opensslBin, dir, goodCa, "pg-local", ["localhost"], [
+      "127.0.0.1",
+    ]);
     mismatchServer = makeServer(
       opensslBin,
       dir,
@@ -321,7 +343,7 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     );
 
     port = String(58000 + Math.floor(Math.random() * 400));
-    container = `cred-tls-m-${crypto.randomBytes(3).toString("hex")}`;
+    container = `cred-tls-e-${crypto.randomBytes(3).toString("hex")}`;
 
     const run = spawnSync(
       "docker",
@@ -356,7 +378,7 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     }
 
     url = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`;
-    await waitPgSsl(url, goodCa.crt);
+    await waitPgSsl(url, goodCa.pem);
   }, 180000);
 
   afterAll(() => {
@@ -369,10 +391,14 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     if (dir) fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("correct CA and hostname reaches read-only query", async () => {
-    const opts = buildPgClientOptions(url, { [SSL_ROOTCERT_ENV]: goodCa.crt });
+  it("correct in-memory CA and hostname reaches read-only query", async () => {
+    const opts = buildPgClientOptions(
+      url,
+      {},
+      { testTrustedCaPem: goodCa.pem },
+    );
     expect(opts.ssl.rejectUnauthorized).toBe(true);
-    expect(opts.tls_evidence.mode).toBe("verify_full_explicit_ca");
+    expect(opts.ssl.checkServerIdentity).toBe(tls.checkServerIdentity);
     const c = new Client({
       connectionString: opts.connectionString,
       ssl: opts.ssl,
@@ -385,7 +411,11 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
   });
 
   it("wrong CA fails closed", async () => {
-    const opts = buildPgClientOptions(url, { [SSL_ROOTCERT_ENV]: wrongCa.crt });
+    const opts = buildPgClientOptions(
+      url,
+      {},
+      { testTrustedCaPem: wrongCa.pem },
+    );
     const c = new Client({
       connectionString: opts.connectionString,
       ssl: opts.ssl,
@@ -395,20 +425,58 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     );
   });
 
-  it("missing CA fails before verified TLS connect on production-shaped host", () => {
+  it("hostile CA path env cannot affect embedded/production options", () => {
+    const hostile = path.join(dir, "hostile-path.pem");
+    fs.writeFileSync(hostile, wrongCa.pem);
     expect(() =>
       buildPgClientOptions(
         "postgres://u:p@db.example.invalid:5432/postgres?sslmode=require",
-        {},
+        { [FORBIDDEN_SSL_ROOTCERT_ENV]: hostile },
       ),
-    ).toThrow(/BLOCKED_TLS_CA_REQUIRED/);
+    ).toThrow(/BLOCKED_TLS_CA_PATH_FORBIDDEN/);
+    // Without path env, embedded official CA is used (not hostile file bytes).
+    const opts = buildPgClientOptions(
+      "postgres://u:p@db.example.invalid:5432/postgres?sslmode=require",
+      {},
+    );
+    expect(opts._pinned_ca_der_sha256).toBe(
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+    );
+    expect(opts.ssl.ca).toBe(OFFICIAL_SUPABASE_PROD_CA_2021_PEM);
   });
 
-  it("substituted path contents after pin cannot change trusted client bytes", async () => {
-    const opts = buildPgClientOptions(url, { [SSL_ROOTCERT_ENV]: goodCa.crt });
+  it("symlink/junction/reparse path artifacts cannot influence trust (no path consumed)", () => {
+    const linkLike = path.join(dir, "link-or-reparse.pem");
+    fs.writeFileSync(linkLike, wrongCa.pem);
+    // Even if a path exists, production options ignore it when env unset.
+    const opts = buildPgClientOptions(
+      "postgres://u:p@db.example.com:5432/postgres?sslmode=require",
+      {},
+    );
+    expect(opts._pinned_ca_der_sha256).toBe(
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+    );
+    // When env points at hostile path: fail closed (not follow/read).
+    expect(() =>
+      buildPgClientOptions(
+        url,
+        { [FORBIDDEN_SSL_ROOTCERT_ENV]: linkLike },
+        { testTrustedCaPem: goodCa.pem },
+      ),
+    ).toThrow(/BLOCKED_TLS_CA_PATH_FORBIDDEN/);
+  });
+
+  it("post-pin mutation of in-memory opts cannot change trusted client bytes", async () => {
+    const opts = buildPgClientOptions(
+      url,
+      {},
+      { testTrustedCaPem: goodCa.pem },
+    );
     const pinned = opts._pinned_ca_der_sha256;
-    fs.copyFileSync(wrongCa.crt, goodCa.crt);
+    // Mutating filesystem after pin must not change ssl.ca already bound.
+    fs.writeFileSync(goodCa.crt, wrongCa.pem);
     expect(opts._pinned_ca_der_sha256).toBe(pinned);
+    expect(opts.ssl.ca).toBe(goodCa.pem);
     const c = new Client({
       connectionString: opts.connectionString,
       ssl: opts.ssl,
@@ -416,7 +484,7 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     await c.connect();
     await c.query("select 1");
     await c.end();
-    fs.copyFileSync(goodCaBackup, goodCa.crt);
+    fs.writeFileSync(goodCa.crt, goodCa.pem);
   });
 
   it("hostname mismatch fails TLS verification", async () => {
@@ -434,6 +502,11 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
       );
       srv.on("error", reject);
     });
+    const opts = buildPgClientOptions(
+      `postgres://u:p@127.0.0.1:${port2.port}/postgres`,
+      {},
+      { testTrustedCaPem: goodCa.pem },
+    );
     await expect(
       new Promise((resolve, reject) => {
         const s = tls.connect(
@@ -441,9 +514,9 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
             host: "127.0.0.1",
             port: port2.port,
             servername: "localhost",
-            rejectUnauthorized: true,
-            ca: fs.readFileSync(goodCa.crt),
-            checkServerIdentity: tls.checkServerIdentity,
+            rejectUnauthorized: opts.ssl.rejectUnauthorized,
+            ca: opts.ssl.ca,
+            checkServerIdentity: opts.ssl.checkServerIdentity,
             minVersion: "TLSv1.2",
           },
           () => {
@@ -457,67 +530,18 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
     await new Promise((r) => port2.srv.close(r));
   });
 
-  it("expired CA fails closed before connection", () => {
-    expect(() =>
-      loadCaFromEnv({ [SSL_ROOTCERT_ENV]: expiredCaPath }),
-    ).toThrow(/BLOCKED_TLS_CA_EXPIRED/);
-    try {
-      loadCaFromEnv({ [SSL_ROOTCERT_ENV]: expiredCaPath });
-    } catch (e) {
-      expect(e.code).toBe("BLOCKED_TLS_CA_EXPIRED");
-      expect(e.phase).toBe("tls_policy");
-      expect(String(e.message)).not.toContain(dir);
-      expect(String(e.message)).not.toContain("BEGIN CERTIFICATE");
-    }
-  });
-
-  it("not-yet-valid CA fails closed before connection", () => {
-    expect(() =>
-      loadCaFromEnv({ [SSL_ROOTCERT_ENV]: futureCaPath }),
-    ).toThrow(/BLOCKED_TLS_CA_NOT_YET_VALID/);
-    try {
-      loadCaFromEnv({ [SSL_ROOTCERT_ENV]: futureCaPath });
-    } catch (e) {
-      expect(e.code).toBe("BLOCKED_TLS_CA_NOT_YET_VALID");
-      expect(e.phase).toBe("tls_policy");
-    }
-  });
-
-  it("symlink and non-regular CA paths are rejected before connection", () => {
-    expect(() => loadCaFromEnv({ [SSL_ROOTCERT_ENV]: dir })).toThrow(
-      /BLOCKED_TLS_CA_NOT_FILE|BLOCKED_TLS_CA_UNREADABLE/,
+  it("negative: no PEM/credential leakage in evidence or errors; rejectUnauthorized stays true", () => {
+    const opts = buildPgClientOptions(
+      url,
+      {},
+      { testTrustedCaPem: goodCa.pem },
     );
-
-    const fsNative = require("node:fs");
-    const origLstat = fsNative.lstatSync;
-    const target = goodCa.crt;
-    fsNative.lstatSync = (p, opts) => {
-      if (path.resolve(String(p)) === path.resolve(target)) {
-        return {
-          isSymbolicLink: () => true,
-          isFile: () => false,
-          isDirectory: () => false,
-          size: 100,
-        };
-      }
-      return origLstat.call(fsNative, p, opts);
-    };
-    try {
-      expect(() => loadCaFromEnv({ [SSL_ROOTCERT_ENV]: target })).toThrow(
-        /BLOCKED_TLS_CA_SYMLINK/,
-      );
-    } finally {
-      fsNative.lstatSync = origLstat;
-    }
-  });
-
-  it("negative: no TLS bypass/CA/credential leakage in evidence or errors", () => {
-    const opts = buildPgClientOptions(url, { [SSL_ROOTCERT_ENV]: goodCa.crt });
+    expect(opts.ssl.rejectUnauthorized).toBe(true);
     const ev = JSON.stringify(opts.tls_evidence);
     expect(ev).not.toContain("BEGIN CERTIFICATE");
     expect(ev).not.toMatch(/password|postgres:postgres/i);
-    expect(classifyTlsError({ code: "BLOCKED_TLS_CA_EXPIRED" })).toBe(
-      "BLOCKED_TLS_CA_EXPIRED",
+    expect(classifyTlsError({ code: "BLOCKED_TLS_CA_PATH_FORBIDDEN" })).toBe(
+      "BLOCKED_TLS_CA_PATH_FORBIDDEN",
     );
     expect(() =>
       buildPgClientOptions(
@@ -525,5 +549,22 @@ describe("disposable Postgres TLS CA channel (mandatory Docker+OpenSSL)", () => 
         {},
       ),
     ).toThrow(/BLOCKED_TLS_BYPASS/);
+  });
+
+  it("corrupt worktree cannot influence trust without reloading sealed bundle", () => {
+    // Production path never reads a CA file; trust bytes are the in-module constant.
+    const hostileDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostile-ca-"));
+    const hostile = path.join(hostileDir, "prod-ca-2021.crt");
+    fs.writeFileSync(hostile, wrongCa.pem);
+    const opts = buildPgClientOptions(
+      "postgres://u:p@db.example.com:5432/postgres?sslmode=require",
+      {},
+    );
+    expect(opts.ssl.ca).toBe(OFFICIAL_SUPABASE_PROD_CA_2021_PEM);
+    expect(opts._pinned_ca_der_sha256).toBe(
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+    );
+    expect(opts.ssl.ca).not.toBe(wrongCa.pem);
+    fs.rmSync(hostileDir, { recursive: true, force: true });
   });
 });

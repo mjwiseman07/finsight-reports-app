@@ -34,6 +34,7 @@ const SOURCE_MODULES = [
   "scripts/security/git-blob-authority.js",
   "scripts/security/containment-evidence-protocol.js",
   "scripts/security/containment-tls-ca.js",
+  "scripts/security/embedded-supabase-prod-ca-2021.js",
 ];
 
 function sha256(buf) {
@@ -183,7 +184,9 @@ function main() {
     migration_version: "20260908031736",
     migration_name: "connection_credential_browser_containment",
     database_url_env: "CONTAINMENT_APPLY_DATABASE_URL",
-    ssl_rootcert_env: "CONTAINMENT_APPLY_SSL_ROOTCERT",
+    tls_trust_root: "EMBEDDED_OFFICIAL_SUPABASE_CA",
+    official_supabase_ca_der_sha256:
+      "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
     apply_authorization_token: "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
     advisory_lock: {
       name: "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
@@ -318,6 +321,8 @@ function main() {
     migration_version: authLike.migration_version,
     migration_name: authLike.migration_name,
     database_url_env: authLike.database_url_env,
+    tls_trust_root: authLike.tls_trust_root,
+    official_supabase_ca_der_sha256: authLike.official_supabase_ca_der_sha256,
     apply_authorization_token: authLike.apply_authorization_token,
     advisory_lock: authLike.advisory_lock,
     auth_seals_digest: authSealsDigest,
@@ -338,6 +343,7 @@ function main() {
       "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
       "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
       "Launcher materializes standalone_bundle from freeze git blobs before any DB connection.",
+      "TLS trust root is the freeze-sealed embedded official Supabase CA (DER-pinned); CONTAINMENT_APPLY_SSL_ROOTCERT is forbidden.",
     ],
   };
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);

@@ -359,10 +359,12 @@ try {
   if ($dbPresent) {
     $childEnv[$dbEnvName] = [Environment]::GetEnvironmentVariable($dbEnvName, "Process")
   }
+  # Retired CA-path channel: fail closed if present (trust root is embedded in sealed bundle).
   $caEnvName = "CONTAINMENT_APPLY_SSL_ROOTCERT"
   $caPresent = $null -ne [Environment]::GetEnvironmentVariable($caEnvName, "Process") -and [Environment]::GetEnvironmentVariable($caEnvName, "Process") -ne ""
   if ($caPresent) {
-    $childEnv[$caEnvName] = [Environment]::GetEnvironmentVariable($caEnvName, "Process")
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BLOCKED_TLS_CA_PATH_FORBIDDEN" -Phase "tls_policy" -Message "CONTAINMENT_APPLY_SSL_ROOTCERT is retired; trust root is embedded" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
   }
   # Fail closed: never forward TLS bypass
   if ([Environment]::GetEnvironmentVariable("NODE_TLS_REJECT_UNAUTHORIZED", "Process") -eq "0") {

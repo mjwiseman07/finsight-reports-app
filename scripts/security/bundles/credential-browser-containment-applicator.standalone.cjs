@@ -26,7 +26,7 @@ var require_credential_browser_containment_constants = __commonJS({
     var MIGRATION_NAME2 = "connection_credential_browser_containment";
     var PRIOR_HISTORY_COUNT = 185;
     var DATABASE_URL_ENV2 = "CONTAINMENT_APPLY_DATABASE_URL";
-    var SSL_ROOTCERT_ENV = "CONTAINMENT_APPLY_SSL_ROOTCERT";
+    var FORBIDDEN_SSL_ROOTCERT_ENV = "CONTAINMENT_APPLY_SSL_ROOTCERT";
     var APPLY_AUTHORIZATION_TOKEN2 = "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736";
     var ATTESTED_FREEZE_ENV = "CONTAINMENT_ATTESTED_FREEZE";
     var GIT_CWD_ENV = "CONTAINMENT_GIT_CWD";
@@ -50,7 +50,8 @@ var require_credential_browser_containment_constants = __commonJS({
       "scripts/security/credential-browser-containment-constants.js",
       "scripts/security/git-blob-authority.js",
       "scripts/security/containment-evidence-protocol.js",
-      "scripts/security/containment-tls-ca.js"
+      "scripts/security/containment-tls-ca.js",
+      "scripts/security/embedded-supabase-prod-ca-2021.js"
     ]);
     module2.exports = {
       ADVISORY_LOCK: ADVISORY_LOCK2,
@@ -64,7 +65,7 @@ var require_credential_browser_containment_constants = __commonJS({
       MIGRATION_NAME: MIGRATION_NAME2,
       PRIOR_HISTORY_COUNT,
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
-      SSL_ROOTCERT_ENV,
+      FORBIDDEN_SSL_ROOTCERT_ENV,
       APPLY_AUTHORIZATION_TOKEN: APPLY_AUTHORIZATION_TOKEN2,
       ATTESTED_FREEZE_ENV,
       GIT_CWD_ENV,
@@ -5797,16 +5798,33 @@ var require_containment_evidence_protocol = __commonJS({
   }
 });
 
+// scripts/security/embedded-supabase-prod-ca-2021.js
+var require_embedded_supabase_prod_ca_2021 = __commonJS({
+  "scripts/security/embedded-supabase-prod-ca-2021.js"(exports2, module2) {
+    "use strict";
+    var OFFICIAL_SUPABASE_PROD_CA_2021_PEM = "-----BEGIN CERTIFICATE-----\nMIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL\nBQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l\ndyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh\nc2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow\nazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD\nYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJhc2Ug\nUm9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqQXW\nQyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4Dkx1Q\nDmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3ePS2t2\nGtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnCJLUi\ncvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+Gyb4\nO4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32Uclt\nNaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFKjX\nuXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4yJNUt\naUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn+4VU\ntVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7oneL2b\nVW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgBm5y+6\njB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnSuv/Qx\nCea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDVDB9Y2\nCMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P\no/bKiIz+Fq8=\n-----END CERTIFICATE-----\n";
+    var OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 = "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa";
+    module2.exports = {
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+    };
+  }
+});
+
 // scripts/security/containment-tls-ca.js
 var require_containment_tls_ca = __commonJS({
   "scripts/security/containment-tls-ca.js"(exports2, module2) {
     "use strict";
-    var fs = require("fs");
-    var path = require("path");
     var crypto = require("crypto");
     var tls = require("tls");
     var { X509Certificate } = require("crypto");
-    var { SSL_ROOTCERT_ENV } = require_credential_browser_containment_constants();
+    var {
+      FORBIDDEN_SSL_ROOTCERT_ENV
+    } = require_credential_browser_containment_constants();
+    var {
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+    } = require_embedded_supabase_prod_ca_2021();
     var FORBIDDEN_SSLMODES = /* @__PURE__ */ new Set([
       "disable",
       "allow",
@@ -5829,6 +5847,15 @@ var require_containment_tls_ca = __commonJS({
         throw tlsPolicyError(
           "BLOCKED_TLS_BYPASS",
           "BLOCKED_TLS_BYPASS: NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden"
+        );
+      }
+    }
+    function assertNoCaPathChannel(env = process.env) {
+      const raw = env[FORBIDDEN_SSL_ROOTCERT_ENV];
+      if (raw != null && String(raw).length > 0) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_PATH_FORBIDDEN",
+          "BLOCKED_TLS_CA_PATH_FORBIDDEN: CONTAINMENT_APPLY_SSL_ROOTCERT is retired; trust root is embedded"
         );
       }
     }
@@ -5856,7 +5883,7 @@ var require_containment_tls_ca = __commonJS({
       if (u.searchParams.has("sslrootcert") || u.searchParams.has("sslcert") || u.searchParams.has("sslkey")) {
         throw tlsPolicyError(
           "BLOCKED_TLS_CA_IN_URI",
-          "BLOCKED_TLS_CA_IN_URI: CA/cert paths must use CONTAINMENT_APPLY_SSL_ROOTCERT env, not URL query"
+          "BLOCKED_TLS_CA_IN_URI: CA/cert paths in URL are forbidden; trust root is embedded"
         );
       }
       for (const [k, v] of u.searchParams.entries()) {
@@ -5869,78 +5896,6 @@ var require_containment_tls_ca = __commonJS({
         }
       }
       return u;
-    }
-    function assertNoReparseOrSymlink(resolvedPath, st) {
-      if (typeof st.isSymbolicLink === "function" && st.isSymbolicLink()) {
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_SYMLINK",
-          "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction"
-        );
-      }
-      if (st.isDirectory && st.isDirectory()) {
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_NOT_FILE",
-          "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file"
-        );
-      }
-      if (!st.isFile()) {
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_NOT_FILE",
-          "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file"
-        );
-      }
-    }
-    function openCaFileNoFollow(resolvedPath) {
-      let st;
-      try {
-        st = fs.lstatSync(resolvedPath);
-      } catch (err) {
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_UNREADABLE",
-          "BLOCKED_TLS_CA_UNREADABLE: cannot lstat CONTAINMENT_APPLY_SSL_ROOTCERT"
-        );
-      }
-      assertNoReparseOrSymlink(resolvedPath, st);
-      const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW != null ? fs.constants.O_NOFOLLOW : 0) | (fs.constants.O_SYMLINK != null ? 0 : 0);
-      let fd;
-      try {
-        fd = fs.openSync(resolvedPath, flags);
-      } catch (err) {
-        if (err && (err.code === "ELOOP" || /symbolic link/i.test(String(err.message)))) {
-          throw tlsPolicyError(
-            "BLOCKED_TLS_CA_SYMLINK",
-            "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction"
-          );
-        }
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_UNREADABLE",
-          "BLOCKED_TLS_CA_UNREADABLE: cannot open CONTAINMENT_APPLY_SSL_ROOTCERT"
-        );
-      }
-      try {
-        const fst = fs.fstatSync(fd);
-        assertNoReparseOrSymlink(resolvedPath, fst);
-        if (fst.size <= 0 || fst.size > 1024 * 1024) {
-          throw tlsPolicyError(
-            "BLOCKED_TLS_CA_INVALID",
-            "BLOCKED_TLS_CA_INVALID: CA file size out of bounds"
-          );
-        }
-        const pem = Buffer.alloc(fst.size);
-        const n = fs.readSync(fd, pem, 0, fst.size, 0);
-        if (n !== fst.size) {
-          throw tlsPolicyError(
-            "BLOCKED_TLS_CA_UNREADABLE",
-            "BLOCKED_TLS_CA_UNREADABLE: short read of CA file"
-          );
-        }
-        return Buffer.from(pem);
-      } finally {
-        try {
-          fs.closeSync(fd);
-        } catch (_) {
-        }
-      }
     }
     function assertCaValidityWindow(x509) {
       const now = Date.now();
@@ -5965,13 +5920,14 @@ var require_containment_tls_ca = __commonJS({
         );
       }
     }
-    function loadCaFromEnv(env = process.env) {
-      const caPath = env[SSL_ROOTCERT_ENV];
-      if (!caPath || !String(caPath).trim()) {
-        return null;
+    function loadPinnedCaFromPem(pemInput, expectedDerSha256 = null) {
+      if (pemInput == null) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_INVALID",
+          "BLOCKED_TLS_CA_INVALID: empty CA PEM"
+        );
       }
-      const resolved = path.resolve(String(caPath).trim());
-      const pemBuf = openCaFileNoFollow(resolved);
+      const pemBuf = Buffer.isBuffer(pemInput) ? Buffer.from(pemInput) : Buffer.from(String(pemInput), "utf8");
       const text = pemBuf.toString("utf8");
       if (!/-----BEGIN CERTIFICATE-----/.test(text)) {
         throw tlsPolicyError(
@@ -5982,19 +5938,23 @@ var require_containment_tls_ca = __commonJS({
       let x509;
       try {
         x509 = new X509Certificate(pemBuf);
-      } catch (err) {
+      } catch {
         throw tlsPolicyError(
           "BLOCKED_TLS_CA_INVALID",
           "BLOCKED_TLS_CA_INVALID: X509 parse failed"
         );
       }
       assertCaValidityWindow(x509);
-      const pinnedPem = text;
       const derSha = crypto.createHash("sha256").update(x509.raw).digest("hex");
+      if (expectedDerSha256 != null && String(expectedDerSha256).toLowerCase() !== derSha) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_PIN_MISMATCH",
+          "BLOCKED_TLS_CA_PIN_MISMATCH: embedded/official CA DER fingerprint mismatch"
+        );
+      }
       const pemSha = crypto.createHash("sha256").update(pemBuf).digest("hex");
       return Object.freeze({
-        pem: pinnedPem,
-        // Intentionally omit filesystem path from returned object (evidence/redaction).
+        pem: text,
         der_sha256: derSha,
         pem_sha256: pemSha,
         bytes: pemBuf.length,
@@ -6002,14 +5962,22 @@ var require_containment_tls_ca = __commonJS({
         valid_to: x509.validTo,
         self_signed: x509.subject === x509.issuer,
         subject_class: /supabase/i.test(x509.subject) ? "supabase_named" : "other",
-        pinned: true
+        pinned: true,
+        source: expectedDerSha256 ? "embedded_official_supabase_ca" : "in_memory_test_ca"
       });
+    }
+    function loadOfficialEmbeddedCa() {
+      return loadPinnedCaFromPem(
+        OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+        OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+      );
     }
     function sanitizeCaEvidence(ca) {
       if (!ca) {
         return {
           ca_provided: false,
-          path_redacted: true
+          path_redacted: true,
+          source: "none"
         };
       }
       return {
@@ -6022,19 +5990,23 @@ var require_containment_tls_ca = __commonJS({
         valid_to: ca.valid_to,
         self_signed: ca.self_signed,
         subject_class: ca.subject_class,
-        pinned: Boolean(ca.pinned)
+        pinned: Boolean(ca.pinned),
+        source: ca.source || "unknown"
       };
     }
-    function buildPgClientOptions(databaseUrl, env = process.env) {
+    function buildPgClientOptions(databaseUrl, env = process.env, opts = {}) {
       assertNoTlsBypass(env);
+      assertNoCaPathChannel(env);
       const u = assertUrlTlsPolicy(databaseUrl);
       const loopback = isLoopbackHost(u.hostname);
-      const ca = loadCaFromEnv(env);
-      if (!loopback && !ca) {
-        throw tlsPolicyError(
-          "BLOCKED_TLS_CA_REQUIRED",
-          `BLOCKED_TLS_CA_REQUIRED: non-loopback targets require ${SSL_ROOTCERT_ENV}`
+      let ca = null;
+      if (opts && opts.testTrustedCaPem) {
+        ca = loadPinnedCaFromPem(
+          opts.testTrustedCaPem,
+          opts.testExpectedDerSha256 || null
         );
+      } else if (!loopback) {
+        ca = loadOfficialEmbeddedCa();
       }
       const cleaned = new URL(u.toString());
       cleaned.searchParams.delete("sslmode");
@@ -6060,12 +6032,11 @@ var require_containment_tls_ca = __commonJS({
         connectionString: cleaned.toString(),
         ssl,
         tls_evidence: {
-          mode: "verify_full_explicit_ca",
+          mode: "verify_full_embedded_ca",
           hostname_verification: "enabled",
           reject_unauthorized: true,
           ca: sanitizeCaEvidence(ca)
         },
-        // Internal pin for tests — not serialized into applicator evidence.
         _pinned_ca_der_sha256: ca.der_sha256
       };
     }
@@ -6074,8 +6045,10 @@ var require_containment_tls_ca = __commonJS({
       if (/BLOCKED_TLS_CA_EXPIRED/i.test(code)) return "BLOCKED_TLS_CA_EXPIRED";
       if (/BLOCKED_TLS_CA_NOT_YET_VALID/i.test(code))
         return "BLOCKED_TLS_CA_NOT_YET_VALID";
-      if (/BLOCKED_TLS_CA_SYMLINK/i.test(code)) return "BLOCKED_TLS_CA_SYMLINK";
-      if (/BLOCKED_TLS_CA_NOT_FILE/i.test(code)) return "BLOCKED_TLS_CA_NOT_FILE";
+      if (/BLOCKED_TLS_CA_PIN_MISMATCH/i.test(code))
+        return "BLOCKED_TLS_CA_PIN_MISMATCH";
+      if (/BLOCKED_TLS_CA_PATH_FORBIDDEN/i.test(code))
+        return "BLOCKED_TLS_CA_PATH_FORBIDDEN";
       if (/BLOCKED_TLS_/i.test(code) && err && err.code) return err.code;
       if (/SELF_SIGNED_CERT_IN_CHAIN/i.test(code)) return "SELF_SIGNED_CERT_IN_CHAIN";
       if (/UNABLE_TO_VERIFY_LEAF_SIGNATURE/i.test(code))
@@ -6086,17 +6059,19 @@ var require_containment_tls_ca = __commonJS({
       return err && err.code ? err.code : "TLS_FAIL";
     }
     module2.exports = {
-      SSL_ROOTCERT_ENV,
       FORBIDDEN_SSLMODES,
+      FORBIDDEN_SSL_ROOTCERT_ENV,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
       isLoopbackHost,
       assertNoTlsBypass,
+      assertNoCaPathChannel,
       assertUrlTlsPolicy,
-      loadCaFromEnv,
+      loadPinnedCaFromPem,
+      loadOfficialEmbeddedCa,
       sanitizeCaEvidence,
       buildPgClientOptions,
       classifyTlsError,
-      assertCaValidityWindow,
-      openCaFileNoFollow
+      assertCaValidityWindow
     };
   }
 });

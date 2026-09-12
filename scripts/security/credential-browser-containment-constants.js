@@ -37,10 +37,10 @@ const PRIOR_HISTORY_COUNT = 185;
 const DATABASE_URL_ENV = "CONTAINMENT_APPLY_DATABASE_URL";
 
 /**
- * Session-only path to a PEM CA for verified TLS (verify-full semantics).
- * Path only — never CA PEM contents in argv/chat/evidence. Temporary non-repo file.
+ * Retired CA-path channel. Presence at runtime fails closed.
+ * Trust root is the freeze-sealed embedded official Supabase CA (DER-pinned).
  */
-const SSL_ROOTCERT_ENV = "CONTAINMENT_APPLY_SSL_ROOTCERT";
+const FORBIDDEN_SSL_ROOTCERT_ENV = "CONTAINMENT_APPLY_SSL_ROOTCERT";
 
 /** Exact apply authorization token (not a secret credential; an explicit operator intent pin). */
 const APPLY_AUTHORIZATION_TOKEN = "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736";
@@ -104,6 +104,7 @@ const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/git-blob-authority.js",
   "scripts/security/containment-evidence-protocol.js",
   "scripts/security/containment-tls-ca.js",
+  "scripts/security/embedded-supabase-prod-ca-2021.js",
 ]);
 
 module.exports = {
@@ -118,7 +119,7 @@ module.exports = {
   MIGRATION_NAME,
   PRIOR_HISTORY_COUNT,
   DATABASE_URL_ENV,
-  SSL_ROOTCERT_ENV,
+  FORBIDDEN_SSL_ROOTCERT_ENV,
   APPLY_AUTHORIZATION_TOKEN,
   ATTESTED_FREEZE_ENV,
   GIT_CWD_ENV,

@@ -19,11 +19,7 @@ param(
 
   # Test harness only: loopback synthetic URL when CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1
   [Parameter(Mandatory = $false)]
-  [string]$TestSyntheticDatabaseUrl = "",
-
-  # Test harness / operator: path to official PEM CA (copied to temp; never argv contents)
-  [Parameter(Mandatory = $false)]
-  [string]$TestSyntheticCaPath = ""
+  [string]$TestSyntheticDatabaseUrl = ""
 )
 
 Set-StrictMode -Version Latest
@@ -43,27 +39,12 @@ function Get-Sha256Text([string]$Text) {
 function Clear-ContainmentCredential {
   Remove-Item Env:CONTAINMENT_APPLY_DATABASE_URL -ErrorAction SilentlyContinue
   [Environment]::SetEnvironmentVariable("CONTAINMENT_APPLY_DATABASE_URL", $null, "Process")
+  # Retired channel — clear if a hostile process left it set.
   Remove-Item Env:CONTAINMENT_APPLY_SSL_ROOTCERT -ErrorAction SilentlyContinue
   [Environment]::SetEnvironmentVariable("CONTAINMENT_APPLY_SSL_ROOTCERT", $null, "Process")
   if (Test-Path Env:DATABASE_URL) { Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue }
   if (Test-Path Env:NODE_TLS_REJECT_UNAUTHORIZED) {
     Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED -ErrorAction SilentlyContinue
-  }
-}
-
-function Clear-TempCaMaterial([string]$CaTempPath) {
-  if (-not $CaTempPath) { return $true }
-  if (-not (Test-Path -LiteralPath $CaTempPath)) { return $true }
-  try {
-    $len = (Get-Item -LiteralPath $CaTempPath).Length
-    if ($len -gt 0) {
-      $zeros = New-Object byte[] ([Math]::Min([int]$len, 1MB))
-      [IO.File]::WriteAllBytes($CaTempPath, $zeros)
-    }
-    Remove-Item -LiteralPath $CaTempPath -Force -ErrorAction Stop
-    return -not (Test-Path -LiteralPath $CaTempPath)
-  } catch {
-    return $false
   }
 }
 
@@ -196,15 +177,13 @@ $evidencePath = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
 $entryTempDir = $null
 $entryPath = $null
 $interactiveClose = $true
-$caTempPath = $null
-$caCleaned = $false
 
 Clear-Host
 Write-Host "PR containment production dry-run ceremony"
 Write-Host "Freeze -PrHead: $Freeze"
 Write-Host "Mode: dry-run (no apply token)"
 Write-Host "Paste an already-known URL at the hidden prompt. Do not paste into chat."
-Write-Host "Verified TLS requires the official project CA path (not sslmode=no-verify)."
+Write-Host "Verified TLS uses the freeze-sealed embedded official Supabase CA (no CA path)."
 
 try {
   # Resolve tip authorization and materialize sealed native_entry from freeze.
@@ -258,52 +237,10 @@ try {
   $plain = $null
   [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
-  Write-Host "[1b/3] Official CA path (verified TLS)..."
-  $caSourcePath = $null
-  $isSynthLoopback = $allowSynthetic -and -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -and ($TestSyntheticDatabaseUrl -match '127\.0\.0\.1')
-  if ($isSynthLoopback -and [string]::IsNullOrWhiteSpace($TestSyntheticCaPath)) {
-    Write-Host "Synthetic loopback: skipping CA (applicator allows loopback without TLS CA)."
-  } else {
-  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticCaPath)) {
-    if (-not $allowSynthetic) {
-      throw "SYNTHETIC_CA_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
-    }
-    $caSourcePath = $TestSyntheticCaPath
-  } else {
-    $existingCa = [Environment]::GetEnvironmentVariable("CONTAINMENT_APPLY_SSL_ROOTCERT", "Process")
-    if (-not [string]::IsNullOrWhiteSpace($existingCa) -and (Test-Path -LiteralPath $existingCa)) {
-      $caSourcePath = $existingCa
-    } else {
-      [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "CA_PROMPT_READY.txt"), "awaiting_ca_path_input")
-      $caSecure = Read-Host -Prompt "CONTAINMENT_APPLY_SSL_ROOTCERT_PATH" -AsSecureString
-      Remove-Item -LiteralPath (Join-Path $EvidenceOutDir "CA_PROMPT_READY.txt") -Force -ErrorAction SilentlyContinue
-      if ($null -eq $caSecure -or $caSecure.Length -le 0) {
-        throw "No CA path provided by operator"
-      }
-      $caBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($caSecure)
-      try { $caSourcePath = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($caBstr) }
-      finally {
-        if ($caBstr -ne [IntPtr]::Zero) {
-          [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($caBstr)
-        }
-        try { $caSecure.Dispose() } catch {}
-      }
-    }
-  }
-  if ([string]::IsNullOrWhiteSpace($caSourcePath) -or -not (Test-Path -LiteralPath $caSourcePath)) {
-    throw "BLOCKED_TLS_CA_UNREADABLE: CA path missing or not a file"
-  }
-  $caBytes = [IO.File]::ReadAllBytes($caSourcePath)
-  $caText = [Text.Encoding]::UTF8.GetString($caBytes)
-  if ($caText -notmatch "-----BEGIN CERTIFICATE-----") {
-    throw "BLOCKED_TLS_CA_INVALID: PEM marker missing"
-  }
-  $caTempPath = Join-Path $EvidenceOutDir ("ca-" + [guid]::NewGuid().ToString("N") + ".pem")
-  [IO.File]::WriteAllBytes($caTempPath, $caBytes)
-  $env:CONTAINMENT_APPLY_SSL_ROOTCERT = $caTempPath
-  $caBytes = $null
-  $caText = $null
-  $caSourcePath = $null
+  # Fail closed if retired CA-path channel is present (trust root is embedded).
+  $hostileCa = [Environment]::GetEnvironmentVariable("CONTAINMENT_APPLY_SSL_ROOTCERT", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($hostileCa)) {
+    throw "BLOCKED_TLS_CA_PATH_FORBIDDEN: CONTAINMENT_APPLY_SSL_ROOTCERT is retired; trust root is embedded"
   }
 
   Write-Host "[2/3] Invoking sealed native entry (dry-run)..."
@@ -385,8 +322,6 @@ finally {
     try { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) } catch {}
     $bstr = [IntPtr]::Zero
   }
-  $caCleaned = Clear-TempCaMaterial -CaTempPath $caTempPath
-  $caTempPath = $null
   if ($entryTempDir -and (Test-Path -LiteralPath $entryTempDir)) {
     Remove-Item -LiteralPath $entryTempDir -Recurse -Force -ErrorAction SilentlyContinue
   }
@@ -417,14 +352,14 @@ finally {
       url_printed = $false
       process_env_cleared_after = (-not [bool]$env:CONTAINMENT_APPLY_DATABASE_URL)
       securestring_zerofreed = $true
-      ca_path_env_cleared_after = (-not [bool]$env:CONTAINMENT_APPLY_SSL_ROOTCERT)
+      ca_path_channel_retired = $true
+      ca_path_env_absent = (-not [bool]$env:CONTAINMENT_APPLY_SSL_ROOTCERT)
       ca_contents_not_in_argv = $true
-      ca_temp_cleaned = [bool]$caCleaned
+      embedded_official_ca_only = $true
     }
     cleanup = [ordered]@{
       credential_cleared = (-not [bool]$env:CONTAINMENT_APPLY_DATABASE_URL)
-      ca_env_cleared = (-not [bool]$env:CONTAINMENT_APPLY_SSL_ROOTCERT)
-      ca_temp_cleaned = [bool]$caCleaned
+      ca_path_env_absent = (-not [bool]$env:CONTAINMENT_APPLY_SSL_ROOTCERT)
       raw_stdout_removed = $false
       evidence_local_only = $true
     }

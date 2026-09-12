@@ -55,7 +55,9 @@ function digestFromModules(modules) {
     migration_version: "20260908031736",
     migration_name: "connection_credential_browser_containment",
     database_url_env: "CONTAINMENT_APPLY_DATABASE_URL",
-    ssl_rootcert_env: "CONTAINMENT_APPLY_SSL_ROOTCERT",
+    tls_trust_root: "EMBEDDED_OFFICIAL_SUPABASE_CA",
+    official_supabase_ca_der_sha256:
+      "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
     apply_authorization_token: "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
     advisory_lock: {
       name: "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
@@ -146,7 +148,9 @@ for (let i = 0; i < 8; i += 1) {
       migration_version: "20260908031736",
       migration_name: "connection_credential_browser_containment",
       database_url_env: "CONTAINMENT_APPLY_DATABASE_URL",
-      ssl_rootcert_env: "CONTAINMENT_APPLY_SSL_ROOTCERT",
+      tls_trust_root: "EMBEDDED_OFFICIAL_SUPABASE_CA",
+      official_supabase_ca_der_sha256:
+        "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
       apply_authorization_token: "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
       advisory_lock: {
         name: "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",

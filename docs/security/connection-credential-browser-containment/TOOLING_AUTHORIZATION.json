@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "681242f8232345d5f1ee8811dd04eec5ab17df6a",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -10,7 +10,8 @@
   "migration_version": "20260908031736",
   "migration_name": "connection_credential_browser_containment",
   "database_url_env": "CONTAINMENT_APPLY_DATABASE_URL",
-  "ssl_rootcert_env": "CONTAINMENT_APPLY_SSL_ROOTCERT",
+  "tls_trust_root": "EMBEDDED_OFFICIAL_SUPABASE_CA",
+  "official_supabase_ca_der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
   "apply_authorization_token": "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
   "advisory_lock": {
     "name": "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
@@ -20,9 +21,9 @@
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
-    "oid": "8eb8d409416201db4f4e9e9d87124b535d1dc5a3",
-    "sha256": "1622ac8234162773589e724cb604b65466d9aa41aa7d95f06bddeafe8028ad55",
-    "bytes": 25424,
+    "oid": "068f93d3de15f5668a1bed2127fc5f6860206c1f",
+    "sha256": "61ea45f1f9fb64f8420da113b57a6b145b09db46f607e45b94fd1bde0c6624f5",
+    "bytes": 25732,
     "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
   "native_entry": {
@@ -54,9 +55,9 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
-    "oid": "372406e1223865b1ffee2964e018d34f58471805",
-    "sha256": "654a714b926f10c4ee4b0d9a4a20cd11b4d547c0fa7141832f3ecdc4e9f826b9",
-    "bytes": 19773
+    "oid": "ea0a4930155b03bfe17be16de51435575755c5e5",
+    "sha256": "8a21b83b128797c5b4af4fb8fe1149472c890734f5598e4b26a8d83ad144b9a5",
+    "bytes": 16978
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",
@@ -66,9 +67,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "3dde02588229f71efb99f3c317019ba50d9e1cd1",
-    "sha256": "dba52eeb6cda5d252c5160b3fbb8d40f57373b82372e628765ccc20d6dcbe8d3",
-    "bytes": 258068,
+    "oid": "70c887545383ea093f06a04c63fa668ed6df34e2",
+    "sha256": "2077d74a776cc462af3bc260f45eb58194ef407fe92c8d888349a83607ad764b",
+    "bytes": 258625,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -96,9 +97,9 @@
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",
-      "oid": "8a2b76863aa8b39bd42e98fc7e14ad3e41757c99",
-      "sha256": "ea3e6266684cc41384a9c0d9272be98af76d9b3ba885c894d7e47a20dc443859",
-      "bytes": 4748
+      "oid": "f8be4d96ab5706d7d6de12d4218d56a0469b8ce3",
+      "sha256": "e64badd6226391ef9c1e44cc435b4ca2fdadf7fb1c728b413528a4a833e169ad",
+      "bytes": 4803
     },
     {
       "path": "scripts/security/git-blob-authority.js",
@@ -114,9 +115,15 @@
     },
     {
       "path": "scripts/security/containment-tls-ca.js",
-      "oid": "8286444186ab51bdba023f0076833381d7d6f444",
-      "sha256": "43d090eca0bbe8e19bc8adafbc7f8af4e2501b92940ea83cf4da19d7f2dca849",
-      "bytes": 10204
+      "oid": "6a3660ebd3315ac654cd3ce4395f7528cda56ef5",
+      "sha256": "72d010c593a3482f7477e91e0d35634f5b6f8bd9a1dc10fee39e6302f6dc8477",
+      "bytes": 8963
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
     }
   ],
   "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",

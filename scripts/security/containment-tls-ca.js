@@ -1,16 +1,21 @@
 /**
- * Protected TLS CA channel for containment applicator.
- * CA path via env only (never argv, never CA PEM in argv/evidence).
+ * Protected TLS trust root for containment applicator.
+ * Official Supabase CA is embedded + DER-fingerprint-pinned in the sealed bundle.
+ * No runtime CA path, env path, argv CA, symlink, or worktree CA influence.
  * Hostname verification always on; TLS bypass modes refuse closed.
  */
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
 const tls = require("tls");
 const { X509Certificate } = require("crypto");
-const { SSL_ROOTCERT_ENV } = require("./credential-browser-containment-constants");
+const {
+  FORBIDDEN_SSL_ROOTCERT_ENV,
+} = require("./credential-browser-containment-constants");
+const {
+  OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+  OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+} = require("./embedded-supabase-prod-ca-2021");
 
 const FORBIDDEN_SSLMODES = new Set([
   "disable",
@@ -46,6 +51,19 @@ function assertNoTlsBypass(env = process.env) {
   }
 }
 
+/**
+ * Runtime CA path channel is retired. Any presence fails closed.
+ */
+function assertNoCaPathChannel(env = process.env) {
+  const raw = env[FORBIDDEN_SSL_ROOTCERT_ENV];
+  if (raw != null && String(raw).length > 0) {
+    throw tlsPolicyError(
+      "BLOCKED_TLS_CA_PATH_FORBIDDEN",
+      "BLOCKED_TLS_CA_PATH_FORBIDDEN: CONTAINMENT_APPLY_SSL_ROOTCERT is retired; trust root is embedded",
+    );
+  }
+}
+
 function parseDatabaseUrl(databaseUrl) {
   let u;
   try {
@@ -75,7 +93,7 @@ function assertUrlTlsPolicy(databaseUrl) {
   ) {
     throw tlsPolicyError(
       "BLOCKED_TLS_CA_IN_URI",
-      "BLOCKED_TLS_CA_IN_URI: CA/cert paths must use CONTAINMENT_APPLY_SSL_ROOTCERT env, not URL query",
+      "BLOCKED_TLS_CA_IN_URI: CA/cert paths in URL are forbidden; trust root is embedded",
     );
   }
   for (const [k, v] of u.searchParams.entries()) {
@@ -91,88 +109,6 @@ function assertUrlTlsPolicy(databaseUrl) {
     }
   }
   return u;
-}
-
-function assertNoReparseOrSymlink(resolvedPath, st) {
-  if (typeof st.isSymbolicLink === "function" && st.isSymbolicLink()) {
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_SYMLINK",
-      "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction",
-    );
-  }
-  // Windows reparse points (junctions, mount points) often surface via mode bits.
-  // FILE_ATTRIBUTE_REPARSE_POINT = 0x400; Node exposes via stats on some builds.
-  if (st.isDirectory && st.isDirectory()) {
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_NOT_FILE",
-      "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file",
-    );
-  }
-  if (!st.isFile()) {
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_NOT_FILE",
-      "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file",
-    );
-  }
-}
-
-function openCaFileNoFollow(resolvedPath) {
-  let st;
-  try {
-    st = fs.lstatSync(resolvedPath);
-  } catch (err) {
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_UNREADABLE",
-      "BLOCKED_TLS_CA_UNREADABLE: cannot lstat CONTAINMENT_APPLY_SSL_ROOTCERT",
-    );
-  }
-  assertNoReparseOrSymlink(resolvedPath, st);
-
-  const flags =
-    fs.constants.O_RDONLY |
-    (fs.constants.O_NOFOLLOW != null ? fs.constants.O_NOFOLLOW : 0) |
-    (fs.constants.O_SYMLINK != null ? 0 : 0);
-
-  let fd;
-  try {
-    fd = fs.openSync(resolvedPath, flags);
-  } catch (err) {
-    if (err && (err.code === "ELOOP" || /symbolic link/i.test(String(err.message)))) {
-      throw tlsPolicyError(
-        "BLOCKED_TLS_CA_SYMLINK",
-        "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction",
-      );
-    }
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_UNREADABLE",
-      "BLOCKED_TLS_CA_UNREADABLE: cannot open CONTAINMENT_APPLY_SSL_ROOTCERT",
-    );
-  }
-
-  try {
-    const fst = fs.fstatSync(fd);
-    assertNoReparseOrSymlink(resolvedPath, fst);
-    if (fst.size <= 0 || fst.size > 1024 * 1024) {
-      throw tlsPolicyError(
-        "BLOCKED_TLS_CA_INVALID",
-        "BLOCKED_TLS_CA_INVALID: CA file size out of bounds",
-      );
-    }
-    const pem = Buffer.alloc(fst.size);
-    const n = fs.readSync(fd, pem, 0, fst.size, 0);
-    if (n !== fst.size) {
-      throw tlsPolicyError(
-        "BLOCKED_TLS_CA_UNREADABLE",
-        "BLOCKED_TLS_CA_UNREADABLE: short read of CA file",
-      );
-    }
-    // Pin: copy detached from path; never re-read path after this return.
-    return Buffer.from(pem);
-  } finally {
-    try {
-      fs.closeSync(fd);
-    } catch (_) {}
-  }
 }
 
 function assertCaValidityWindow(x509) {
@@ -200,17 +136,19 @@ function assertCaValidityWindow(x509) {
 }
 
 /**
- * Load CA once from env path. Rejects symlink/non-regular files.
- * Pins in-memory PEM + DER fingerprint; never re-reads the path.
+ * Parse PEM bytes, optionally pin DER SHA-256, enforce validity window.
+ * Never reads a filesystem path.
  */
-function loadCaFromEnv(env = process.env) {
-  const caPath = env[SSL_ROOTCERT_ENV];
-  if (!caPath || !String(caPath).trim()) {
-    return null;
+function loadPinnedCaFromPem(pemInput, expectedDerSha256 = null) {
+  if (pemInput == null) {
+    throw tlsPolicyError(
+      "BLOCKED_TLS_CA_INVALID",
+      "BLOCKED_TLS_CA_INVALID: empty CA PEM",
+    );
   }
-  // Do not echo the path in errors (broad path exposure).
-  const resolved = path.resolve(String(caPath).trim());
-  const pemBuf = openCaFileNoFollow(resolved);
+  const pemBuf = Buffer.isBuffer(pemInput)
+    ? Buffer.from(pemInput)
+    : Buffer.from(String(pemInput), "utf8");
   const text = pemBuf.toString("utf8");
   if (!/-----BEGIN CERTIFICATE-----/.test(text)) {
     throw tlsPolicyError(
@@ -221,7 +159,7 @@ function loadCaFromEnv(env = process.env) {
   let x509;
   try {
     x509 = new X509Certificate(pemBuf);
-  } catch (err) {
+  } catch {
     throw tlsPolicyError(
       "BLOCKED_TLS_CA_INVALID",
       "BLOCKED_TLS_CA_INVALID: X509 parse failed",
@@ -229,13 +167,20 @@ function loadCaFromEnv(env = process.env) {
   }
   assertCaValidityWindow(x509);
 
-  const pinnedPem = text;
   const derSha = crypto.createHash("sha256").update(x509.raw).digest("hex");
-  const pemSha = crypto.createHash("sha256").update(pemBuf).digest("hex");
+  if (
+    expectedDerSha256 != null &&
+    String(expectedDerSha256).toLowerCase() !== derSha
+  ) {
+    throw tlsPolicyError(
+      "BLOCKED_TLS_CA_PIN_MISMATCH",
+      "BLOCKED_TLS_CA_PIN_MISMATCH: embedded/official CA DER fingerprint mismatch",
+    );
+  }
 
+  const pemSha = crypto.createHash("sha256").update(pemBuf).digest("hex");
   return Object.freeze({
-    pem: pinnedPem,
-    // Intentionally omit filesystem path from returned object (evidence/redaction).
+    pem: text,
     der_sha256: derSha,
     pem_sha256: pemSha,
     bytes: pemBuf.length,
@@ -244,7 +189,21 @@ function loadCaFromEnv(env = process.env) {
     self_signed: x509.subject === x509.issuer,
     subject_class: /supabase/i.test(x509.subject) ? "supabase_named" : "other",
     pinned: true,
+    source: expectedDerSha256
+      ? "embedded_official_supabase_ca"
+      : "in_memory_test_ca",
   });
+}
+
+/**
+ * Load the freeze-sealed embedded official Supabase CA.
+ * Recomputes DER SHA-256 and requires exact pin equality before any connection.
+ */
+function loadOfficialEmbeddedCa() {
+  return loadPinnedCaFromPem(
+    OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+    OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+  );
 }
 
 function sanitizeCaEvidence(ca) {
@@ -252,6 +211,7 @@ function sanitizeCaEvidence(ca) {
     return {
       ca_provided: false,
       path_redacted: true,
+      source: "none",
     };
   }
   return {
@@ -265,25 +225,31 @@ function sanitizeCaEvidence(ca) {
     self_signed: ca.self_signed,
     subject_class: ca.subject_class,
     pinned: Boolean(ca.pinned),
+    source: ca.source || "unknown",
   };
 }
 
 /**
- * Build pg Client options with explicit verified CA when required.
- * Always rejectUnauthorized true + hostname verification when CA present.
- * Never re-reads the CA path after loadCaFromEnv.
+ * Build pg Client options.
+ * Production / non-loopback: embedded official CA only.
+ * Loopback without test override: no TLS (local disposable non-SSL postgres).
+ * Loopback with opts.testTrustedCaPem: in-memory synthetic CA for disposable SSL tests
+ * (never from env/path/argv).
  */
-function buildPgClientOptions(databaseUrl, env = process.env) {
+function buildPgClientOptions(databaseUrl, env = process.env, opts = {}) {
   assertNoTlsBypass(env);
+  assertNoCaPathChannel(env);
   const u = assertUrlTlsPolicy(databaseUrl);
   const loopback = isLoopbackHost(u.hostname);
-  const ca = loadCaFromEnv(env);
 
-  if (!loopback && !ca) {
-    throw tlsPolicyError(
-      "BLOCKED_TLS_CA_REQUIRED",
-      `BLOCKED_TLS_CA_REQUIRED: non-loopback targets require ${SSL_ROOTCERT_ENV}`,
+  let ca = null;
+  if (opts && opts.testTrustedCaPem) {
+    ca = loadPinnedCaFromPem(
+      opts.testTrustedCaPem,
+      opts.testExpectedDerSha256 || null,
     );
+  } else if (!loopback) {
+    ca = loadOfficialEmbeddedCa();
   }
 
   const cleaned = new URL(u.toString());
@@ -302,7 +268,6 @@ function buildPgClientOptions(databaseUrl, env = process.env) {
     };
   }
 
-  // Use pinned in-memory PEM only — never pass a path to pg/sslrootcert.
   const ssl = {
     rejectUnauthorized: true,
     ca: ca.pem,
@@ -314,12 +279,11 @@ function buildPgClientOptions(databaseUrl, env = process.env) {
     connectionString: cleaned.toString(),
     ssl,
     tls_evidence: {
-      mode: "verify_full_explicit_ca",
+      mode: "verify_full_embedded_ca",
       hostname_verification: "enabled",
       reject_unauthorized: true,
       ca: sanitizeCaEvidence(ca),
     },
-    // Internal pin for tests — not serialized into applicator evidence.
     _pinned_ca_der_sha256: ca.der_sha256,
   };
 }
@@ -329,8 +293,10 @@ function classifyTlsError(err) {
   if (/BLOCKED_TLS_CA_EXPIRED/i.test(code)) return "BLOCKED_TLS_CA_EXPIRED";
   if (/BLOCKED_TLS_CA_NOT_YET_VALID/i.test(code))
     return "BLOCKED_TLS_CA_NOT_YET_VALID";
-  if (/BLOCKED_TLS_CA_SYMLINK/i.test(code)) return "BLOCKED_TLS_CA_SYMLINK";
-  if (/BLOCKED_TLS_CA_NOT_FILE/i.test(code)) return "BLOCKED_TLS_CA_NOT_FILE";
+  if (/BLOCKED_TLS_CA_PIN_MISMATCH/i.test(code))
+    return "BLOCKED_TLS_CA_PIN_MISMATCH";
+  if (/BLOCKED_TLS_CA_PATH_FORBIDDEN/i.test(code))
+    return "BLOCKED_TLS_CA_PATH_FORBIDDEN";
   if (/BLOCKED_TLS_/i.test(code) && err && err.code) return err.code;
   if (/SELF_SIGNED_CERT_IN_CHAIN/i.test(code)) return "SELF_SIGNED_CERT_IN_CHAIN";
   if (/UNABLE_TO_VERIFY_LEAF_SIGNATURE/i.test(code))
@@ -342,15 +308,17 @@ function classifyTlsError(err) {
 }
 
 module.exports = {
-  SSL_ROOTCERT_ENV,
   FORBIDDEN_SSLMODES,
+  FORBIDDEN_SSL_ROOTCERT_ENV,
+  OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
   isLoopbackHost,
   assertNoTlsBypass,
+  assertNoCaPathChannel,
   assertUrlTlsPolicy,
-  loadCaFromEnv,
+  loadPinnedCaFromPem,
+  loadOfficialEmbeddedCa,
   sanitizeCaEvidence,
   buildPgClientOptions,
   classifyTlsError,
   assertCaValidityWindow,
-  openCaFileNoFollow,
 };
