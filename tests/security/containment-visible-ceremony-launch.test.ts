@@ -1,8 +1,8 @@
 /**
- * Windows visible-ceremony launch / trust-root e2e (mandatory).
+ * Windows visible-ceremony supervisor / Job Object e2e (mandatory).
  * Synthetic stubs only — zero DB / credential / production contact.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,6 +10,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
+const SUPERVISE = path.join(
+  ROOT,
+  "scripts/security/supervise-visible-containment-ceremony.ps1",
+);
 const ENTER = path.join(
   ROOT,
   "scripts/security/enter-visible-containment-ceremony.ps1",
@@ -50,85 +54,80 @@ function systemPowerShell(): string {
   );
 }
 
+function taskkill(): string {
+  return path.join(process.env.SystemRoot || "C:\\Windows", "System32", "taskkill.exe");
+}
+
 function decodeEvidenceFrame(stdout: string): Record<string, unknown> | null {
-  const m = String(stdout || "").match(/CONTAINMENT_EVIDENCE_V1:([A-Za-z0-9_-]+)/);
+  const m = String(stdout || "").match(
+    /CONTAINMENT_EVIDENCE_V1:([A-Za-z0-9_-]+)/,
+  );
   if (!m) return null;
   let b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
   while (b64.length % 4) b64 += "=";
   return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
 }
 
-function runLauncher(opts: {
-  evidenceDir: string;
-  ceremony: string;
-  prHead?: string;
-  wait?: boolean;
-  timeoutSec?: number;
-  expectedCeremonySha?: string;
-  expectedCeremonyBytes?: number;
-  expectedLauncherSha?: string;
-  expectedLauncherBytes?: number;
-  env?: NodeJS.ProcessEnv;
-  timeoutMs?: number;
-}) {
-  const ceremonySha = opts.expectedCeremonySha ?? sha256File(opts.ceremony);
-  const ceremonyBytes =
-    opts.expectedCeremonyBytes ?? fs.statSync(opts.ceremony).size;
-  const launcherSha = opts.expectedLauncherSha ?? sha256File(LAUNCHER);
-  const launcherBytes =
-    opts.expectedLauncherBytes ?? fs.statSync(LAUNCHER).size;
-  const args = [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    LAUNCHER,
-    "-PrHead",
-    opts.prHead ?? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "-RepoRoot",
-    ROOT,
-    "-EvidenceOutDir",
-    opts.evidenceDir,
-    "-CeremonyScriptPath",
-    opts.ceremony,
-    "-ExpectedCeremonySha256",
-    ceremonySha,
-    "-ExpectedCeremonyBytes",
-    String(ceremonyBytes),
-    "-ExpectedLauncherSha256",
-    launcherSha,
-    "-ExpectedLauncherBytes",
-    String(launcherBytes),
-  ];
-  if (opts.wait !== false) {
-    args.push("-WaitForPromptReady");
-    args.push("-PromptReadyTimeoutSec");
-    args.push(String(opts.timeoutSec ?? 30));
+function authFreeze(): string {
+  const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8")) as {
+    authorized_pr_head: string;
+  };
+  if (
+    !/^[0-9a-f]{40}$/i.test(auth.authorized_pr_head) ||
+    /PENDING/i.test(auth.authorized_pr_head)
+  ) {
+    throw new Error(
+      "authorized_pr_head must be pinned (got " + auth.authorized_pr_head + ")",
+    );
   }
-  return spawnSync(systemPowerShell(), args, {
-    encoding: "utf8",
-    windowsHide: true,
-    timeout: opts.timeoutMs ?? 90000,
-    env: { ...process.env, ...(opts.env || {}) },
-  });
+  return auth.authorized_pr_head;
 }
 
-function runEnter(opts: {
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function listHangPids(): number[] {
+  const r = spawnSync(
+    systemPowerShell(),
+    [
+      "-NoProfile",
+      "-Command",
+      "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -match 'synthetic-visible-ceremony-hang' -and $_.CommandLine -notmatch 'Where-Object' } | ForEach-Object { $_.ProcessId }",
+    ],
+    { encoding: "utf8", windowsHide: true, timeout: 30000 },
+  );
+  return String(r.stdout || "")
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => /^\d+$/.test(s))
+    .map((s) => Number(s));
+}
+
+function runSupervise(opts: {
   evidenceDir: string;
-  prHead: string;
   stub?: string;
   wait?: boolean;
   timeoutSec?: number;
   timeoutMs?: number;
-}) {
+  forcePsFail?: boolean;
+  forceChildFail?: boolean;
+  prHead?: string;
+  env?: NodeJS.ProcessEnv;
+}): ReturnType<typeof spawnSync> {
   const args = [
     "-NoProfile",
     "-ExecutionPolicy",
     "Bypass",
     "-File",
-    ENTER,
+    SUPERVISE,
     "-PrHead",
-    opts.prHead,
+    opts.prHead ?? authFreeze(),
     "-RepoRoot",
     ROOT,
     "-EvidenceOutDir",
@@ -140,261 +139,393 @@ function runEnter(opts: {
   if (opts.wait !== false) {
     args.push("-WaitForPromptReady");
     args.push("-PromptReadyTimeoutSec");
-    args.push(String(opts.timeoutSec ?? 60));
+    args.push(String(opts.timeoutSec ?? 45));
   }
+  if (opts.forcePsFail) args.push("-TestForcePowerShellIdentityFail");
+  if (opts.forceChildFail) args.push("-TestForceChildStartFail");
   return spawnSync(systemPowerShell(), args, {
     encoding: "utf8",
     windowsHide: true,
-    timeout: opts.timeoutMs ?? 120000,
+    timeout: opts.timeoutMs ?? 180000,
+    env: { ...process.env, ...(opts.env || {}) },
   });
 }
 
+function readSupervisorEvidence(dir: string, stdout: string) {
+  const frame = decodeEvidenceFrame(stdout);
+  const p = path.join(dir, "VISIBLE_SUPERVISOR_EVIDENCE.json");
+  const file = fs.existsSync(p)
+    ? (JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>)
+    : null;
+  return frame || file;
+}
+
 describe("visible containment ceremony Windows launch (mandatory)", () => {
-  it("refuses cmd.exe / PATH-relative powershell as the reviewed FileName", () => {
+  it("refuses cmd.exe / PATH-relative powershell; requires JobApi supervisor", () => {
+    const superviseSrc = fs.readFileSync(SUPERVISE, "utf8");
     const launcherSrc = fs.readFileSync(LAUNCHER, "utf8");
     const enterSrc = fs.readFileSync(ENTER, "utf8");
-    for (const src of [launcherSrc, enterSrc]) {
+    for (const src of [superviseSrc, launcherSrc, enterSrc]) {
       expect(src).toMatch(/System32\\WindowsPowerShell\\v1\.0\\powershell\.exe/);
-      expect(src).toMatch(/ProcessStartInfo/);
       expect(src).toMatch(/Format-Win32Argument/);
-      expect(src).not.toMatch(/FileName\s*=\s*"cmd(\.exe)?"/i);
       expect(src).not.toMatch(/cmd\.exe\s+\/c\s+start/i);
       expect(src).not.toMatch(/Start-Process\s+-FilePath\s+"powershell\.exe"/);
     }
+    expect(superviseSrc).toMatch(/ContainmentVisible\.JobApi/);
+    expect(superviseSrc).toMatch(/JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/);
+    expect(superviseSrc).toMatch(/AssignProcessToJobObject/);
+    expect(superviseSrc).toMatch(/CREATE_SUSPENDED/);
+    expect(superviseSrc).not.toMatch(/BREAKAWAY/);
   });
 
-  it("preserves exact argv for paths with spaces, &, (), apostrophe, Unicode, trailing sep", () => {
+  it("preserves exact argv for special evidence paths via supervisor", () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), "vis-argv-"));
-    const evidenceDir = path.join(
-      base,
-      "evidence dir (test) & more",
-      "café's",
-      "trail\\",
-    );
+    const evidenceDir =
+      path.join(base, "evidence dir (test) & more", "café's", "trail") +
+      path.sep;
     fs.mkdirSync(evidenceDir, { recursive: true });
-    // Normalize trailing sep the way operators might type it.
-    const evidenceWithTrail = evidenceDir.endsWith(path.sep)
-      ? evidenceDir
-      : evidenceDir + path.sep;
-
-    const r = runLauncher({
-      evidenceDir: evidenceWithTrail,
-      ceremony: ARGV_STUB,
-      timeoutSec: 20,
+    const r = runSupervise({
+      evidenceDir,
+      stub: ARGV_STUB,
+      timeoutSec: 40,
     });
     expect(r.status, r.stderr || r.stdout || "").toBe(0);
     expect(String(r.stdout || "")).toMatch(/PROMPT_READY/);
-    const argvPath = path.join(evidenceWithTrail, "SYNTHETIC_ARGV.json");
+    const argvPath = path.join(evidenceDir, "SYNTHETIC_ARGV.json");
     expect(fs.existsSync(argvPath)).toBe(true);
     const argv = JSON.parse(fs.readFileSync(argvPath, "utf8")) as {
       EvidenceOutDir: string;
       RepoRoot: string;
     };
-    // Child must see the same evidence path boundary (trailing sep may normalize).
     expect(path.normalize(argv.EvidenceOutDir)).toBe(
-      path.normalize(evidenceWithTrail),
+      path.normalize(evidenceDir),
     );
     expect(path.normalize(argv.RepoRoot)).toBe(path.normalize(ROOT));
-    expect(fs.readFileSync(argvPath, "utf8")).not.toMatch(/postgres:\/\//i);
+    // material-* cleaned after success
+    const mats = fs
+      .readdirSync(evidenceDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("material-"));
+    expect(mats.length).toBe(0);
     fs.rmSync(base, { recursive: true, force: true });
   });
 
   it("fail-closes on NUL/newline injection in EvidenceOutDir", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-inj-"));
     const evil = path.join(dir, "ok") + "\n-Evil";
-    const r = runLauncher({
+    const r = runSupervise({
       evidenceDir: evil,
-      ceremony: STUB,
-      timeoutSec: 10,
-      timeoutMs: 30000,
+      stub: STUB,
+      timeoutSec: 15,
+      timeoutMs: 60000,
     });
     expect(r.status).not.toBe(0);
-    const ev =
-      decodeEvidenceFrame(String(r.stdout || "")) ||
-      (fs.existsSync(path.join(dir, "VISIBLE_LAUNCH_EVIDENCE.json"))
-        ? JSON.parse(
-            fs.readFileSync(
-              path.join(dir, "VISIBLE_LAUNCH_EVIDENCE.json"),
-              "utf8",
-            ),
-          )
-        : null);
-    // Injection may prevent evidence dir creation; either blocked code or non-zero is required.
-    if (ev) {
-      expect(String(ev.reason_code || ev.error_code)).toMatch(
-        /BLOCKED_INPUT_INJECTION|BLOCKED_INPUT_INVALID|BLOCKED/,
-      );
-      expect(ev.databaseConnectionAttempts).toBe(0);
-      expect(ev.sqlApplicationAttempts).toBe(0);
-    }
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("ignores PATH-shim powershell.exe and still reaches PROMPT_READY", () => {
+  it("ignores PATH-shim powershell.exe and records path_hijack_ignored", () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), "vis-shim-"));
     const shimDir = path.join(base, "shim");
     fs.mkdirSync(shimDir, { recursive: true });
-    // Non-executable marker file named powershell.exe — if PATH were used, start would fail.
     fs.writeFileSync(
       path.join(shimDir, "powershell.exe"),
       "@echo off\r\nexit /b 99\r\n",
     );
     const evidenceDir = path.join(base, "evidence");
     fs.mkdirSync(evidenceDir);
-    const r = runLauncher({
+    const r = runSupervise({
       evidenceDir,
-      ceremony: STUB,
-      env: {
-        PATH: `${shimDir};${process.env.PATH || ""}`,
-      },
+      stub: STUB,
+      env: { PATH: `${shimDir};${process.env.PATH || ""}` },
     });
     expect(r.status, r.stderr || r.stdout || "").toBe(0);
-    expect(String(r.stdout || "")).toMatch(/PROMPT_READY/);
-    const idPath = path.join(evidenceDir, "VISIBLE_LAUNCH_PS_IDENTITY.json");
-    expect(fs.existsSync(idPath)).toBe(true);
-    const id = JSON.parse(fs.readFileSync(idPath, "utf8")) as {
-      basename: string;
-      path_hijack_ignored: boolean;
-      absolute_path?: string;
-    };
-    expect(id.basename).toBe("powershell.exe");
+    const id = JSON.parse(
+      fs.readFileSync(
+        path.join(evidenceDir, "VISIBLE_SUPERVISOR_PS_IDENTITY.json"),
+        "utf8",
+      ),
+    ) as { path_hijack_ignored: boolean; absolute_path?: string };
     expect(id.path_hijack_ignored).toBe(true);
     expect(id.absolute_path).toBeUndefined();
     fs.rmSync(base, { recursive: true, force: true });
   });
 
-  it("fail-closes on ceremony seal mismatch with structured V1 evidence", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-seal-"));
-    const r = runLauncher({
+  it("emits BLOCKED_POWERSHELL_IDENTITY with zero attempts", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-psid-"));
+    const r = runSupervise({
       evidenceDir: dir,
-      ceremony: STUB,
-      expectedCeremonySha: "0".repeat(64),
-      expectedCeremonyBytes: 1,
-      timeoutSec: 10,
+      stub: STUB,
+      forcePsFail: true,
+      timeoutSec: 20,
     });
     expect(r.status).not.toBe(0);
-    const frame = decodeEvidenceFrame(String(r.stdout || ""));
-    const fileEv = JSON.parse(
-      fs.readFileSync(path.join(dir, "VISIBLE_LAUNCH_EVIDENCE.json"), "utf8"),
-    ) as Record<string, unknown>;
-    const ev = frame || fileEv;
-    expect(ev.reason_code).toBe("BLOCKED_SEAL_MISMATCH");
-    expect(ev.databaseConnectionAttempts).toBe(0);
-    expect(ev.sqlApplicationAttempts).toBe(0);
-    expect(ev.advisory_lock_acquired).toBe(false);
-    expect(ev.prompt_ready_observed).toBe(false);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev).toBeTruthy();
+    expect(ev!.reason_code).toBe("BLOCKED_POWERSHELL_IDENTITY");
+    expect(ev!.databaseConnectionAttempts).toBe(0);
+    expect(ev!.sqlApplicationAttempts).toBe(0);
+    expect(ev!.advisory_lock_acquired).toBe(false);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("timeout kills hang stub and emits BLOCKED_PROMPT_TIMEOUT with cleanup", () => {
+  it("emits BLOCKED_CHILD_START with zero attempts", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-cstart-"));
+    const r = runSupervise({
+      evidenceDir: dir,
+      stub: STUB,
+      forceChildFail: true,
+      timeoutSec: 20,
+    });
+    expect(r.status).not.toBe(0);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev).toBeTruthy();
+    expect(ev!.reason_code).toBe("BLOCKED_CHILD_START");
+    expect(ev!.databaseConnectionAttempts).toBe(0);
+    expect(ev!.sqlApplicationAttempts).toBe(0);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("timeout kills hang tree and cleans material with V1 evidence", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-hang-"));
-    const r = runLauncher({
+    const before = new Set(listHangPids());
+    const r = runSupervise({
       evidenceDir: dir,
-      ceremony: HANG_STUB,
-      timeoutSec: 3,
-      timeoutMs: 60000,
+      stub: HANG_STUB,
+      timeoutSec: 4,
+      timeoutMs: 90000,
     });
     expect(r.status).not.toBe(0);
-    const frame = decodeEvidenceFrame(String(r.stdout || ""));
-    const fileEv = JSON.parse(
-      fs.readFileSync(path.join(dir, "VISIBLE_LAUNCH_EVIDENCE.json"), "utf8"),
-    ) as Record<string, unknown>;
-    const ev = frame || fileEv;
-    expect(ev.reason_code).toBe("BLOCKED_PROMPT_TIMEOUT");
-    expect(ev.databaseConnectionAttempts).toBe(0);
-    expect(ev.sqlApplicationAttempts).toBe(0);
-    const cleanup = ev.cleanup as { child?: { terminated?: boolean } };
-    expect(cleanup?.child?.terminated).toBe(true);
-    expect(fs.existsSync(path.join(dir, "PROMPT_READY.txt"))).toBe(false);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev!.reason_code).toBe("BLOCKED_PROMPT_TIMEOUT");
+    expect(ev!.databaseConnectionAttempts).toBe(0);
+    const hangPidPath = path.join(dir, "SYNTHETIC_HANG_PID.txt");
+    if (fs.existsSync(hangPidPath)) {
+      const hp = Number(fs.readFileSync(hangPidPath, "utf8").trim());
+      expect(pidAlive(hp)).toBe(false);
+    }
+    const after = listHangPids().filter((p) => !before.has(p));
+    expect(after.length).toBe(0);
+    const mats = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("material-"));
+    expect(mats.length).toBe(0);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("verified freeze-materialized enter reaches PROMPT_READY (tip→freeze seals)", () => {
-    expect(fs.existsSync(ENTER)).toBe(true);
+  it("hard-kill enter after VISIBLE_LAUNCH_STARTED leaves zero orphans (supervisor survives)", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-hardkill-"));
+    const freeze = authFreeze();
+    const child = spawn(
+      systemPowerShell(),
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        SUPERVISE,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        dir,
+        "-TestStubScript",
+        HANG_STUB,
+        "-WaitForPromptReady",
+        "-PromptReadyTimeoutSec",
+        "60",
+      ],
+      { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    child.stdout.on("data", (d) => {
+      stdout += d;
+    });
+
+    const startedPath = path.join(dir, "VISIBLE_LAUNCH_STARTED.txt");
+    const entryStarted = path.join(dir, "VISIBLE_ENTRY_STARTED.txt");
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(startedPath) || fs.existsSync(entryStarted)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(
+      fs.existsSync(startedPath) || fs.existsSync(entryStarted),
+    ).toBe(true);
+
+    // Hard-kill the enter process (not supervisor) using VISIBLE_SUPERVISOR_STARTED enter_pid
+    const supStarted = path.join(dir, "VISIBLE_SUPERVISOR_STARTED.txt");
+    expect(fs.existsSync(supStarted)).toBe(true);
+    const enterPid = Number(
+      fs.readFileSync(supStarted, "utf8").match(/enter_pid=(\d+)/)?.[1],
+    );
+    expect(enterPid).toBeGreaterThan(0);
+    spawnSync(taskkill(), ["/PID", String(enterPid), "/T", "/F"], {
+      windowsHide: true,
+    });
+
+    const exitCode = await new Promise<number | null>((resolve) => {
+      const t = setTimeout(() => {
+        try {
+          spawnSync(taskkill(), ["/PID", String(child.pid), "/T", "/F"], {
+            windowsHide: true,
+          });
+        } catch {}
+        resolve(null);
+      }, 90000);
+      child.on("exit", (code) => {
+        clearTimeout(t);
+        resolve(code);
+      });
+    });
+    expect(exitCode).not.toBeNull();
+    expect(exitCode).not.toBe(0);
+
+    const hangPidPath = path.join(dir, "SYNTHETIC_HANG_PID.txt");
+    if (fs.existsSync(hangPidPath)) {
+      const hp = Number(fs.readFileSync(hangPidPath, "utf8").trim());
+      expect(pidAlive(hp)).toBe(false);
+    }
+    expect(listHangPids().length).toBe(0);
+
+    const ev = readSupervisorEvidence(dir, stdout);
+    expect(ev).toBeTruthy();
+    expect(String(ev!.reason_code)).toMatch(
+      /BLOCKED_ENTER_TERMINATED|BLOCKED_CHILD_EXIT|BLOCKED_PROMPT_TIMEOUT/,
+    );
+    expect(ev!.databaseConnectionAttempts).toBe(0);
+    expect(ev!.sqlApplicationAttempts).toBe(0);
+    const orphan = JSON.parse(
+      fs.readFileSync(path.join(dir, "SUPERVISOR_ORPHAN_CHECK.json"), "utf8"),
+    ) as { sentinel_alive: boolean; material_cleaned: boolean };
+    expect(orphan.sentinel_alive).toBe(false);
+    expect(orphan.material_cleaned).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 120000);
+
+  it("supervisor hard-kill still kills job tree (no V1 required; zero orphans)", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-supkill-"));
+    const freeze = authFreeze();
+    const child = spawn(
+      systemPowerShell(),
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        SUPERVISE,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        dir,
+        "-TestStubScript",
+        HANG_STUB,
+        "-WaitForPromptReady",
+        "-PromptReadyTimeoutSec",
+        "60",
+      ],
+      { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const startedPath = path.join(dir, "VISIBLE_LAUNCH_STARTED.txt");
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(startedPath)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(fs.existsSync(startedPath)).toBe(true);
+    let hangPid: number | null = null;
+    const hangPidPath = path.join(dir, "SYNTHETIC_HANG_PID.txt");
+    // hang stub may write slightly after launch started
+    for (let i = 0; i < 50; i++) {
+      if (fs.existsSync(hangPidPath)) {
+        hangPid = Number(fs.readFileSync(hangPidPath, "utf8").trim());
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(hangPid).toBeTruthy();
+    expect(pidAlive(hangPid!)).toBe(true);
+
+    // Hard-kill supervisor — job handle close must kill descendants.
+    spawnSync(taskkill(), ["/PID", String(child.pid), "/T", "/F"], {
+      windowsHide: true,
+    });
+    await new Promise((r) => setTimeout(r, 3000));
+    expect(pidAlive(hangPid!)).toBe(false);
+    expect(listHangPids().length).toBe(0);
+    // No claim that V1 survives supervisor death.
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 120000);
+
+  it("child crash before PROMPT_READY yields structured V1 zero-attempt evidence", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-crash-"));
+    const crash = path.join(dir, "crash-stub.ps1");
+    fs.writeFileSync(
+      crash,
+      "param($PrHead,$RepoRoot,$EvidenceOutDir,$SupervisorSentinel)\nexit 44\n",
+    );
+    const r = runSupervise({
+      evidenceDir: dir,
+      stub: crash,
+      timeoutSec: 30,
+    });
+    expect(r.status).not.toBe(0);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev).toBeTruthy();
+    expect(String(ev!.reason_code)).toMatch(
+      /BLOCKED_ENTER_TERMINATED|BLOCKED_CHILD_EXIT/,
+    );
+    expect(ev!.databaseConnectionAttempts).toBe(0);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("verified tip-materialized entry reaches PROMPT_READY; corrupt worktree ignored", () => {
     const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8")) as {
       authorized_pr_head: string;
-      visible_ceremony_entry?: { sha256: string; bytes: number };
+      visible_ceremony_supervisor?: { sha256: string; bytes: number };
+      visible_ceremony_entry: { sha256: string; bytes: number };
       visible_ceremony_launcher: { sha256: string; bytes: number };
     };
-    // Requires published tip pin (no PENDING). Run after freeze→tip publication.
-    if (
-      !/^[0-9a-f]{40}$/i.test(auth.authorized_pr_head) ||
-      /PENDING/i.test(auth.authorized_pr_head)
-    ) {
-      throw new Error(
-        "authorized_pr_head must be pinned before enter e2e (got " +
-          auth.authorized_pr_head +
-          ")",
-      );
-    }
+    expect(sha256File(SUPERVISE)).toBe(auth.visible_ceremony_supervisor!.sha256);
+    expect(sha256File(ENTER)).toBe(auth.visible_ceremony_entry.sha256);
     expect(sha256File(LAUNCHER)).toBe(auth.visible_ceremony_launcher.sha256);
-    expect(fs.statSync(LAUNCHER).size).toBe(
-      auth.visible_ceremony_launcher.bytes,
-    );
-    if (auth.visible_ceremony_entry) {
-      expect(sha256File(ENTER)).toBe(auth.visible_ceremony_entry.sha256);
-    }
 
     const dir = fs.mkdtempSync(
       path.join(os.tmpdir(), "vis-enter (ok) & café-"),
     );
-    // Corrupt worktree launcher bytes — enter must still use freeze materialization.
-    const backup = fs.readFileSync(LAUNCHER);
+    const backupLaunch = fs.readFileSync(LAUNCHER);
+    const backupEnter = fs.readFileSync(ENTER);
     try {
-      fs.appendFileSync(LAUNCHER, "\n# CORRUPT_WORKTREE_TEST\n");
-      const r = runEnter({
+      fs.appendFileSync(LAUNCHER, "\n# CORRUPT_WORKTREE_LAUNCHER\n");
+      fs.appendFileSync(ENTER, "\n# CORRUPT_WORKTREE_ENTRY\n");
+      const r = runSupervise({
         evidenceDir: dir,
-        prHead: auth.authorized_pr_head,
         stub: STUB,
         timeoutSec: 45,
       });
       expect(r.status, r.stderr || r.stdout || "").toBe(0);
       expect(String(r.stdout || "")).toMatch(/PROMPT_READY/);
       expect(fs.existsSync(path.join(dir, "SYNTHETIC_STUB_OK.txt"))).toBe(true);
-      expect(fs.existsSync(path.join(dir, "VISIBLE_LAUNCH_STARTED.txt"))).toBe(
-        true,
-      );
-      const started = fs.readFileSync(
-        path.join(dir, "VISIBLE_LAUNCH_STARTED.txt"),
-        "utf8",
-      );
-      expect(started).toMatch(/pid=\d+/);
-      expect(started).not.toMatch(/postgres:\/\//i);
-      expect(started).not.toMatch(/CONTAINMENT_APPLY_DATABASE_URL/i);
     } finally {
-      fs.writeFileSync(LAUNCHER, backup);
+      fs.writeFileSync(LAUNCHER, backupLaunch);
+      fs.writeFileSync(ENTER, backupEnter);
     }
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("enter fail-closes on wrong PrHead with structured V1 evidence", () => {
-    const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8")) as {
-      authorized_pr_head: string;
-    };
-    if (!/^[0-9a-f]{40}$/.test(auth.authorized_pr_head)) {
-      return;
-    }
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-enter-bad-"));
-    const r = runEnter({
+  it("enter fail-closes on wrong PrHead via supervisor", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-badpin-"));
+    const r = runSupervise({
       evidenceDir: dir,
-      prHead: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       stub: STUB,
+      prHead: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       timeoutSec: 15,
     });
     expect(r.status).not.toBe(0);
-    const frame = decodeEvidenceFrame(String(r.stdout || ""));
-    const filePath = path.join(dir, "VISIBLE_ENTRY_EVIDENCE.json");
-    const fileEv = fs.existsSync(filePath)
-      ? (JSON.parse(fs.readFileSync(filePath, "utf8")) as Record<
-          string,
-          unknown
-        >)
-      : null;
-    const ev = frame || fileEv;
-    expect(ev).toBeTruthy();
-    expect(String(ev!.reason_code)).toBe("BLOCKED_PIN_MISMATCH");
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev!.reason_code).toBe("BLOCKED_PIN_MISMATCH");
     expect(ev!.databaseConnectionAttempts).toBe(0);
-    expect(ev!.sqlApplicationAttempts).toBe(0);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

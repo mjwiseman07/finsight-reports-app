@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "c54ea3c9e2fb8bf24a5f047941a0cf879ed48712",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -59,17 +59,23 @@
     "sha256": "8a21b83b128797c5b4af4fb8fe1149472c890734f5598e4b26a8d83ad144b9a5",
     "bytes": 16978
   },
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-containment-ceremony.ps1",
+    "oid": "95235987ae63eb08825e40e4d77f7e314a177ea1",
+    "sha256": "cfacb67d7f1057e7e51d305df7df04e3977e784285f888cfb58516807d70d5e9",
+    "bytes": 31433
+  },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-containment-ceremony.ps1",
-    "oid": "9f3755c28c643887b31b8a977a2c14f560d2aa35",
-    "sha256": "a874e60db27709b384b85be17b1a1306d27002942953242cfb7fc5159560d3cc",
-    "bytes": 16992
+    "oid": "dd8dba63377d896ba8b6545806277c3a27e66d76",
+    "sha256": "5af2276e5bd7c6121b9f88876c090b1bf4b9d47bb0367415e9437e0d2b899e0f",
+    "bytes": 21379
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-containment-ceremony.ps1",
-    "oid": "383a483136b896032f7de175bdd5d1b4be500857",
-    "sha256": "7b32db153a4fefb039df808d641f7680801bd25d692ec55bb32c53d1dbe70b32",
-    "bytes": 15451
+    "oid": "68f0a6918cd7684018ff2e8a048f89a7f8b6e9c7",
+    "sha256": "a77fc9a366c0b711cd754079ec48a5131735ff3d576fbb3911c39404783ca340",
+    "bytes": 16081
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",
@@ -144,7 +150,9 @@
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
     "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
     "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
-    "Visible ceremony: materialize visible_ceremony_entry from tip, verify seals, then enter materializes launcher+ceremony from freeze only.",
-    "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe ProcessStartInfo args; never PATH powershell.exe or cmd start."
+    "Visible ceremony: run visible_ceremony_supervisor; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "Enter materializes launcher+ceremony from freeze only; never execute mutable worktree scripts as authority.",
+    "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe args; never PATH powershell.exe or cmd start.",
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree."
   ]
 }

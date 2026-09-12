@@ -32,6 +32,8 @@ const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
 const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
 const CEREMONY_REL =
   "scripts/security/operator-containment-production-dryrun-ceremony.ps1";
+const VISIBLE_SUPERVISOR_REL =
+  "scripts/security/supervise-visible-containment-ceremony.ps1";
 const VISIBLE_ENTRY_REL =
   "scripts/security/enter-visible-containment-ceremony.ps1";
 const VISIBLE_LAUNCH_REL =
@@ -170,6 +172,7 @@ const stubSeal = seal(STUB_REL);
 const frameToolSeal = seal(FRAME_TOOL_REL);
 const decodeFrameSeal = seal(DECODE_FRAME_REL);
 const ceremonySeal = seal(CEREMONY_REL);
+const visibleSupervisorSeal = seal(VISIBLE_SUPERVISOR_REL);
 const visibleEntrySeal = seal(VISIBLE_ENTRY_REL);
 const visibleLaunchSeal = seal(VISIBLE_LAUNCH_REL);
 const protocolSeal = modules.find((m) => m.path.endsWith("containment-evidence-protocol.js"));
@@ -245,6 +248,7 @@ const auth = {
     decode_frame: decodeFrameSeal,
   },
   operator_ceremony: ceremonySeal,
+  visible_ceremony_supervisor: visibleSupervisorSeal,
   visible_ceremony_entry: visibleEntrySeal,
   visible_ceremony_launcher: visibleLaunchSeal,
   pg_native_stub: stubSeal,
@@ -267,8 +271,10 @@ const auth = {
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
     "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
     "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
-    "Visible ceremony: materialize visible_ceremony_entry from tip, verify seals, then enter materializes launcher+ceremony from freeze only.",
-    "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe ProcessStartInfo args; never PATH powershell.exe or cmd start.",
+    "Visible ceremony: run visible_ceremony_supervisor; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "Enter materializes launcher+ceremony from freeze only; never execute mutable worktree scripts as authority.",
+    "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe args; never PATH powershell.exe or cmd start.",
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",
   ],
 };
 writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);

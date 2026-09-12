@@ -43,7 +43,10 @@ param(
   [int]$PromptReadyTimeoutSec = 120,
 
   [Parameter(Mandatory = $false)]
-  [switch]$EmitEvidenceFrame
+  [switch]$EmitEvidenceFrame,
+
+  [Parameter(Mandatory = $false)]
+  [string]$SupervisorSentinel = ""
 )
 
 Set-StrictMode -Version Latest
@@ -347,7 +350,8 @@ if ($null -eq $script:childProc) {
 
 [IO.File]::WriteAllText(
   (Join-Path $EvidenceOutDir "VISIBLE_LAUNCH_STARTED.txt"),
-  ("pid={0}`nceremony_sha256={1}`n" -f $script:childProc.Id, $cerSha)
+  ("pid={0}`nceremony_sha256={1}`nsupervisor_sentinel={2}`n" -f
+    $script:childProc.Id, $cerSha, $SupervisorSentinel)
 )
 [IO.File]::WriteAllText(
   (Join-Path $EvidenceOutDir "VISIBLE_LAUNCH_PS_IDENTITY.json"),
@@ -361,10 +365,12 @@ if (-not $WaitForPromptReady) {
 
 $ready = Join-Path $EvidenceOutDir "PROMPT_READY.txt"
 $deadline = (Get-Date).AddSeconds([Math]::Max(1, $PromptReadyTimeoutSec))
+$sawReady = $false
 while ((Get-Date) -lt $deadline) {
   if (Test-Path -LiteralPath $ready) {
+    $sawReady = $true
     Write-Host "PROMPT_READY"
-    exit 0
+    break
   }
   if ($script:childProc.HasExited) {
     $cleanup = Stop-ChildTree
@@ -376,14 +382,28 @@ while ((Get-Date) -lt $deadline) {
   Start-Sleep -Milliseconds 200
 }
 
-$cleanup = Stop-ChildTree
-# Remove materialized ceremony copy if under evidence dir
-try {
-  if ($CeremonyScriptPath.StartsWith($EvidenceOutDir, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $CeremonyScriptPath)) {
-    Remove-Item -LiteralPath $CeremonyScriptPath -Force -ErrorAction SilentlyContinue
+if (-not $sawReady) {
+  $cleanup = Stop-ChildTree
+  try {
+    if ($CeremonyScriptPath.StartsWith($EvidenceOutDir, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $CeremonyScriptPath)) {
+      Remove-Item -LiteralPath $CeremonyScriptPath -Force -ErrorAction SilentlyContinue
+    }
+  } catch {}
+  Stop-Launch -Code "BLOCKED_PROMPT_TIMEOUT" -Phase "prompt_wait" -Message "timeout waiting for PROMPT_READY" -Extra @{
+    powershell_identity = $psIdentitySanitized
+    cleanup = @{ completed = $true; child = $cleanup; materialized_removed = $true }
   }
-} catch {}
-Stop-Launch -Code "BLOCKED_PROMPT_TIMEOUT" -Phase "prompt_wait" -Message "timeout waiting for PROMPT_READY" -Extra @{
-  powershell_identity = $psIdentitySanitized
-  cleanup = @{ completed = $true; child = $cleanup; materialized_removed = $true }
 }
+
+# Keep ceremony process alive until it exits; do not delete its script early.
+while (-not $script:childProc.HasExited) {
+  Start-Sleep -Milliseconds 200
+}
+$exitCode = $script:childProc.ExitCode
+if ($exitCode -ne 0) {
+  Stop-Launch -Code "BLOCKED_CHILD_EXIT" -Phase "post_prompt" -Message ("ceremony exit=" + $exitCode) -Extra @{
+    powershell_identity = $psIdentitySanitized
+    cleanup = @{ completed = $true; child = @{ terminated = $true; exit_code = $exitCode } }
+  }
+}
+exit 0

@@ -20,6 +20,9 @@
 
   Synthetic harness: -TestStubScript replaces ceremony materialization only AFTER
   tip/freeze/launcher seals pass (defense-in-depth still verifies launcher).
+
+  When -WaitForPromptReady succeeds, this entry keeps waiting for the child to exit
+  before clearing material-* (ceremony/stub may still need files until child exits).
 #>
 [CmdletBinding()]
 param(
@@ -41,7 +44,18 @@ param(
 
   # Synthetic only — ceremony substitute after launcher seal verification.
   [Parameter(Mandatory = $false)]
-  [string]$TestStubScript = ""
+  [string]$TestStubScript = "",
+
+  # Optional supervisor correlation token (ignored by older launchers if unset).
+  [Parameter(Mandatory = $false)]
+  [string]$SupervisorSentinel = "",
+
+  # Synthetic harness switches
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePowerShellIdentityFail,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceChildStartFail
 )
 
 Set-StrictMode -Version Latest
@@ -49,6 +63,7 @@ $ErrorActionPreference = "Stop"
 
 $script:materialRoot = $null
 $script:childProc = $null
+$script:PowerShellIdentity = $null
 
 function ConvertTo-Base64Url([byte[]]$Bytes) {
   $b64 = [Convert]::ToBase64String($Bytes)
@@ -93,10 +108,11 @@ function New-Blocked([string]$Code, [string]$Phase, [string]$Message, [hashtable
     database_connected         = $false
     nodeProcessStarted         = $false
     prompt_ready_observed      = $false
+    powershell_identity        = $(if ($Extra.ContainsKey("powershell_identity")) { $Extra.powershell_identity } else { $null })
     cleanup                    = $(if ($Extra.ContainsKey("cleanup")) { $Extra.cleanup } else { @{ completed = $true } })
     credential_redaction_confirmation = @{
-      url_in_evidence = $false
-      url_in_argv     = $false
+      url_in_evidence    = $false
+      url_in_argv        = $false
       values_undisclosed = $true
     }
   }
@@ -131,12 +147,27 @@ function Stop-ChildTree {
   }
 }
 
-function Stop-Entry([string]$Code, [string]$Phase, [string]$Message) {
+function Get-SanitizedPowerShellIdentity($Identity) {
+  if ($null -eq $Identity) { return $null }
+  return [ordered]@{
+    basename            = $Identity.basename
+    version             = $Identity.version
+    authenticode_status = $Identity.authenticode_status
+    signer_class        = $Identity.signer_class
+    path_hijack_ignored = [bool]$Identity.path_hijack_ignored
+  }
+}
+
+function Stop-Entry([string]$Code, [string]$Phase, [string]$Message, [hashtable]$Extra = @{}) {
   $child = Stop-ChildTree
   $mat = Clear-MaterialRoot
-  Write-EntryEvidence (New-Blocked -Code $Code -Phase $Phase -Message $Message -Extra @{
-    cleanup = @{ completed = $true; child = $child; materialization = $mat }
-  })
+  if (-not $Extra.ContainsKey("powershell_identity")) {
+    $Extra.powershell_identity = Get-SanitizedPowerShellIdentity $script:PowerShellIdentity
+  }
+  if (-not $Extra.ContainsKey("cleanup")) {
+    $Extra.cleanup = @{ completed = $true; child = $child; materialization = $mat }
+  }
+  Write-EntryEvidence (New-Blocked -Code $Code -Phase $Phase -Message $Message -Extra $Extra)
   exit 2
 }
 
@@ -200,20 +231,62 @@ function Invoke-GitText([string[]]$GitArgs, [string]$WorkDir) {
 }
 
 function Get-TrustedWindowsPowerShell {
+  if ($TestForcePowerShellIdentityFail) {
+    throw "synthetic powershell identity failure"
+  }
   $sysRoot = [Environment]::GetEnvironmentVariable("SystemRoot", "Process")
   if ([string]::IsNullOrWhiteSpace($sysRoot)) { throw "SystemRoot missing" }
   $candidate = Join-Path $sysRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
   if (-not (Test-Path -LiteralPath $candidate)) { throw "System32 powershell.exe missing" }
   $item = Get-Item -LiteralPath $candidate -Force
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "powershell.exe reparse point" }
-  $sig = Get-AuthenticodeSignature -FilePath $candidate
-  if ($sig.Status -eq "NotSigned" -or $sig.Status -eq "HashMismatch") {
-    throw "Authenticode status=$($sig.Status)"
+  if ($item.Extension -ne ".exe") { throw "powershell path is not .exe" }
+
+  $pathResolved = $null
+  try {
+    $cmd = Get-Command -Name "powershell.exe" -CommandType Application -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($cmd) { $pathResolved = [string]$cmd.Source }
+  } catch {}
+  $pathHijack = $false
+  if ($pathResolved) {
+    try {
+      $pathHijack = ([IO.Path]::GetFullPath($pathResolved) -ne [IO.Path]::GetFullPath($candidate))
+    } catch {
+      $pathHijack = $true
+    }
   }
-  if ($sig.Status -eq "Valid" -and $sig.SignerCertificate -and ($sig.SignerCertificate.Subject -notmatch "Microsoft")) {
+
+  $sigStatus = "Unavailable"
+  $sigSubjectClass = "unknown"
+  $sig = Get-AuthenticodeSignature -FilePath $candidate
+  $sigStatus = [string]$sig.Status
+  if ($sig.SignerCertificate -and $sig.SignerCertificate.Subject) {
+    if ($sig.SignerCertificate.Subject -match "Microsoft") { $sigSubjectClass = "microsoft" }
+    else { $sigSubjectClass = "other" }
+  }
+  if ($sigStatus -eq "Valid" -and $sigSubjectClass -ne "microsoft") {
     throw "Authenticode signer is not Microsoft"
   }
-  return $candidate
+  if ($sigStatus -eq "NotSigned" -or $sigStatus -eq "HashMismatch") {
+    throw "Authenticode status=$sigStatus"
+  }
+
+  $ver = $null
+  $fvi = [Diagnostics.FileVersionInfo]::GetVersionInfo($candidate)
+  $ver = $fvi.FileVersion
+  if ($fvi.CompanyName -and ($fvi.CompanyName -notmatch "Microsoft")) {
+    throw "CompanyName is not Microsoft"
+  }
+
+  return [ordered]@{
+    basename            = "powershell.exe"
+    version             = $ver
+    authenticode_status = $sigStatus
+    signer_class        = $sigSubjectClass
+    path_hijack_ignored = [bool]$pathHijack
+    absolute_path       = $candidate
+  }
 }
 
 function Assert-BlobSeal([string]$Freeze, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
@@ -228,7 +301,6 @@ function Assert-BlobSeal([string]$Freeze, [string]$Rel, $Seal, [string]$Dest, [s
   $sha = Get-Sha256Hex -Bytes $bytes
   if ($sha -ne ([string]$Seal.sha256).ToLowerInvariant()) { throw "SHA-256 mismatch for $Rel" }
   [IO.File]::WriteAllBytes($Dest, $bytes)
-  # Refuse reparse destination
   $item = Get-Item -LiteralPath $Dest -Force
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "materialized file is reparse point" }
   return @{ oid = $oid; sha256 = $sha; bytes = $bytes.Length }
@@ -323,10 +395,17 @@ try {
     }
   }
 
-  $psExe = $null
-  try { $psExe = Get-TrustedWindowsPowerShell } catch {
+  try {
+    $script:PowerShellIdentity = Get-TrustedWindowsPowerShell
+  } catch {
     Stop-Entry "BLOCKED_POWERSHELL_IDENTITY" "powershell_resolve" ([string]$_.Exception.Message)
   }
+  $psExe = [string]$script:PowerShellIdentity.absolute_path
+  $psIdentitySanitized = Get-SanitizedPowerShellIdentity $script:PowerShellIdentity
+  [IO.File]::WriteAllText(
+    (Join-Path $EvidenceOutDir "VISIBLE_ENTRY_PS_IDENTITY.json"),
+    ($psIdentitySanitized | ConvertTo-Json -Compress)
+  )
 
   $launchArgs = @(
     (Format-Win32Argument "-NoProfile"),
@@ -356,6 +435,17 @@ try {
     $launchArgs += (Format-Win32Argument "-PromptReadyTimeoutSec")
     $launchArgs += (Format-Win32Argument ([string]$PromptReadyTimeoutSec))
   }
+  if (-not [string]::IsNullOrWhiteSpace($SupervisorSentinel)) {
+    Assert-SafePath "SupervisorSentinel" $SupervisorSentinel
+    $launchArgs += (Format-Win32Argument "-SupervisorSentinel")
+    $launchArgs += (Format-Win32Argument $SupervisorSentinel)
+  }
+
+  if ($TestForceChildStartFail) {
+    Stop-Entry "BLOCKED_CHILD_START" "child_start" "synthetic child start failure" -Extra @{
+      powershell_identity = $psIdentitySanitized
+    }
+  }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe
@@ -367,13 +457,21 @@ try {
   try {
     $script:childProc = [Diagnostics.Process]::Start($psi)
   } catch {
-    Stop-Entry "BLOCKED_CHILD_START" "child_start" ("Start failed: " + $_.Exception.Message)
+    Stop-Entry "BLOCKED_CHILD_START" "child_start" ("Start failed: " + $_.Exception.Message) -Extra @{
+      powershell_identity = $psIdentitySanitized
+    }
   }
   if ($null -eq $script:childProc) {
-    Stop-Entry "BLOCKED_CHILD_START" "child_start" "Process.Start returned null"
+    Stop-Entry "BLOCKED_CHILD_START" "child_start" "Process.Start returned null" -Extra @{
+      powershell_identity = $psIdentitySanitized
+    }
   }
 
-  [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "VISIBLE_ENTRY_STARTED.txt"), ("pid={0}`n" -f $script:childProc.Id))
+  $started = ("pid={0}`n" -f $script:childProc.Id)
+  if (-not [string]::IsNullOrWhiteSpace($SupervisorSentinel)) {
+    $started += ("sentinel={0}`n" -f $SupervisorSentinel)
+  }
+  [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "VISIBLE_ENTRY_STARTED.txt"), $started)
 
   if (-not $WaitForPromptReady) {
     Write-Host ("LAUNCHED pid={0}" -f $script:childProc.Id)
@@ -382,15 +480,18 @@ try {
 
   $ready = Join-Path $EvidenceOutDir "PROMPT_READY.txt"
   $deadline = (Get-Date).AddSeconds([Math]::Max(1, $PromptReadyTimeoutSec))
+  $sawReady = $false
   while ((Get-Date) -lt $deadline) {
     if (Test-Path -LiteralPath $ready) {
+      $sawReady = $true
       Write-Host "PROMPT_READY"
-      exit 0
+      break
     }
     if ($script:childProc.HasExited) {
       $child = Stop-ChildTree
       $mat = Clear-MaterialRoot
       Write-EntryEvidence (New-Blocked -Code "BLOCKED_CHILD_EXIT" -Phase "prompt_wait" -Message ("child exited before PROMPT_READY exit=" + $script:childProc.ExitCode) -Extra @{
+        powershell_identity = $psIdentitySanitized
         cleanup = @{ completed = $true; child = $child; materialization = $mat }
       })
       exit 2
@@ -398,12 +499,30 @@ try {
     Start-Sleep -Milliseconds 200
   }
 
-  $child = Stop-ChildTree
+  if (-not $sawReady) {
+    $child = Stop-ChildTree
+    $mat = Clear-MaterialRoot
+    Write-EntryEvidence (New-Blocked -Code "BLOCKED_PROMPT_TIMEOUT" -Phase "prompt_wait" -Message "timeout waiting for PROMPT_READY" -Extra @{
+      powershell_identity = $psIdentitySanitized
+      cleanup = @{ completed = $true; child = $child; materialization = $mat }
+    })
+    exit 2
+  }
+
+  # Keep waiting for child exit before clearing material (stub/ceremony may still need files).
+  while (-not $script:childProc.HasExited) {
+    Start-Sleep -Milliseconds 200
+  }
+  $exitCode = $script:childProc.ExitCode
   $mat = Clear-MaterialRoot
-  Write-EntryEvidence (New-Blocked -Code "BLOCKED_PROMPT_TIMEOUT" -Phase "prompt_wait" -Message "timeout waiting for PROMPT_READY" -Extra @{
-    cleanup = @{ completed = $true; child = $child; materialization = $mat }
-  })
-  exit 2
+  if ($exitCode -ne 0) {
+    Write-EntryEvidence (New-Blocked -Code "BLOCKED_CHILD_EXIT" -Phase "post_prompt" -Message ("child exit=" + $exitCode) -Extra @{
+      powershell_identity = $psIdentitySanitized
+      cleanup = @{ completed = $true; child = @{ terminated = $true; exit_code = $exitCode }; materialization = $mat }
+    })
+    exit 2
+  }
+  exit 0
 }
 catch {
   Stop-Entry "BLOCKED_VISIBLE_ENTRY" "entry" ([string]$_.Exception.Message)

@@ -4,7 +4,8 @@
 param(
   [Parameter(Mandatory = $false)][string]$PrHead = "",
   [Parameter(Mandatory = $false)][string]$RepoRoot = "",
-  [Parameter(Mandatory = $false)][string]$EvidenceOutDir = ""
+  [Parameter(Mandatory = $false)][string]$EvidenceOutDir = "",
+  [Parameter(Mandatory = $false)][string]$SupervisorSentinel = ""
 )
 Set-StrictMode -Version Latest
 if (-not $EvidenceOutDir) { throw "EvidenceOutDir required" }
