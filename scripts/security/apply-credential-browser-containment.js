@@ -181,13 +181,16 @@ function printHelp() {
 }
 
 function emitBlocked(err, exitCode) {
+  const message = String((err && err.message) || err || "BLOCKED");
+  const fromMessage = message.split(":")[0].trim() || "BLOCKED";
+  const reason = err && err.code ? String(err.code) : fromMessage;
   const fallback = buildWrapperFallback({
     result_code: "BLOCKED",
-    reason_code: err.code || "BLOCKED",
-    phase: err.phase || "cli",
+    reason_code: reason,
+    phase: (err && err.phase) || "cli",
     mode: "dry-run",
     error: sanitizeError(err),
-    error_code: err.code || "BLOCKED",
+    error_code: reason,
     databaseConnectionAttempts: 0,
     sqlApplicationAttempts: 0,
     nodeProcessStarted: true,
@@ -195,7 +198,7 @@ function emitBlocked(err, exitCode) {
     extra: {
       evidence_source: "sealed_applicator",
       error_sanitized: sanitizeValue(err),
-      uri_diagnostics: err.uri_diagnostics,
+      uri_diagnostics: err && err.uri_diagnostics,
     },
   });
   // Prefer sealed_applicator for CLI parse failures inside the applicator process

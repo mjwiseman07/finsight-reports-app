@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "a058212af0f721720ebea9bb1384f1b1b9097de8",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -26,9 +26,9 @@
   },
   "native_entry": {
     "path": "scripts/security/enter-containment-apply.ps1",
-    "oid": "374cf979c5195deb1375b019f8770bf06d09b350",
-    "sha256": "7279da2af533fe57b6d261ef97dde71228a9ebc278ea007fc400895eb9e59993",
-    "bytes": 10398
+    "oid": "4efaeba91dee21065b266266078e39df31c4438a",
+    "sha256": "4915acfd3ae00ff1ad45d454d8802767d9c97dccd189b2442d2c176364aba059",
+    "bytes": 11003
   },
   "evidence_protocol": {
     "id": "CONTAINMENT_EVIDENCE_V1",
@@ -47,9 +47,9 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
-    "oid": "6ec7d0fe6fc080d7df4fb7ae626f9957a4028fa4",
-    "sha256": "125e06c8392ed6fb6502f9e2b6235a82e46aebc135e5cf88ee1d3057a13dc3db",
-    "bytes": 10776
+    "oid": "98525ad5978ec74d0b473cd9162858842914fc68",
+    "sha256": "26ccb3783d4f2f6ff8f58390bb72db506237f37923f02fa71648c82eff9dda27",
+    "bytes": 12984
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",
@@ -59,9 +59,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "8f9ad8a4964ea175cdb859c45aa9db71adf450ee",
-    "sha256": "bd6a91f3844777130c2121a27a8d89740526d513523432b3fbe121f83a543785",
-    "bytes": 245961,
+    "oid": "f0e128d44d3b4942b8887fb1d13b97d9bf73b75b",
+    "sha256": "65c23e2f46c470bbc280816a874a483f529dd8254cc006ee4dbb81bf3970db37",
+    "bytes": 246103,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -77,15 +77,15 @@
   "tooling_modules": [
     {
       "path": "scripts/security/apply-credential-browser-containment.js",
-      "oid": "dae6fbf21eececb8773b597a8b20c7278b78a27e",
-      "sha256": "8ce8dae0e85cdbd6fe6eaaa65131fb09ccb6b74169df8490c7813589eb392757",
-      "bytes": 7255
+      "oid": "915ac9cfd2636f3c682af070076046569508d4e2",
+      "sha256": "5b5d740191183e6f6e2e56ab65494659c78d45427142b5e8a391a2763498fda3",
+      "bytes": 7441
     },
     {
       "path": "scripts/security/credential-browser-containment-apply-core.js",
-      "oid": "5c21b8b4b7c164d415ea6a4598ad5b8fc22e9e91",
-      "sha256": "55a445645b6b0b4ff6e0ac2b6cc1ca3a2a5457a75e59fdeb7c04151866f6e77d",
-      "bytes": 37824
+      "oid": "067bf6b5199600b5f876050e065e2ae0b2459060",
+      "sha256": "b7287b89108dd17d10728b672cc09df9d7090d0160c172ce6caa02809823e90a",
+      "bytes": 37935
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",

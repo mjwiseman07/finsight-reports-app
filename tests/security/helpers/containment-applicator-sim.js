@@ -122,16 +122,34 @@ async function seedApplicatorWorld(client, opts = {}) {
 }
 
 function baseApplyInputs(databaseUrl, overrides = {}) {
+  const fs = require("fs");
+  const { execFileSync } = require("child_process");
   const auth = JSON.parse(
-    require("fs").readFileSync(
+    fs.readFileSync(
       "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
       "utf8",
     ),
   );
-  const freeze = auth.authorized_pr_head;
-  const tip = require("child_process")
-    .execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" })
-    .trim();
+  let freeze = auth.authorized_pr_head;
+  // After rebuild and before tip-pin, worktree auth is PENDING_AFTER_COMMIT.
+  // Unit tests still need a real freeze commit that contains migration blobs.
+  if (!/^[0-9a-f]{40}$/i.test(String(freeze || ""))) {
+    const committed = JSON.parse(
+      execFileSync(
+        "git",
+        [
+          "show",
+          "HEAD:docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
+        ],
+        { encoding: "utf8" },
+      ),
+    );
+    freeze = committed.authorized_pr_head;
+  }
+  if (!/^[0-9a-f]{40}$/i.test(String(freeze || ""))) {
+    throw new Error("baseApplyInputs: no valid authorized_pr_head freeze available");
+  }
+  const tip = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   const {
     ATTESTED_FREEZE_ENV,
   } = require("../../../scripts/security/credential-browser-containment-constants.js");

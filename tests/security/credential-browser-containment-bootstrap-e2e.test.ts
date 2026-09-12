@@ -449,6 +449,59 @@ describe("native PowerShell bootstrap trust boundary", () => {
     expect(ev.evidence_source).toBe("native_wrapper_fallback");
   });
 
+  it("native entry rejects tip SHA as PrHead with V1 frame and zero attempts", () => {
+    const tip = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).trim();
+    const auth = readAuth();
+    const freezeHead = auth.authorized_pr_head;
+    if (tip === freezeHead) return;
+    const ENTRY = "scripts/security/enter-containment-apply.ps1";
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "enter-tip-reject-"));
+    const entryFile = path.join(work, "enter.ps1");
+    // Exercise the worktree entry under test (freeze blob updates on seal publication).
+    const entryBuf = fs.readFileSync(path.join(ROOT, ENTRY));
+    fs.writeFileSync(entryFile, entryBuf);
+    const r = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        entryFile,
+        "-PrHead",
+        tip,
+        "-Mode",
+        "dry-run",
+      ],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          TEMP: process.env.TEMP,
+          TMP: process.env.TMP,
+          CONTAINMENT_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        },
+      },
+    );
+    fs.rmSync(work, { recursive: true, force: true });
+    expect(r.status).toBe(2);
+    expect(r.stderr || "").not.toMatch(/PropertyNotFound|protocol_version/);
+    const ev = parseEvidence(r.stdout);
+    expect(ev.reason_code || ev.error_code).toMatch(/BLOCKED_PIN_MISMATCH/);
+    expect(ev.evidence_source).toBe("native_wrapper_fallback");
+    expect(ev.sqlApplicationAttempts).toBe(0);
+    expect(ev.databaseConnectionAttempts).toBe(0);
+    expect(ev.protocol_version).toBe(1);
+    expect(ev.schema_version).toBe(1);
+  });
+
   it("cleans bootstrap temp materialization after exit", () => {
     const before = new Set(
       fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("containment-bootstrap-")),

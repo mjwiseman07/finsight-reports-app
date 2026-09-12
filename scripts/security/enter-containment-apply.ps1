@@ -37,47 +37,66 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function ConvertTo-Base64Url([byte[]]$Bytes) {
+  $b64 = [Convert]::ToBase64String($Bytes)
+  return (($b64.TrimEnd('=')) -replace '\+', '-' -replace '/', '_')
+}
+
 function Write-EntryEvidence {
   param($Object)
-  # Ensure minimal V1 schema fields for wrapper fallbacks
-  if (-not $Object.protocol_version) { $Object.protocol_version = 1 }
-  if (-not $Object.schema_version) { $Object.schema_version = 1 }
-  if (-not $Object.result_code) { $Object.result_code = $Object.verdict }
-  if (-not $Object.reason_code) { $Object.reason_code = $Object.error_code }
-  if (-not $Object.evidence_source) { $Object.evidence_source = "native_wrapper_fallback" }
-  if (-not $Object.mode) { $Object.mode = $Mode }
-  if ($null -eq $Object.read_only) { $Object.read_only = $true }
-  if ($null -eq $Object.advisory_lock_acquired) { $Object.advisory_lock_acquired = $false }
-  if (-not $Object.cleanup) { $Object.cleanup = @{ completed = $true } }
-  if (-not $Object.credential_redaction_confirmation) {
-    $Object.credential_redaction_confirmation = @{
-      url_in_evidence = $false
-      url_in_argv = $false
+  # Emit exactly one CONTAINMENT_EVIDENCE_V1 frame. Do not probe missing
+  # properties under StrictMode — callers must supply a complete object.
+  $json = $Object | ConvertTo-Json -Depth 20 -Compress
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  [Console]::Out.WriteLine("CONTAINMENT_EVIDENCE_V1:" + (ConvertTo-Base64Url -Bytes $bytes))
+}
+
+function New-EntryFallbackObject {
+  param(
+    [string]$Code,
+    [string]$Phase,
+    [string]$Message,
+    [hashtable]$Extra = @{}
+  )
+  $msg = [string]$Message
+  if ($msg.Length -gt 500) { $msg = $msg.Substring(0, 500) }
+  return [ordered]@{
+    protocol_version           = 1
+    schema_version             = 1
+    result_code                = "BOOTSTRAP_BLOCKED"
+    verdict                    = "BOOTSTRAP_BLOCKED"
+    reason_code                = $Code
+    error_code                 = $Code
+    phase                      = $Phase
+    evidence_source            = "native_wrapper_fallback"
+    mode                       = $Mode
+    read_only                  = $true
+    error                      = $msg
+    sqlApplicationAttempts     = 0
+    databaseConnectionAttempts = 0
+    nodeProcessStarted         = $(if ($Extra.ContainsKey("nodeProcessStarted")) { [bool]$Extra.nodeProcessStarted } else { $false })
+    advisory_lock_acquired     = $false
+    database_connected         = $false
+    unsafeInheritedNodeEnvironmentRemoved = $(if ($Extra.ContainsKey("unsafeInheritedNodeEnvironmentRemoved")) { [bool]$Extra.unsafeInheritedNodeEnvironmentRemoved } else { $false })
+    cleanup                    = $(if ($Extra.ContainsKey("cleanup") -and $null -ne $Extra.cleanup) { $Extra.cleanup } else { @{ completed = $true } })
+    credential_redaction_confirmation = @{
+      url_in_evidence    = $false
+      url_in_argv        = $false
       values_undisclosed = $true
     }
+    wrapper = [ordered]@{
+      reason_code                   = $Code
+      phase                         = $Phase
+      nodeProcessStarted            = $(if ($Extra.ContainsKey("nodeProcessStarted")) { [bool]$Extra.nodeProcessStarted } else { $false })
+      child_output_received         = $(if ($Extra.ContainsKey("child_output_received")) { [bool]$Extra.child_output_received } else { $false })
+      counters_are_wrapper_observed = $true
+    }
   }
-  $json = $Object | ConvertTo-Json -Depth 12 -Compress
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-  $b64 = [Convert]::ToBase64String($bytes)
-  $b64url = (($b64.TrimEnd('=')) -replace '\+', '-' -replace '/', '_')
-  [Console]::Out.WriteLine("CONTAINMENT_EVIDENCE_V1:$b64url")
 }
 
 function Stop-Entry {
   param([string]$Code, [string]$Phase, [string]$Message, [hashtable]$Extra = @{})
-  $msg = [string]$Message
-  if ($msg.Length -gt 500) { $msg = $msg.Substring(0, 500) }
-  Write-EntryEvidence -Object ([ordered]@{
-      verdict                    = "BOOTSTRAP_BLOCKED"
-      error_code                 = $Code
-      phase                      = $Phase
-      error                      = $msg
-      sqlApplicationAttempts     = 0
-      databaseConnectionAttempts = 0
-      nodeProcessStarted         = $false
-      advisory_lock_acquired     = $false
-      cleanup                    = $(if ($Extra.ContainsKey("cleanup")) { $Extra.cleanup } else { $null })
-    })
+  Write-EntryEvidence -Object (New-EntryFallbackObject -Code $Code -Phase $Phase -Message $Message -Extra $Extra)
   exit 2
 }
 
@@ -241,16 +260,10 @@ try {
   if ($stdout) { [Console]::Out.WriteLine($stdout.TrimEnd()) }
   elseif ($stderr) {
     $scrub = [regex]::Replace($stderr, "postgres(?:ql)?://[^\s]+", "postgres://***")
-    Write-EntryEvidence -Object ([ordered]@{
-        verdict                    = "BOOTSTRAP_BLOCKED"
-        error_code                 = "ENTRY_CHILD_STDERR"
-        phase                      = "entry_execute"
-        error                      = $scrub.Substring(0, [Math]::Min(400, $scrub.Length))
-        sqlApplicationAttempts     = 0
-        databaseConnectionAttempts = 0
-        nodeProcessStarted         = $false
-        unsafeInheritedNodeEnvironmentRemoved = $stripped
-        cleanup                    = $cleanup
+    Write-EntryEvidence -Object (New-EntryFallbackObject -Code "ENTRY_CHILD_STDERR" -Phase "entry_execute" -Message $scrub.Substring(0, [Math]::Min(400, $scrub.Length)) -Extra @{
+        cleanup                                   = $cleanup
+        unsafeInheritedNodeEnvironmentRemoved     = $stripped
+        child_output_received                     = $true
       })
     exit 2
   }

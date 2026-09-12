@@ -205,7 +205,9 @@ function finalizeEvidence(evidence) {
     typeof evidence.read_only === "boolean" ? evidence.read_only : evidence.mode !== "apply";
   if (!evidence.cleanup || typeof evidence.cleanup !== "object") {
     evidence.cleanup = { completed: true };
-  } else if (evidence.cleanup.completed == null) {
+  } else {
+    // finalizeEvidence runs at end of applicator lifecycle; mark cleanup complete
+    // even when the in-flight template started as completed:false.
     evidence.cleanup.completed = true;
   }
   if (!evidence.credential_redaction_confirmation) {
