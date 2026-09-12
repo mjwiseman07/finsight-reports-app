@@ -88,7 +88,16 @@ const FIXTURE_PATH =
 const TOOLING_AUTHORIZATION_PATH =
   "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json";
 
-/** Target #2 binding check uses non-token columns only. */
+/**
+ * Target #2 safety gate (non-token columns only).
+ * Stable match key = literal equality of `fingerprint` against
+ * external_entity_id OR tenant_or_realm_id OR metadata_json->>'fingerprint',
+ * plus provider / provider_environment / status.
+ * Intentionally excluded from the match (must not define the binding):
+ * updated_at, token values, token presence, credentials_cleared_at,
+ * superseded_by_connection_id, labels/names, and any ops-side "binding"
+ * handle that is not stored in those three identity columns.
+ */
 const TARGET2 = Object.freeze({
   fingerprint: "d331891f0424",
   provider_environment: "sandbox",

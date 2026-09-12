@@ -6584,10 +6584,65 @@ var require_credential_browser_containment_apply_core = __commonJS({
     }
     function assertTarget2Ok(probe) {
       if (probe.matching_rows !== 1) {
-        throw new Error(
+        const err = new Error(
           `TARGET2_BINDING_MISMATCH: expected exactly 1 sandbox/connected fingerprint row, got ${probe.matching_rows}`
         );
+        err.code = "TARGET2_BINDING_MISMATCH";
+        err.phase = "target2_binding";
+        throw err;
       }
+    }
+    function classifyDryRunFailure(err, evidence) {
+      const msg = String(err && err.message || "");
+      const explicit = err && err.code ? String(err.code) : "";
+      const tlsCompleted = Boolean(evidence && evidence.tls && evidence.tls.mode);
+      const phaseHint = err && err.phase || null;
+      if (explicit === "TARGET2_BINDING_MISMATCH" || /^TARGET2_BINDING_MISMATCH\b/.test(msg)) {
+        return {
+          code: "TARGET2_BINDING_MISMATCH",
+          phase: phaseHint || "target2_binding"
+        };
+      }
+      if (explicit === "PRE_CHANGE_CONTRACT_MISMATCH" || /PRE_CHANGE_CONTRACT_MISMATCH/.test(msg)) {
+        return {
+          code: "PRE_CHANGE_CONTRACT_MISMATCH",
+          phase: phaseHint || "pre_change_contract"
+        };
+      }
+      const lead = msg.match(/^([A-Z][A-Z0-9_]{2,}):/);
+      const leadCode = lead ? lead[1] : "";
+      const looksTlsCode = (c) => /^(TLS_FAIL|BLOCKED_TLS_|SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF|CERT_HAS_EXPIRED|HOSTNAME_MISMATCH)/i.test(
+        String(c || "")
+      );
+      if (leadCode && !looksTlsCode(leadCode)) {
+        return {
+          code: leadCode,
+          phase: phaseHint || "dry_run_queries"
+        };
+      }
+      if (explicit && !looksTlsCode(explicit)) {
+        return {
+          code: explicit,
+          phase: phaseHint || "dry_run_queries"
+        };
+      }
+      if (!tlsCompleted) {
+        const tlsCode = classifyTlsError(err);
+        return {
+          code: tlsCode,
+          phase: phaseHint || err && err.phase || "tls_policy"
+        };
+      }
+      if (explicit && !looksTlsCode(explicit)) {
+        return { code: explicit, phase: phaseHint || "dry_run_queries" };
+      }
+      if (leadCode && !looksTlsCode(leadCode)) {
+        return { code: leadCode, phase: phaseHint || "dry_run_queries" };
+      }
+      return {
+        code: "DRY_RUN_FAIL",
+        phase: phaseHint || "dry_run_queries"
+      };
     }
     async function assertContainedPrivileges(client) {
       const { rows } = await client.query(`
@@ -6793,11 +6848,11 @@ var require_credential_browser_containment_apply_core = __commonJS({
         evidence.result_code = "DRY_RUN_BLOCKED";
         evidence.error = sanitizeError2(err);
         evidence.error_sanitized = sanitizeValue2(err);
-        const tlsCode = classifyTlsError(err);
-        evidence.error_code = tlsCode || err.code || "DRY_RUN_FAIL";
-        evidence.reason_code = tlsCode || err.code || "DRY_RUN_FAIL";
-        evidence.phase = err.phase || "dry_run_queries";
-        if (err.phase === "tls_policy") {
+        const classified = classifyDryRunFailure(err, evidence);
+        evidence.error_code = classified.code;
+        evidence.reason_code = classified.code;
+        evidence.phase = classified.phase;
+        if (classified.phase === "tls_policy" || err.phase === "tls_policy") {
           evidence.databaseConnectionAttempts = 0;
         }
         evidence.sqlApplicationAttempts = 0;
@@ -7034,11 +7089,13 @@ var require_credential_browser_containment_apply_core = __commonJS({
       captureHistoryManifest,
       probePreChangeContract,
       probeTarget2,
+      assertTarget2Ok,
       assertContainedPrivileges,
       assertPreChangeMatch,
       assertInputPins,
       resolveDatabaseUrlFromEnv,
       classifyDatabaseUrl,
+      classifyDryRunFailure,
       finalizeEvidence,
       sanitizeError: sanitizeError2,
       sanitizeValue: sanitizeValue2,
