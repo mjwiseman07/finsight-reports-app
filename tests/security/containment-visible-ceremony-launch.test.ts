@@ -167,12 +167,13 @@ function readSentinel(dir: string): string | null {
 
 function sentinelAlive(token: string): boolean {
   if (!token) return false;
+  // Exclude this checker process: its CommandLine also embeds the token literal.
   const r = spawnSync(
     systemPowerShell(),
     [
       "-NoProfile",
       "-Command",
-      `$t='${token}'; @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($t) }).Count`,
+      `$t='${token}'; $self=$PID; @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $self -and $_.CommandLine -and $_.CommandLine.Contains($t) -and $_.CommandLine -notmatch 'Where-Object' }).Count`,
     ],
     { encoding: "utf8", windowsHide: true, timeout: 30000 },
   );
@@ -220,10 +221,13 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
     expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_BREAKAWAY_OK/);
     expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK/);
     expect(superviseSrc).not.toMatch(/CREATE_BREAKAWAY_FROM_JOB/);
-    // Fail-closed order: CreateProcess → Assign → Resume (assign failure kills suspended child).
-    const createIdx = superviseSrc.indexOf("CreateProcess(");
-    const assignIdx = superviseSrc.indexOf("AssignProcessToJobObject(");
-    const resumeIdx = superviseSrc.indexOf("ResumeThread(");
+    // Fail-closed order inside Start-SuspendedInJob body (ignore DllImport decls).
+    const startFn = superviseSrc.indexOf("function Start-SuspendedInJob");
+    expect(startFn).toBeGreaterThan(0);
+    const fnBody = superviseSrc.slice(startFn);
+    const createIdx = fnBody.indexOf("[ContainmentVisible.JobApi]::CreateProcess(");
+    const assignIdx = fnBody.indexOf("[ContainmentVisible.JobApi]::AssignProcessToJobObject(");
+    const resumeIdx = fnBody.indexOf("[ContainmentVisible.JobApi]::ResumeThread(");
     expect(createIdx).toBeGreaterThan(0);
     expect(assignIdx).toBeGreaterThan(createIdx);
     expect(resumeIdx).toBeGreaterThan(assignIdx);

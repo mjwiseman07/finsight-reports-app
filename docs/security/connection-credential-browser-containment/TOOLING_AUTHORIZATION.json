@@ -61,9 +61,9 @@
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-containment-ceremony.ps1",
-    "oid": "8400ad365af4158bed81502aef8b6b360557ebee",
-    "sha256": "b109960d4c109cdbaa54dcc66bc25120b06426c61b0f01710eec2a5f71701b3d",
-    "bytes": 32974
+    "oid": "b74b36b9e542284ce0dd90f1f65296ba6456fe80",
+    "sha256": "5374d4cbc831f9ef0c52ca617c57d3e85b9ddae37b6b7f048b43e5dced7692b3",
+    "bytes": 33129
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-containment-ceremony.ps1",

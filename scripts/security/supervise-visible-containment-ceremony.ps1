@@ -242,6 +242,9 @@ function Get-SafeExitCode([Diagnostics.Process]$Proc) {
       [void]$Proc.WaitForExit(60000)
     }
     if ($Proc.HasExited) {
+      $Proc.Refresh()
+      # Hard-killed processes can surface a null ExitCode; never coerce null to 0.
+      if ($null -eq $Proc.ExitCode) { return -1 }
       return [int]$Proc.ExitCode
     }
   } catch {}
