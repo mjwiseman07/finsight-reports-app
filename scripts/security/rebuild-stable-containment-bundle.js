@@ -32,6 +32,8 @@ const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
 const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
 const CEREMONY_REL =
   "scripts/security/operator-containment-production-dryrun-ceremony.ps1";
+const VISIBLE_LAUNCH_REL =
+  "scripts/security/launch-visible-containment-ceremony.ps1";
 
 function sha256(b) {
   return crypto.createHash("sha256").update(b).digest("hex");
@@ -166,6 +168,7 @@ const stubSeal = seal(STUB_REL);
 const frameToolSeal = seal(FRAME_TOOL_REL);
 const decodeFrameSeal = seal(DECODE_FRAME_REL);
 const ceremonySeal = seal(CEREMONY_REL);
+const visibleLaunchSeal = seal(VISIBLE_LAUNCH_REL);
 const protocolSeal = modules.find((m) => m.path.endsWith("containment-evidence-protocol.js"));
 const buf = fs.readFileSync(OUT);
 const bundleSrc = buf.toString("utf8");
@@ -239,6 +242,7 @@ const auth = {
     decode_frame: decodeFrameSeal,
   },
   operator_ceremony: ceremonySeal,
+  visible_ceremony_launcher: visibleLaunchSeal,
   pg_native_stub: stubSeal,
   standalone_bundle: {
     path: OUT_REL,

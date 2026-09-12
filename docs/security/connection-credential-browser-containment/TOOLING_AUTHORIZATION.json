@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "2f3fd594a6d4739fefaedbfcc3e72f828cb47eb5",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -131,6 +131,13 @@
     "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
     "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
-    "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node."
-  ]
+    "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
+    "visible_ceremony_launcher uses Start-Process powershell.exe -File; never cmd start empty-title."
+  ],
+  "visible_ceremony_launcher": {
+    "path": "scripts/security/launch-visible-containment-ceremony.ps1",
+    "oid": "d0e0aa0a09e8660361da85785147e0fb3652d284",
+    "sha256": "4961ed67c2cdf9d03d33c5a4798c5dff8ec3b97db11b83e7621b0dcccfe3853a",
+    "bytes": 3668
+  }
 }
