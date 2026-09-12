@@ -175,7 +175,9 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
     expect(superviseSrc).toMatch(/JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/);
     expect(superviseSrc).toMatch(/AssignProcessToJobObject/);
     expect(superviseSrc).toMatch(/CREATE_SUSPENDED/);
-    expect(superviseSrc).not.toMatch(/BREAKAWAY/);
+    expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_BREAKAWAY_OK/);
+    expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK/);
+    expect(superviseSrc).not.toMatch(/CREATE_BREAKAWAY_FROM_JOB/);
   });
 
   it("preserves exact argv for special evidence paths via supervisor", () => {

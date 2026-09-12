@@ -219,6 +219,27 @@ function Assert-SafePath([string]$Name, [string]$Value) {
   }
 }
 
+function Get-SafeExitCode([Diagnostics.Process]$Proc) {
+  if ($EvidenceOutDir) {
+    $marker = Join-Path $EvidenceOutDir "VISIBLE_ENTRY_EXIT_CODE.txt"
+    if (Test-Path -LiteralPath $marker) {
+      $raw = ([IO.File]::ReadAllText($marker)).Trim()
+      $parsed = 0
+      if ([int]::TryParse($raw, [ref]$parsed)) { return $parsed }
+    }
+  }
+  if ($null -eq $Proc) { return -1 }
+  try {
+    if (-not $Proc.HasExited) {
+      [void]$Proc.WaitForExit(60000)
+    }
+    if ($Proc.HasExited) {
+      return [int]$Proc.ExitCode
+    }
+  } catch {}
+  return -1
+}
+
 function Invoke-GitBytes([string[]]$GitArgs, [string]$WorkDir) {
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = "git"
@@ -717,7 +738,7 @@ try {
   if (-not $WaitForPromptReady) {
     Write-Host ("SUPERVISOR_LAUNCHED enter_pid={0}" -f $script:EnterProcess.Id)
     while (-not $script:EnterProcess.HasExited) { Start-Sleep -Milliseconds 200 }
-    $exitCode = $script:EnterProcess.ExitCode
+    $exitCode = Get-SafeExitCode $script:EnterProcess
     $job = Close-JobAndConfirm
     $mat = Clear-AllMaterial
     Write-OrphanCheck -Job $job -Mat $mat -Extra @{ enter_exit_code = $exitCode }
@@ -795,7 +816,7 @@ try {
     Start-Sleep -Milliseconds 200
   }
 
-  $exitCode = $script:EnterProcess.ExitCode
+  $exitCode = Get-SafeExitCode $script:EnterProcess
   $job = Close-JobAndConfirm
   $mat = Clear-AllMaterial
   Write-OrphanCheck -Job $job -Mat $mat -Extra @{

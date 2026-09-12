@@ -513,7 +513,10 @@ try {
   while (-not $script:childProc.HasExited) {
     Start-Sleep -Milliseconds 200
   }
-  $exitCode = $script:childProc.ExitCode
+  try { [void]$script:childProc.WaitForExit(5000) } catch {}
+  $exitCode = -1
+  try { if ($script:childProc.HasExited) { $exitCode = [int]$script:childProc.ExitCode } } catch {}
+  [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "VISIBLE_ENTRY_EXIT_CODE.txt"), ([string]$exitCode))
   $mat = Clear-MaterialRoot
   if ($exitCode -ne 0) {
     Write-EntryEvidence (New-Blocked -Code "BLOCKED_CHILD_EXIT" -Phase "post_prompt" -Message ("child exit=" + $exitCode) -Extra @{

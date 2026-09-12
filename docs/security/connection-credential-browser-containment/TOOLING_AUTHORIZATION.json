@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "fa3fff0e53341fb775fb9fab7859b6aa303076fb",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -61,21 +61,21 @@
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-containment-ceremony.ps1",
-    "oid": "95235987ae63eb08825e40e4d77f7e314a177ea1",
-    "sha256": "cfacb67d7f1057e7e51d305df7df04e3977e784285f888cfb58516807d70d5e9",
-    "bytes": 31433
+    "oid": "1386bcef57769bfe0fe623251dd35c243980dcd6",
+    "sha256": "f26d52d367906da9eab4d448b26777df36e8ee6fc61cf679e1369b23f66eea41",
+    "bytes": 32004
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-containment-ceremony.ps1",
-    "oid": "dd8dba63377d896ba8b6545806277c3a27e66d76",
-    "sha256": "5af2276e5bd7c6121b9f88876c090b1bf4b9d47bb0367415e9437e0d2b899e0f",
-    "bytes": 21379
+    "oid": "df261e1844e665737acd84a94b981cb2f89ad3ca",
+    "sha256": "2681b98514824f6b3bb30ba07343915c199ebc0158ff3d142d7c87bd14230808",
+    "bytes": 21622
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-containment-ceremony.ps1",
-    "oid": "68f0a6918cd7684018ff2e8a048f89a7f8b6e9c7",
-    "sha256": "a77fc9a366c0b711cd754079ec48a5131735ff3d576fbb3911c39404783ca340",
-    "bytes": 16081
+    "oid": "eeac7de1b02eaf8b43bbcda1451c03b1315b8e09",
+    "sha256": "2f97eabebc71b69e2212e1c2f2476867d6290442985e3a94945e71cbcdc8cbae",
+    "bytes": 16214
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",

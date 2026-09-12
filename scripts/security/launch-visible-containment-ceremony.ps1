@@ -399,7 +399,9 @@ if (-not $sawReady) {
 while (-not $script:childProc.HasExited) {
   Start-Sleep -Milliseconds 200
 }
-$exitCode = $script:childProc.ExitCode
+try { [void]$script:childProc.WaitForExit(5000) } catch {}
+$exitCode = -1
+try { if ($script:childProc.HasExited) { $exitCode = [int]$script:childProc.ExitCode } } catch {}
 if ($exitCode -ne 0) {
   Stop-Launch -Code "BLOCKED_CHILD_EXIT" -Phase "post_prompt" -Message ("ceremony exit=" + $exitCode) -Extra @{
     powershell_identity = $psIdentitySanitized
