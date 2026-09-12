@@ -42,7 +42,15 @@ param(
   [switch]$TestForcePowerShellIdentityFail,
 
   [Parameter(Mandatory = $false)]
-  [switch]$TestForceChildStartFail
+  [switch]$TestForceChildStartFail,
+
+  # Synthetic: fail AssignProcessToJobObject before ResumeThread (CREATE_SUSPENDED fail-closed).
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceAssignFail,
+
+  # Synthetic: exercise operator-cancel cleanup after enter is job-assigned.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceOperatorCancel
 )
 
 Set-StrictMode -Version Latest
@@ -398,6 +406,9 @@ function Start-SuspendedInJob {
     throw "CreateProcess failed err=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
   }
   try {
+    if ($TestForceAssignFail) {
+      throw "synthetic assign failure"
+    }
     $assigned = [ContainmentVisible.JobApi]::AssignProcessToJobObject($Job, $pi.hProcess)
     if (-not $assigned) {
       throw "AssignProcessToJobObject failed err=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
@@ -407,6 +418,11 @@ function Start-SuspendedInJob {
       throw "ResumeThread failed err=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
     }
   } catch {
+    # Fail-closed: never resume; kill suspended child even if not yet in the job.
+    try {
+      $suspended = [Diagnostics.Process]::GetProcessById([int]$pi.dwProcessId)
+      if (-not $suspended.HasExited) { $suspended.Kill() }
+    } catch {}
     try { [void][ContainmentVisible.JobApi]::TerminateJobObject($Job, 1) } catch {}
     try { [void][ContainmentVisible.JobApi]::CloseHandle($pi.hThread) } catch {}
     try { [void][ContainmentVisible.JobApi]::CloseHandle($pi.hProcess) } catch {}
@@ -720,12 +736,17 @@ try {
   if ($TestForceChildStartFail) {
     $argParts += (Format-Win32Argument "-TestForceChildStartFail")
   }
+  if ($TestForceAssignFail) {
+    $argParts += (Format-Win32Argument "-TestForceAssignFail")
+  }
   $cmdLine = [string]::Join(" ", $argParts)
 
   try {
     $script:EnterProcess = Start-SuspendedInJob -Job $script:JobHandle -Exe $psExe -CommandLine $cmdLine -WorkDir $RepoRoot
   } catch {
-    Complete-Blocked "BLOCKED_CHILD_START" "child_start" ([string]$_.Exception.Message) -Extra @{
+    $code = "BLOCKED_CHILD_START"
+    if ([string]$_.Exception.Message -match "assign") { $code = "BLOCKED_JOB_OBJECT" }
+    Complete-Blocked $code "child_start" ([string]$_.Exception.Message) -Extra @{
       powershell_identity = $psIdentitySanitized
     }
   }
@@ -734,6 +755,10 @@ try {
     (Join-Path $EvidenceOutDir "VISIBLE_SUPERVISOR_STARTED.txt"),
     ("supervisor_pid={0}`nenter_pid={1}`nsentinel={2}`n" -f $PID, $script:EnterProcess.Id, $script:SentinelToken)
   )
+
+  if ($TestForceOperatorCancel) {
+    Complete-Blocked "BLOCKED_OPERATOR_CANCEL" "supervisor_cancel" "synthetic operator cancel"
+  }
 
   if (-not $WaitForPromptReady) {
     Write-Host ("SUPERVISOR_LAUNCHED enter_pid={0}" -f $script:EnterProcess.Id)

@@ -34,6 +34,10 @@ const HANG_STUB = path.join(
   ROOT,
   "tests/security/helpers/synthetic-visible-ceremony-hang-stub.ps1",
 );
+const HOLD_STUB = path.join(
+  ROOT,
+  "tests/security/helpers/synthetic-visible-ceremony-hold-stub.ps1",
+);
 const AUTH_PATH = path.join(
   ROOT,
   "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json",
@@ -117,6 +121,8 @@ function runSupervise(opts: {
   timeoutMs?: number;
   forcePsFail?: boolean;
   forceChildFail?: boolean;
+  forceAssignFail?: boolean;
+  forceOperatorCancel?: boolean;
   prHead?: string;
   env?: NodeJS.ProcessEnv;
 }): ReturnType<typeof spawnSync> {
@@ -143,12 +149,48 @@ function runSupervise(opts: {
   }
   if (opts.forcePsFail) args.push("-TestForcePowerShellIdentityFail");
   if (opts.forceChildFail) args.push("-TestForceChildStartFail");
+  if (opts.forceAssignFail) args.push("-TestForceAssignFail");
+  if (opts.forceOperatorCancel) args.push("-TestForceOperatorCancel");
   return spawnSync(systemPowerShell(), args, {
     encoding: "utf8",
     windowsHide: true,
     timeout: opts.timeoutMs ?? 180000,
     env: { ...process.env, ...(opts.env || {}) },
   });
+}
+
+function readSentinel(dir: string): string | null {
+  const p = path.join(dir, "SUPERVISOR_SENTINEL.txt");
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf8").match(/token=([0-9a-f]+)/i)?.[1] ?? null;
+}
+
+function sentinelAlive(token: string): boolean {
+  if (!token) return false;
+  const r = spawnSync(
+    systemPowerShell(),
+    [
+      "-NoProfile",
+      "-Command",
+      `$t='${token}'; @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($t) }).Count`,
+    ],
+    { encoding: "utf8", windowsHide: true, timeout: 30000 },
+  );
+  return Number(String(r.stdout || "").trim()) > 0;
+}
+
+function materialDirs(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name.startsWith("material-"))
+    .map((d) => d.name);
+}
+
+function assertZeroAttempts(ev: Record<string, unknown>) {
+  expect(ev.databaseConnectionAttempts).toBe(0);
+  expect(ev.sqlApplicationAttempts).toBe(0);
+  expect(ev.advisory_lock_acquired).toBe(false);
 }
 
 function readSupervisorEvidence(dir: string, stdout: string) {
@@ -178,6 +220,15 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
     expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_BREAKAWAY_OK/);
     expect(superviseSrc).not.toMatch(/JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK/);
     expect(superviseSrc).not.toMatch(/CREATE_BREAKAWAY_FROM_JOB/);
+    // Fail-closed order: CreateProcess → Assign → Resume (assign failure kills suspended child).
+    const createIdx = superviseSrc.indexOf("CreateProcess(");
+    const assignIdx = superviseSrc.indexOf("AssignProcessToJobObject(");
+    const resumeIdx = superviseSrc.indexOf("ResumeThread(");
+    expect(createIdx).toBeGreaterThan(0);
+    expect(assignIdx).toBeGreaterThan(createIdx);
+    expect(resumeIdx).toBeGreaterThan(assignIdx);
+    expect(superviseSrc).toMatch(/TestForceAssignFail/);
+    expect(superviseSrc).toMatch(/synthetic assign failure/);
   });
 
   it("preserves exact argv for special evidence paths via supervisor", () => {
@@ -528,6 +579,226 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
     const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
     expect(ev!.reason_code).toBe("BLOCKED_PIN_MISMATCH");
     expect(ev!.databaseConnectionAttempts).toBe(0);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("CREATE_SUSPENDED assign failure is fail-closed (no resume; V1; zero orphans)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-assign-"));
+    const r = runSupervise({
+      evidenceDir: dir,
+      stub: HANG_STUB,
+      forceAssignFail: true,
+      timeoutSec: 20,
+    });
+    expect(r.status).not.toBe(0);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev).toBeTruthy();
+    expect(ev!.reason_code).toBe("BLOCKED_JOB_OBJECT");
+    assertZeroAttempts(ev!);
+    expect(materialDirs(dir).length).toBe(0);
+    expect(listHangPids().length).toBe(0);
+    const token = readSentinel(dir);
+    if (token) expect(sentinelAlive(token)).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("close enter before PROMPT_READY: V1 evidence, sentinel dead, material cleaned", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-close-before-"));
+    const freeze = authFreeze();
+    const child = spawn(
+      systemPowerShell(),
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        SUPERVISE,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        dir,
+        "-TestStubScript",
+        HANG_STUB,
+        "-WaitForPromptReady",
+        "-PromptReadyTimeoutSec",
+        "60",
+      ],
+      { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    child.stdout.on("data", (d) => {
+      stdout += d;
+    });
+
+    const supStarted = path.join(dir, "VISIBLE_SUPERVISOR_STARTED.txt");
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(supStarted)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(fs.existsSync(supStarted)).toBe(true);
+    expect(fs.existsSync(path.join(dir, "PROMPT_READY.txt"))).toBe(false);
+
+    const enterPid = Number(
+      fs.readFileSync(supStarted, "utf8").match(/enter_pid=(\d+)/)?.[1],
+    );
+    const token =
+      fs.readFileSync(supStarted, "utf8").match(/sentinel=([0-9a-f]+)/i)?.[1] ||
+      readSentinel(dir);
+    expect(enterPid).toBeGreaterThan(0);
+    spawnSync(taskkill(), ["/PID", String(enterPid), "/T", "/F"], {
+      windowsHide: true,
+    });
+
+    const exitCode = await new Promise<number | null>((resolve) => {
+      const t = setTimeout(() => {
+        try {
+          spawnSync(taskkill(), ["/PID", String(child.pid), "/T", "/F"], {
+            windowsHide: true,
+          });
+        } catch {}
+        resolve(null);
+      }, 90000);
+      child.on("exit", (code) => {
+        clearTimeout(t);
+        resolve(code);
+      });
+    });
+    expect(exitCode).not.toBeNull();
+    expect(exitCode).not.toBe(0);
+
+    const ev = readSupervisorEvidence(dir, stdout);
+    expect(ev).toBeTruthy();
+    expect(String(ev!.reason_code)).toMatch(
+      /BLOCKED_ENTER_TERMINATED|BLOCKED_CHILD_EXIT|BLOCKED_PROMPT_TIMEOUT/,
+    );
+    assertZeroAttempts(ev!);
+    expect(materialDirs(dir).length).toBe(0);
+    expect(listHangPids().length).toBe(0);
+    if (token) expect(sentinelAlive(token)).toBe(false);
+    const orphan = JSON.parse(
+      fs.readFileSync(path.join(dir, "SUPERVISOR_ORPHAN_CHECK.json"), "utf8"),
+    ) as { sentinel_alive: boolean; material_cleaned: boolean };
+    expect(orphan.sentinel_alive).toBe(false);
+    expect(orphan.material_cleaned).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 120000);
+
+  it("close enter after PROMPT_READY: V1 evidence, sentinel dead, material cleaned", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-close-after-"));
+    const freeze = authFreeze();
+    const child = spawn(
+      systemPowerShell(),
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        SUPERVISE,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        dir,
+        "-TestStubScript",
+        HOLD_STUB,
+        "-WaitForPromptReady",
+        "-PromptReadyTimeoutSec",
+        "60",
+      ],
+      { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    child.stdout.on("data", (d) => {
+      stdout += d;
+    });
+
+    const readyPath = path.join(dir, "PROMPT_READY.txt");
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(readyPath) && /PROMPT_READY/.test(stdout)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(fs.existsSync(readyPath)).toBe(true);
+
+    const supStarted = path.join(dir, "VISIBLE_SUPERVISOR_STARTED.txt");
+    const enterPid = Number(
+      fs.readFileSync(supStarted, "utf8").match(/enter_pid=(\d+)/)?.[1],
+    );
+    const token =
+      fs.readFileSync(supStarted, "utf8").match(/sentinel=([0-9a-f]+)/i)?.[1] ||
+      readSentinel(dir);
+    const holdPidPath = path.join(dir, "SYNTHETIC_HOLD_PID.txt");
+    let holdPid: number | null = null;
+    for (let i = 0; i < 50; i++) {
+      if (fs.existsSync(holdPidPath)) {
+        holdPid = Number(fs.readFileSync(holdPidPath, "utf8").trim());
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(enterPid).toBeGreaterThan(0);
+    spawnSync(taskkill(), ["/PID", String(enterPid), "/T", "/F"], {
+      windowsHide: true,
+    });
+
+    const exitCode = await new Promise<number | null>((resolve) => {
+      const t = setTimeout(() => {
+        try {
+          spawnSync(taskkill(), ["/PID", String(child.pid), "/T", "/F"], {
+            windowsHide: true,
+          });
+        } catch {}
+        resolve(null);
+      }, 90000);
+      child.on("exit", (code) => {
+        clearTimeout(t);
+        resolve(code);
+      });
+    });
+    expect(exitCode).not.toBeNull();
+    expect(exitCode).not.toBe(0);
+    if (holdPid) expect(pidAlive(holdPid)).toBe(false);
+
+    const ev = readSupervisorEvidence(dir, stdout);
+    expect(ev).toBeTruthy();
+    expect(String(ev!.reason_code)).toMatch(
+      /BLOCKED_ENTER_TERMINATED|BLOCKED_CHILD_EXIT/,
+    );
+    assertZeroAttempts(ev!);
+    expect(ev!.prompt_ready_observed).toBe(true);
+    expect(materialDirs(dir).length).toBe(0);
+    if (token) expect(sentinelAlive(token)).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 120000);
+
+  it("operator cancellation cleans tree with BLOCKED_OPERATOR_CANCEL V1 evidence", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vis-cancel-"));
+    const before = new Set(listHangPids());
+    const r = runSupervise({
+      evidenceDir: dir,
+      stub: HANG_STUB,
+      forceOperatorCancel: true,
+      timeoutSec: 30,
+    });
+    expect(r.status).not.toBe(0);
+    const ev = readSupervisorEvidence(dir, String(r.stdout || ""));
+    expect(ev).toBeTruthy();
+    expect(ev!.reason_code).toBe("BLOCKED_OPERATOR_CANCEL");
+    assertZeroAttempts(ev!);
+    expect(materialDirs(dir).length).toBe(0);
+    const after = listHangPids().filter((p) => !before.has(p));
+    expect(after.length).toBe(0);
+    const token = readSentinel(dir);
+    if (token) expect(sentinelAlive(token)).toBe(false);
+    const orphan = JSON.parse(
+      fs.readFileSync(path.join(dir, "SUPERVISOR_ORPHAN_CHECK.json"), "utf8"),
+    ) as { sentinel_alive: boolean; material_cleaned: boolean };
+    expect(orphan.sentinel_alive).toBe(false);
+    expect(orphan.material_cleaned).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
