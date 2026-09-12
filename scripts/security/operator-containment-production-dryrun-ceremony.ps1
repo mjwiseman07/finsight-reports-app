@@ -44,9 +44,10 @@ function Clear-ContainmentCredential {
 
 function Sanitize-Text([string]$Text) {
   if (-not $Text) { return $Text }
+  # Never run over serialized JSON with greedy \S+ — it eats closing quotes.
   $t = [regex]::Replace($Text, "postgres(?:ql)?://[^\s`"']+", "postgres://***")
-  $t = [regex]::Replace($t, "CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*\S+", "CONTAINMENT_APPLY_DATABASE_URL=***")
-  $t = [regex]::Replace($t, "password=[^&\s]+", "password=***")
+  $t = [regex]::Replace($t, "CONTAINMENT_APPLY_DATABASE_URL\s*[:=]\s*[^\s`"']+", "CONTAINMENT_APPLY_DATABASE_URL=***")
+  $t = [regex]::Replace($t, "password=[^&\s`"']+", "password=***")
   return $t
 }
 
@@ -349,17 +350,20 @@ finally {
   }
   $evidence.cleanup.raw_stdout_removed = -not (Test-Path -LiteralPath $rawCapture)
 
-  $json = Sanitize-Text (($evidence | ConvertTo-Json -Depth 20))
+  # Applicator evidence is already recursively sanitized. Do not regex-rewrite the
+  # full JSON document (prior \S+ scrub ate closing quotes and broke parsers).
+  $json = ($evidence | ConvertTo-Json -Depth 20)
   [IO.File]::WriteAllText($evidencePath, $json)
   $sha = Get-Sha256Text $json
-  [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_SUMMARY.json"), (Sanitize-Text (([ordered]@{
+  $summaryObj = [ordered]@{
     result_code = $resultCode
     evidence_source = $src
     evidence_sha256 = $sha
     databaseConnectionAttempts = $dbAttempts
     sqlApplicationAttempts = $sqlAttempts
     credential_cleared = (-not [bool]$env:CONTAINMENT_APPLY_DATABASE_URL)
-  } | ConvertTo-Json))))
+  }
+  [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_SUMMARY.json"), ($summaryObj | ConvertTo-Json))
   [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "CEREMONY_DONE.txt"), "result_code=$resultCode")
 
   foreach ($f in @("containment-evidence-decode-frame.js", "containment-evidence-protocol.js", "containment-evidence-frame-tool.js")) {
