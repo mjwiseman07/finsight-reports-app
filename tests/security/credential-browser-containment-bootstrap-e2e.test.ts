@@ -775,3 +775,125 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
     }
   }, 120000);
 });
+
+describe("operator ceremony credential transport (synthetic loopback only)", () => {
+  it("does not mislabel decode failures as BLOCKED_CREDENTIAL_UNAVAILABLE", () => {
+    // Reproduce historical argv bug vs fixed decode helper.
+    const protocolPath = path.join(ROOT, "scripts/security/containment-evidence-protocol.js");
+    const decodePath = path.join(ROOT, "scripts/security/containment-evidence-decode-frame.js");
+    const {
+      encodeEvidenceFrame,
+      normalizeApplicatorEvidence,
+    } = require("../../scripts/security/containment-evidence-protocol.js");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ceremony-decode-"));
+    const raw = path.join(dir, "raw.txt");
+    const frame = encodeEvidenceFrame(
+      normalizeApplicatorEvidence({
+        result_code: "DRY_RUN_BLOCKED",
+        reason_code: "CONNECTION_REFUSED",
+        phase: "connect",
+        evidence_source: "sealed_applicator",
+        mode: "dry-run",
+        read_only: true,
+        databaseConnectionAttempts: 1,
+        sqlApplicationAttempts: 0,
+        advisory_lock_acquired: false,
+      }),
+    );
+    fs.writeFileSync(raw, `${frame}\n`);
+    const fixed = spawnSync(process.execPath, [decodePath, protocolPath, raw], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    expect(fixed.status).toBe(0);
+    const parsed = JSON.parse(fixed.stdout);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.evidence.evidence_source).toBe("sealed_applicator");
+    expect(parsed.evidence.databaseConnectionAttempts).toBe(1);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("synthetic SecureString URL reaches sealed applicator connection boundary without leaking secret", () => {
+    const tipAuth = readAuth();
+    let freeze = tipAuth.authorized_pr_head;
+    if (!/^[0-9a-f]{40}$/i.test(String(freeze || ""))) {
+      // Mid-rebuild PENDING: use last committed tip pin
+      freeze = JSON.parse(
+        execFileSync(
+          "git",
+          ["show", `HEAD:${AUTH_PATH}`],
+          { cwd: ROOT, encoding: "utf8" },
+        ),
+      ).authorized_pr_head;
+    }
+    expect(freeze).toMatch(/^[0-9a-f]{40}$/i);
+
+    const CEREMONY = "scripts/security/operator-containment-production-dryrun-ceremony.ps1";
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceremony-synth-"));
+    const ceremonyFile = path.join(outDir, "ceremony.ps1");
+    // Exercise worktree ceremony under test; freeze blobs update on seal publication.
+    fs.copyFileSync(path.join(ROOT, CEREMONY), ceremonyFile);
+
+    const synthUser = "synth_user";
+    const synthPass = "SYNTH_PASSWORD_NEVER_LEAK_9f3a";
+    const synthUrl = `postgresql://${synthUser}:${synthPass}@127.0.0.1:1/postgres?sslmode=require`;
+
+    const r = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ceremonyFile,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        outDir,
+        "-TestSyntheticDatabaseUrl",
+        synthUrl,
+      ],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          TEMP: process.env.TEMP,
+          TMP: process.env.TMP,
+          USERPROFILE: process.env.USERPROFILE,
+          CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+        },
+      },
+    );
+
+    const summaryPath = path.join(outDir, "PRODUCTION_DRY_RUN_SUMMARY.json");
+    const evidencePath = path.join(outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json");
+    expect(fs.existsSync(summaryPath)).toBe(true);
+    expect(fs.existsSync(evidencePath)).toBe(true);
+    const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+
+    // Must not misclassify post-credential tooling failures as credential unavailable.
+    expect(summary.result_code).not.toBe("BLOCKED_CREDENTIAL_UNAVAILABLE");
+    expect(summary.result_code).not.toBe("CEREMONY_EVIDENCE_DECODE_FAIL");
+    expect(String(evidence.applicator?.error || "")).not.toMatch(/decode-once\.js:3/);
+    expect(String(evidence.applicator?.error || "")).not.toMatch(/extractEvidenceFrame is not a function/);
+
+    // Sealed applicator (or nested applicator evidence) must be present after credential injection.
+    const src = evidence.evidence_source || evidence.applicator?.evidence_source;
+    expect(src).toBe("sealed_applicator");
+    const sql =
+      evidence.sqlApplicationAttempts ?? evidence.applicator?.sqlApplicationAttempts ?? null;
+    expect(sql).toBe(0);
+    const blob = JSON.stringify({ summary, evidence, stdout: r.stdout, stderr: r.stderr });
+    expect(blob).not.toMatch(new RegExp(synthPass.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    expect(blob).not.toMatch(/SYNTH_PASSWORD_NEVER_LEAK/);
+
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }, 180000);
+});

@@ -15,7 +15,11 @@ param(
   [string]$RepoRoot = "",
 
   [Parameter(Mandatory = $false)]
-  [string]$EvidenceOutDir = ""
+  [string]$EvidenceOutDir = "",
+
+  # Test harness only: loopback synthetic URL when CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1
+  [Parameter(Mandatory = $false)]
+  [string]$TestSyntheticDatabaseUrl = ""
 )
 
 Set-StrictMode -Version Latest
@@ -91,6 +95,58 @@ function Invoke-GitTextLocal([string[]]$GitArgs) {
   return $out.Trim()
 }
 
+function Invoke-ProcessCapture {
+  param(
+    [string]$FileName,
+    [string]$Arguments,
+    [string]$WorkingDirectory,
+    [hashtable]$ExtraEnv = @{}
+  )
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = $FileName
+  $psi.Arguments = $Arguments
+  $psi.WorkingDirectory = $WorkingDirectory
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  foreach ($k in $ExtraEnv.Keys) {
+    if ($psi.EnvironmentVariables.ContainsKey($k)) {
+      $psi.EnvironmentVariables[$k] = [string]$ExtraEnv[$k]
+    } else {
+      $psi.EnvironmentVariables.Add($k, [string]$ExtraEnv[$k])
+    }
+  }
+  $p = New-Object Diagnostics.Process
+  $p.StartInfo = $psi
+  [void]$p.Start()
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  return @{
+    ExitCode = $p.ExitCode
+    Stdout   = $stdout
+    Stderr   = $stderr
+  }
+}
+
+function Classify-CeremonyFailure([string]$Message) {
+  $msg = [string]$Message
+  if ($msg -match "PIN_MISMATCH") {
+    return @{ code = "BLOCKED_PIN_MISMATCH"; phase = "ceremony_pin" }
+  }
+  if ($msg -match "No URL provided by operator|Empty URL after SecureString|TEST_URL_NOT_LOOPBACK|SYNTHETIC_URL_NOT_ALLOWED") {
+    return @{ code = "BLOCKED_CREDENTIAL_UNAVAILABLE"; phase = "ceremony_credential_input" }
+  }
+  if ($msg -match "native_entry|OID mismatch|SHA-256 mismatch|bytes mismatch|AUTH_METADATA|failed to materialize") {
+    return @{ code = "CEREMONY_ENTRY_MATERIALIZE_FAIL"; phase = "ceremony_entry_materialize" }
+  }
+  if ($msg -match "decode|frame|JSON|evidence|extractEvidenceFrame|CONTAINMENT_EVIDENCE") {
+    return @{ code = "CEREMONY_EVIDENCE_DECODE_FAIL"; phase = "ceremony_evidence_decode" }
+  }
+  return @{ code = "CEREMONY_FAILED"; phase = "ceremony" }
+}
+
 if (-not $RepoRoot) {
   $RepoRoot = (git rev-parse --show-toplevel 2>$null)
   if (-not $RepoRoot) { throw "RepoRoot required" }
@@ -104,12 +160,13 @@ $Freeze = $PrHead
 $secure = $null
 $bstr = [IntPtr]::Zero
 $plain = $null
-$resultCode = "BLOCKED_CREDENTIAL_UNAVAILABLE"
+$resultCode = "CEREMONY_FAILED"
 $parsed = $null
 $rawCapture = Join-Path $EvidenceOutDir "raw-child-stdout.frame.txt"
 $evidencePath = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
 $entryTempDir = $null
 $entryPath = $null
+$interactiveClose = $true
 
 Clear-Host
 Write-Host "PR containment production dry-run ceremony"
@@ -140,9 +197,20 @@ try {
   if ($entryBytes.Length -ne [int]$ne.bytes) { throw "native_entry bytes mismatch" }
 
   Write-Host "[1/3] Hidden credential input..."
-  [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "awaiting_securestring_input")
-  $secure = Read-Host -Prompt "CONTAINMENT_APPLY_DATABASE_URL" -AsSecureString
-  Remove-Item -LiteralPath (Join-Path $EvidenceOutDir "PROMPT_READY.txt") -Force -ErrorAction SilentlyContinue
+  $allowSynthetic = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
+  if ($allowSynthetic -and -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
+    $interactiveClose = $false
+    if ($TestSyntheticDatabaseUrl -notmatch '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/') {
+      throw "TEST_URL_NOT_LOOPBACK: synthetic ceremony URL must target 127.0.0.1"
+    }
+    $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
+  } elseif (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
+    throw "SYNTHETIC_URL_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
+  } else {
+    [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "awaiting_securestring_input")
+    $secure = Read-Host -Prompt "CONTAINMENT_APPLY_DATABASE_URL" -AsSecureString
+    Remove-Item -LiteralPath (Join-Path $EvidenceOutDir "PROMPT_READY.txt") -Force -ErrorAction SilentlyContinue
+  }
   if ($null -eq $secure -or $secure.Length -le 0) { throw "No URL provided by operator" }
 
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -159,41 +227,35 @@ try {
   [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
   Write-Host "[2/3] Invoking sealed native entry (dry-run)..."
-  $prev = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
-  $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-    -File $entryPath -PrHead $Freeze -Mode dry-run 2>&1
-  $ErrorActionPreference = $prev
-  $combined = ($output | ForEach-Object { "$_" }) -join "`n"
-  # Persist raw frame capture only until validated extraction
-  [System.IO.File]::WriteAllText($rawCapture, $combined)
+  # Separate stdout/stderr — never merge with 2>&1 (pollutes CONTAINMENT_EVIDENCE_V1 frame)
+  $entryArgs = @(
+    "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    "-File", "`"$entryPath`"",
+    "-PrHead", $Freeze,
+    "-Mode", "dry-run"
+  ) -join " "
+  $entryRun = Invoke-ProcessCapture -FileName "powershell.exe" -Arguments $entryArgs -WorkingDirectory $RepoRoot
+  [System.IO.File]::WriteAllText($rawCapture, [string]$entryRun.Stdout)
 
   Write-Host "[3/3] Extracting CONTAINMENT_EVIDENCE_V1 frame..."
   $proto = Join-Path $EvidenceOutDir "containment-evidence-protocol.js"
-  $tool = Join-Path $EvidenceOutDir "containment-evidence-frame-tool.js"
+  $decodeHelper = Join-Path $EvidenceOutDir "containment-evidence-decode-frame.js"
   Materialize-GitBlob "scripts/security/containment-evidence-protocol.js" $proto | Out-Null
-  Materialize-GitBlob "scripts/security/containment-evidence-frame-tool.js" $tool | Out-Null
+  Materialize-GitBlob "scripts/security/containment-evidence-decode-frame.js" $decodeHelper | Out-Null
 
   $node = (Get-Command -Name node.exe -CommandType Application | Select-Object -First 1).Source
-  $parseOut = & $node $tool parse-and-enrich $rawCapture 2>&1
-  $parseText = ($parseOut | ForEach-Object { "$_" }) -join "`n"
-
-  # Decode frame to JSON for local evidence persistence
-  $decodeJs = @'
-const { extractEvidenceFrame } = require(process.argv[1]);
-const fs = require("fs");
-const r = extractEvidenceFrame(fs.readFileSync(process.argv[2], "utf8"));
-if (!r.ok) {
-  console.log(JSON.stringify({ ok: false, code: r.code, phase: r.phase }));
-  process.exit(2);
-}
-console.log(JSON.stringify({ ok: true, evidence: r.evidence }));
-'@
-  $decodeFile = Join-Path $EvidenceOutDir "decode-once.js"
-  [IO.File]::WriteAllText($decodeFile, $decodeJs)
-  $decoded = & $node $decodeFile $proto $rawCapture 2>&1
-  $decodedText = ($decoded | ForEach-Object { "$_" }) -join "`n"
-  $decodedObj = $decodedText | ConvertFrom-Json
+  $decodeArgs = "`"$decodeHelper`" `"$proto`" `"$rawCapture`""
+  $decodedRun = Invoke-ProcessCapture -FileName $node -Arguments $decodeArgs -WorkingDirectory $EvidenceOutDir
+  $decodedText = ([string]$decodedRun.Stdout).Trim()
+  if ([string]::IsNullOrWhiteSpace($decodedText)) {
+    $err = Sanitize-Text ([string]$decodedRun.Stderr)
+    throw "CEREMONY_EVIDENCE_DECODE_FAIL: empty decode stdout: $err"
+  }
+  try {
+    $decodedObj = $decodedText | ConvertFrom-Json
+  } catch {
+    throw "CEREMONY_EVIDENCE_DECODE_FAIL: decode stdout was not JSON"
+  }
   if (-not $decodedObj.ok) {
     $resultCode = "DRY_RUN_BLOCKED"
     $parsed = [pscustomobject]@{
@@ -218,14 +280,15 @@ console.log(JSON.stringify({ ok: true, evidence: r.evidence }));
   }
 }
 catch {
-  $resultCode = if ($_.Exception.Message -match "PIN_MISMATCH") { "BLOCKED_PIN_MISMATCH" } else { "BLOCKED_CREDENTIAL_UNAVAILABLE" }
+  $classified = Classify-CeremonyFailure ([string]$_.Exception.Message)
+  $resultCode = [string]$classified.code
   Write-Host ("STOPPED: " + (Sanitize-Text ([string]$_.Exception.Message))) -ForegroundColor Red
   if (-not $parsed) {
     $parsed = [pscustomobject]@{
       evidence_source = "native_wrapper_fallback"
       result_code = $resultCode
       reason_code = $resultCode
-      phase = "ceremony"
+      phase = [string]$classified.phase
       databaseConnectionAttempts = $null
       sqlApplicationAttempts = $null
       advisory_lock_acquired = $false
@@ -281,7 +344,6 @@ finally {
     generated_at_utc = [DateTime]::UtcNow.ToString("o")
   }
 
-  # Only after schema-bearing parse: delete raw capture
   if (Test-Path -LiteralPath $rawCapture) {
     Remove-Item -LiteralPath $rawCapture -Force -ErrorAction SilentlyContinue
   }
@@ -300,15 +362,17 @@ finally {
   } | ConvertTo-Json))))
   [IO.File]::WriteAllText((Join-Path $EvidenceOutDir "CEREMONY_DONE.txt"), "result_code=$resultCode")
 
-  foreach ($f in @("decode-once.js", "containment-evidence-protocol.js", "containment-evidence-frame-tool.js")) {
+  foreach ($f in @("containment-evidence-decode-frame.js", "containment-evidence-protocol.js", "containment-evidence-frame-tool.js")) {
     $p = Join-Path $EvidenceOutDir $f
     if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
   }
 
   Write-Host "RESULT: $resultCode"
   Write-Host "evidence_sha256: $sha"
-  Write-Host "Press Enter to close..."
-  [void](Read-Host)
+  if ($interactiveClose) {
+    Write-Host "Press Enter to close..."
+    [void](Read-Host)
+  }
 }
 
 exit $(if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") { 0 } else { 2 })

@@ -24,6 +24,7 @@ const SOURCES = [
   "scripts/security/containment-evidence-protocol.js",
 ];
 const FRAME_TOOL_REL = "scripts/security/containment-evidence-frame-tool.js";
+const DECODE_FRAME_REL = "scripts/security/containment-evidence-decode-frame.js";
 const BOOTSTRAP_REL = "scripts/security/bootstrap-credential-browser-containment.ps1";
 const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
 const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
@@ -161,6 +162,7 @@ const bootstrapSeal = seal(BOOTSTRAP_REL);
 const enterSeal = seal(ENTER_REL);
 const stubSeal = seal(STUB_REL);
 const frameToolSeal = seal(FRAME_TOOL_REL);
+const decodeFrameSeal = seal(DECODE_FRAME_REL);
 const ceremonySeal = seal(CEREMONY_REL);
 const protocolSeal = modules.find((m) => m.path.endsWith("containment-evidence-protocol.js"));
 const buf = fs.readFileSync(OUT);
@@ -229,6 +231,7 @@ const auth = {
     sha256: protocolSeal.sha256,
     bytes: protocolSeal.bytes,
     frame_tool: frameToolSeal,
+    decode_frame: decodeFrameSeal,
   },
   operator_ceremony: ceremonySeal,
   pg_native_stub: stubSeal,
