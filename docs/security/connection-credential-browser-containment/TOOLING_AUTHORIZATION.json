@@ -1,0 +1,158 @@
+{
+  "package": "connection-credential-browser-containment-stage1-tooling",
+  "authorized_pr_head": "93c61ff0b911c89c2313f95aa911210aaa6bf0d1",
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
+  "migration_blob_oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+  "migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+  "migration_bytes": 10586,
+  "migration_version": "20260908031736",
+  "migration_name": "connection_credential_browser_containment",
+  "database_url_env": "CONTAINMENT_APPLY_DATABASE_URL",
+  "tls_trust_root": "EMBEDDED_OFFICIAL_SUPABASE_CA",
+  "official_supabase_ca_der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+  "apply_authorization_token": "I_AUTHORIZE_CONTAINMENT_APPLY_20260908031736",
+  "advisory_lock": {
+    "name": "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
+    "key1": 1129464387,
+    "key2": 539363592
+  },
+  "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "068f93d3de15f5668a1bed2127fc5f6860206c1f",
+    "sha256": "61ea45f1f9fb64f8420da113b57a6b145b09db46f607e45b94fd1bde0c6624f5",
+    "bytes": 25732,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
+  "native_entry": {
+    "path": "scripts/security/enter-containment-apply.ps1",
+    "oid": "213431a47ab5a43ff2323eef2350c75fe7441477",
+    "sha256": "19f4ad091e88ab3341841b46a865c0e0990b880f2264190194441d63bd0118f7",
+    "bytes": 11039
+  },
+  "evidence_protocol": {
+    "id": "CONTAINMENT_EVIDENCE_V1",
+    "frame": "CONTAINMENT_EVIDENCE_V1:<base64url-utf8-json>",
+    "schema_version": 1,
+    "path": "scripts/security/containment-evidence-protocol.js",
+    "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+    "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+    "bytes": 16255,
+    "frame_tool": {
+      "path": "scripts/security/containment-evidence-frame-tool.js",
+      "oid": "ddcdbdb35dd06b7195c4d3368adb9790a97545cc",
+      "sha256": "9eca2afd66c10458f39f23fd99125e8401d0bccb5b567ba91e02a75e836a579a",
+      "bytes": 2627
+    },
+    "decode_frame": {
+      "path": "scripts/security/containment-evidence-decode-frame.js",
+      "oid": "3ba8ca6308915cc608a0b004b1e125295ffbba19",
+      "sha256": "da9f94844e6fe7fdd8b74963fd7bcbe18db57232d415e310fc035dfee1eb8558",
+      "bytes": 1180
+    }
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
+    "oid": "ea0a4930155b03bfe17be16de51435575755c5e5",
+    "sha256": "8a21b83b128797c5b4af4fb8fe1149472c890734f5598e4b26a8d83ad144b9a5",
+    "bytes": 16978
+  },
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-containment-ceremony.ps1",
+    "oid": "b74b36b9e542284ce0dd90f1f65296ba6456fe80",
+    "sha256": "5374d4cbc831f9ef0c52ca617c57d3e85b9ddae37b6b7f048b43e5dced7692b3",
+    "bytes": 33129
+  },
+  "visible_ceremony_entry": {
+    "path": "scripts/security/enter-visible-containment-ceremony.ps1",
+    "oid": "df261e1844e665737acd84a94b981cb2f89ad3ca",
+    "sha256": "2681b98514824f6b3bb30ba07343915c199ebc0158ff3d142d7c87bd14230808",
+    "bytes": 21622
+  },
+  "visible_ceremony_launcher": {
+    "path": "scripts/security/launch-visible-containment-ceremony.ps1",
+    "oid": "eeac7de1b02eaf8b43bbcda1451c03b1315b8e09",
+    "sha256": "2f97eabebc71b69e2212e1c2f2476867d6290442985e3a94945e71cbcdc8cbae",
+    "bytes": 16214
+  },
+  "pg_native_stub": {
+    "path": "scripts/security/stubs/pg-native-failclosed.js",
+    "oid": "be863827a98b6d9d2e104a4e24381d72a6a955ae",
+    "sha256": "010b5c492d742a56db0dbe07656477a3a039c8bbe09113469d4a662c41f9429c",
+    "bytes": 262
+  },
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+    "oid": "e42846da941ad83fe258b615d10fea74b2a90220",
+    "sha256": "d9549637866b2fc3b8a4785ba6dbeb6c2d198a25af7b06514912d40d4932efc3",
+    "bytes": 260706,
+    "pg_version": "8.21.0",
+    "lockfile_path": "package-lock.json",
+    "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+    "build_command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0",
+    "content_scan": {
+      "unresolved_external_requires": [],
+      "pg_native_token_count": 3,
+      "has_unresolved_require_pg_native": false,
+      "fail_closed_stub_present": true
+    }
+  },
+  "tooling_modules": [
+    {
+      "path": "scripts/security/apply-credential-browser-containment.js",
+      "oid": "915ac9cfd2636f3c682af070076046569508d4e2",
+      "sha256": "5b5d740191183e6f6e2e56ab65494659c78d45427142b5e8a391a2763498fda3",
+      "bytes": 7441
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-apply-core.js",
+      "oid": "9faff0cea9b44cf2e9ed91bf12016a482f30ba5d",
+      "sha256": "839a552e92959931d1830e52f2c33d83bddf6c23f64fcbd2feda03fb1b515bd2",
+      "bytes": 41093
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-constants.js",
+      "oid": "9fd48793a4d07f39397bb6dc38d73ff91c57b4f1",
+      "sha256": "6850152e6cdad00be9a0be95c87b72c101b8495b4d9daf549d9815bc4f9877a2",
+      "bytes": 5270
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    },
+    {
+      "path": "scripts/security/containment-evidence-protocol.js",
+      "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+      "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+      "bytes": 16255
+    },
+    {
+      "path": "scripts/security/containment-tls-ca.js",
+      "oid": "6a3660ebd3315ac654cd3ce4395f7528cda56ef5",
+      "sha256": "72d010c593a3482f7477e91e0d35634f5b6f8bd9a1dc10fee39e6302f6dc8477",
+      "bytes": 8963
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
+    }
+  ],
+  "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",
+  "notes": [
+    "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
+    "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
+    "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
+    "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
+    "Visible ceremony: run visible_ceremony_supervisor; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "Enter materializes launcher+ceremony from freeze only; never execute mutable worktree scripts as authority.",
+    "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe args; never PATH powershell.exe or cmd start.",
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree."
+  ]
+}

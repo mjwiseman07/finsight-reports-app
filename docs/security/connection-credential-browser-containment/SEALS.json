@@ -1,0 +1,33 @@
+{
+  "package": "connection-credential-browser-containment-stage1",
+  "base_git_sha": "6cf3ea64718e2a5ba6d6e1365fbf37e0f18947a1",
+  "migration_filename": "20260908031736_connection_credential_browser_containment.sql",
+  "seal_status": "COMMITTED_BLOB_SEALED",
+  "commit1_sha": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "hash_source": "git cat-file blob <commit1_sha>:<path>",
+  "seals_sha256": {
+    "forward_migration": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "rollback": "42a114580c12a43651bc4e9fcde3d2df820b04b0986406006ca39d188e7b0b86",
+    "pre_change_contract": "7cf74c00ff4df9e59332e3b8e7abccdc0b74241b8f7989be446803ac04cb74a7"
+  },
+  "byte_lengths": {
+    "forward_migration": 10586,
+    "rollback": 3506,
+    "pre_change_contract": 8273
+  },
+  "git_blob_oids": {
+    "forward_migration": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "rollback": "e64eb6c4adeb4956b70705541c8700fc64c718c4",
+    "pre_change_contract": "ad148acdc11dbd2e70b5349d15227e0083ba0493"
+  },
+  "local_rehearsal": {
+    "verdict": "LOCAL_REHEARSAL_PASS_FROM_COMMIT1_GIT_BLOBS",
+    "method": "docker postgres:15-alpine applying git cat-file blobs from commit1_sha"
+  },
+  "notes": [
+    "Seals are SHA-256 of Commit-1 git blob bytes (LF), not working-tree checkout bytes.",
+    "Do not modify migration, rollback, or PRE_CHANGE_CONTRACT after this seal publication.",
+    "Production apply remains NOT_AUTHORIZED; delivery design is GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY only."
+  ],
+  "production_apply": "NOT_AUTHORIZED"
+}

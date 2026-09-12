@@ -1,0 +1,91 @@
+{
+  "package": "credential-browser-containment-applicator-standalone",
+  "bundle_path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+  "bundle_sha256": "d9549637866b2fc3b8a4785ba6dbeb6c2d198a25af7b06514912d40d4932efc3",
+  "bundle_bytes": 260706,
+  "bundle_oid_hash_object": "e42846da941ad83fe258b615d10fea74b2a90220",
+  "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
+  "lockfile_path": "package-lock.json",
+  "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+  "pg_version": "8.21.0",
+  "pg_resolved": "https://registry.npmjs.org/pg/-/pg-8.21.0.tgz",
+  "pg_integrity": "sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==",
+  "build": {
+    "command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0",
+    "node": "v22.22.0",
+    "pg_native_alias": "scripts/security/stubs/pg-native-failclosed.js",
+    "deterministic_note": "Rebuild with same Node major + esbuild@0.25.0; committed git blob is authoritative. content_scan detects unexpected external requires if byte identity drifts."
+  },
+  "content_scan": {
+    "unresolved_external_requires": [],
+    "pg_native_token_count": 3,
+    "has_unresolved_require_pg_native": false,
+    "fail_closed_stub_present": true
+  },
+  "source_modules": [
+    {
+      "path": "scripts/security/apply-credential-browser-containment.js",
+      "oid": "915ac9cfd2636f3c682af070076046569508d4e2",
+      "sha256": "5b5d740191183e6f6e2e56ab65494659c78d45427142b5e8a391a2763498fda3",
+      "bytes": 7441
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-apply-core.js",
+      "oid": "9faff0cea9b44cf2e9ed91bf12016a482f30ba5d",
+      "sha256": "839a552e92959931d1830e52f2c33d83bddf6c23f64fcbd2feda03fb1b515bd2",
+      "bytes": 41093
+    },
+    {
+      "path": "scripts/security/credential-browser-containment-constants.js",
+      "oid": "9fd48793a4d07f39397bb6dc38d73ff91c57b4f1",
+      "sha256": "6850152e6cdad00be9a0be95c87b72c101b8495b4d9daf549d9815bc4f9877a2",
+      "bytes": 5270
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    },
+    {
+      "path": "scripts/security/containment-evidence-protocol.js",
+      "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+      "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+      "bytes": 16255
+    },
+    {
+      "path": "scripts/security/containment-tls-ca.js",
+      "oid": "6a3660ebd3315ac654cd3ce4395f7528cda56ef5",
+      "sha256": "72d010c593a3482f7477e91e0d35634f5b6f8bd9a1dc10fee39e6302f6dc8477",
+      "bytes": 8963
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
+    }
+  ],
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "068f93d3de15f5668a1bed2127fc5f6860206c1f",
+    "sha256": "61ea45f1f9fb64f8420da113b57a6b145b09db46f607e45b94fd1bde0c6624f5",
+    "bytes": 25732
+  },
+  "inventory": {
+    "includes": [
+      "applicator CLI/core/constants/git-blob-authority",
+      "pg@8.21.0 and esbuild-resolved runtime dependency graph",
+      "pg-native fail-closed stub alias"
+    ],
+    "excludes_at_runtime": [
+      "repository node_modules",
+      "NODE_PATH",
+      "global packages",
+      "network fetch",
+      "external pg-native"
+    ]
+  },
+  "built_at": "2026-09-12T06:29:04.211Z"
+}

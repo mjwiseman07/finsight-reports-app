@@ -1,0 +1,194 @@
+{
+  "contract_id": "connection-credential-browser-containment-prechange-v1",
+  "captured_at_utc": "2026-09-08T03:17:00Z",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_mode": "read_only_catalog_metadata",
+  "base_git_sha": "6cf3ea64718e2a5ba6d6e1365fbf37e0f18947a1",
+  "severity": "HIGH",
+  "notes": [
+    "Zero token values and zero customer rows are included.",
+    "PUBLIC role had no table grants in information_schema.role_table_grants for these objects.",
+    "View dependency inventory (non-internal) was empty; DROP VIEW without CASCADE is expected to succeed.",
+    "This contract describes ACTUAL pre-change production state only — not the desired forward contained state.",
+    "Pre-change accounting_connections includes residual SELECT policy 'users can read their accounting connection metadata' (PUBLIC / user_id = auth.uid()).",
+    "Forward Stage-1 disposition: DROP that SELECT policy along with browser ALL/UPDATE policies; zero browser grants; service_role policies only.",
+    "Rollback intentionally restores the residual SELECT policy and browser grants, reopening HIGH-severity exposure (SECURITY_REGRESSION_BREAK_GLASS_ONLY)."
+  ],
+  "stage1_forward_policy_disposition": {
+    "drop_policies": [
+      "Users can access own QB connection",
+      "users can update their accounting connections",
+      "users can read their accounting connection metadata"
+    ],
+    "retain_or_create_service_role_policies": [
+      "service_role_all_accounting_connections",
+      "service_role_all_quickbooks_connections"
+    ],
+    "browser_grants": "none",
+    "safe_column_browser_grants": "not_added"
+  },
+  "objects": {
+    "public.quickbooks_connections": {
+      "kind": "table",
+      "owner": "postgres",
+      "rls_enabled": true,
+      "rls_forced": false,
+      "reloptions": [],
+      "columns": [
+        "id",
+        "user_id",
+        "realm_id",
+        "access_token",
+        "refresh_token",
+        "token_expiry",
+        "created_at",
+        "updated_at"
+      ],
+      "token_columns": ["access_token", "refresh_token"],
+      "sensitive_adjacent_columns": ["token_expiry"],
+      "policies": [
+        {
+          "name": "Users can access own QB connection",
+          "cmd": "ALL",
+          "using": "(auth.uid() = user_id)",
+          "with_check": null,
+          "roles": ["PUBLIC"]
+        }
+      ],
+      "table_grants": {
+        "PUBLIC": [],
+        "anon": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "authenticated": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "service_role": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "postgres": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+      }
+    },
+    "public.accounting_connections": {
+      "kind": "table",
+      "owner": "postgres",
+      "rls_enabled": true,
+      "rls_forced": false,
+      "reloptions": [],
+      "token_columns": ["access_token", "refresh_token"],
+      "sensitive_adjacent_columns": ["token_expires_at"],
+      "column_classification": {
+        "access_token": "server_only_secret",
+        "refresh_token": "server_only_secret",
+        "token_expires_at": "server_only_secret_adjacent",
+        "scopes": "browser_safe_metadata",
+        "id": "browser_safe_metadata",
+        "user_id": "browser_safe_metadata",
+        "provider": "browser_safe_metadata",
+        "provider_family": "browser_safe_metadata",
+        "provider_product": "browser_safe_metadata",
+        "external_entity_id": "browser_safe_metadata",
+        "external_entity_name": "browser_safe_metadata",
+        "tenant_or_realm_id": "browser_safe_metadata",
+        "status": "browser_safe_metadata",
+        "home_currency": "browser_safe_metadata",
+        "qbo_edition": "browser_safe_metadata",
+        "qbo_subscription_status": "browser_safe_metadata",
+        "provider_environment": "browser_safe_metadata",
+        "superseded_by_connection_id": "browser_safe_metadata",
+        "credentials_cleared_at": "browser_safe_metadata",
+        "created_at": "browser_safe_metadata",
+        "updated_at": "browser_safe_metadata",
+        "metadata_json": "unknown_needs_caller_proof"
+      },
+      "policies": [
+        {
+          "name": "service_role_all_accounting_connections",
+          "cmd": "ALL",
+          "using": "true",
+          "with_check": "true",
+          "roles": ["service_role"]
+        },
+        {
+          "name": "users can read their accounting connection metadata",
+          "cmd": "SELECT",
+          "using": "(user_id = auth.uid())",
+          "with_check": null,
+          "roles": ["PUBLIC"]
+        },
+        {
+          "name": "users can update their accounting connections",
+          "cmd": "UPDATE",
+          "using": "(user_id = auth.uid())",
+          "with_check": null,
+          "roles": ["PUBLIC"]
+        }
+      ],
+      "table_grants": {
+        "PUBLIC": [],
+        "anon": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "authenticated": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "service_role": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "postgres": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+      }
+    },
+    "public.qbo_connections_unified": {
+      "kind": "view",
+      "owner": "postgres",
+      "security_invoker": true,
+      "rls_enabled": false,
+      "rls_forced": false,
+      "dependent_objects_non_internal": [],
+      "original_columns": [
+        "source_table",
+        "connection_id",
+        "user_id",
+        "access_token",
+        "refresh_token",
+        "realm_id",
+        "token_expiry",
+        "granted_scopes",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "credential_columns_to_remove": ["access_token", "refresh_token"],
+      "original_view_definition": " SELECT 'accounting_connections'::text AS source_table,\n    id AS connection_id,\n    user_id,\n    access_token,\n    refresh_token,\n    tenant_or_realm_id AS realm_id,\n    token_expires_at AS token_expiry,\n    scopes AS granted_scopes,\n    status,\n    created_at,\n    updated_at\n   FROM accounting_connections ac\n  WHERE provider = 'quickbooks'::text AND status = 'connected'::text;",
+      "table_grants": {
+        "PUBLIC": [],
+        "anon": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "authenticated": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "service_role": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+        "postgres": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+      }
+    }
+  },
+  "service_role_caller_inventory_summary": {
+    "quickbooks_connections": [
+      "lib/erp-adapters/quickbooks-adapter.js (save/get/refresh)",
+      "lib/erp/quickbooks/token-resolver.ts (legacy fallback)",
+      "lib/integrations/quickbooks/persist-authenticated-grant.ts via adapter",
+      "lib/integrations/quickbooks/promote-legacy-grant-execute.ts"
+    ],
+    "accounting_connections": [
+      "lib/integrations/accounting/persist-canonical-connection-grant.ts",
+      "lib/integrations/accounting/canonical-qbo-credential-cas.ts",
+      "lib/erp/quickbooks/token-resolver.ts",
+      "lib/integrations/accounting/ensure-fresh-tokens.ts",
+      "lib/integrations/accounting/live-provider-connection.ts",
+      "lib/integrations/accounting/connection-selection.ts",
+      "lib/integrations/accounting/service.ts",
+      "lib/qbo/cdc.js",
+      "app/api/quickbooks/disconnect/route.js",
+      "lib/erp/quickbooks/health-checker.ts",
+      "lib/erp/quickbooks/currency-resolver.ts",
+      "admin/demo and xero inspector paths"
+    ],
+    "qbo_connections_unified_proven_select_columns": [
+      "user_id",
+      "realm_id",
+      "token_expiry",
+      "status"
+    ],
+    "browser_direct_callers_found": []
+  },
+  "stage1_posture": {
+    "browser_grants": "none",
+    "safe_column_grants": "not_added_until_proven_browser_caller",
+    "force_rls": "not_used_as_column_confidentiality"
+  }
+}
