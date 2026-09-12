@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "e1ffc69b55f48d04f48414da8d34145755a411e7",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -66,9 +66,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "045293d0013939fd5b488fc03c9ed171d2935ae2",
-    "sha256": "130e7ecfbffe49b233ed796f49feb310cf815579df68028d0ad7f079538aff78",
-    "bytes": 254472,
+    "oid": "3dde02588229f71efb99f3c317019ba50d9e1cd1",
+    "sha256": "dba52eeb6cda5d252c5160b3fbb8d40f57373b82372e628765ccc20d6dcbe8d3",
+    "bytes": 258068,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -114,9 +114,9 @@
     },
     {
       "path": "scripts/security/containment-tls-ca.js",
-      "oid": "3b981a0e0851fed8e69ff549dd168ded5c08f711",
-      "sha256": "364d0741004bf8f99ddce8a8a4f4db642d1c8bc0a8b80743e21f9b5e884810bd",
-      "bytes": 6555
+      "oid": "8286444186ab51bdba023f0076833381d7d6f444",
+      "sha256": "43d090eca0bbe8e19bc8adafbc7f8af4e2501b92940ea83cf4da19d7f2dca849",
+      "bytes": 10204
     }
   ],
   "launcher_bootstrap_only": "scripts/security/launch-credential-browser-containment-apply.js",

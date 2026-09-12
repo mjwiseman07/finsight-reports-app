@@ -1,9 +1,9 @@
 {
   "package": "credential-browser-containment-applicator-standalone",
   "bundle_path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-  "bundle_sha256": "130e7ecfbffe49b233ed796f49feb310cf815579df68028d0ad7f079538aff78",
-  "bundle_bytes": 254472,
-  "bundle_oid_hash_object": "045293d0013939fd5b488fc03c9ed171d2935ae2",
+  "bundle_sha256": "dba52eeb6cda5d252c5160b3fbb8d40f57373b82372e628765ccc20d6dcbe8d3",
+  "bundle_bytes": 258068,
+  "bundle_oid_hash_object": "3dde02588229f71efb99f3c317019ba50d9e1cd1",
   "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
   "lockfile_path": "package-lock.json",
   "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -56,9 +56,9 @@
     },
     {
       "path": "scripts/security/containment-tls-ca.js",
-      "oid": "3b981a0e0851fed8e69ff549dd168ded5c08f711",
-      "sha256": "364d0741004bf8f99ddce8a8a4f4db642d1c8bc0a8b80743e21f9b5e884810bd",
-      "bytes": 6555
+      "oid": "8286444186ab51bdba023f0076833381d7d6f444",
+      "sha256": "43d090eca0bbe8e19bc8adafbc7f8af4e2501b92940ea83cf4da19d7f2dca849",
+      "bytes": 10204
     }
   ],
   "native_bootstrap": {
@@ -81,5 +81,5 @@
       "external pg-native"
     ]
   },
-  "built_at": "2026-09-12T03:07:08.263Z"
+  "built_at": "2026-09-12T03:27:24.973Z"
 }

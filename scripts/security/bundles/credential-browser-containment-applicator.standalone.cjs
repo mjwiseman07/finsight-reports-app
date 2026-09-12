@@ -5813,6 +5813,12 @@ var require_containment_tls_ca = __commonJS({
       "prefer",
       "no-verify"
     ]);
+    function tlsPolicyError(code, message) {
+      const e = new Error(message);
+      e.code = code;
+      e.phase = "tls_policy";
+      return e;
+    }
     function isLoopbackHost(hostname) {
       const h = String(hostname || "").toLowerCase();
       return h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "[::1]";
@@ -5820,12 +5826,10 @@ var require_containment_tls_ca = __commonJS({
     function assertNoTlsBypass(env = process.env) {
       const reject = String(env.NODE_TLS_REJECT_UNAUTHORIZED ?? "").trim();
       if (reject === "0") {
-        const e = new Error(
+        throw tlsPolicyError(
+          "BLOCKED_TLS_BYPASS",
           "BLOCKED_TLS_BYPASS: NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden"
         );
-        e.code = "BLOCKED_TLS_BYPASS";
-        e.phase = "tls_policy";
-        throw e;
       }
     }
     function parseDatabaseUrl(databaseUrl) {
@@ -5833,10 +5837,10 @@ var require_containment_tls_ca = __commonJS({
       try {
         u = new URL(databaseUrl);
       } catch {
-        const e = new Error("BLOCKED_URI_INVALID: cannot parse database URL");
-        e.code = "BLOCKED_URI_INVALID";
-        e.phase = "tls_policy";
-        throw e;
+        throw tlsPolicyError(
+          "BLOCKED_URI_INVALID",
+          "BLOCKED_URI_INVALID: cannot parse database URL"
+        );
       }
       return u;
     }
@@ -5844,31 +5848,122 @@ var require_containment_tls_ca = __commonJS({
       const u = parseDatabaseUrl(databaseUrl);
       const sslmode = (u.searchParams.get("sslmode") || "").toLowerCase();
       if (FORBIDDEN_SSLMODES.has(sslmode)) {
-        const e = new Error(
+        throw tlsPolicyError(
+          "BLOCKED_TLS_BYPASS",
           `BLOCKED_TLS_BYPASS: sslmode=${sslmode || "(empty)"} is forbidden`
         );
-        e.code = "BLOCKED_TLS_BYPASS";
-        e.phase = "tls_policy";
-        throw e;
       }
       if (u.searchParams.has("sslrootcert") || u.searchParams.has("sslcert") || u.searchParams.has("sslkey")) {
-        const e = new Error(
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_IN_URI",
           "BLOCKED_TLS_CA_IN_URI: CA/cert paths must use CONTAINMENT_APPLY_SSL_ROOTCERT env, not URL query"
         );
-        e.code = "BLOCKED_TLS_CA_IN_URI";
-        e.phase = "tls_policy";
-        throw e;
       }
       for (const [k, v] of u.searchParams.entries()) {
         const blob = `${k}=${v}`.toLowerCase();
         if (blob.includes("no-verify") || blob.includes("rejectunauthorized=false")) {
-          const e = new Error("BLOCKED_TLS_BYPASS: TLS verification disable token in URL");
-          e.code = "BLOCKED_TLS_BYPASS";
-          e.phase = "tls_policy";
-          throw e;
+          throw tlsPolicyError(
+            "BLOCKED_TLS_BYPASS",
+            "BLOCKED_TLS_BYPASS: TLS verification disable token in URL"
+          );
         }
       }
       return u;
+    }
+    function assertNoReparseOrSymlink(resolvedPath, st) {
+      if (typeof st.isSymbolicLink === "function" && st.isSymbolicLink()) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_SYMLINK",
+          "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction"
+        );
+      }
+      if (st.isDirectory && st.isDirectory()) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_NOT_FILE",
+          "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file"
+        );
+      }
+      if (!st.isFile()) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_NOT_FILE",
+          "BLOCKED_TLS_CA_NOT_FILE: CONTAINMENT_APPLY_SSL_ROOTCERT must be a regular file"
+        );
+      }
+    }
+    function openCaFileNoFollow(resolvedPath) {
+      let st;
+      try {
+        st = fs.lstatSync(resolvedPath);
+      } catch (err) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_UNREADABLE",
+          "BLOCKED_TLS_CA_UNREADABLE: cannot lstat CONTAINMENT_APPLY_SSL_ROOTCERT"
+        );
+      }
+      assertNoReparseOrSymlink(resolvedPath, st);
+      const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW != null ? fs.constants.O_NOFOLLOW : 0) | (fs.constants.O_SYMLINK != null ? 0 : 0);
+      let fd;
+      try {
+        fd = fs.openSync(resolvedPath, flags);
+      } catch (err) {
+        if (err && (err.code === "ELOOP" || /symbolic link/i.test(String(err.message)))) {
+          throw tlsPolicyError(
+            "BLOCKED_TLS_CA_SYMLINK",
+            "BLOCKED_TLS_CA_SYMLINK: CONTAINMENT_APPLY_SSL_ROOTCERT must not be a symlink/junction"
+          );
+        }
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_UNREADABLE",
+          "BLOCKED_TLS_CA_UNREADABLE: cannot open CONTAINMENT_APPLY_SSL_ROOTCERT"
+        );
+      }
+      try {
+        const fst = fs.fstatSync(fd);
+        assertNoReparseOrSymlink(resolvedPath, fst);
+        if (fst.size <= 0 || fst.size > 1024 * 1024) {
+          throw tlsPolicyError(
+            "BLOCKED_TLS_CA_INVALID",
+            "BLOCKED_TLS_CA_INVALID: CA file size out of bounds"
+          );
+        }
+        const pem = Buffer.alloc(fst.size);
+        const n = fs.readSync(fd, pem, 0, fst.size, 0);
+        if (n !== fst.size) {
+          throw tlsPolicyError(
+            "BLOCKED_TLS_CA_UNREADABLE",
+            "BLOCKED_TLS_CA_UNREADABLE: short read of CA file"
+          );
+        }
+        return Buffer.from(pem);
+      } finally {
+        try {
+          fs.closeSync(fd);
+        } catch (_) {
+        }
+      }
+    }
+    function assertCaValidityWindow(x509) {
+      const now = Date.now();
+      const from = Date.parse(x509.validFrom);
+      const to = Date.parse(x509.validTo);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_INVALID",
+          "BLOCKED_TLS_CA_INVALID: cannot parse CA validity window"
+        );
+      }
+      if (now < from) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_NOT_YET_VALID",
+          "BLOCKED_TLS_CA_NOT_YET_VALID: CA not yet valid"
+        );
+      }
+      if (now > to) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_EXPIRED",
+          "BLOCKED_TLS_CA_EXPIRED: CA certificate expired"
+        );
+      }
     }
     function loadCaFromEnv(env = process.env) {
       const caPath = env[SSL_ROOTCERT_ENV];
@@ -5876,46 +5971,39 @@ var require_containment_tls_ca = __commonJS({
         return null;
       }
       const resolved = path.resolve(String(caPath).trim());
-      let pem;
-      try {
-        pem = fs.readFileSync(resolved);
-      } catch (err) {
-        const e = new Error(
-          `BLOCKED_TLS_CA_UNREADABLE: cannot read ${SSL_ROOTCERT_ENV}`
-        );
-        e.code = "BLOCKED_TLS_CA_UNREADABLE";
-        e.phase = "tls_policy";
-        e.cause = err;
-        throw e;
-      }
-      const text = pem.toString("utf8");
+      const pemBuf = openCaFileNoFollow(resolved);
+      const text = pemBuf.toString("utf8");
       if (!/-----BEGIN CERTIFICATE-----/.test(text)) {
-        const e = new Error("BLOCKED_TLS_CA_INVALID: PEM certificate marker missing");
-        e.code = "BLOCKED_TLS_CA_INVALID";
-        e.phase = "tls_policy";
-        throw e;
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_INVALID",
+          "BLOCKED_TLS_CA_INVALID: PEM certificate marker missing"
+        );
       }
       let x509;
       try {
-        x509 = new X509Certificate(pem);
+        x509 = new X509Certificate(pemBuf);
       } catch (err) {
-        const e = new Error("BLOCKED_TLS_CA_INVALID: X509 parse failed");
-        e.code = "BLOCKED_TLS_CA_INVALID";
-        e.phase = "tls_policy";
-        e.cause = err;
-        throw e;
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_INVALID",
+          "BLOCKED_TLS_CA_INVALID: X509 parse failed"
+        );
       }
-      return {
-        pem: text,
-        path_resolved: resolved,
-        der_sha256: crypto.createHash("sha256").update(x509.raw).digest("hex"),
-        pem_sha256: crypto.createHash("sha256").update(pem).digest("hex"),
-        bytes: pem.length,
+      assertCaValidityWindow(x509);
+      const pinnedPem = text;
+      const derSha = crypto.createHash("sha256").update(x509.raw).digest("hex");
+      const pemSha = crypto.createHash("sha256").update(pemBuf).digest("hex");
+      return Object.freeze({
+        pem: pinnedPem,
+        // Intentionally omit filesystem path from returned object (evidence/redaction).
+        der_sha256: derSha,
+        pem_sha256: pemSha,
+        bytes: pemBuf.length,
         valid_from: x509.validFrom,
         valid_to: x509.validTo,
         self_signed: x509.subject === x509.issuer,
-        subject_class: /supabase/i.test(x509.subject) ? "supabase_named" : "other"
-      };
+        subject_class: /supabase/i.test(x509.subject) ? "supabase_named" : "other",
+        pinned: true
+      });
     }
     function sanitizeCaEvidence(ca) {
       if (!ca) {
@@ -5933,7 +6021,8 @@ var require_containment_tls_ca = __commonJS({
         valid_from: ca.valid_from,
         valid_to: ca.valid_to,
         self_signed: ca.self_signed,
-        subject_class: ca.subject_class
+        subject_class: ca.subject_class,
+        pinned: Boolean(ca.pinned)
       };
     }
     function buildPgClientOptions(databaseUrl, env = process.env) {
@@ -5942,12 +6031,10 @@ var require_containment_tls_ca = __commonJS({
       const loopback = isLoopbackHost(u.hostname);
       const ca = loadCaFromEnv(env);
       if (!loopback && !ca) {
-        const e = new Error(
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_REQUIRED",
           `BLOCKED_TLS_CA_REQUIRED: non-loopback targets require ${SSL_ROOTCERT_ENV}`
         );
-        e.code = "BLOCKED_TLS_CA_REQUIRED";
-        e.phase = "tls_policy";
-        throw e;
       }
       const cleaned = new URL(u.toString());
       cleaned.searchParams.delete("sslmode");
@@ -5977,17 +6064,25 @@ var require_containment_tls_ca = __commonJS({
           hostname_verification: "enabled",
           reject_unauthorized: true,
           ca: sanitizeCaEvidence(ca)
-        }
+        },
+        // Internal pin for tests — not serialized into applicator evidence.
+        _pinned_ca_der_sha256: ca.der_sha256
       };
     }
     function classifyTlsError(err) {
       const code = String(err && (err.code || err.message) || "");
+      if (/BLOCKED_TLS_CA_EXPIRED/i.test(code)) return "BLOCKED_TLS_CA_EXPIRED";
+      if (/BLOCKED_TLS_CA_NOT_YET_VALID/i.test(code))
+        return "BLOCKED_TLS_CA_NOT_YET_VALID";
+      if (/BLOCKED_TLS_CA_SYMLINK/i.test(code)) return "BLOCKED_TLS_CA_SYMLINK";
+      if (/BLOCKED_TLS_CA_NOT_FILE/i.test(code)) return "BLOCKED_TLS_CA_NOT_FILE";
+      if (/BLOCKED_TLS_/i.test(code) && err && err.code) return err.code;
       if (/SELF_SIGNED_CERT_IN_CHAIN/i.test(code)) return "SELF_SIGNED_CERT_IN_CHAIN";
-      if (/UNABLE_TO_VERIFY_LEAF_SIGNATURE/i.test(code)) return "UNABLE_TO_VERIFY_LEAF_SIGNATURE";
+      if (/UNABLE_TO_VERIFY_LEAF_SIGNATURE/i.test(code))
+        return "UNABLE_TO_VERIFY_LEAF_SIGNATURE";
       if (/CERT_HAS_EXPIRED/i.test(code)) return "CERT_HAS_EXPIRED";
       if (/ERR_TLS_CERT_ALTNAME_INVALID|Hostname\/IP does not match/i.test(code))
         return "HOSTNAME_MISMATCH";
-      if (/BLOCKED_TLS_/i.test(code)) return err.code;
       return err && err.code ? err.code : "TLS_FAIL";
     }
     module2.exports = {
@@ -5999,7 +6094,9 @@ var require_containment_tls_ca = __commonJS({
       loadCaFromEnv,
       sanitizeCaEvidence,
       buildPgClientOptions,
-      classifyTlsError
+      classifyTlsError,
+      assertCaValidityWindow,
+      openCaFileNoFollow
     };
   }
 });
