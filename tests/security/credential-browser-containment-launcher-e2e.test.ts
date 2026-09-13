@@ -222,12 +222,15 @@ describe("standalone launcher end-to-end", () => {
 
 describe.skipIf(!dockerOk)("launcher success path (local disposable postgres)", () => {
   let pg: { name: string; url: string; stop: () => Promise<void> };
+  let fixtureForward: string[];
 
   beforeAll(async () => {
     const {
       startDisposablePg,
       seedApplicatorWorld,
+      fixtureTarget2ForwardArgs,
     } = require("./helpers/containment-applicator-sim.js");
+    fixtureForward = fixtureTarget2ForwardArgs();
     pg = await startDisposablePg();
     const { Client } = require("pg");
     const client = new Client({ connectionString: pg.url });
@@ -249,7 +252,7 @@ describe.skipIf(!dockerOk)("launcher success path (local disposable postgres)", 
     try {
       const r = spawnSync(
         process.execPath,
-        [LAUNCHER, "--pr-head", freeze, "--mode", "dry-run"],
+        [LAUNCHER, "--pr-head", freeze, "--mode", "dry-run", ...fixtureForward],
         {
           cwd: ROOT,
           encoding: "utf8",

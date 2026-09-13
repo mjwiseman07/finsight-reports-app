@@ -89,17 +89,33 @@ const TOOLING_AUTHORIZATION_PATH =
   "docs/security/connection-credential-browser-containment/TOOLING_AUTHORIZATION.json";
 
 /**
- * Target #2 safety gate (non-token columns only).
- * Stable match key = literal equality of `fingerprint` against
- * external_entity_id OR tenant_or_realm_id OR metadata_json->>'fingerprint',
- * plus provider / provider_environment / status.
- * Intentionally excluded from the match (must not define the binding):
- * updated_at, token values, token presence, credentials_cleared_at,
- * superseded_by_connection_id, labels/names, and any ops-side "binding"
- * handle that is not stored in those three identity columns.
+ * Target #2 safety gate — sealed session-derived privacy handles (NOT raw DB identity).
+ *
+ * Row fingerprint (12 hex) =
+ *   left(encode(extensions.digest((id::text || ROW_FP_SALT)::bytea, 'sha256'::text), 'hex'), 12)
+ * Binding fingerprint (16 hex) =
+ *   left(encode(extensions.digest((user_id::text || '|' || tenant_or_realm_id || BINDING_FP_SALT)::bytea, 'sha256'::text), 'hex'), 16)
+ *
+ * Provenance: Sep 7 2026 reconnect operator session (live-confirmed).
+ * Never compare these digests to external_entity_id / tenant_or_realm_id /
+ * metadata_json->>'fingerprint'. Never put raw id/user/realm/tokens in evidence.
+ *
+ * Digests intentionally ignore updated_at, token values, labels, and timestamps.
  */
+const TARGET2_ROW_FP_SALT = "|reconnect-session-2026-09-07";
+const TARGET2_BINDING_FP_SALT = "|bind-2026-09-07";
+
 const TARGET2 = Object.freeze({
+  /** Sealed expected row fingerprint (12-hex privacy handle). */
   fingerprint: "d331891f0424",
+  /** Sealed expected business-binding fingerprint (16-hex privacy handle). */
+  binding_fingerprint: "c0948f590d6b6fce",
+  /** Excluded US sibling row fingerprint (must not share target binding). */
+  excluded_row_fingerprint: "e8d831d85aaa",
+  row_fp_salt: TARGET2_ROW_FP_SALT,
+  binding_fp_salt: TARGET2_BINDING_FP_SALT,
+  row_fp_hex_len: 12,
+  binding_fp_hex_len: 16,
   provider_environment: "sandbox",
   status: "connected",
   provider: "quickbooks",
@@ -141,5 +157,7 @@ module.exports = {
   FIXTURE_PATH,
   TOOLING_AUTHORIZATION_PATH,
   TARGET2,
+  TARGET2_ROW_FP_SALT,
+  TARGET2_BINDING_FP_SALT,
   SELF_AUTHORITY_MODULES,
 };

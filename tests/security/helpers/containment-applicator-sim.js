@@ -23,7 +23,45 @@ const {
   DATABASE_URL_ENV,
   APPLY_AUTHORIZATION_TOKEN,
 } = require("../../../scripts/security/credential-browser-containment-constants.js");
-const { loadAndVerifyGitBlob } = require("../../../scripts/security/git-blob-authority.js");
+const {
+  loadAndVerifyGitBlob,
+} = require("../../../scripts/security/git-blob-authority.js");
+const {
+  computeTarget2RowFingerprint,
+  computeTarget2BindingFingerprint,
+} = require("../../../scripts/security/credential-browser-containment-apply-core.js");
+
+/** Fixture identity columns (synthetic only). Digests computed; never production UUIDs. */
+const FIXTURE_TARGET_ID = "11111111-1111-1111-1111-111111111111";
+const FIXTURE_TARGET_USER = "22222222-2222-2222-2222-222222222222";
+const FIXTURE_TARGET_TENANT = "fake-realm-local";
+const FIXTURE_US_SIBLING_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const FIXTURE_US_SIBLING_USER = "22222222-2222-2222-2222-222222222222";
+const FIXTURE_US_SIBLING_TENANT = "us-sandbox-realm-synthetic";
+
+function fixtureTarget2Pins() {
+  return {
+    target2Fingerprint: computeTarget2RowFingerprint(FIXTURE_TARGET_ID),
+    target2BindingFingerprint: computeTarget2BindingFingerprint(
+      FIXTURE_TARGET_USER,
+      FIXTURE_TARGET_TENANT,
+    ),
+    target2ExcludedFingerprint: computeTarget2RowFingerprint(FIXTURE_US_SIBLING_ID),
+  };
+}
+
+/** Argv for sealed-bundle e2e against disposable fixture digests (never production IDs). */
+function fixtureTarget2ForwardArgs() {
+  const pins = fixtureTarget2Pins();
+  return [
+    "--target2-fingerprint",
+    pins.target2Fingerprint,
+    "--target2-binding-fingerprint",
+    pins.target2BindingFingerprint,
+    "--target2-excluded-fingerprint",
+    pins.target2ExcludedFingerprint,
+  ];
+}
 
 function docker(args, opts = {}) {
   const r = spawnSync("docker", args, {
@@ -86,17 +124,72 @@ async function seedApplicatorWorld(client, opts = {}) {
   });
   await client.query(fixture.buffer.toString("utf8"));
 
+  // Ensure fully-qualified extensions.digest exists (production uses extensions schema).
+  await client.query(`CREATE SCHEMA IF NOT EXISTS extensions`);
+  await client.query(`
+    CREATE OR REPLACE FUNCTION extensions.digest(bytea, text)
+    RETURNS bytea
+    LANGUAGE sql
+    IMMUTABLE
+    AS $fn$ SELECT public.digest($1, $2) $fn$
+  `);
+
   await client.query(
     `
     UPDATE public.accounting_connections
     SET
       provider_environment = $1,
       status = $2,
-      external_entity_id = $3,
-      provider = 'quickbooks'
-    WHERE id = '11111111-1111-1111-1111-111111111111'
+      provider = 'quickbooks',
+      tenant_or_realm_id = $3,
+      external_entity_id = $4,
+      superseded_by_connection_id = NULL,
+      credentials_cleared_at = NULL,
+      access_token = COALESCE(access_token, 'FAKE_ACCESS_TOKEN_LOCAL_ONLY'),
+      refresh_token = COALESCE(refresh_token, 'FAKE_REFRESH_TOKEN_LOCAL_ONLY')
+    WHERE id = $5::uuid
     `,
-    [TARGET2.provider_environment, TARGET2.status, TARGET2.fingerprint],
+    [
+      TARGET2.provider_environment,
+      TARGET2.status,
+      FIXTURE_TARGET_TENANT,
+      `qbo:${FIXTURE_TARGET_TENANT}`,
+      FIXTURE_TARGET_ID,
+    ],
+  );
+
+  // Excluded US sibling: different row digest; distinct binding inputs.
+  await client.query(
+    `
+    INSERT INTO public.accounting_connections (
+      id, user_id, provider, provider_environment, status,
+      external_entity_id, tenant_or_realm_id, external_entity_name,
+      access_token, refresh_token, token_expires_at,
+      superseded_by_connection_id, credentials_cleared_at
+    ) VALUES (
+      $1::uuid, $2::uuid, 'quickbooks', $3, $4,
+      $5, $6, 'Sandbox Company US excluded synthetic',
+      'FAKE_US_ACCESS', 'FAKE_US_REFRESH', now() + interval '1 hour',
+      NULL, NULL
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      provider_environment = EXCLUDED.provider_environment,
+      status = EXCLUDED.status,
+      tenant_or_realm_id = EXCLUDED.tenant_or_realm_id,
+      external_entity_id = EXCLUDED.external_entity_id,
+      access_token = EXCLUDED.access_token,
+      refresh_token = EXCLUDED.refresh_token,
+      superseded_by_connection_id = NULL,
+      credentials_cleared_at = NULL
+    `,
+    [
+      FIXTURE_US_SIBLING_ID,
+      FIXTURE_US_SIBLING_USER,
+      TARGET2.provider_environment,
+      TARGET2.status,
+      `qbo:${FIXTURE_US_SIBLING_TENANT}`,
+      FIXTURE_US_SIBLING_TENANT,
+    ],
   );
 
   await client.query(`CREATE SCHEMA IF NOT EXISTS supabase_migrations`);
@@ -154,6 +247,7 @@ function baseApplyInputs(databaseUrl, overrides = {}) {
     ATTESTED_FREEZE_ENV,
   } = require("../../../scripts/security/credential-browser-containment-constants.js");
 
+  const pins = fixtureTarget2Pins();
   const merged = {
     mode: "dry-run",
     applyAuthorizationToken: "",
@@ -169,7 +263,9 @@ function baseApplyInputs(databaseUrl, overrides = {}) {
     migrationBytes: MIGRATION_BYTES,
     version: MIGRATION_VERSION,
     name: MIGRATION_NAME,
-    target2Fingerprint: TARGET2.fingerprint,
+    target2Fingerprint: pins.target2Fingerprint,
+    target2BindingFingerprint: pins.target2BindingFingerprint,
+    target2ExcludedFingerprint: pins.target2ExcludedFingerprint,
     ...overrides,
   };
   const attestedFreeze = merged.authorizedPrHead || merged.prHead || freeze;
@@ -191,6 +287,14 @@ module.exports = {
   startDisposablePg,
   seedApplicatorWorld,
   baseApplyInputs,
+  fixtureTarget2Pins,
+  fixtureTarget2ForwardArgs,
+  FIXTURE_TARGET_ID,
+  FIXTURE_TARGET_USER,
+  FIXTURE_TARGET_TENANT,
+  FIXTURE_US_SIBLING_ID,
+  FIXTURE_US_SIBLING_USER,
+  FIXTURE_US_SIBLING_TENANT,
   ADVISORY_LOCK,
   ARTIFACT_COMMIT,
   MIGRATION_BLOB_OID,

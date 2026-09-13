@@ -584,12 +584,15 @@ describe("native PowerShell bootstrap trust boundary", () => {
 
 describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)", () => {
   let pg: { name: string; url: string; stop: () => Promise<void> };
+  let fixtureForward: string[];
 
   beforeAll(async () => {
     const {
       startDisposablePg,
       seedApplicatorWorld,
+      fixtureTarget2ForwardArgs,
     } = require("./helpers/containment-applicator-sim.js");
+    fixtureForward = fixtureTarget2ForwardArgs();
     pg = await startDisposablePg();
     const { Client } = require("pg");
     const client = new Client({ connectionString: pg.url });
@@ -614,6 +617,7 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
         freeze,
         cwd: empty,
         withPathext: false,
+        forward: fixtureForward,
         env: { CONTAINMENT_APPLY_DATABASE_URL: pg.url },
       });
       const ev = parseEvidence(r.stdout);
@@ -642,6 +646,7 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
         freeze,
         cwd: empty,
         withPathext: true,
+        forward: fixtureForward,
         env: { CONTAINMENT_APPLY_DATABASE_URL: pg.url },
       });
       const ev = parseEvidence(r.stdout);
@@ -667,6 +672,7 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
       const r = runBootstrap({
         freeze,
         withPathext: false,
+        forward: fixtureForward,
         env: {
           CONTAINMENT_APPLY_DATABASE_URL: pg.url,
         },
@@ -746,6 +752,7 @@ describe.skipIf(!dockerOk)("bootstrap success path (local disposable postgres)",
         freeze,
         "-Mode",
         "dry-run",
+        ...fixtureForward,
       ],
       { cwd: ROOT, encoding: "utf8", windowsHide: true, env },
     );

@@ -548,49 +548,170 @@ function assertPreChangeMatch(probe) {
   }
 }
 
-async function probeTarget2(client, fingerprint = TARGET2.fingerprint) {
+/**
+ * Compute Target #2 privacy digests (Node-side; mirrors extensions.digest UTF-8 path).
+ * For tests/docs only — production gate computes digests inside Postgres.
+ */
+function computeTarget2RowFingerprint(connectionId, salt = TARGET2.row_fp_salt) {
+  return require("crypto")
+    .createHash("sha256")
+    .update(String(connectionId) + String(salt), "utf8")
+    .digest("hex")
+    .slice(0, TARGET2.row_fp_hex_len);
+}
+
+function computeTarget2BindingFingerprint(
+  userId,
+  tenantOrRealmId,
+  salt = TARGET2.binding_fp_salt,
+) {
+  return require("crypto")
+    .createHash("sha256")
+    .update(`${String(userId)}|${String(tenantOrRealmId)}${String(salt)}`, "utf8")
+    .digest("hex")
+    .slice(0, TARGET2.binding_fp_hex_len);
+}
+
+async function probeTarget2(client, opts = {}) {
+  const expectedRowFp = opts.fingerprint || opts.target2Fingerprint || TARGET2.fingerprint;
+  const expectedBindingFp =
+    opts.bindingFingerprint ||
+    opts.target2BindingFingerprint ||
+    TARGET2.binding_fingerprint;
+  const excludedRowFp =
+    opts.excludedFingerprint ||
+    opts.target2ExcludedFingerprint ||
+    TARGET2.excluded_row_fingerprint;
+  const rowSalt = TARGET2.row_fp_salt;
+  const bindSalt = TARGET2.binding_fp_salt;
+
+  // Fully-qualified extensions.digest only — never call unqualified digest in SQL.
   const { rows } = await client.query(
     `
+    WITH eligible AS (
+      SELECT
+        left(
+          encode(
+            extensions.digest(
+              (id::text || $4::text)::bytea,
+              'sha256'::text
+            ),
+            'hex'
+          ),
+          12
+        ) AS row_fp,
+        left(
+          encode(
+            extensions.digest(
+              (user_id::text || '|' || tenant_or_realm_id || $5::text)::bytea,
+              'sha256'::text
+            ),
+            'hex'
+          ),
+          16
+        ) AS binding_fp,
+        (access_token IS NOT NULL) AS has_access_token,
+        (refresh_token IS NOT NULL) AS has_refresh_token,
+        (superseded_by_connection_id IS NULL) AS unsuperseded,
+        (credentials_cleared_at IS NULL) AS credentials_not_cleared
+      FROM public.accounting_connections
+      WHERE provider = $1
+        AND provider_environment = $2
+        AND status = $3
+    )
     SELECT
+      count(*)::int AS eligible_rows,
+      count(*) FILTER (WHERE row_fp = $6)::int AS target_row_fp_matches,
+      count(*) FILTER (WHERE binding_fp = $7)::int AS target_binding_matches,
       count(*) FILTER (
-        WHERE provider = $1
-          AND provider_environment = $2
-          AND status = $3
-          AND (
-            external_entity_id = $4
-            OR tenant_or_realm_id = $4
-            OR coalesce(metadata_json->>'fingerprint','') = $4
-          )
-      )::int AS matching_rows,
+        WHERE row_fp = $6
+          AND binding_fp = $7
+          AND unsuperseded
+          AND credentials_not_cleared
+          AND has_access_token
+          AND has_refresh_token
+      )::int AS target_combined_matches,
+      count(*) FILTER (WHERE row_fp = $8)::int AS excluded_us_matches,
       count(*) FILTER (
-        WHERE provider = $1
-          AND provider_environment = $2
-          AND status = $3
-          AND (
-            external_entity_id = $4
-            OR tenant_or_realm_id = $4
-            OR coalesce(metadata_json->>'fingerprint','') = $4
-          )
-          AND access_token IS NOT NULL
-          AND refresh_token IS NOT NULL
-      )::int AS matching_with_token_presence
-    FROM public.accounting_connections
+        WHERE row_fp = $8 AND binding_fp = $7
+      )::int AS excluded_collision_matches,
+      count(*) FILTER (
+        WHERE row_fp = $6
+          AND binding_fp = $7
+          AND unsuperseded
+          AND credentials_not_cleared
+          AND has_access_token
+          AND has_refresh_token
+      )::int AS combined_with_token_presence
+    FROM eligible
     `,
-    [TARGET2.provider, TARGET2.provider_environment, TARGET2.status, fingerprint],
+    [
+      TARGET2.provider,
+      TARGET2.provider_environment,
+      TARGET2.status,
+      rowSalt,
+      bindSalt,
+      expectedRowFp,
+      expectedBindingFp,
+      excludedRowFp,
+    ],
   );
+
+  const r = rows[0];
   return {
-    fingerprint,
-    matching_rows: rows[0].matching_rows,
-    has_token_presence_boolean: rows[0].matching_with_token_presence > 0,
+    fingerprint: expectedRowFp,
+    binding_fingerprint: expectedBindingFp,
+    excluded_row_fingerprint: excludedRowFp,
+    eligible_rows: r.eligible_rows,
+    target_row_fp_matches: r.target_row_fp_matches,
+    target_binding_matches: r.target_binding_matches,
+    target_combined_matches: r.target_combined_matches,
+    excluded_us_matches: r.excluded_us_matches,
+    excluded_collision_matches: r.excluded_collision_matches,
+    matching_rows: r.target_combined_matches,
+    has_token_presence_boolean: r.combined_with_token_presence > 0,
+  };
+}
+
+function target2EvidenceFields(probe) {
+  return {
+    fingerprint: probe.fingerprint,
+    binding_fingerprint: probe.binding_fingerprint,
+    excluded_row_fingerprint: probe.excluded_row_fingerprint,
+    eligible_rows: probe.eligible_rows,
+    target_row_fp_matches: probe.target_row_fp_matches,
+    target_binding_matches: probe.target_binding_matches,
+    target_combined_matches: probe.target_combined_matches,
+    excluded_us_matches: probe.excluded_us_matches,
+    excluded_collision_matches: probe.excluded_collision_matches,
+    matching_rows: probe.target_combined_matches,
+    has_token_presence_boolean: probe.has_token_presence_boolean,
   };
 }
 
 function assertTarget2Ok(probe) {
-  if (probe.matching_rows !== 1) {
+  if (Number(probe.excluded_collision_matches) > 0) {
     const err = new Error(
-      `TARGET2_BINDING_MISMATCH: expected exactly 1 sandbox/connected fingerprint row, got ${probe.matching_rows}`,
+      `TARGET2_EXCLUDED_SIBLING_COLLISION: excluded row fingerprint shares target binding (collisions=${probe.excluded_collision_matches})`,
+    );
+    err.code = "TARGET2_EXCLUDED_SIBLING_COLLISION";
+    err.phase = "target2_binding";
+    throw err;
+  }
+  const combined = Number(probe.target_combined_matches);
+  if (combined === 0) {
+    const err = new Error(
+      `TARGET2_BINDING_MISMATCH: expected exactly 1 sandbox/connected digest-bound row, got 0`,
     );
     err.code = "TARGET2_BINDING_MISMATCH";
+    err.phase = "target2_binding";
+    throw err;
+  }
+  if (combined > 1) {
+    const err = new Error(
+      `TARGET2_INVARIANT_MULTIPLE_MATCHES: expected exactly 1 digest-bound row, got ${combined}`,
+    );
+    err.code = "TARGET2_INVARIANT_MULTIPLE_MATCHES";
     err.phase = "target2_binding";
     throw err;
   }
@@ -612,6 +733,24 @@ function classifyDryRunFailure(err, evidence) {
   ) {
     return {
       code: "TARGET2_BINDING_MISMATCH",
+      phase: phaseHint || "target2_binding",
+    };
+  }
+  if (
+    explicit === "TARGET2_INVARIANT_MULTIPLE_MATCHES" ||
+    /^TARGET2_INVARIANT_MULTIPLE_MATCHES\b/.test(msg)
+  ) {
+    return {
+      code: "TARGET2_INVARIANT_MULTIPLE_MATCHES",
+      phase: phaseHint || "target2_binding",
+    };
+  }
+  if (
+    explicit === "TARGET2_EXCLUDED_SIBLING_COLLISION" ||
+    /^TARGET2_EXCLUDED_SIBLING_COLLISION\b/.test(msg)
+  ) {
+    return {
+      code: "TARGET2_EXCLUDED_SIBLING_COLLISION",
       phase: phaseHint || "target2_binding",
     };
   }
@@ -889,13 +1028,13 @@ async function runDryRun(inputs) {
           view_owner: probe.view_owner,
         };
 
-        const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+        const t2 = await probeTarget2(client, {
+          fingerprint: inputs.target2Fingerprint,
+          bindingFingerprint: inputs.target2BindingFingerprint,
+          excludedFingerprint: inputs.target2ExcludedFingerprint,
+        });
         assertTarget2Ok(t2);
-        evidence.target2 = {
-          fingerprint: t2.fingerprint,
-          matching_rows: t2.matching_rows,
-          has_token_presence_boolean: t2.has_token_presence_boolean,
-        };
+        evidence.target2 = target2EvidenceFields(t2);
 
         await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
         await assertVersionAbsent(client, inputs.version);
@@ -990,13 +1129,13 @@ async function runApply(inputs) {
       const probe = await probePreChangeContract(client);
       assertPreChangeMatch(probe);
 
-      const t2 = await probeTarget2(client, inputs.target2Fingerprint || TARGET2.fingerprint);
+      const t2 = await probeTarget2(client, {
+        fingerprint: inputs.target2Fingerprint,
+        bindingFingerprint: inputs.target2BindingFingerprint,
+        excludedFingerprint: inputs.target2ExcludedFingerprint,
+      });
       assertTarget2Ok(t2);
-      evidence.target2 = {
-        fingerprint: t2.fingerprint,
-        matching_rows: t2.matching_rows,
-        has_token_presence_boolean: t2.has_token_presence_boolean,
-      };
+      evidence.target2 = target2EvidenceFields(t2);
 
       if (inputs.injectFailure === "before_sql") {
         throw new Error("INJECTED_FAILURE_BEFORE_SQL");
@@ -1189,6 +1328,9 @@ module.exports = {
   probePreChangeContract,
   probeTarget2,
   assertTarget2Ok,
+  computeTarget2RowFingerprint,
+  computeTarget2BindingFingerprint,
+  target2EvidenceFields,
   assertContainedPrivileges,
   assertPreChangeMatch,
   assertInputPins,

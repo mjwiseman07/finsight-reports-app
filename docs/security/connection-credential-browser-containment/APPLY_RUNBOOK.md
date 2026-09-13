@@ -103,6 +103,23 @@ See `TOOLING_AUTHORIZATION.json` (`native_bootstrap`, `native_entry`, `standalon
 ## Target #2
 Always checked. `--skip-target2-check` is not available.
 
+The sealed constants `d331891f0424` (row) and `c0948f590d6b6fce` (binding) are
+**session-derived privacy handles**, not raw `external_entity_id` /
+`tenant_or_realm_id` / `metadata_json.fingerprint` values.
+
+Server-side gate (fully qualified `extensions.digest`, `sha256`):
+
+- row_fp = first 12 hex of SHA-256(`id::text || '|reconnect-session-2026-09-07'`)
+- binding_fp = first 16 hex of SHA-256(`user_id::text || '|' || tenant_or_realm_id || '|bind-2026-09-07'`)
+
+Require exactly one `quickbooks` / `sandbox` / `connected` row with
+`superseded_by_connection_id IS NULL`, `credentials_cleared_at IS NULL`,
+tokens present (boolean only), `row_fp = d331891f0424`, and
+`binding_fp = c0948f590d6b6fce`. Fail closed on zero or multiple combined
+matches. Assert excluded sibling fingerprint `e8d831d85aaa` does not share
+the target binding (collision count must be 0). Evidence records sanitized
+counts/booleans only — never raw ids, realms, or token values.
+
 ## Rebuild (seal publication only)
 ```
 node scripts/security/build-containment-applicator-standalone-bundle.js

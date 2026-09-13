@@ -38,14 +38,24 @@
   },
   "target2": {
     "fingerprint": "d331891f0424",
+    "binding_fingerprint": "c0948f590d6b6fce",
+    "excluded_row_fingerprint": "e8d831d85aaa",
+    "eligible_rows": 2,
+    "target_row_fp_matches": 1,
+    "target_binding_matches": 1,
+    "target_combined_matches": 1,
+    "excluded_us_matches": 1,
+    "excluded_collision_matches": 0,
     "matching_rows": 1,
-    "has_token_presence_boolean": true
+    "has_token_presence_boolean": true,
+    "note": "fingerprint/binding/excluded are sealed session-derived privacy handles (SHA-256 truncations), not raw database identity values"
   },
   "database_url": "postgres://***redacted***",
   "forbidden_in_evidence": [
     "database passwords",
     "access_token values",
     "refresh_token values",
+    "raw connection id / user id / realm id",
     "raw statements bodies from prior history"
   ]
 }

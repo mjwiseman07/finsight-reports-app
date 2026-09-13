@@ -113,6 +113,12 @@ function parseArgs(argv) {
       case "--target2-fingerprint":
         out.target2Fingerprint = next();
         break;
+      case "--target2-binding-fingerprint":
+        out.target2BindingFingerprint = next();
+        break;
+      case "--target2-excluded-fingerprint":
+        out.target2ExcludedFingerprint = next();
+        break;
       case "--skip-target2-check":
         throw new Error(
           "BLOCKED_MODE: --skip-target2-check removed; not available in production applicator",
@@ -238,6 +244,8 @@ async function main() {
     version: args.version,
     name: args.name,
     target2Fingerprint: args.target2Fingerprint,
+    target2BindingFingerprint: args.target2BindingFingerprint,
+    target2ExcludedFingerprint: args.target2ExcludedFingerprint,
     env: process.env,
   });
 
