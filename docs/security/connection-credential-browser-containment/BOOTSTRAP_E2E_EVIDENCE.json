@@ -1,0 +1,64 @@
+{
+  "kind": "NATIVE_ENTRY_BOOTSTRAP_BUNDLE_DISPOSABLE_PG_E2E",
+  "generated_at": "2026-09-11T03:09:44.541Z",
+  "evidence_generated_from_worktree_parent": "04e5bc5697bb1e0c43e4915c62c44d9eae02dc75",
+  "executable_freeze": "a51152b07de07353c1a0c7eaa6c692a65b609685",
+  "entry_helper_blob": {
+    "path": "scripts/security/enter-containment-apply.ps1",
+    "oid": "33ce07cf816be0f0232af85031962ed60035df24",
+    "sha256": "cb9fca9a51ee5007a1aa3f02b487e39282f43d6beaf21c5a14e23a0e8edb0943",
+    "bytes": 9282
+  },
+  "bootstrap_blob": {
+    "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
+    "oid": "cfb6a30a9d899067baf60c7bd859e6c807f39b1b",
+    "sha256": "3ba7866bdfa6a4a4dbbd4d1afa1d00c64c49518a2bcc690584cd37747a0b51c3",
+    "bytes": 22537
+  },
+  "bundle_blob": {
+    "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+    "oid": "d2b5937a71005632af4dc2446d3c39c77a952ab8",
+    "sha256": "5f09c61042ecd2b96cda7e5cd191296a00ebad28201796e165fc27d4be27013c",
+    "bytes": 224887
+  },
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "migration_blob": {
+    "oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "bytes": 10586
+  },
+  "test_environment": {
+    "pathext_present": false,
+    "hostile_node_options_require_at_entry": true,
+    "hostile_preload_file_existed": true,
+    "docker_available": true,
+    "disposable_postgres_executed": true
+  },
+  "node_resolution": {
+    "basename": "node.exe",
+    "version": "v22.22.0",
+    "sha256": "edf5c169568a7311dedecbcbb10ef75cd566276092b507d5d92f6b1ce8e61450",
+    "contract": "Get-Command -Name node.exe -CommandType Application → absolute .exe; no PATHEXT; no bare node"
+  },
+  "result": {
+    "verdict": "DRY_RUN_READY",
+    "sqlApplicationAttempts": 0,
+    "databaseConnectionAttempts": 1,
+    "advisory_lock_acquired": false,
+    "unsafeInheritedNodeEnvironmentRemoved": true,
+    "hostile_marker_created": false,
+    "migration_history_unchanged": true,
+    "cleanup_cleaned": true,
+    "cwd_was_temp": true
+  },
+  "superseded_evidence_labels": [
+    "6083e2a7f0f521733fb61ac154b5f46be8f3ada0",
+    "afc962cf56c72fc33208e526544168b1c627a43f",
+    "1485f69a844abe22359cd0c7c879c3a148defa0e"
+  ],
+  "production_dry_run_authorized": false,
+  "notes": [
+    "evidence_generated_from_worktree_parent is an already-existing ancestor tip at generation time; final PR tip is reported externally after this evidence commit.",
+    "Awaiting independent operational re-review before any production dry-run claim."
+  ]
+}

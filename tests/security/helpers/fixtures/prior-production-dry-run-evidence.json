@@ -1,0 +1,1261 @@
+{
+    "authorization_scope":  "operator_assisted_production_dry_run_only",
+    "result_code":  "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+    "evidence_source":  "sealed_applicator",
+    "applicator":  {
+                       "protocol_version":  1,
+                       "schema_version":  1,
+                       "result_code":  "DRY_RUN_READY",
+                       "reason_code":  "DRY_RUN_READY",
+                       "phase":  "dry_run_complete",
+                       "evidence_source":  "sealed_applicator",
+                       "mode":  "dry-run",
+                       "read_only":  true,
+                       "databaseConnectionAttempts":  1,
+                       "sqlApplicationAttempts":  0,
+                       "advisory_lock_acquired":  false,
+                       "cleanup":  {
+                                       "completed":  true
+                                   },
+                       "credential_redaction_confirmation":  {
+                                                                 "url_in_evidence":  false,
+                                                                 "url_in_argv":  false,
+                                                                 "values_undisclosed":  true
+                                                             },
+                       "mechanism":  "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY",
+                       "project_ref_expected":  "jzmdgwwiestcmmeuhhkr",
+                       "project_ref_provided":  "jzmdgwwiestcmmeuhhkr",
+                       "pr_head":  "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+                       "authorized_tooling_freeze":  "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+                       "evidence_tip":  "267e25f8e9c16d724dc4ea8ced478542c34a5480",
+                       "artifact_commit":  "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+                       "migration_path":  "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
+                       "migration_version":  "20260908031736",
+                       "migration_name":  "connection_credential_browser_containment",
+                       "advisory_lock":  {
+                                             "name":  "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
+                                             "key1":  1129464387,
+                                             "key2":  539363592
+                                         },
+                       "source_authority":  {
+                                                "kind":  "git_blob",
+                                                "commit":  "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+                                                "path":  "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
+                                                "oid":  "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+                                                "sha256":  "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+                                                "bytes":  10586
+                                            },
+                       "database_url_channel":  "CONTAINMENT_APPLY_DATABASE_URL=***",
+                       "uri_diagnostics":  {
+                                               "structurally_valid_postgres_uri":  true,
+                                               "project_match":  true,
+                                               "host_class":  "session_pooler",
+                                               "expected_port_match":  true,
+                                               "database_name_match":  true,
+                                               "username_class_match":  true,
+                                               "ssl_requirement_match":  true
+                                           },
+                       "tls":  {
+                                   "mode":  "verify_full_embedded_ca",
+                                   "hostname_verification":  "enabled",
+                                   "reject_unauthorized":  true,
+                                   "ca":  {
+                                              "ca_provided":  true,
+                                              "path_redacted":  true,
+                                              "der_sha256":  "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+                                              "pem_sha256":  "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+                                              "bytes":  1367,
+                                              "valid_from":  "Apr 28 10:56:53 2021 GMT",
+                                              "valid_to":  "Apr 26 10:56:53 2031 GMT",
+                                              "self_signed":  true,
+                                              "subject_class":  "supabase_named",
+                                              "pinned":  true,
+                                              "source":  "embedded_official_supabase_ca"
+                                          }
+                               },
+                       "prior_history_manifest":  [
+                                                      {
+                                                          "version":  "20260701043602",
+                                                          "name":  "phase1_subscriptions_core",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5ce9f47bc051393665675d795c6e685bc2c813cd355c2ac39367cd9c59145072"
+                                                      },
+                                                      {
+                                                          "version":  "20260701043707",
+                                                          "name":  "phase1_subscription_seats_and_entitlements",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "2feb6e2e00a45465d74b32ecd8400c2e98e86e632059c3a300e6c1497c35ba85"
+                                                      },
+                                                      {
+                                                          "version":  "20260701043911",
+                                                          "name":  "phase1_backward_compat_view",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "6d17150920e42193018a698ceee3a819c8cea834554427fc65d63950023d5c53"
+                                                      },
+                                                      {
+                                                          "version":  "20260701043931",
+                                                          "name":  "phase1_entitlement_rls_policies",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c5ae0b6ca451f84b3644641460cda7b859ab0b655b8378a436daa3e859c09004"
+                                                      },
+                                                      {
+                                                          "version":  "20260702010748",
+                                                          "name":  "refund_requests",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f90430084754ef46ea2f01cd7d4e8642716b632add285868c08a6d4ea48f9ac7"
+                                                      },
+                                                      {
+                                                          "version":  "20260702041259",
+                                                          "name":  "add_received_at_to_stripe_webhook_events",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c4f541a1232b4f9155075afd570c8fefa3cb3ac2968bcc5893bc4c38e4edd643"
+                                                      },
+                                                      {
+                                                          "version":  "20260702200404",
+                                                          "name":  "create_mfg_waitlist",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e7dd64c5e5f1f109ce27644298088717894dce037eac3bcd08a767c98495f855"
+                                                      },
+                                                      {
+                                                          "version":  "20260702214505",
+                                                          "name":  "create_close_ledger",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "11de631e2726f3fc85b5097a0bcfbf583c501cfb5a6151ac3516b9a392770dab"
+                                                      },
+                                                      {
+                                                          "version":  "20260702214536",
+                                                          "name":  "create_checklist_system",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "92349fa4afc9cb948d0df8fcf713732710bff562c78bb59070a3e3bb2ccc7c0c"
+                                                      },
+                                                      {
+                                                          "version":  "20260702214628",
+                                                          "name":  "seed_checklist_templates",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "dc9e2c511fc2ea5fd046db826675f5ec97200b6943fec499d5976b6c0c2a7021"
+                                                      },
+                                                      {
+                                                          "version":  "20260702220259",
+                                                          "name":  "create_close_packet_system",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4a4054cfcb0e7579c9eca9a38ed1c1861ef46d2e8c03f0866575b55b6627caa4"
+                                                      },
+                                                      {
+                                                          "version":  "20260702221722",
+                                                          "name":  "variance_config_unique_constraints",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d409f3081d29b1ee11446829425a6b53403f5b7c9aedb4253f4d2a9bdfc3fdc9"
+                                                      },
+                                                      {
+                                                          "version":  "20260702223605",
+                                                          "name":  "section_manual_edit_flag",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4b7e8b7abc41d834129d740e1a1f344fe4ceee4b91acc55b7a24cbbc66c47031"
+                                                      },
+                                                      {
+                                                          "version":  "20260702223632",
+                                                          "name":  "create_close_packets_bucket",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b9da576c3006ee65f9f80a37f67031e471d237258161e7bc48e70607ca5eae2d"
+                                                      },
+                                                      {
+                                                          "version":  "20260702223820",
+                                                          "name":  "close_packet_c4_prep",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0384a63909994cd68294337cc2262b936d420824f0d7d524e83dc8acffa99af2"
+                                                      },
+                                                      {
+                                                          "version":  "20260702230457",
+                                                          "name":  "increment_share_token_access_rpc",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "525b8c331b47c22414333503968e55034e920b3910dbb959855888e024d60530"
+                                                      },
+                                                      {
+                                                          "version":  "20260703000838",
+                                                          "name":  "d0_identity_and_memory_activation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0b91dbde72856f3549cec7a5aa4fed668288d25ec846dde02481aa83fe3a63c4"
+                                                      },
+                                                      {
+                                                          "version":  "20260703002615",
+                                                          "name":  "d1_qbo_write_readiness",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b179a153244c7dd2817dd6ef0318195fd37b274ddb99fdcf77a8d8827a868e3d"
+                                                      },
+                                                      {
+                                                          "version":  "20260703004000",
+                                                          "name":  "d1_1_owner_user_id_backfill",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "827124678147e0ab7f15f661ebb5f7269654b45b762fc64f15613ea1acdce866"
+                                                      },
+                                                      {
+                                                          "version":  "20260703011140",
+                                                          "name":  "d2_safe_je_posting",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b5430bcecf09629bf1097a68a74c7ddef4f0ff46938e1c2990e1f9b58b9ca4cf"
+                                                      },
+                                                      {
+                                                          "version":  "20260703015832",
+                                                          "name":  "d3_memory_indexes_and_payload_trigger",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d1654bbaf6f889dc5b3e5d5753fa3c2d10defbcfa7033410f486214ce5a95950"
+                                                      },
+                                                      {
+                                                          "version":  "20260703024420",
+                                                          "name":  "d4_uncategorized_proposals",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "36aed746c8577ad08d644da58500c5df5181f50a235b7c048ed14a4c986f6556"
+                                                      },
+                                                      {
+                                                          "version":  "20260703042106",
+                                                          "name":  "20260714_00_d5_recurring_templates",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "50ea37489a24719f229d1dbed2d4ad40db719571bfc015b5e3a7f500c9dc2ffb"
+                                                      },
+                                                      {
+                                                          "version":  "20260703172042",
+                                                          "name":  "d6_0_vertical_rule_foundation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3148025601f8ab6a299f0ef472c60318aeb03a85cceae8918eff0cfc49f22ada"
+                                                      },
+                                                      {
+                                                          "version":  "20260703172508",
+                                                          "name":  "d6_0_1_rls_curated_rule_fires",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d2205cad7a883ecd2cfa18b3691fcbf5b7b5fe063138f87c5676d5283bf7ed84"
+                                                      },
+                                                      {
+                                                          "version":  "20260703182655",
+                                                          "name":  "d6_2a_test_client_activation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4ff9251055f2af8a3b4314409c198f61a0d2597a0f7b44819d6ccb5f3ac044bb"
+                                                      },
+                                                      {
+                                                          "version":  "20260703184839",
+                                                          "name":  "d6_2b_mfg_activation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "fc53cb1efe54eea106ebfed71d724ccde51573ad148151e77989d924c4f9988e"
+                                                      },
+                                                      {
+                                                          "version":  "20260703190541",
+                                                          "name":  "d6_2c_retail_activation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5daaf4fd08488b42796f4acfa3c567bc81a1a5205d4700ec998ea3787b4e0a6a"
+                                                      },
+                                                      {
+                                                          "version":  "20260703192608",
+                                                          "name":  "d6_2d_ps_activation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f1b7ec4eb94c37730ff7cef1b5be27f1861d2df06a11ef5d2251e3d4a4546ab5"
+                                                      },
+                                                      {
+                                                          "version":  "20260703203004",
+                                                          "name":  "d6_4a_je_evidence_attachments_backup",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e7ceb072ef90ef499fac8c8fba5591c042975c86688a3517b3b25e5d6e487685"
+                                                      },
+                                                      {
+                                                          "version":  "20260704021122",
+                                                          "name":  "d_platform_event_sourced_foundation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b78e3eaf925c2dfbdb998311f5e80b32d90c02ed5bff8b6b046a6dbd7f4ed79e"
+                                                      },
+                                                      {
+                                                          "version":  "20260704024059",
+                                                          "name":  "d_entitlements_legacy_stripe_rename",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1a60e563cfa2b1bbfb47d7ce45d9ebb91d515bbe660d6e8e402e3c7de5e0255e"
+                                                      },
+                                                      {
+                                                          "version":  "20260704024119",
+                                                          "name":  "d_entitlements",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "51c3f7746dfbe32ec0d87126978764ec6e50dff72d73ec051f50d50ed6f83298"
+                                                      },
+                                                      {
+                                                          "version":  "20260704025937",
+                                                          "name":  "d_entitlements_followup",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "aea05400ad390cf6e157bd56dbcfeed05d706c90a5db1dbf15095cc82a912276"
+                                                      },
+                                                      {
+                                                          "version":  "20260704033254",
+                                                          "name":  "d6_4c_1_pre_close_review_queue",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "37e44c356a898d83a0e22b6922c80deb665fb17c83c8b1e1517a8e7b17914e27"
+                                                      },
+                                                      {
+                                                          "version":  "20260704043127",
+                                                          "name":  "d6_4c_3_posting_policy_and_remediation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "67cae9eaeebb204fa9b1ff931444ac80660dfe3deff10ef0bbe473be86b37691"
+                                                      },
+                                                      {
+                                                          "version":  "20260704050944",
+                                                          "name":  "d6_4d_reviewer_ui_rls_and_visibility",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "2d188101620de8251e70e881223bc847a53483c0017f40e7419f73b0b3a76315"
+                                                      },
+                                                      {
+                                                          "version":  "20260704060217",
+                                                          "name":  "d_assertions_part_1_schema_and_backfill",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0b715fd4acf9e25cc18eb6f9456e5e0c623f4da5788f2cf92ce9d95c2c35dfa1"
+                                                      },
+                                                      {
+                                                          "version":  "20260704060949",
+                                                          "name":  "d_assertions_p1_relevance_a",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5bf6c6b350751b89787ebd45cdce0b37051a3aab6b64bdf7e3bb5647e2dd254a"
+                                                      },
+                                                      {
+                                                          "version":  "20260704061104",
+                                                          "name":  "d_assertions_p1_cov_gen",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "6be8739900577d8a29ed1d399291993bda93358555a2b01af4db012eef33c1be"
+                                                      },
+                                                      {
+                                                          "version":  "20260704061115",
+                                                          "name":  "d_assertions_p1_cov_mfg_ps",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "58b85b795a20b6ef81313b6f3f7869b8e78415f3056714f4e8edadd1c1b4b7a6"
+                                                      },
+                                                      {
+                                                          "version":  "20260704061119",
+                                                          "name":  "d_assertions_p1_cov_rtl",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4b4bd0538efdf0cc04a639c263c95baa568e70742f07a9cf1f854e55719c8d73"
+                                                      },
+                                                      {
+                                                          "version":  "20260704061120",
+                                                          "name":  "d_assertions_p1_constraints",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "72284ae52b2181e21df01d1172475fa07c83a6c3be11ba44d14bcdace72277eb"
+                                                      },
+                                                      {
+                                                          "version":  "20260704064709",
+                                                          "name":  "d_assertions_p2_coverage_projection",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "cf8f3f39550a841b210efa0f8566f89d72be20f82e6441ed182be953828471e4"
+                                                      },
+                                                      {
+                                                          "version":  "20260704073042",
+                                                          "name":  "d_assertions_p3_coverage_statement",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7c7dda77a5294da1751560320efaa0c58193225e5dd13d8c73a9aa31c7def0de"
+                                                      },
+                                                      {
+                                                          "version":  "20260705023214",
+                                                          "name":  "d_assertions_part_4_je_propagation",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "51c808c9aa307b5d8b0e9f37d85afd1e150ebcf4345e7b387bd8392a518883bc"
+                                                      },
+                                                      {
+                                                          "version":  "20260705030243",
+                                                          "name":  "d_assertions_part_5_gap_review_items",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "8a8d5d135c05ec7738ae0a6ce684a40550203a3888aa60e6347c913be3710aed"
+                                                      },
+                                                      {
+                                                          "version":  "20260705032352",
+                                                          "name":  "d_assertions_part_6_manual_test_evidence",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "86a291886e27938eb9c473b7985936dab482c821db20ec41954d8ebc8282b83e"
+                                                      },
+                                                      {
+                                                          "version":  "20260706010957",
+                                                          "name":  "20260705_d67_p1_ar_cash_app_layer0_layer1",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4733694e2a1d727310c7ce87f7063e93220da7b5d78181b312e587d48850b502"
+                                                      },
+                                                      {
+                                                          "version":  "20260706011013",
+                                                          "name":  "d67_p1_ar_cash_app_layer0_layer1",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "56b528e972701e0594100a928e2c3bace97a39686ef6a6f90bacc5b232b23350"
+                                                      },
+                                                      {
+                                                          "version":  "20260706011022",
+                                                          "name":  "d67_p1_ar_cash_app_rls",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "708810ccefb5e6e2d155bca980d16ca57772fca8b67f3c914daa8ee0b8c06604"
+                                                      },
+                                                      {
+                                                          "version":  "20260706032617",
+                                                          "name":  "d67_p2_layer2_layer4",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "060d51e39da97c1ab662261e0b1d645025a582027502a3745468d39903cc2387"
+                                                      },
+                                                      {
+                                                          "version":  "20260706045703",
+                                                          "name":  "d6_5_part1_universal_intake",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d328e3bb564d6fc38448b0b58b67e5ed781a775c5942f2ce4ede9685026584c4"
+                                                      },
+                                                      {
+                                                          "version":  "20260706054152",
+                                                          "name":  "d6_5_part1_1_firm_clients_slug",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "acfd3152300e441ec8e07391f60a07a860a70f1af6250814038afb928f7b9633"
+                                                      },
+                                                      {
+                                                          "version":  "20260707001636",
+                                                          "name":  "d65_p2_block1_visual_fingerprint",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4adac6e6984ea1fa2d4ad99f78a1d78cf4c53dc3b302d1018e363ad90b255666"
+                                                      },
+                                                      {
+                                                          "version":  "20260707004330",
+                                                          "name":  "d65_p2_block2_vendor_mirror",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e8ba6ec88c11009363bb660c789c0d7d433a76086e92986390f47593aee166b1"
+                                                      },
+                                                      {
+                                                          "version":  "20260707013954",
+                                                          "name":  "d65_p2_block3_quarantine_l3",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "eef94ade321ccbe2fe8703fb3f1114db0dcf1b83e55dd0e3661c7442376d3bf5"
+                                                      },
+                                                      {
+                                                          "version":  "20260707030144",
+                                                          "name":  "d65_p2_block4_duplicate_detection",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f5bf814b917f67c8fffae0d87fb16a408a7e9b48a95f2a43ad3adf9a75f7f784"
+                                                      },
+                                                      {
+                                                          "version":  "20260707035311",
+                                                          "name":  "d65_p2_block5_anomaly_score_merkle",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "fca2c762f02d247eb422cf0c00ae1cfe92522f8d4c5eb7eabbd149fb22b5ab8c"
+                                                      },
+                                                      {
+                                                          "version":  "20260707223451",
+                                                          "name":  "d65_p2_block6a_requisitions_harvest_l3",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "73e9ac3150aeac4c92d7e795abb24cdaf67125baddd04bfc0cc9f93b7022ae1c"
+                                                      },
+                                                      {
+                                                          "version":  "20260707223520",
+                                                          "name":  "d65_p2_block6a_chunks_5_8_po_req_gr",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1ee7a07bce68bbcc54f2dc7c7835fd3b148f64858a9766c8a444096153a233e4"
+                                                      },
+                                                      {
+                                                          "version":  "20260707223557",
+                                                          "name":  "d65_p2_block6a_chunks_7_8_reqs_gr",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d9017ba5bf61f1ba5fa14d41a9f02544b1d7a6c979dc7b7b7dd7d5917b2a1cf6"
+                                                      },
+                                                      {
+                                                          "version":  "20260707223708",
+                                                          "name":  "d65_p2_block6a_chunks_9_12_bill_history_coa_events",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "2fe6da7ddbbb16a26e2007b724c82d0771cfc11f3408d5ab935402050e1bfd44"
+                                                      },
+                                                      {
+                                                          "version":  "20260707224937",
+                                                          "name":  "d65_p2_block6a_harden_next_document_number_search_path",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "89539b859dcfdf038e70f8ecb8a4e83cb3a536f43c1a244b0a5934e38b79b9c3"
+                                                      },
+                                                      {
+                                                          "version":  "20260707233928",
+                                                          "name":  "d65_p2_block6b_approval_delegation_budget_comments",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "fdb584fdf2255bf7c002487a269f5e3d21980d2befe8da7146d0983d44d442d0"
+                                                      },
+                                                      {
+                                                          "version":  "20260708011413",
+                                                          "name":  "d65_p2_block7a_credits_prepayment",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3a459f040d9b05e09ee4b378cb3ab3856d86fd25dc4117c32f3347ba93adaf1e"
+                                                      },
+                                                      {
+                                                          "version":  "20260708020447",
+                                                          "name":  "d65_p2_block7a2_prepilot_security",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3348e1701a4077e996ffb5ca2da3c18daf2072d7e39c8fd4e52cb377d9e6f82c"
+                                                      },
+                                                      {
+                                                          "version":  "20260708024243",
+                                                          "name":  "d65_p2_block7b_multimodal_inbox",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f6617f31a7d6e42f01691b040e256b19b04f5cac2257164089d5c4057a61f332"
+                                                      },
+                                                      {
+                                                          "version":  "20260708033313",
+                                                          "name":  "d65_p2_block8a_interlock_rails",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "6232b43f50b0eba15b05132fecc740e2070aee2b7719291facc7bb217f61276f"
+                                                      },
+                                                      {
+                                                          "version":  "20260708040112",
+                                                          "name":  "d65_p2_block8b_presets_selfgov",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "cae6c229c3ab51ab53cbc2da04d42e4aa519abb34d4035abe3b51fd3090fa109"
+                                                      },
+                                                      {
+                                                          "version":  "20260708051526",
+                                                          "name":  "tcp1_w1_solo_bk_pilot_slots",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "de02eba76e8dc969c13ade60f136f4dfb949c7742253d060aac0ee46d7532010"
+                                                      },
+                                                      {
+                                                          "version":  "20260708051538",
+                                                          "name":  "tcp1_w1_pilot_slot_number_nullable",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "39446a5f26e8a40665b7aa2b40222f4069d81d51c8667fb769539ebe5038c3ca"
+                                                      },
+                                                      {
+                                                          "version":  "20260708054349",
+                                                          "name":  "tcp1_w1_pilot_slots_firm_id",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "9171b64f80f9fbcd3b0931e5d356d20eeba168596c50a30c0f95dc6b77b241b5"
+                                                      },
+                                                      {
+                                                          "version":  "20260708223959",
+                                                          "name":  "tcp1_w1_seat_idempotency",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "70b6c343ee134c90ec6fb763a4876923ac100de8fea1a518df97b922b0943318"
+                                                      },
+                                                      {
+                                                          "version":  "20260709071033",
+                                                          "name":  "tcp1_w2_5_review_assist_tier_key_expand",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "6f1d6026d98bb1955d1fd7f88fb5d13b5258b1722da374f4d5fb84694df009bf"
+                                                      },
+                                                      {
+                                                          "version":  "20260715033845",
+                                                          "name":  "tcp1_w3_erp_connections_disconnected_at",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "77032fa879d14af489c536d2f05b01f9c07e3c155f9d3914f0476d50a0539a0b"
+                                                      },
+                                                      {
+                                                          "version":  "20260715205710",
+                                                          "name":  "mfa_enrollment",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3d1585f72fd954607cbcac2d424b2c6301460358e5c9ef96530fb2bd7b5b364c"
+                                                      },
+                                                      {
+                                                          "version":  "20260716014354",
+                                                          "name":  "intuit_webhook_events",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b03b98cc868a417ca9d1bb9a40084314ca3d8c10dddc57e3ac5ebdeae484f6f2"
+                                                      },
+                                                      {
+                                                          "version":  "20260716051832",
+                                                          "name":  "add_qbo_cdc_tables",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "cad32ef564bb0000f4aea013916146645e637418a20e5b17bf990a622767c92d"
+                                                      },
+                                                      {
+                                                          "version":  "20260718182009",
+                                                          "name":  "mc3_je_posting_audit_currency",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "027b3697e0a148a5f9ba56a67b49565b7c616b3d620168e4a4f8630feb661333"
+                                                      },
+                                                      {
+                                                          "version":  "20260718203924",
+                                                          "name":  "q7_qbo_edition",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "849b3ac2d01f587063fc0d30299701c14dcaa5315cb004590a710465704d1548"
+                                                      },
+                                                      {
+                                                          "version":  "20260718212032",
+                                                          "name":  "q8a_qbo_view_security_invoker",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3c3e23031b42d81caaad6a747ee19881ff79be6b3a9acf2134cd1ec68a17c8f0"
+                                                      },
+                                                      {
+                                                          "version":  "20260718213532",
+                                                          "name":  "q8b_function_search_path_lockdown",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "76916096432e2aa7a3174b35ebded92b079d5ea04dad4f6c8b7954cfdc65bb7a"
+                                                      },
+                                                      {
+                                                          "version":  "20260718214747",
+                                                          "name":  "q8c_security_definer_rpc_revoke",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3be1bf6e57a6f1b927994ec0691c59fabff62c099769bf56ba6187b758d285d5"
+                                                      },
+                                                      {
+                                                          "version":  "20260718215909",
+                                                          "name":  "q8d_vector_schema_move",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5c706f4b011ffe4d012e0f3335717f92ecca60e3b23716a2010e26f4a9c1733c"
+                                                      },
+                                                      {
+                                                          "version":  "20260718221328",
+                                                          "name":  "q8e_rls_service_role_policies",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "a4028529d43c004caf4732e0fbb514d840162d3983680e46660f9c7050299d6f"
+                                                      },
+                                                      {
+                                                          "version":  "20260719005618",
+                                                          "name":  "support_ticket_intuit_context",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e29812c5c0b17771c132f0ad5be2e396a6235ca46571d8a3a7de2d0f1fa1b1c7"
+                                                      },
+                                                      {
+                                                          "version":  "20260719020941",
+                                                          "name":  "support_auto_file_engine",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "afcd48f423f78792e126999985c9d6a125eab66c991b5447e0862b032eaf27c8"
+                                                      },
+                                                      {
+                                                          "version":  "20260719032702",
+                                                          "name":  "20260715180000_mfa_enrollment",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d1e3423749f66f17cb1be97efb57b2ed2f2f08bca404b2c1cc217efb450e2768"
+                                                      },
+                                                      {
+                                                          "version":  "20260719035932",
+                                                          "name":  "20260715190000_mfa_webauthn_and_trusted_devices",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d6b706ebccdacb73755087b1efb49ccba8608a09e10b3bd134edd7df0cf89844"
+                                                      },
+                                                      {
+                                                          "version":  "20260719040038",
+                                                          "name":  "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e66bd702e50eddfe0707ef159f8b8e86d6f44a89941a4734e0e712fa4f52ab75"
+                                                      },
+                                                      {
+                                                          "version":  "20260719050157",
+                                                          "name":  "20260719050000_gap3_je_approval_flow",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "46ce08a43c43d5e47f258b630f94e55e1d09285653effe11cb82c35112696d8c"
+                                                      },
+                                                      {
+                                                          "version":  "20260719053635",
+                                                          "name":  "gap2_subscription_lifecycle_purge",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ec0d2527017d89c85ac9ef6577450fa015290fd0d3ea11d0a834a041564dc1a9"
+                                                      },
+                                                      {
+                                                          "version":  "20260719053717",
+                                                          "name":  "gap2_advisor_cleanup",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1094922ee9a25b6d822a02e85eaf2f62c6def9a6a22dc140b77de95f166cfd60"
+                                                      },
+                                                      {
+                                                          "version":  "20260719183145",
+                                                          "name":  "v1_5_audit_ready_engagement_state",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ec7af0f08cbbce1dbc4222d115f29c4ba6f3316ff04e3fb46ae6ffd55350ab29"
+                                                      },
+                                                      {
+                                                          "version":  "20260719222134",
+                                                          "name":  "ar_week3_pbc_ingest_llm_usage",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7c17c7271758e0c3bf3ab033d54bd54b94c2e68eae9258f27c1fd6c0ca9064ac"
+                                                      },
+                                                      {
+                                                          "version":  "20260719222737",
+                                                          "name":  "ar_week3_block3_1_rpc_lockdown",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "8edf1a51bf9832ec0ff89552f5ed4611b15e1c3347659494de06e3f814621eb6"
+                                                      },
+                                                      {
+                                                          "version":  "20260720023829",
+                                                          "name":  "ar_week3_block3_3_rls_recursion_fix",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5d10aad785220894f72d9d5ba499e0deeb03fb8ddbc48048dc96663335388102"
+                                                      },
+                                                      {
+                                                          "version":  "20260720043939",
+                                                          "name":  "pilot_slots_add_review_assist_pro_tier_key",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "51f4241c719c8345ddedb6eded12a2ed6819b7c11ba8d23f88e36694d66c941c"
+                                                      },
+                                                      {
+                                                          "version":  "20260720212437",
+                                                          "name":  "tieout3_grni_binding",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "695af82a3733c8c3b7fd9045eb69e3c0c81c354294fd421231a82e3c0624e1c4"
+                                                      },
+                                                      {
+                                                          "version":  "20260720212506",
+                                                          "name":  "ar_tieout1_policy_and_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "43fbfc13d7a2332519b586b478afbc5492e2c366ce9e8daa42a65691c930ea94"
+                                                      },
+                                                      {
+                                                          "version":  "20260720212538",
+                                                          "name":  "ar_tieout2_runs_and_variances",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af"
+                                                      },
+                                                      {
+                                                          "version":  "20260721021022",
+                                                          "name":  "audit_ready_tie_out_variance_evidence",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "89099d7f77c511cb59d904813e10ec2041a8cdcf17f0b498f5688e6565a2e22e"
+                                                      },
+                                                      {
+                                                          "version":  "20260721033102",
+                                                          "name":  "ar_tieout4b1_bs_recon_artifacts",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ed99c6692cb1502c56454b78e9f3019100c3a89db3773002dd2bd0d5ef077e3d"
+                                                      },
+                                                      {
+                                                          "version":  "20260721040626",
+                                                          "name":  "ar_tieout4b2_fa_rollforward_artifacts",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "127eaeada07e4de777d03b5cc002d19856e9688208f5342ba76f6f5f7898f395"
+                                                      },
+                                                      {
+                                                          "version":  "20260721054900",
+                                                          "name":  "ar_tieout4b3_bs_recon_summary",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "46ad4dc7c02bee432045319da0e208aacf9c5959fb5874a50c42962eb8a8b436"
+                                                      },
+                                                      {
+                                                          "version":  "20260722030417",
+                                                          "name":  "ar_tieout4b3_bs_summary_sentinel_unique",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "9540ce088e4b7cd7261bc06c1788ee72dc9a01f739e2ab346bb79bd78830edc0"
+                                                      },
+                                                      {
+                                                          "version":  "20260723025200",
+                                                          "name":  "bs_recon_summary_basis_and_computed_lines",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "adfaaee090576dde39c67ee2ae795bf841039aeba3bdeb825415a2273d0cba5a"
+                                                      },
+                                                      {
+                                                          "version":  "20260723033313",
+                                                          "name":  "bs_recon_summary_lines_qbo_account_id_nullable",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "8a2f17376bac407d2b88b237e8ac3dd0e0516bfbb96af752fcdfb2c0eff75306"
+                                                      },
+                                                      {
+                                                          "version":  "20260723050556",
+                                                          "name":  "audit_ready_cron_runs",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e757fa621762e9a001b8593d5d17e0b78309c7817deb28232b61ada6ff109624"
+                                                      },
+                                                      {
+                                                          "version":  "20260724041921",
+                                                          "name":  "kickout_investigations",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "10b1bb74818f70fd93ca079b5833b628f50e086461286794f3da2c5a26afbb0b"
+                                                      },
+                                                      {
+                                                          "version":  "20260724044834",
+                                                          "name":  "kickout_dedupe_rpcs",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c465f5acfe448fd8dd652757d3b0ce5ba1549b53265fc0092cfb9a9896b7be4e"
+                                                      },
+                                                      {
+                                                          "version":  "20260724045051",
+                                                          "name":  "kickout_dedupe_rpcs_v2",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7b30462d86c997b7a05989a9902e98c88516eaa89cc1d91280572a9ec1da8a5f"
+                                                      },
+                                                      {
+                                                          "version":  "20260724054110",
+                                                          "name":  "ar_tieout412a_kind_reconcile",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e81f1afb3aa4ef748f9cd4bca43de3dbfc9bf1f7a616e153a7794cb01ee8c312"
+                                                      },
+                                                      {
+                                                          "version":  "20260724054123",
+                                                          "name":  "ar_tieout412a_run_artifacts",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "593789d8bad328bfde8c92ea15e28c51e25ed5569f226eb7f9069948a5ebc302"
+                                                      },
+                                                      {
+                                                          "version":  "20260725020359",
+                                                          "name":  "ar_tieout412b_raw_qbo_payload",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0cbcf18e64df1b3058d869e808f039e735656f9f2b702b2e746526f3f713c270"
+                                                      },
+                                                      {
+                                                          "version":  "20260725043051",
+                                                          "name":  "ar_tieout420a_resolution_code",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5003e1eba8977649ec564d2fc53bdc46f1b26f607c5d86228ce7fb0ee40d3673"
+                                                      },
+                                                      {
+                                                          "version":  "20260725043101",
+                                                          "name":  "ar_tieout420a_similar_kickouts_rpc",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "55515ffdc372a0161a98090143c46bc7e33cd2c4084d22062b1839770279696f"
+                                                      },
+                                                      {
+                                                          "version":  "20260725050632",
+                                                          "name":  "ar_tieout42_memory_events",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "06fe0b2480b1d05d265ebddb8f003fae7c79244150b781b51b0bc0452f73c5c8"
+                                                      },
+                                                      {
+                                                          "version":  "20260727030443",
+                                                          "name":  "users_auth_trigger_single_writer",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "9f9844b100571ff45f6005e7f148cc31312c01cf2fbd70527396c5f16ac7c0fd"
+                                                      },
+                                                      {
+                                                          "version":  "20260804213003",
+                                                          "name":  "pilot_lifecycle_events",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "15ad200e32d435e65de9ae1d031b79a89005542cabe586fb243dfccbca15862c"
+                                                      },
+                                                      {
+                                                          "version":  "20260804213819",
+                                                          "name":  "pilot_lifecycle_events_hash_chain_trigger",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "e770cf5ef287e2ceb40df13bd7fbfe38694a00a7e263f430f7a1e9ccea910770"
+                                                      },
+                                                      {
+                                                          "version":  "20260804213934",
+                                                          "name":  "pilot_lifecycle_events_hash_digest_bytea_fix",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "39180c22c7cae0c2a2fbd6c2473258c0f593737054654b8e133f15815d74a59e"
+                                                      },
+                                                      {
+                                                          "version":  "20260804214151",
+                                                          "name":  "pilot_lifecycle_events_hash_extensions_search_path",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "a7ee1db9cfc79edf2ac9cd55a9d470d234a1d3aad0a3bc3705b86a5642c23988"
+                                                      },
+                                                      {
+                                                          "version":  "20260804220220",
+                                                          "name":  "pilot_lifecycle_events_chain_seq_hardening",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "241fceb68a2c61e0ed809f5d3611d40a2b88fdcb25c940a96f88728ab4baf0b7"
+                                                      },
+                                                      {
+                                                          "version":  "20260804223816",
+                                                          "name":  "pilot_lifecycle_events_event_kind_widen",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "93eb6e8b6dec7509b62072b7f34a7d05950c2a621d815159544a28baef8a37d2"
+                                                      },
+                                                      {
+                                                          "version":  "20260804225750",
+                                                          "name":  "sp_write_pilot_slot_and_event",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "92485ed8ec507f613ec18b26da3b36ab0e07793be4607b272d49cc9ef23452b6"
+                                                      },
+                                                      {
+                                                          "version":  "20260804234230",
+                                                          "name":  "lifecycle_issues",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "afaeb3970bd80d752a5a4bfb10251e88c942ee4853ee08cdaf89bbc257c85a4f"
+                                                      },
+                                                      {
+                                                          "version":  "20260804234244",
+                                                          "name":  "sp_write_pilot_slot_event_only",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ed50f2717f3060cdbd4f822bc599a2214519108be18b45206c6e28ebf7f5a607"
+                                                      },
+                                                      {
+                                                          "version":  "20260805000533",
+                                                          "name":  "pilot_lifecycle_coverage_downloads",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7b194ec29cd4acdbe7d0a3f0ef4788091d0cc95aa39c53cde36dfc4032cf508e"
+                                                      },
+                                                      {
+                                                          "version":  "20260805001827",
+                                                          "name":  "lifecycle_issues_seo_drift",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "8d64db3034d4f8b4938071074dd2c4463cf5092356dbde1b8d651082c73f1037"
+                                                      },
+                                                      {
+                                                          "version":  "20260805005320",
+                                                          "name":  "pilot_lifecycle_anchors",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c46e6e747ee6ad26923808271f8275320c075fb758ebae498e608bfce97c9d40"
+                                                      },
+                                                      {
+                                                          "version":  "20260805051150",
+                                                          "name":  "schema_drift_issue_policies",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "d649c56bdea0bcfcb204cf246efde03c3ba68f88458b928d5117d5f9ecee55ca"
+                                                      },
+                                                      {
+                                                          "version":  "20260806010521",
+                                                          "name":  "sp_list_public_columns_jsonb",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ca793a54a7e9f4a6f5383c864fc3e097cd3a80a5070cefbe48dfac5ae3fa2bb7"
+                                                      },
+                                                      {
+                                                          "version":  "20260806010522",
+                                                          "name":  "schema_drift_scanner_issue_kinds",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f763f0deec15ad7a238cf172beb20a0298b6d657a0f2483a3cc1803a43ead0c4"
+                                                      },
+                                                      {
+                                                          "version":  "20260806024752",
+                                                          "name":  "major_1_rpc_lockdown",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5c4e1cf8d66073ac94bb86216022d0f1d01f62545ab95953b8c8e5b722ae1f7e"
+                                                      },
+                                                      {
+                                                          "version":  "20260806032456",
+                                                          "name":  "lifecycle_issues_schema_drift_checks",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "dadc736323275569baf62399fdfc11f94f9f254780027039811cda235bdcf894"
+                                                      },
+                                                      {
+                                                          "version":  "20260806033328",
+                                                          "name":  "major_2_2_lifecycle_issues_drift_kinds",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "558140be2b82141b2425094df041497dc1ecaf84c5d3c6d8a2da755a9d2a478c"
+                                                      },
+                                                      {
+                                                          "version":  "20260806035156",
+                                                          "name":  "major_2_3_block_a_assertion_linkage",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4d11c17a647c7ce73418101e2ef80a5ed1c4acc9741b0b982faace07ffb420ad"
+                                                      },
+                                                      {
+                                                          "version":  "20260806041011",
+                                                          "name":  "major_2_3_block_a_1_research_revision",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c0a6533b5dbea46e0441565d1854ef37079cebc4c1493161ffc11e7b9a8bfbbd"
+                                                      },
+                                                      {
+                                                          "version":  "20260806042702",
+                                                          "name":  "major_2_3_block_b_1_platform_integrity_view",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1ef3ec2f5282d5580c635a8d1d654aa45e5d894d7b1d73e89d7b7a8c850ce90a"
+                                                      },
+                                                      {
+                                                          "version":  "20260806042857",
+                                                          "name":  "major_2_3_block_b_1_fix_chain_seq_column",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "72f726eec31c02c0e820a39d81853cc1aff96471b7e34b2288d996d0ce391bb8"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142413",
+                                                          "name":  "dash_1b_2_widen_pilot_slots_tier_key",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4652ce3e253f8c7739e8259804768d156a01083cdc1021de7de82e42bec96904"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142430",
+                                                          "name":  "dash_1b_2_widen_lifecycle_event_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b0e1a65599180c3c4201fe6fcdf5da7bbe8010536b23ff9161ddb50a31bbaa57"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142436",
+                                                          "name":  "dash_1b_2_widen_lifecycle_actor_via",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7ba360d9ca61859bc40d6c447b7a1674919767d4588e6d3e6d61a440d8a922d2"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142446",
+                                                          "name":  "dash_1b_2_widen_lifecycle_issues_issue_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "62b921b17766ab53a7ce708defb56df483b7d861f5ad407c2ff7f4bf8e8773f6"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142453",
+                                                          "name":  "dash_1b_2_apply_accounting_syncs_table_v2",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0c0cce3ce721ad3a176d602a5fcf75ee17a2bbbc3607400f8908d660c1010bcb"
+                                                      },
+                                                      {
+                                                          "version":  "20260807142920",
+                                                          "name":  "dash_1b_2_backfill_sync_5272037e_v2",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "2128d6a0ff530f985ec6685dfe942f106e17ba5ac22e2371c9ba9fd0dd50f024"
+                                                      },
+                                                      {
+                                                          "version":  "20260808025513",
+                                                          "name":  "dash_1b_3_widen_lifecycle_disconnect_kinds",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "50feae8a2b419d0e60c28afb432b1291d4a9c3b1d8e064ca13c057578a5e5d90"
+                                                      },
+                                                      {
+                                                          "version":  "20260808030214",
+                                                          "name":  "widen_event_kind_disconnect",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0867743a0d72304094124075f1a0d14ac21690f765495cdb2e6f0e623a2a599a"
+                                                      },
+                                                      {
+                                                          "version":  "20260808043926",
+                                                          "name":  "accounting_syncs_company_fk_and_backfill",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "77e6d64e1ee7577e7a1902fe0cb6e6b1f393839251c7040bf8e6594aec995099"
+                                                      },
+                                                      {
+                                                          "version":  "20260808045712",
+                                                          "name":  "pulse_je_submissions",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "698304e4d9de7a2ac2ab2759bccf7de993f11b4f46864c4c829606601d7bb6c5"
+                                                      },
+                                                      {
+                                                          "version":  "20260808061420",
+                                                          "name":  "widen_event_kind_wbp_probe",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "06e729bf5d71a025b2fba07651da09c6bdb87b32e314a4598d74b87244d686ca"
+                                                      },
+                                                      {
+                                                          "version":  "20260808065206",
+                                                          "name":  "wbp_w1a_accounts_cache_tables",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "0fbe8002ea8419176a7f4629d9ee1244258a1faef397ac9518e1341fea751c87"
+                                                      },
+                                                      {
+                                                          "version":  "20260808065213",
+                                                          "name":  "wbp_w1a_widen_write_event_kinds",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1f1477535e3c2b55a57f89cb8935bbd07ad7518036f9f44b7976b7b27c29ae6f"
+                                                      },
+                                                      {
+                                                          "version":  "20260808145352",
+                                                          "name":  "add_lifecycle_event_ids_to_je_posting_audit",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "b381529d5354659b571645126ef7be2374635cff352277bf5be81b3ffa879567"
+                                                      },
+                                                      {
+                                                          "version":  "20260808152932",
+                                                          "name":  "wbp_w1c4a_add_cache_refreshed_event_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "bc1fa2837d72e8c18dc93dce8fce578f21426e877bf71b4981d2f09ec9192a23"
+                                                      },
+                                                      {
+                                                          "version":  "20260809043747",
+                                                          "name":  "w1c4c_1_qbo_smoke_seed",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "6b8fd21a46aad732e527f1520c2b857dd0a6125844025513a27051c879991bc3"
+                                                      },
+                                                      {
+                                                          "version":  "20260809054926",
+                                                          "name":  "companies_tenant_identity_columns",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3c25718a12e2d14d1d9f6aea016cc46dee7f5791e786098c34b04bb1dc481758"
+                                                      },
+                                                      {
+                                                          "version":  "20260810053716",
+                                                          "name":  "dash_1c_a_widen_provenance",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4d0b1c7eff9c97dfaceb92b1234c7ffb2536bbbf54626d8c8917558a57fe98d6"
+                                                      },
+                                                      {
+                                                          "version":  "20260810053718",
+                                                          "name":  "dash_1c_a_lifecycle_scan_indexes",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "5457a9171cbf8a12ac4ea1a95f2f2a5628c9106f45b8cb21f67dc1d947889669"
+                                                      },
+                                                      {
+                                                          "version":  "20260810053735",
+                                                          "name":  "dash_1c_a_accuracy_contract_cache",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1ab247665b0369c5da2bbba9ef65684b88fec5142834cec7257042e2a3484dce"
+                                                      },
+                                                      {
+                                                          "version":  "20260814011547",
+                                                          "name":  "accounting_connection_supersession",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "941a8335f1555188e7cd5c95c612c8de5b8d95a1c83ca30e9c8aef7010458b20"
+                                                      },
+                                                      {
+                                                          "version":  "20260814023005",
+                                                          "name":  "accounting_canonical_connected_grant",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1beca937fcd335f6fae1778f3c0aaa315db893cbb00f63a9ce1e90ab50b8ac86"
+                                                      },
+                                                      {
+                                                          "version":  "20260814055154",
+                                                          "name":  "accounting_superseded_credential_retirement",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "c7ff375f6e002e6ac3d921f80d31b8af746aeb784e00e5b67ad08975e2881d92"
+                                                      },
+                                                      {
+                                                          "version":  "20260815003610",
+                                                          "name":  "urm2_reconciling_items_persistence",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "93b45fa61c6d59f129b6fd41bcdf63a49ed0ad4eee7a90ccfca408620e3f8ed6"
+                                                      },
+                                                      {
+                                                          "version":  "20260815003627",
+                                                          "name":  "urm2_reconciling_items_persistence_rpc_and_trigger",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "ece3b30a3e60939c693851878b9cae837e6cfe01da33db214f9dfeb7bc5a7aff"
+                                                      },
+                                                      {
+                                                          "version":  "20260815011732",
+                                                          "name":  "urm3_universal_evidence_spine",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1d5ad3b8b9331f6a8ca3c8128283eaf83353d134d0fe0e1267747b7c62fa66e3"
+                                                      },
+                                                      {
+                                                          "version":  "20260815012959",
+                                                          "name":  "urm3_hash_normalization_order",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "070933d32f7a91c9fc898dd60d8584baffe983f50914e1e232d76a648bb34b6e"
+                                                      },
+                                                      {
+                                                          "version":  "20260815025756",
+                                                          "name":  "urm3_storage_requires_hash_not_null",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f68706f279cde61752da68a5217038b93b73f431d9e3cebdc11ffb1035597427"
+                                                      },
+                                                      {
+                                                          "version":  "20260818030754",
+                                                          "name":  "accounting_measurement_snapshots",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3e32a0fa6968126b712a2b9952c6177344846fdae9ab1265bbfe01bccd8f49e4"
+                                                      },
+                                                      {
+                                                          "version":  "20260818043310",
+                                                          "name":  "accounting_measurement_snapshots_ap_aging_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7d984151b3a2bc8215e80f1810afbe649f9db0787a855f43ddd02bda763fdd59"
+                                                      },
+                                                      {
+                                                          "version":  "20260818051007",
+                                                          "name":  "accounting_measurement_snapshots_inventory_kind",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "044448f2b271bfad9c663863fb5732be255eb2ac603fed56c0292c0378c98f9b"
+                                                      },
+                                                      {
+                                                          "version":  "20260819053445",
+                                                          "name":  "continuous_close_runs",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "4419f56e3bc98039eb55787faab525e4e455409f5377ad7797a06075919b5ca1"
+                                                      },
+                                                      {
+                                                          "version":  "20260821041950",
+                                                          "name":  "journal_entry_proposals",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "16da54e9a972aa0f832efba8d65e052309aee10943030e2548b1539680927967"
+                                                      },
+                                                      {
+                                                          "version":  "20260821045908",
+                                                          "name":  "journal_entry_approvals",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "7900e4ecea5da1fff50a948bc724aa9878321b2b4b21c5fe71f2ae96c6a8b23e"
+                                                      },
+                                                      {
+                                                          "version":  "20260822011350",
+                                                          "name":  "journal_entry_executions",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "be6325775eeff0356f54c15aea94dc9ac839221d0d6fe0994bf3ebd7c9445931"
+                                                      },
+                                                      {
+                                                          "version":  "20260822025343",
+                                                          "name":  "journal_entry_provider_attempts",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "3fe181a1b86d3e4963c5ae67ad8ae847c6e2fe5079d5b279265b844830fca7fc"
+                                                      },
+                                                      {
+                                                          "version":  "20260822025413",
+                                                          "name":  "journal_entry_provider_discovery_receipts",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "82a875b8291788840c98dc66a680f37dca1dd05c7f86ee75094ff6962fccee36"
+                                                      },
+                                                      {
+                                                          "version":  "20260822025428",
+                                                          "name":  "journal_entry_provider_attempt_certainty_immutable",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "074cc7d08282397209b7b49e1684b5e922a851af115a8dbdc4877e6b849e2639"
+                                                      },
+                                                      {
+                                                          "version":  "20260822025448",
+                                                          "name":  "journal_entry_provider_attempt_initial_custody",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "fdda931bb5c55f50487e91ed5b2b5e6095a9878d7b057ef23a92ac0f8d31bb73"
+                                                      },
+                                                      {
+                                                          "version":  "20260822040227",
+                                                          "name":  "journal_entry_provider_dispatch_and_outcomes",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "f16efc9f5f61c19bfc63280ff44c6e234384bd15a35a7ad85c10cd9a62d9a6d0"
+                                                      },
+                                                      {
+                                                          "version":  "20260822052732",
+                                                          "name":  "journal_entry_verified_readback",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "bfa1dd2b8862ecce0a115ec7ec25ff6de7a383d98c39c8a82818b98c4b103143"
+                                                      },
+                                                      {
+                                                          "version":  "20260823050147",
+                                                          "name":  "je3d_sandbox_activation_identity",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "8577a53ec132f1e7637719219bb01de3d313ff482cc7ac0cae07d72976d1cbd9"
+                                                      },
+                                                      {
+                                                          "version":  "20260827030454",
+                                                          "name":  "journal_entry_provider_attempt_reuse_posting_started",
+                                                          "statement_count":  1,
+                                                          "statements_digest":  "1167bd0657bc36cbe3b2e6a190bc21762b4b6c96063a7e5d03e47868141cfa81"
+                                                      }
+                                                  ],
+                       "prior_history_count":  185,
+                       "pre_change_probe":  {
+                                                "residual_select_policy":  true,
+                                                "qb_browser_policy":  true,
+                                                "auth_token_select":  true,
+                                                "view_has_tokens":  true,
+                                                "view_dependents":  0,
+                                                "ac_rls":  true,
+                                                "qb_rls":  true,
+                                                "view_owner":  "postgres"
+                                            },
+                       "target2":  {
+                                       "fingerprint":  "d331891f0424",
+                                       "binding_fingerprint":  "c0948f590d6b6fce",
+                                       "excluded_row_fingerprint":  "e8d831d85aaa",
+                                       "eligible_rows":  2,
+                                       "target_row_fp_matches":  1,
+                                       "target_binding_matches":  1,
+                                       "target_combined_matches":  1,
+                                       "excluded_us_matches":  1,
+                                       "excluded_collision_matches":  0,
+                                       "matching_rows":  1,
+                                       "has_token_presence_boolean":  true
+                                   },
+                       "verdict":  "DRY_RUN_READY",
+                       "bootstrap":  {
+                                         "tip_head":  "267e25f8e9c16d724dc4ea8ced478542c34a5480",
+                                         "tooling_freeze":  "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+                                         "bundle_oid":  "821ea7904c4dae095427ec55924f9a195631fb9d",
+                                         "bundle_sha256":  "0969ad0e7152584249cb9bf0cdb4182fb3946816ea5503009afa50104400f723",
+                                         "bundle_bytes":  266308,
+                                         "nodeProcessStarted":  true,
+                                         "unsafeInheritedNodeEnvironmentRemoved":  false,
+                                         "node":  {
+                                                      "sha256":  "edf5c169568a7311dedecbcbb10ef75cd566276092b507d5d92f6b1ce8e61450",
+                                                      "basename":  "node.exe",
+                                                      "version":  "v22.22.0"
+                                                  },
+                                         "cleanup":  {
+                                                         "path_redacted":  true,
+                                                         "cleaned":  true
+                                                     },
+                                         "cwd_was_temp":  true,
+                                         "entry":  "powershell_bootstrap",
+                                         "child_exit_status":  0
+                                     },
+                       "unsafeInheritedNodeEnvironmentRemoved":  false
+                   },
+    "mode":  "dry-run",
+    "freeze":  "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+    "databaseConnectionAttempts":  1,
+    "sqlApplicationAttempts":  0,
+    "advisory_lock_acquired":  false,
+    "credential_redaction_confirmation":  {
+                                              "operator_hidden_securestring_input":  true,
+                                              "url_in_chat":  false,
+                                              "url_in_argv":  false,
+                                              "url_in_evidence":  false,
+                                              "url_printed":  false,
+                                              "process_env_cleared_after":  true,
+                                              "securestring_zerofreed":  true,
+                                              "ca_path_channel_retired":  true,
+                                              "ca_path_env_absent":  true,
+                                              "ca_contents_not_in_argv":  true,
+                                              "embedded_official_ca_only":  true
+                                          },
+    "cleanup":  {
+                    "credential_cleared":  true,
+                    "ca_path_env_absent":  true,
+                    "raw_stdout_removed":  true,
+                    "evidence_local_only":  true
+                },
+    "generated_at_utc":  "2026-09-13T17:26:46.5878696Z"
+}

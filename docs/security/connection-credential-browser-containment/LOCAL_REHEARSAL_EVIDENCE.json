@@ -1,0 +1,95 @@
+{
+  "started_at": "2026-09-10T03:49:31.655Z",
+  "container": "cred-contain-rehearse-fd45cd8b",
+  "pg_port": "55563",
+  "source_authority": "git_blob",
+  "sqlApplicationAttempts": 3,
+  "steps": {
+    "container_ready": true,
+    "fixture_applied": true,
+    "prechange_contract_verified": {
+      "browser_token_select": true,
+      "view_has_tokens": true,
+      "residual_select": true
+    },
+    "forward_applied": true,
+    "forward_assertions": {
+      "denials": {
+        "anon_ac_tok": true,
+        "auth_ac_tok": true,
+        "anon_qb_tok": true,
+        "auth_qb_tok": true,
+        "anon_ac_upd": true,
+        "auth_ac_upd": true,
+        "anon_view": true,
+        "auth_view": true,
+        "residual_select_gone": true
+      },
+      "serviceOk": {
+        "svc_ac_sel": true,
+        "svc_ac_upd": true,
+        "svc_qb_sel": true,
+        "svc_view": true,
+        "security_invoker": true,
+        "view_no_tokens": true
+      }
+    },
+    "service_role_ops": {
+      "row_token_presence_booleans": {
+        "has_access": true,
+        "has_refresh": true
+      },
+      "view_consumer_shape": {
+        "connection_id": "11111111-1111-1111-1111-111111111111",
+        "user_id": "22222222-2222-2222-2222-222222222222",
+        "realm_id": "fake-realm-local",
+        "status": "connected",
+        "has_expiry": true
+      },
+      "update_ok": true
+    },
+    "authenticated_negative_probe": {
+      "token_select_denied": true
+    },
+    "rollback_applied": true,
+    "rollback_restored_contract": true,
+    "reapply_ok": true,
+    "cleanup": true
+  },
+  "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+  "pr_head": "1485f69a844abe22359cd0c7c879c3a148defa0e",
+  "seals": {
+    "pre_change_contract_sha256": "7cf74c00ff4df9e59332e3b8e7abccdc0b74241b8f7989be446803ac04cb74a7",
+    "forward_migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "rollback_sha256": "42a114580c12a43651bc4e9fcde3d2df820b04b0986406006ca39d188e7b0b86",
+    "fixture_sha256": "469eaa3f584100e4ebbb64e4f7c48f427f86fededa23995f6505af03fd97a3a5",
+    "forward_migration_oid": "a5051f23da5bc889d0612f76a61eec1c3cd487e7",
+    "rollback_oid": "e64eb6c4adeb4956b70705541c8700fc64c718c4",
+    "contract_oid": "ad148acdc11dbd2e70b5349d15227e0083ba0493"
+  },
+  "source": {
+    "kind": "git_blob",
+    "seals_commit": "1485f69a844abe22359cd0c7c879c3a148defa0e",
+    "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
+    "tooling_freeze": "32d4ff2f15d3bd42bee86511cf6018298146eab0"
+  },
+  "verdict": "LOCAL_REHEARSAL_PASS_FROM_COMMIT_GIT_BLOBS",
+  "finished_at": "2026-09-10T03:49:33.457Z",
+  "evidence_tip": "1485f69a844abe22359cd0c7c879c3a148defa0e",
+  "tooling_freeze": "32d4ff2f15d3bd42bee86511cf6018298146eab0",
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
+    "oid": "2316cfed5ca9460602d03026d66aa35d6d129329",
+    "sha256": "42484aff0d0b118647ce6a838c09dc984c36b7a001b1e6d9c67096ded180b0eb",
+    "bytes": 224526,
+    "pg_version": "8.21.0",
+    "lockfile_path": "package-lock.json",
+    "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+    "build_command": "node scripts/security/build-containment-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0"
+  },
+  "notes": [
+    "Local forward/rollback/reapply rehearsal from Commit-1 git blobs.",
+    "Executable applicator authority is tooling_freeze standalone bundle, not this tip evidence commit."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "CREDENTIAL_BROWSER_CONTAINMENT_STAGE1",
+  "pg_function": "pg_advisory_xact_lock(int, int)",
+  "key1": 1129464387,
+  "key1_hex": "0x43524243",
+  "key1_meaning": "ASCII CRBC",
+  "key2": 539363592,
+  "key2_hex": "0x20260908",
+  "key2_meaning": "version-date fragment 20260908",
+  "scope": "transaction",
+  "mechanism": "GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY"
+}
