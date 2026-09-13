@@ -27,7 +27,20 @@
   "notes": [
     "Seals are SHA-256 of Commit-1 git blob bytes (LF), not working-tree checkout bytes.",
     "Do not modify migration, rollback, or PRE_CHANGE_CONTRACT after this seal publication.",
-    "Production apply remains NOT_AUTHORIZED; delivery design is GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY only."
+    "Historical seals below are preserved; production_apply records verified completion only.",
+    "Break-glass rollback remains SECURITY_REGRESSION_BREAK_GLASS_ONLY and is NOT authorized by this status update."
   ],
-  "production_apply": "NOT_AUTHORIZED"
+  "production_apply": {
+    "status": "APPLIED_AND_VERIFIED",
+    "pr": 318,
+    "merge_commit": "0a2ab7b8b18781c7d058e00e963ed81992ae07db",
+    "result_code": "APPLY_COMMITTED",
+    "migration_version": "20260908031736",
+    "migration_sha256": "71500fc8c56f484e3f2d5b49ff2b3161aad474027291a4eda22f26e7fc8071e7",
+    "apply_evidence_sha256": "ec2d608c79738aa000114bf870b5f1e29bf0483ee68714d921e81c304e9279de",
+    "post_apply_verdict": "PASS_POST_APPLY_VERIFICATION",
+    "production_history_count": 186,
+    "migration_version_occurrences": 1,
+    "rollback_authorized": false
+  }
 }
