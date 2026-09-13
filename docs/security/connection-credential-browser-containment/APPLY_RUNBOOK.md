@@ -1,7 +1,9 @@
 # Apply runbook — GIT_BLOB_PINNED_SINGLE_VERSION_TX_APPLY (native PowerShell bootstrap)
 
-**Status:** CONTAINMENT_EVIDENCE_V1 transport remediation; awaiting fresh independent operational re-review.  
-**Production apply / dry-run:** NOT authorized by this tooling turn.
+**Status:** Stage-1 production apply completed and independently verified (PR #318 merged).  
+**Production apply:** APPLY_COMMITTED (evidence SHA-256 `ec2d608c79738aa000114bf870b5f1e29bf0483ee68714d921e81c304e9279de`); post-apply `PASS_POST_APPLY_VERIFICATION`.  
+**Merge:** `0a2ab7b8b18781c7d058e00e963ed81992ae07db` — migration `20260908031736` / SHA-256 `71500fc8…`; production history 186 (version once).  
+**Rollback:** still SECURITY_REGRESSION_BREAK_GLASS_ONLY — not authorized by this documentation update.
 
 ## Evidence framing (stdout)
 
