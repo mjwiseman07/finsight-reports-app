@@ -1,18 +1,20 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  External trust-root entry for the visible containment production dry-run ceremony.
+  External trust-root entry for the visible containment ceremony (dry-run or apply).
 
 .DESCRIPTION
   Preferred operator path:
     1) Materialize THIS script from tip git blob and verify against tip auth
        visible_ceremony_entry seals (OID/SHA-256/bytes).
-    2) Invoke with absolute System32 powershell -File <materialized> -PrHead <freeze>.
+    2) Invoke with absolute System32 powershell -File <materialized>
+       -PrHead <freeze> -CeremonyKind <dry-run|apply>.
 
   This entry:
     - loads tip TOOLING_AUTHORIZATION
     - requires -PrHead == authorized_pr_head (executable freeze)
-    - materializes visible launcher + ceremony from freeze blobs
+    - requires explicit -CeremonyKind (missing/unknown fails before PROMPT_READY)
+    - materializes visible launcher + the seal-selected ceremony from freeze blobs
     - verifies OID/SHA-256/bytes against tip authorization
     - starts absolute trusted PowerShell executing only the verified launcher
     - never executes mutable worktree launcher/ceremony
@@ -30,11 +32,18 @@ param(
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$PrHead,
 
+  [Parameter(Mandatory = $true)]
+  [ValidateSet("dry-run", "apply")]
+  [string]$CeremonyKind,
+
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
 
   [Parameter(Mandatory = $false)]
   [string]$EvidenceOutDir = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$PriorDryRunEvidencePath = "",
 
   [Parameter(Mandatory = $false)]
   [switch]$WaitForPromptReady,
@@ -337,9 +346,35 @@ try {
   $freeze = [string]$auth.authorized_pr_head
   $ve = $auth.visible_ceremony_entry
   $vl = $auth.visible_ceremony_launcher
-  $oc = $auth.operator_ceremony
-  if (-not $vl -or -not $oc) {
-    Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "missing visible_ceremony_launcher or operator_ceremony seals"
+  $ocDry = $auth.operator_ceremony
+  $ocApply = $auth.operator_apply_ceremony
+  if (-not $vl) {
+    Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "missing visible_ceremony_launcher seals"
+  }
+  if ([string]::IsNullOrWhiteSpace($CeremonyKind)) {
+    Stop-Entry "BLOCKED_CEREMONY_KIND" "ceremony_kind" "CeremonyKind is required (dry-run|apply)"
+  }
+  if ($CeremonyKind -eq "dry-run") {
+    if (-not $ocDry) {
+      Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "missing operator_ceremony (dry-run) seals"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+      Stop-Entry "BLOCKED_MODE_CONFUSION" "ceremony_kind" "PriorDryRunEvidencePath is not valid for dry-run ceremony kind"
+    }
+  } elseif ($CeremonyKind -eq "apply") {
+    if (-not $ocApply) {
+      Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "missing operator_apply_ceremony seals"
+    }
+    if ([string]::IsNullOrWhiteSpace($TestStubScript) -and [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+      Stop-Entry "BLOCKED_PRIOR_DRY_RUN_MISSING" "prior_dry_run_gate" "PriorDryRunEvidencePath required for apply ceremony kind"
+    }
+  } else {
+    Stop-Entry "BLOCKED_CEREMONY_KIND" "ceremony_kind" "unknown CeremonyKind"
+  }
+  $oc = $(if ($CeremonyKind -eq "apply") { $ocApply } else { $ocDry })
+  $ceremonyRel = [string]$oc.path
+  if ([string]::IsNullOrWhiteSpace($ceremonyRel)) {
+    Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "ceremony seal missing path"
   }
 
   # Defense-in-depth: when tip publishes visible_ceremony_entry, verify this entry script.
@@ -366,7 +401,8 @@ try {
   $script:materialRoot = Join-Path $EvidenceOutDir ("material-" + [guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $script:materialRoot | Out-Null
   $launcherDest = Join-Path $script:materialRoot "launch-visible-containment-ceremony.ps1"
-  $ceremonyDest = Join-Path $script:materialRoot "operator-containment-production-dryrun-ceremony.ps1"
+  $ceremonyLeaf = [IO.Path]::GetFileName($ceremonyRel)
+  $ceremonyDest = Join-Path $script:materialRoot $ceremonyLeaf
 
   $launcherSeal = $null
   try {
@@ -389,7 +425,7 @@ try {
     $ceremonyBytes = ([IO.File]::ReadAllBytes($ceremonyDest)).Length
   } else {
     try {
-      [void](Assert-BlobSeal -Freeze $freeze -Rel "scripts/security/operator-containment-production-dryrun-ceremony.ps1" -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
+      [void](Assert-BlobSeal -Freeze $freeze -Rel $ceremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
     } catch {
       Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" ([string]$_.Exception.Message)
     }
@@ -430,6 +466,11 @@ try {
     (Format-Win32Argument "-ExpectedLauncherBytes"),
     (Format-Win32Argument ([string]$launcherSeal.bytes))
   )
+  if ($CeremonyKind -eq "apply" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    Assert-SafePath "PriorDryRunEvidencePath" $PriorDryRunEvidencePath
+    $launchArgs += (Format-Win32Argument "-PriorDryRunEvidencePath")
+    $launchArgs += (Format-Win32Argument $PriorDryRunEvidencePath)
+  }
   if ($WaitForPromptReady) {
     $launchArgs += (Format-Win32Argument "-WaitForPromptReady")
     $launchArgs += (Format-Win32Argument "-PromptReadyTimeoutSec")

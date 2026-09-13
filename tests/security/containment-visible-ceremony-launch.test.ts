@@ -124,6 +124,8 @@ function runSupervise(opts: {
   forceAssignFail?: boolean;
   forceOperatorCancel?: boolean;
   prHead?: string;
+  ceremonyKind?: "dry-run" | "apply";
+  priorDryRunEvidencePath?: string;
   env?: NodeJS.ProcessEnv;
 }): ReturnType<typeof spawnSync> {
   const args = [
@@ -134,11 +136,16 @@ function runSupervise(opts: {
     SUPERVISE,
     "-PrHead",
     opts.prHead ?? authFreeze(),
+    "-CeremonyKind",
+    opts.ceremonyKind ?? "dry-run",
     "-RepoRoot",
     ROOT,
     "-EvidenceOutDir",
     opts.evidenceDir,
   ];
+  if (opts.priorDryRunEvidencePath) {
+    args.push("-PriorDryRunEvidencePath", opts.priorDryRunEvidencePath);
+  }
   if (opts.stub) {
     args.push("-TestStubScript", opts.stub);
   }
@@ -381,6 +388,8 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
         SUPERVISE,
         "-PrHead",
         freeze,
+        "-CeremonyKind",
+        "dry-run",
         "-RepoRoot",
         ROOT,
         "-EvidenceOutDir",
@@ -472,6 +481,8 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
         SUPERVISE,
         "-PrHead",
         freeze,
+        "-CeremonyKind",
+        "dry-run",
         "-RepoRoot",
         ROOT,
         "-EvidenceOutDir",
@@ -619,6 +630,8 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
         SUPERVISE,
         "-PrHead",
         freeze,
+        "-CeremonyKind",
+        "dry-run",
         "-RepoRoot",
         ROOT,
         "-EvidenceOutDir",
@@ -703,6 +716,8 @@ describe("visible containment ceremony Windows launch (mandatory)", () => {
         SUPERVISE,
         "-PrHead",
         freeze,
+        "-CeremonyKind",
+        "dry-run",
         "-RepoRoot",
         ROOT,
         "-EvidenceOutDir",

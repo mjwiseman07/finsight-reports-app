@@ -31,9 +31,12 @@ scripts/security/supervise-visible-containment-ceremony.ps1 text eol=lf
 scripts/security/enter-visible-containment-ceremony.ps1 text eol=lf
 scripts/security/launch-visible-containment-ceremony.ps1 text eol=lf
 scripts/security/operator-containment-production-dryrun-ceremony.ps1 text eol=lf
+scripts/security/operator-containment-production-apply-ceremony.ps1 text eol=lf
 scripts/security/stubs/** text eol=lf
 tests/security/helpers/containment-*.js text eol=lf
 tests/security/containment-visible-ceremony-launch.test.ts text eol=lf
+tests/security/containment-production-apply-ceremony.test.ts text eol=lf
 tests/security/helpers/synthetic-visible-ceremony-*.ps1 text eol=lf
+tests/security/helpers/fixtures/prior-production-dry-run-evidence.json -text
 tests/security/containment-tls-ca.test.ts text eol=lf
 tests/security/containment-evidence-protocol.test.ts text eol=lf

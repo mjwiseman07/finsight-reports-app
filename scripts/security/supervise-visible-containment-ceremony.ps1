@@ -23,11 +23,18 @@ param(
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$PrHead,
 
+  [Parameter(Mandatory = $true)]
+  [ValidateSet("dry-run", "apply")]
+  [string]$CeremonyKind,
+
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
 
   [Parameter(Mandatory = $false)]
   [string]$EvidenceOutDir = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$PriorDryRunEvidencePath = "",
 
   [Parameter(Mandatory = $false)]
   [switch]$WaitForPromptReady,
@@ -716,6 +723,8 @@ try {
     (Format-Win32Argument $entryDest),
     (Format-Win32Argument "-PrHead"),
     (Format-Win32Argument $PrHead),
+    (Format-Win32Argument "-CeremonyKind"),
+    (Format-Win32Argument $CeremonyKind),
     (Format-Win32Argument "-RepoRoot"),
     (Format-Win32Argument $RepoRoot),
     (Format-Win32Argument "-EvidenceOutDir"),
@@ -723,6 +732,17 @@ try {
     (Format-Win32Argument "-SupervisorSentinel"),
     (Format-Win32Argument $script:SentinelToken)
   )
+  if ($CeremonyKind -eq "apply" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    Assert-SafePath "PriorDryRunEvidencePath" $PriorDryRunEvidencePath
+    $argParts += (Format-Win32Argument "-PriorDryRunEvidencePath")
+    $argParts += (Format-Win32Argument $PriorDryRunEvidencePath)
+  }
+  if ($CeremonyKind -eq "dry-run" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    Complete-Blocked "BLOCKED_MODE_CONFUSION" "ceremony_kind" "PriorDryRunEvidencePath is not valid for dry-run ceremony kind"
+  }
+  if ($CeremonyKind -eq "apply" -and [string]::IsNullOrWhiteSpace($TestStubScript) -and [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    Complete-Blocked "BLOCKED_PRIOR_DRY_RUN_MISSING" "prior_dry_run_gate" "PriorDryRunEvidencePath required for apply ceremony kind"
+  }
   if ($WaitForPromptReady) {
     $argParts += (Format-Win32Argument "-WaitForPromptReady")
     $argParts += (Format-Win32Argument "-PromptReadyTimeoutSec")

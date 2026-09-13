@@ -59,7 +59,7 @@ const GIT_CWD_ENV = "CONTAINMENT_GIT_CWD";
  * Filled by build-containment-applicator-standalone-bundle.js before seal.
  */
 const EXPECTED_AUTH_SEALS_DIGEST =
-  "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e";
+  "3050fb80a8abab8e6a688ede125300042675cfb7965921ce9adf2e5b07729615";
 
 /**
  * SHA-256 of the committed standalone applicator bundle bytes (documentation pin).

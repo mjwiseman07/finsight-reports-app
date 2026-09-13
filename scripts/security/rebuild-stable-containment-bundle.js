@@ -32,12 +32,22 @@ const ENTER_REL = "scripts/security/enter-containment-apply.ps1";
 const STUB_REL = "scripts/security/stubs/pg-native-failclosed.js";
 const CEREMONY_REL =
   "scripts/security/operator-containment-production-dryrun-ceremony.ps1";
+const APPLY_CEREMONY_REL =
+  "scripts/security/operator-containment-production-apply-ceremony.ps1";
 const VISIBLE_SUPERVISOR_REL =
   "scripts/security/supervise-visible-containment-ceremony.ps1";
 const VISIBLE_ENTRY_REL =
   "scripts/security/enter-visible-containment-ceremony.ps1";
 const VISIBLE_LAUNCH_REL =
   "scripts/security/launch-visible-containment-ceremony.ps1";
+
+/** Successful production dry-run evidence gate (immutable prior attempt). */
+const REQUIRED_PRIOR_DRY_RUN_EVIDENCE_SHA256 =
+  "a3e6eb13bd3e3c578e2224700206fc258699bc4cb1a42b6abaf922acecb1eb6a";
+const REQUIRED_PRIOR_DRY_RUN_FREEZE =
+  "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24";
+const REQUIRED_PRIOR_DRY_RUN_EVIDENCE_TIP =
+  "267e25f8e9c16d724dc4ea8ced478542c34a5480";
 
 function sha256(b) {
   return crypto.createHash("sha256").update(b).digest("hex");
@@ -127,6 +137,9 @@ const dig = sha256(
         key1: 1129464387,
         key2: 539363592,
       },
+      required_prior_dry_run_evidence_sha256: REQUIRED_PRIOR_DRY_RUN_EVIDENCE_SHA256,
+      required_prior_dry_run_freeze: REQUIRED_PRIOR_DRY_RUN_FREEZE,
+      required_prior_dry_run_evidence_tip: REQUIRED_PRIOR_DRY_RUN_EVIDENCE_TIP,
       pg_version: "8.21.0",
       lockfile_path: "package-lock.json",
     }),
@@ -172,6 +185,7 @@ const stubSeal = seal(STUB_REL);
 const frameToolSeal = seal(FRAME_TOOL_REL);
 const decodeFrameSeal = seal(DECODE_FRAME_REL);
 const ceremonySeal = seal(CEREMONY_REL);
+const applyCeremonySeal = seal(APPLY_CEREMONY_REL);
 const visibleSupervisorSeal = seal(VISIBLE_SUPERVISOR_REL);
 const visibleEntrySeal = seal(VISIBLE_ENTRY_REL);
 const visibleLaunchSeal = seal(VISIBLE_LAUNCH_REL);
@@ -222,6 +236,9 @@ const auth = {
     key1: 1129464387,
     key2: 539363592,
   },
+  required_prior_dry_run_evidence_sha256: REQUIRED_PRIOR_DRY_RUN_EVIDENCE_SHA256,
+  required_prior_dry_run_freeze: REQUIRED_PRIOR_DRY_RUN_FREEZE,
+  required_prior_dry_run_evidence_tip: REQUIRED_PRIOR_DRY_RUN_EVIDENCE_TIP,
   auth_seals_digest: dig,
   native_bootstrap: {
     path: BOOTSTRAP_REL,
@@ -248,6 +265,7 @@ const auth = {
     decode_frame: decodeFrameSeal,
   },
   operator_ceremony: ceremonySeal,
+  operator_apply_ceremony: applyCeremonySeal,
   visible_ceremony_supervisor: visibleSupervisorSeal,
   visible_ceremony_entry: visibleEntrySeal,
   visible_ceremony_launcher: visibleLaunchSeal,
@@ -271,7 +289,9 @@ const auth = {
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
     "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
     "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
-    "Visible ceremony: run visible_ceremony_supervisor; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "Visible ceremony: run visible_ceremony_supervisor with -CeremonyKind dry-run|apply; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "CeremonyKind dry-run selects operator_ceremony; apply selects operator_apply_ceremony. Missing/unknown kind fails before PROMPT_READY.",
+    "Apply ceremony requires PriorDryRunEvidencePath matching required_prior_dry_run_* pins; token is sealed in auth (never operator-supplied).",
     "Enter materializes launcher+ceremony from freeze only; never execute mutable worktree scripts as authority.",
     "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe args; never PATH powershell.exe or cmd start.",
     "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",

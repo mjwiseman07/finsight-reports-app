@@ -122,6 +122,10 @@ function canonicalAuthSealsDigest(authLike) {
     database_url_env: authLike.database_url_env,
     apply_authorization_token: authLike.apply_authorization_token,
     advisory_lock: authLike.advisory_lock,
+    required_prior_dry_run_evidence_sha256:
+      authLike.required_prior_dry_run_evidence_sha256,
+    required_prior_dry_run_freeze: authLike.required_prior_dry_run_freeze,
+    required_prior_dry_run_evidence_tip: authLike.required_prior_dry_run_evidence_tip,
     pg_version: "8.21.0",
     lockfile_path: "package-lock.json",
   };

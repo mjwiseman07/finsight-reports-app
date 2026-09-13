@@ -46,7 +46,10 @@ param(
   [switch]$EmitEvidenceFrame,
 
   [Parameter(Mandatory = $false)]
-  [string]$SupervisorSentinel = ""
+  [string]$SupervisorSentinel = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$PriorDryRunEvidencePath = ""
 )
 
 Set-StrictMode -Version Latest
@@ -330,6 +333,11 @@ $argParts = @(
   (Format-Win32Argument "-EvidenceOutDir"),
   (Format-Win32Argument $EvidenceOutDir)
 )
+if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+  Assert-SafeInputString -Name "PriorDryRunEvidencePath" -Value $PriorDryRunEvidencePath
+  $argParts += (Format-Win32Argument "-PriorDryRunEvidencePath")
+  $argParts += (Format-Win32Argument $PriorDryRunEvidencePath)
+}
 $argString = [string]::Join(" ", $argParts)
 
 $psi = New-Object Diagnostics.ProcessStartInfo

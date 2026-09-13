@@ -53,6 +53,10 @@ function canonicalAuthSealsDigest(auth) {
     database_url_env: auth.database_url_env,
     apply_authorization_token: auth.apply_authorization_token,
     advisory_lock: auth.advisory_lock,
+    required_prior_dry_run_evidence_sha256:
+      auth.required_prior_dry_run_evidence_sha256,
+    required_prior_dry_run_freeze: auth.required_prior_dry_run_freeze,
+    required_prior_dry_run_evidence_tip: auth.required_prior_dry_run_evidence_tip,
     pg_version: auth.standalone_bundle?.pg_version || "8.21.0",
     lockfile_path: auth.standalone_bundle?.lockfile_path || "package-lock.json",
   };

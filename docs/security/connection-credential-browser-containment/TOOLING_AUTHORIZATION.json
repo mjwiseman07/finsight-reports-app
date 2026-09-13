@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -18,7 +18,10 @@
     "key1": 1129464387,
     "key2": 539363592
   },
-  "auth_seals_digest": "5db0f72335e4d4d2d7ffe5e7b5df9431ccdce26c993c6c67fae1a780298bd52e",
+  "required_prior_dry_run_evidence_sha256": "a3e6eb13bd3e3c578e2224700206fc258699bc4cb1a42b6abaf922acecb1eb6a",
+  "required_prior_dry_run_freeze": "b1585eda3cf26c6e28f3a152e87bf5dd39b40c24",
+  "required_prior_dry_run_evidence_tip": "267e25f8e9c16d724dc4ea8ced478542c34a5480",
+  "auth_seals_digest": "3050fb80a8abab8e6a688ede125300042675cfb7965921ce9adf2e5b07729615",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-credential-browser-containment.ps1",
     "oid": "068f93d3de15f5668a1bed2127fc5f6860206c1f",
@@ -59,23 +62,29 @@
     "sha256": "8a21b83b128797c5b4af4fb8fe1149472c890734f5598e4b26a8d83ad144b9a5",
     "bytes": 16978
   },
+  "operator_apply_ceremony": {
+    "path": "scripts/security/operator-containment-production-apply-ceremony.ps1",
+    "oid": "fdb59a2d5760553b373b6a7a8a620f48af1c5b91",
+    "sha256": "4b4a3ec305ce2caca4735f8bd6045c845e2e1e0c5af99c86cf9d1957422e34e1",
+    "bytes": 24811
+  },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-containment-ceremony.ps1",
-    "oid": "b74b36b9e542284ce0dd90f1f65296ba6456fe80",
-    "sha256": "5374d4cbc831f9ef0c52ca617c57d3e85b9ddae37b6b7f048b43e5dced7692b3",
-    "bytes": 33129
+    "oid": "3186cc39135077fe4a8a630673af388509e965e4",
+    "sha256": "9b330524cc03050f9d70c5b1e88138ddc6ee2b9c890653dce902f494ce84799f",
+    "bytes": 34209
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-containment-ceremony.ps1",
-    "oid": "df261e1844e665737acd84a94b981cb2f89ad3ca",
-    "sha256": "2681b98514824f6b3bb30ba07343915c199ebc0158ff3d142d7c87bd14230808",
-    "bytes": 21622
+    "oid": "3f01144ce863e53c1b8674cfd5df5afb32c10984",
+    "sha256": "1860d8ff0fb50062e645acced3a0ddd84690d941886ef071bd88f1a1ac128678",
+    "bytes": 23479
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-containment-ceremony.ps1",
-    "oid": "eeac7de1b02eaf8b43bbcda1451c03b1315b8e09",
-    "sha256": "2f97eabebc71b69e2212e1c2f2476867d6290442985e3a94945e71cbcdc8cbae",
-    "bytes": 16214
+    "oid": "d32c95fb79a1b3af82c88c197a8619628d2947bc",
+    "sha256": "e4b887594fb56b0ece50fbc22ad6c4909b1a0e95a85d3329a5a13b0f4865b2a0",
+    "bytes": 16576
   },
   "pg_native_stub": {
     "path": "scripts/security/stubs/pg-native-failclosed.js",
@@ -85,8 +94,8 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/credential-browser-containment-applicator.standalone.cjs",
-    "oid": "821ea7904c4dae095427ec55924f9a195631fb9d",
-    "sha256": "0969ad0e7152584249cb9bf0cdb4182fb3946816ea5503009afa50104400f723",
+    "oid": "601d44454f3e301596e54ea96f86835dd140d21d",
+    "sha256": "cd7a128fc30650793566db35b8492908dccf9cabbb5abcc616dd3c67f3e092ea",
     "bytes": 266308,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
@@ -115,8 +124,8 @@
     },
     {
       "path": "scripts/security/credential-browser-containment-constants.js",
-      "oid": "50afd6a355a1f3930b081e14d6e818df7c6609df",
-      "sha256": "0f8dbee54632a079cece1a1b8854bd06867511e6d9cdc8429228524de28d7b9c",
+      "oid": "ab9e458fd4fbf92bc5d0273dcc6bcfcd16ae0a4f",
+      "sha256": "6e9bdbaf40de60ef11b4cf3b4adcdfaf127388a485c02a667431fcf8f3550f25",
       "bytes": 6062
     },
     {
@@ -150,7 +159,9 @@
     "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
     "Required entry: materialize native_bootstrap from freeze via git cat-file, verify seals, then invoke with -NoProfile -NonInteractive.",
     "Node launcher alone is not the pre-Node trust boundary; PowerShell bootstrap sanitizes NODE_* before starting Node.",
-    "Visible ceremony: run visible_ceremony_supervisor; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "Visible ceremony: run visible_ceremony_supervisor with -CeremonyKind dry-run|apply; it materializes visible_ceremony_entry from tip under a Job Object (KILL_ON_JOB_CLOSE).",
+    "CeremonyKind dry-run selects operator_ceremony; apply selects operator_apply_ceremony. Missing/unknown kind fails before PROMPT_READY.",
+    "Apply ceremony requires PriorDryRunEvidencePath matching required_prior_dry_run_* pins; token is sealed in auth (never operator-supplied).",
     "Enter materializes launcher+ceremony from freeze only; never execute mutable worktree scripts as authority.",
     "Visible launcher uses absolute System32 Windows PowerShell + Win32-safe args; never PATH powershell.exe or cmd start.",
     "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree."
