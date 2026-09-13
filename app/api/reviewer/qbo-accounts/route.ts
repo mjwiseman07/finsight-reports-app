@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireFirmAuth, authErrorResponse } from "@/lib/reviewer/auth";
+import {
+  assertFirmClientAccess,
+  requireFirmAuth,
+  authErrorResponse,
+} from "@/lib/reviewer/auth";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
-import { qboApiFetch } from "../../../../lib/qbo/api-fetch.js";
-import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
+import { qboApiFetch } from "@/lib/qbo/api-fetch.js";
+import { withAutoFile } from "@/lib/support/api-error-wrapper";
 
 const cache = new Map<string, { expires: number; accounts: Array<{ id: string; name: string }> }>();
 const TTL_MS = 5 * 60 * 1000;
@@ -13,16 +17,26 @@ async function getImpl(req: NextRequest) {
     try {
       // Attach user id header for the wrapper's fallback error path
       req.headers.set?.("x-advisacor-user-id", auth.userId);
-    } catch { /* headers may be immutable — ignore */ }
+    } catch {
+      /* headers may be immutable — ignore */
+    }
+
     const firmClientId = req.nextUrl.searchParams.get("firmClientId");
     if (!firmClientId) {
       return NextResponse.json({ error: "firmClientId_required" }, { status: 400 });
     }
 
-    const hit = cache.get(firmClientId);
+    // Authorize before cache or any QBO credential use.
+    await assertFirmClientAccess({ firmClientId, firmIds: auth.firmIds });
+
+    const cacheKey = `${auth.userId}:${firmClientId}`;
+    const hit = cache.get(cacheKey);
     if (hit && hit.expires > Date.now()) {
       return NextResponse.json({ accounts: hit.accounts });
     }
+
+    // TOCTOU: re-prove membership immediately before privileged token resolve.
+    await assertFirmClientAccess({ firmClientId, firmIds: auth.firmIds });
 
     const token = await resolveQBOTokenForFirmClient(firmClientId);
     if (!token) {
@@ -46,7 +60,7 @@ async function getImpl(req: NextRequest) {
       name: String(a.Name ?? ""),
     }));
 
-    cache.set(firmClientId, { expires: Date.now() + TTL_MS, accounts });
+    cache.set(cacheKey, { expires: Date.now() + TTL_MS, accounts });
     return NextResponse.json({ accounts });
   } catch (e) {
     return authErrorResponse(e);

@@ -5,7 +5,10 @@ import {
   getActiveAccountingContext,
 } from "../../../../lib/integrations/accounting";
 import { buildScheduleDiagnostics } from "../../../../lib/accounting/supporting-schedules/scheduleDiagnostics";
-import { supabaseAdmin } from "../../../../lib/supabase";
+import {
+  isAccountingPrincipalDenial,
+  resolveAccountingRequestPrincipal,
+} from "../../../../lib/integrations/accounting/resolve-request-principal";
 import { rateLimit } from "../../../../lib/rate-limit";
 
 export async function GET(request) {
@@ -13,10 +16,12 @@ export async function GET(request) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    if (!supabaseAdmin) return NextResponse.json({ error: "Supabase admin client is not configured" }, { status: 500 });
+    const principal = await resolveAccountingRequestPrincipal({ request });
+    if (isAccountingPrincipalDenial(principal)) {
+      return NextResponse.json(principal.body, { status: principal.status });
+    }
+
     const url = new URL(request.url);
-    const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-    const leadId = url.searchParams.get("leadId") || "";
     const companyId = url.searchParams.get("companyId") || "";
     const connectionId = url.searchParams.get("connectionId") || "";
     const sourceSystem = url.searchParams.get("sourceSystem") || "";
@@ -26,20 +31,12 @@ export async function GET(request) {
       url.searchParams.get("tenantId") ||
       "";
 
-    let userId = leadId;
-    if (token) {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-      userId = authData.user.id;
-    }
-    if (!userId) return NextResponse.json({ error: "Missing Authorization bearer token or leadId" }, { status: 401 });
-
     const context = await getActiveAccountingContext({
       companyId,
       connectionId,
       sourceSystem,
       tenantOrRealmId,
-      userId,
+      userId: principal.userId,
       forceRefresh: false,
     });
     if (!context?.normalizedData) return NextResponse.json({ error: "No active accounting context found" }, { status: 404 });
