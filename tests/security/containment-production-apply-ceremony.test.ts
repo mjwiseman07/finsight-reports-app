@@ -263,6 +263,185 @@ describe("apply ceremony gates (no disposable DB)", () => {
     void r;
   }, 120000);
 
+  it("both harness env vars without TestSyntheticDatabaseUrl → BLOCKED_HARNESS before connect", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-contam-both-"));
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      env: {
+        CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+        CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2: "1",
+      },
+    });
+    const summary = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_SUMMARY.json"), "utf8"),
+    );
+    const evidence = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_EVIDENCE.json"), "utf8"),
+    );
+    expect(summary.result_code).toBe("BLOCKED_HARNESS_ENV_CONTAMINATION");
+    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(summary.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(evidence.fixture_target2_overrides_forwarded ?? false).toBe(false);
+    expect(JSON.stringify({ summary, evidence, stdout: r.stdout })).not.toMatch(
+      /postgresql:\/\//i,
+    );
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }, 120000);
+
+  it("ALLOW_SYNTHETIC alone without TestSyntheticDatabaseUrl → blocked before connect", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-contam-allow-"));
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      env: { CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    });
+    const summary = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_SUMMARY.json"), "utf8"),
+    );
+    expect(summary.result_code).toBe("BLOCKED_HARNESS_ENV_CONTAMINATION");
+    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+    fs.rmSync(outDir, { recursive: true, force: true });
+    void r;
+  }, 120000);
+
+  it("FIXTURE_TARGET2 alone without TestSyntheticDatabaseUrl → blocked before connect", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-contam-fix-"));
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      env: { CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2: "1" },
+    });
+    const summary = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_SUMMARY.json"), "utf8"),
+    );
+    expect(summary.result_code).toBe("BLOCKED_HARNESS_ENV_CONTAMINATION");
+    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+    fs.rmSync(outDir, { recursive: true, force: true });
+    void r;
+  }, 120000);
+
+  it("non-loopback / production-shaped URL rejected; never coexists with fixture overrides", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-noloop-"));
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      synthUrl:
+        "postgresql://u:p@aws-1-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require",
+      env: {
+        CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+        CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2: "1",
+      },
+    });
+    const summary = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_SUMMARY.json"), "utf8"),
+    );
+    const evidence = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_EVIDENCE.json"), "utf8"),
+    );
+    expect(summary.result_code).toMatch(
+      /BLOCKED_CREDENTIAL_UNAVAILABLE|TEST_URL_NOT_LOOPBACK|CEREMONY_FAILED/,
+    );
+    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(summary.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(evidence.fixture_target2_overrides_forwarded ?? false).toBe(false);
+    expect(evidence.sealed_production_target2_handles_expected ?? true).toBe(true);
+    const blob = JSON.stringify({ summary, evidence, stdout: r.stdout, stderr: r.stderr });
+    expect(blob).not.toMatch(/ENCODED_PASSWORD|sslmode=require/);
+    expect(blob).not.toMatch(/postgresql:\/\/u:p@/i);
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }, 120000);
+
+  it("loopback synthetic without FIXTURE_TARGET2 gate does not forward overrides", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-nofixture-"));
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      synthUrl: "postgresql://u:p@127.0.0.1:1/postgres",
+      env: { CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    });
+    const evidence = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_EVIDENCE.json"), "utf8"),
+    );
+    expect(evidence.fixture_target2_overrides_forwarded ?? false).toBe(false);
+    expect(evidence.sealed_production_target2_handles_expected ?? true).toBe(true);
+    expect(evidence.sqlApplicationAttempts ?? 0).toBe(0);
+    fs.rmSync(outDir, { recursive: true, force: true });
+    void r;
+  }, 180000);
+
+  it("loopback synthetic + both gates records fixture override path without leaking URL", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-cer-fixture-ok-"));
+    const synthPass = "SYNTH_FIXTURE_PASS_NEVER_LEAK";
+    const r = runApplyCeremony({
+      outDir,
+      priorPath: PRIOR_FIXTURE,
+      synthUrl: `postgresql://u:${synthPass}@127.0.0.1:1/postgres`,
+      env: {
+        CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+        CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2: "1",
+      },
+    });
+    const evidence = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_APPLY_EVIDENCE.json"), "utf8"),
+    );
+    expect(evidence.fixture_target2_overrides_forwarded).toBe(true);
+    expect(evidence.sealed_production_target2_handles_expected).toBe(false);
+    expect(evidence.sqlApplicationAttempts ?? 0).toBe(0);
+    const blob = JSON.stringify({ evidence, stdout: r.stdout, stderr: r.stderr });
+    expect(blob).not.toMatch(new RegExp(synthPass.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    expect(blob).not.toMatch(/postgresql:\/\/u:/i);
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }, 180000);
+
+  it("dry-run ceremony: contaminated harness env without synthetic URL fails closed", () => {
+    const tipAuth = readAuth() as { authorized_pr_head: string };
+    const freeze = tipAuth.authorized_pr_head;
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "dry-cer-contam-"));
+    const ceremonyFile = path.join(outDir, "dry-ceremony.ps1");
+    fs.copyFileSync(path.join(ROOT, DRYRUN_CEREMONY), ceremonyFile);
+    const r = spawnSync(
+      systemPowerShell(),
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ceremonyFile,
+        "-PrHead",
+        freeze,
+        "-RepoRoot",
+        ROOT,
+        "-EvidenceOutDir",
+        outDir,
+      ],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 120000,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          TEMP: process.env.TEMP,
+          TMP: process.env.TMP,
+          USERPROFILE: process.env.USERPROFILE,
+          CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+          CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2: "1",
+        },
+      },
+    );
+    const summary = JSON.parse(
+      fs.readFileSync(path.join(outDir, "PRODUCTION_DRY_RUN_SUMMARY.json"), "utf8"),
+    );
+    expect(summary.result_code).toBe("BLOCKED_HARNESS_ENV_CONTAMINATION");
+    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(summary.databaseConnectionAttempts ?? 0).toBe(0);
+    fs.rmSync(outDir, { recursive: true, force: true });
+    void r;
+  }, 120000);
+
   it("dry-run ceremony never receives apply token (hardcoded dry-run)", () => {
     const src = fs.readFileSync(path.join(ROOT, DRYRUN_CEREMONY), "utf8");
     expect(src).toMatch(/-Mode", "dry-run"/);

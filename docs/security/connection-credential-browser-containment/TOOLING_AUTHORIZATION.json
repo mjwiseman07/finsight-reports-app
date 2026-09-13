@@ -1,6 +1,6 @@
 {
   "package": "connection-credential-browser-containment-stage1-tooling",
-  "authorized_pr_head": "97e94a66d20d539ea36d6ee1d0d40d8cb03e2ef0",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "dadd4345c6b4f5df718f1e31f27b161d05fe7aa9",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260908031736_connection_credential_browser_containment.sql",
@@ -58,15 +58,15 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-containment-production-dryrun-ceremony.ps1",
-    "oid": "ea0a4930155b03bfe17be16de51435575755c5e5",
-    "sha256": "8a21b83b128797c5b4af4fb8fe1149472c890734f5598e4b26a8d83ad144b9a5",
-    "bytes": 16978
+    "oid": "2f9e45b5efacfb7641d03c5d54fea4fdf84f721e",
+    "sha256": "91ee37074174c632fcf5d27170225dd9f1e075305849affef7dc637279a258ac",
+    "bytes": 18457
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-containment-production-apply-ceremony.ps1",
-    "oid": "fdb59a2d5760553b373b6a7a8a620f48af1c5b91",
-    "sha256": "4b4a3ec305ce2caca4735f8bd6045c845e2e1e0c5af99c86cf9d1957422e34e1",
-    "bytes": 24811
+    "oid": "95fbd13ac6c23296e621f039ea36cafc97125184",
+    "sha256": "cd47b4000d678ab6b6140bfc3fc5065828ae380811b56606fcd032811d70e888",
+    "bytes": 28411
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-containment-ceremony.ps1",

@@ -142,6 +142,9 @@ function Classify-CeremonyFailure([string]$Message) {
   if ($msg -match "PIN_MISMATCH") {
     return @{ code = "BLOCKED_PIN_MISMATCH"; phase = "ceremony_pin" }
   }
+  if ($msg -match "BLOCKED_HARNESS_ENV_CONTAMINATION|BLOCKED_TARGET2_OVERRIDE|fixture Target2|TARGET2_OVERRIDE") {
+    return @{ code = "BLOCKED_HARNESS_ENV_CONTAMINATION"; phase = "harness_contamination_gate" }
+  }
   if ($msg -match "No URL provided by operator|Empty URL after SecureString|TEST_URL_NOT_LOOPBACK|SYNTHETIC_URL_NOT_ALLOWED") {
     return @{ code = "BLOCKED_CREDENTIAL_UNAVAILABLE"; phase = "ceremony_credential_input" }
   }
@@ -155,6 +158,40 @@ function Classify-CeremonyFailure([string]$Message) {
     return @{ code = "BLOCKED_TLS_POLICY"; phase = "tls_policy" }
   }
   return @{ code = "CEREMONY_FAILED"; phase = "ceremony" }
+}
+
+function Get-HarnessContaminationEnvNames {
+  return @(
+    "CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL",
+    "CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2"
+  )
+}
+
+function Clear-HarnessContaminationEnv {
+  foreach ($k in Get-HarnessContaminationEnvNames) {
+    Remove-Item "Env:$k" -ErrorAction SilentlyContinue
+    [Environment]::SetEnvironmentVariable($k, $null, "Process")
+  }
+}
+
+function Get-PresentHarnessContaminationEnv {
+  $present = New-Object System.Collections.Generic.List[string]
+  foreach ($k in Get-HarnessContaminationEnvNames) {
+    $v = [Environment]::GetEnvironmentVariable($k, "Process")
+    if (-not [string]::IsNullOrWhiteSpace($v)) {
+      [void]$present.Add($k)
+    }
+  }
+  return $present
+}
+
+function Assert-InteractivePathFreeOfHarnessContamination {
+  $present = @(Get-PresentHarnessContaminationEnv)
+  if ($present.Count -gt 0) {
+    Clear-HarnessContaminationEnv
+    $script:interactiveClose = $false
+    throw ("BLOCKED_HARNESS_ENV_CONTAMINATION: interactive SecureString path forbids harness env: " + ($present -join ","))
+  }
 }
 
 if (-not $RepoRoot) {
@@ -208,16 +245,19 @@ try {
   if ($entryBytes.Length -ne [int]$ne.bytes) { throw "native_entry bytes mismatch" }
 
   Write-Host "[1/3] Hidden credential input..."
-  $allowSynthetic = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
-  if ($allowSynthetic -and -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
+  $allowSyntheticGate = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
+  $hasExplicitSyntheticUrl = -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)
+  if ($hasExplicitSyntheticUrl) {
+    if (-not $allowSyntheticGate) {
+      throw "SYNTHETIC_URL_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
+    }
     $interactiveClose = $false
     if ($TestSyntheticDatabaseUrl -notmatch '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/') {
       throw "TEST_URL_NOT_LOOPBACK: synthetic ceremony URL must target 127.0.0.1"
     }
     $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
-  } elseif (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    throw "SYNTHETIC_URL_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
   } else {
+    Assert-InteractivePathFreeOfHarnessContamination
     [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "awaiting_securestring_input")
     $secure = Read-Host -Prompt "CONTAINMENT_APPLY_DATABASE_URL" -AsSecureString
     Remove-Item -LiteralPath (Join-Path $EvidenceOutDir "PROMPT_READY.txt") -Force -ErrorAction SilentlyContinue
@@ -242,6 +282,9 @@ try {
   if (-not [string]::IsNullOrWhiteSpace($hostileCa)) {
     throw "BLOCKED_TLS_CA_PATH_FORBIDDEN: CONTAINMENT_APPLY_SSL_ROOTCERT is retired; trust root is embedded"
   }
+
+  # Never inherit harness fixture gates into native entry / Node applicator child.
+  Clear-HarnessContaminationEnv
 
   Write-Host "[2/3] Invoking sealed native entry (dry-run)..."
   # Separate stdout/stderr — never merge with 2>&1 (pollutes CONTAINMENT_EVIDENCE_V1 frame)
@@ -316,6 +359,7 @@ catch {
 }
 finally {
   Clear-ContainmentCredential
+  Clear-HarnessContaminationEnv
   $plain = $null
   if ($null -ne $secure) { try { $secure.Dispose() } catch {}; $secure = $null }
   if ($bstr -ne [IntPtr]::Zero) {

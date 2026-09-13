@@ -147,6 +147,9 @@ function Classify-CeremonyFailure([string]$Message) {
   if ($msg -match "PIN_MISMATCH|PRIOR_DRY_RUN|stale tip|stale freeze|BLOCKED_PRIOR") {
     return @{ code = "BLOCKED_PRIOR_DRY_RUN_EVIDENCE"; phase = "prior_dry_run_gate" }
   }
+  if ($msg -match "BLOCKED_HARNESS_ENV_CONTAMINATION|BLOCKED_TARGET2_OVERRIDE|fixture Target2|TARGET2_OVERRIDE") {
+    return @{ code = "BLOCKED_HARNESS_ENV_CONTAMINATION"; phase = "harness_contamination_gate" }
+  }
   if ($msg -match "APPLY_TOKEN|token mismatch|MODE_CONFUSION|wrong mode") {
     return @{ code = "BLOCKED_MODE_TOKEN_CONTRACT"; phase = "apply_token_contract" }
   }
@@ -163,6 +166,52 @@ function Classify-CeremonyFailure([string]$Message) {
     return @{ code = "BLOCKED_TLS_POLICY"; phase = "tls_policy" }
   }
   return @{ code = "CEREMONY_FAILED"; phase = "ceremony" }
+}
+
+function Get-HarnessContaminationEnvNames {
+  return @(
+    "CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL",
+    "CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2"
+  )
+}
+
+function Clear-HarnessContaminationEnv {
+  foreach ($k in Get-HarnessContaminationEnvNames) {
+    Remove-Item "Env:$k" -ErrorAction SilentlyContinue
+    [Environment]::SetEnvironmentVariable($k, $null, "Process")
+  }
+}
+
+function Get-PresentHarnessContaminationEnv {
+  $present = New-Object System.Collections.Generic.List[string]
+  foreach ($k in Get-HarnessContaminationEnvNames) {
+    $v = [Environment]::GetEnvironmentVariable($k, "Process")
+    if (-not [string]::IsNullOrWhiteSpace($v)) {
+      [void]$present.Add($k)
+    }
+  }
+  return $present
+}
+
+function Assert-InteractivePathFreeOfHarnessContamination {
+  $present = @(Get-PresentHarnessContaminationEnv)
+  if ($present.Count -gt 0) {
+    Clear-HarnessContaminationEnv
+    $script:interactiveClose = $false
+    throw ("BLOCKED_HARNESS_ENV_CONTAMINATION: interactive SecureString path forbids harness env: " + ($present -join ","))
+  }
+}
+
+function Test-IsSyntheticLoopbackUrl([string]$Url) {
+  return [bool]($Url -match '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/')
+}
+
+function Assert-NoTarget2OverridesInForwardArgs([System.Collections.Generic.List[string]]$ArgsList) {
+  foreach ($a in $ArgsList) {
+    if ([string]$a -match '^--target2-') {
+      throw "BLOCKED_TARGET2_OVERRIDE_ON_INTERACTIVE: production SecureString path forbids --target2-* overrides"
+    }
+  }
 }
 
 function Assert-PriorDryRunEvidence {
@@ -278,6 +327,8 @@ $entryPath = $null
 $interactiveClose = $true
 $priorMeta = $null
 $exactToken = $null
+$forwardedFixtureTarget2 = $false
+$useSyntheticNonInteractivePath = $false
 
 Clear-Host
 Write-Host "============================================================" -ForegroundColor Yellow
@@ -327,16 +378,24 @@ try {
   if ($entryBytes.Length -ne [int]$ne.bytes) { throw "native_entry bytes mismatch" }
 
   Write-Host "[1/3] Hidden credential input..."
-  $allowSynthetic = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
-  if ($allowSynthetic -and -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    $interactiveClose = $false
-    if ($TestSyntheticDatabaseUrl -notmatch '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/') {
+  $allowSyntheticGate = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
+  $fixtureTarget2Gate = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2", "Process") -eq "1"
+  $hasExplicitSyntheticUrl = -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)
+  $useSyntheticNonInteractivePath = $false
+
+  if ($hasExplicitSyntheticUrl) {
+    if (-not $allowSyntheticGate) {
+      throw "SYNTHETIC_URL_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
+    }
+    if (-not (Test-IsSyntheticLoopbackUrl -Url $TestSyntheticDatabaseUrl)) {
       throw "TEST_URL_NOT_LOOPBACK: synthetic ceremony URL must target 127.0.0.1"
     }
+    $interactiveClose = $false
+    $useSyntheticNonInteractivePath = $true
     $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
-  } elseif (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    throw "SYNTHETIC_URL_NOT_ALLOWED: set CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
   } else {
+    # Interactive production SecureString path: harness env alone is contamination.
+    Assert-InteractivePathFreeOfHarnessContamination
     [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "awaiting_securestring_input")
     $secure = Read-Host -Prompt "CONTAINMENT_APPLY_DATABASE_URL" -AsSecureString
     Remove-Item -LiteralPath (Join-Path $EvidenceOutDir "PROMPT_READY.txt") -Force -ErrorAction SilentlyContinue
@@ -366,12 +425,17 @@ try {
   [void]$forwardList.Add("--i-authorize-production-apply")
   [void]$forwardList.Add($exactToken)
 
-  # Harness-only: disposable fixture Target #2 digests (never production / never operator argv).
-  $allowFixtureT2 = [Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2", "Process") -eq "1"
-  if ($allowFixtureT2) {
-    if (-not $allowSynthetic) {
-      throw "MODE_CONFUSION: fixture Target2 harness requires CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL=1"
-    }
+  # Fixture Target #2 overrides: ONLY complete disposable synthetic path.
+  # Env flags alone never authorize overrides; interactive SecureString never gets them.
+  $forwardedFixtureTarget2 = $false
+  if (
+    $useSyntheticNonInteractivePath -and
+    ($interactiveClose -eq $false) -and
+    $allowSyntheticGate -and
+    $fixtureTarget2Gate -and
+    $hasExplicitSyntheticUrl -and
+    (Test-IsSyntheticLoopbackUrl -Url $TestSyntheticDatabaseUrl)
+  ) {
     $node = (Get-Command -Name node.exe -CommandType Application | Select-Object -First 1).Source
     $helper = Join-Path $RepoRoot "tests/security/helpers/print-fixture-target2-args.js"
     if (-not (Test-Path -LiteralPath $helper)) {
@@ -385,7 +449,25 @@ try {
       $t = $line.Trim()
       if ($t.Length -gt 0) { [void]$forwardList.Add($t) }
     }
+    $forwardedFixtureTarget2 = $true
+  } elseif ($fixtureTarget2Gate -and -not $useSyntheticNonInteractivePath) {
+    throw "BLOCKED_HARNESS_ENV_CONTAMINATION: CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2 requires complete synthetic non-interactive path"
   }
+
+  if (-not $useSyntheticNonInteractivePath) {
+    Assert-NoTarget2OverridesInForwardArgs -ArgsList $forwardList
+    $stillContaminated = @(Get-PresentHarnessContaminationEnv)
+    if ($stillContaminated.Count -gt 0) {
+      Clear-HarnessContaminationEnv
+      throw ("BLOCKED_HARNESS_ENV_CONTAMINATION: harness env present before native entry: " + ($stillContaminated -join ","))
+    }
+    if ($forwardedFixtureTarget2) {
+      throw "BLOCKED_TARGET2_OVERRIDE_ON_INTERACTIVE: fixture Target2 must not reach interactive production path"
+    }
+  }
+
+  # Never inherit harness fixture gates into native entry / Node applicator child.
+  Clear-HarnessContaminationEnv
 
   Write-Host "[2/3] Invoking sealed native entry (apply)..."
   $entryArgParts = New-Object System.Collections.Generic.List[string]
@@ -465,6 +547,7 @@ catch {
 }
 finally {
   Clear-ContainmentCredential
+  Clear-HarnessContaminationEnv
   $plain = $null
   $exactToken = $null
   if ($null -ne $secure) { try { $secure.Dispose() } catch {}; $secure = $null }
@@ -493,6 +576,8 @@ finally {
     mode = "apply"
     freeze = $Freeze
     prior_dry_run_evidence_sha256 = $(if ($priorMeta) { [string]$priorMeta.sha256 } else { $null })
+    fixture_target2_overrides_forwarded = [bool]$forwardedFixtureTarget2
+    sealed_production_target2_handles_expected = (-not [bool]$forwardedFixtureTarget2)
     databaseConnectionAttempts = $dbAttempts
     sqlApplicationAttempts = $sqlAttempts
     advisory_lock_acquired = $(if ($parsed -and $null -ne $parsed.advisory_lock_acquired) { [bool]$parsed.advisory_lock_acquired } else { $false })
@@ -510,6 +595,10 @@ finally {
       embedded_official_ca_only = $true
       apply_token_operator_supplied = $false
       apply_token_from_sealed_auth_only = $true
+      harness_env_absent_after = (
+        [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")) -and
+        [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable("CONTAINMENT_CEREMONY_TEST_FIXTURE_TARGET2", "Process"))
+      )
     }
     cleanup = [ordered]@{
       credential_cleared = (-not [bool]$env:CONTAINMENT_APPLY_DATABASE_URL)
