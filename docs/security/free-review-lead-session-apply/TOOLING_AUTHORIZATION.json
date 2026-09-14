@@ -21,7 +21,7 @@
   "required_prior_dry_run_evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
   "required_prior_dry_run_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
   "required_prior_dry_run_evidence_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
-  "bundle_source_commit": null,
+  "bundle_source_commit": "6f58cde8aa20534e1119c3f59f9a42796922113c",
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
