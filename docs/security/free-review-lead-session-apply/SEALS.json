@@ -11,6 +11,6 @@
   },
   "prior_history_count": 186,
   "authorized_tooling_freeze": "fdd365018a091d9f828df11af1c0afb66a7dcba5",
-  "auth_seals_digest": "f91ef6bb252de388b1cd179b189a6e4657c3338cf955f5effad243da4dafe40e",
-  "standalone_bundle_sha256": "5f6c1a452299e5071f2bc0fc4e4be3f83dcb98a4827d16ca05df347e1d52c002"
+  "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
+  "standalone_bundle_sha256": "288d86dfcf6c3985d3bf707663cabcd6153cb398fff137d4b32546b6f9781734"
 }

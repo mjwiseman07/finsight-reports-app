@@ -15,13 +15,13 @@
   "apply_authorization_token": "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500",
   "advisory_lock": {
     "name": "FREE_REVIEW_LEAD_SESSIONS_APPLY",
-    "key1": 1178940499,
+    "key1": 1179798611,
     "key2": 539363603
   },
   "required_prior_dry_run_evidence_sha256": null,
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
-  "auth_seals_digest": "f91ef6bb252de388b1cd179b189a6e4657c3338cf955f5effad243da4dafe40e",
+  "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
     "oid": "71e57a3a6a44e9bc34992034ea101e9612bd5207",
@@ -94,8 +94,8 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
-    "oid": "5450617ff0970265a19589e4238ec4d0c4e2cba8",
-    "sha256": "5f6c1a452299e5071f2bc0fc4e4be3f83dcb98a4827d16ca05df347e1d52c002",
+    "oid": "8a90efd53d37c03994362070431004850692ced1",
+    "sha256": "288d86dfcf6c3985d3bf707663cabcd6153cb398fff137d4b32546b6f9781734",
     "bytes": 278480,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
@@ -118,8 +118,8 @@
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-constants.js",
-      "oid": "a77f5d171a130c9a5caf42292975c849064f02d8",
-      "sha256": "6f2014e6a7964921aef9228b5f642d4b8625afa686bc929aee2c47e3942168c6",
+      "oid": "5b0e9e1e8004754c2f9addf7ec336c46b958a8ff",
+      "sha256": "2e7d68a713b7d23b92b417eab2dd09cbaa9811d9374c18a9a298864504fbfc7d",
       "bytes": 3837
     },
     {

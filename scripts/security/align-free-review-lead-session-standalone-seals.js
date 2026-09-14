@@ -60,7 +60,7 @@ function canonicalAuthSealsDigest() {
     apply_authorization_token: "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500",
     advisory_lock: {
       name: "FREE_REVIEW_LEAD_SESSIONS_APPLY",
-      key1: 1178940499,
+      key1: 1179798611,
       key2: 539363603,
     },
     pg_version: "8.21.0",
