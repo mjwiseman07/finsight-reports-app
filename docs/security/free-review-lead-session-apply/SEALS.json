@@ -1,0 +1,16 @@
+{
+  "package": "free-review-lead-session-apply",
+  "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
+  "migration": {
+    "path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+    "oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+    "sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+    "bytes": 8108,
+    "version": "20260913235500",
+    "name": "free_review_lead_sessions"
+  },
+  "prior_history_count": 186,
+  "authorized_tooling_freeze": "PENDING_AFTER_COMMIT",
+  "auth_seals_digest": "f91ef6bb252de388b1cd179b189a6e4657c3338cf955f5effad243da4dafe40e",
+  "standalone_bundle_sha256": "ed4d557f96ad7da26e66fafc36c7e031cd5ce7aaca703befac0081485750342f"
+}

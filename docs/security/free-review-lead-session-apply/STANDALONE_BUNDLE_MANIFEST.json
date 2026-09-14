@@ -1,0 +1,83 @@
+{
+  "package": "free-review-lead-session-applicator-standalone",
+  "bundle_path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
+  "bundle_sha256": "ed4d557f96ad7da26e66fafc36c7e031cd5ce7aaca703befac0081485750342f",
+  "bundle_bytes": 278460,
+  "bundle_oid_hash_object": "5ac0cb08f7e37f95407d5c1fbceb817c42601a64",
+  "auth_seals_digest": "f91ef6bb252de388b1cd179b189a6e4657c3338cf955f5effad243da4dafe40e",
+  "lockfile_path": "package-lock.json",
+  "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+  "pg_version": "8.21.0",
+  "pg_resolved": "https://registry.npmjs.org/pg/-/pg-8.21.0.tgz",
+  "pg_integrity": "sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==",
+  "build": {
+    "command": "node scripts/security/build-free-review-lead-session-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0",
+    "node": "v22.22.0",
+    "deterministic_note": "Rebuild with the same Node major + esbuild@0.25.0 from LF-normalized freeze sources and compare bundle_sha256.",
+    "pg_native_alias": "scripts/security/stubs/pg-native-failclosed.js"
+  },
+  "content_scan": {
+    "unresolved_external_requires": [],
+    "pg_native_token_count": 3,
+    "has_unresolved_require_pg_native": false,
+    "fail_closed_stub_present": true
+  },
+  "source_modules": [
+    {
+      "path": "scripts/security/apply-free-review-lead-session.js",
+      "oid": "0e47ffb3cc8a7691f687c5d367c7e3249ed0f083",
+      "sha256": "d50d3af12a69548650225c81cf2b65de1daa39e603b8bd53fa9550e933eea86a",
+      "bytes": 7035
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-core.js",
+      "oid": "6df7f053b4295ad87553529b278f590a942c9762",
+      "sha256": "1d45b9ae33d45e2f1613cb598420ee83e696e590699459a82f95eb98c1163d83",
+      "bytes": 43245
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-constants.js",
+      "oid": "4f54120f355fcfa76e882a5e160f68ed04e7edfd",
+      "sha256": "cbff066caf54dc976b12b82029c070c453ff4353abd945bd91c4fd12a03bf2e2",
+      "bytes": 3817
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-evidence.js",
+      "oid": "49efce9c524191c5ec344d5a84ef8ac3756ebb27",
+      "sha256": "267a556ff6774c9f27aea18598cf8497289c3514eea7e325020d182c11c1438a",
+      "bytes": 8307
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-tls-ca.js",
+      "oid": "2ed9ac270c717fa513aec59046fde6dafeae71ce",
+      "sha256": "a9f8cf9494a5198261eebb4c0a17c7c731ab30a435fba68834773e0823f21339",
+      "bytes": 1575
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
+    }
+  ],
+  "inventory": {
+    "includes": [
+      "applicator CLI/core/constants/git-blob-authority",
+      "pg@8.21.0 and esbuild-resolved runtime dependency graph"
+    ],
+    "excludes_at_runtime": [
+      "repository node_modules",
+      "NODE_PATH",
+      "global packages",
+      "network fetch"
+    ]
+  },
+  "built_at": "2026-09-14T02:50:45.115Z"
+}

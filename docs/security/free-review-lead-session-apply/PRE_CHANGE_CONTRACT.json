@@ -1,0 +1,37 @@
+{
+  "contract_id": "free-review-lead-sessions-prechange-v1",
+  "captured_at_utc": "2026-09-13T23:55:00Z",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_mode": "read_only_catalog_metadata",
+  "base_git_sha": "b2c431fa4310f58c9ee667e858333e084c2fed52",
+  "severity": "MEDIUM",
+  "notes": [
+    "Zero lead rows and zero token values are included.",
+    "Parent table public.free_review_leads must exist with status text default lead_captured.",
+    "Target objects (free_review_lead_sessions table, rotate/cleanup/delete-guard functions, session indexes/trigger) must be absent before apply.",
+    "Apply inserts exactly one sealed migration version 20260913235500; no unrelated tip migrations."
+  ],
+  "parent_object": {
+    "public.free_review_leads": {
+      "kind": "table",
+      "required_columns": ["id", "status"],
+      "status_column": {
+        "type": "text",
+        "default": "lead_captured"
+      }
+    }
+  },
+  "absent_before_apply": [
+    "public.free_review_lead_sessions",
+    "public.rotate_free_review_lead_session(uuid, text, timestamptz)",
+    "public.cleanup_free_review_lead_sessions(integer)",
+    "public.prevent_active_free_review_lead_session_delete()",
+    "free_review_lead_sessions_token_hash_uidx",
+    "free_review_lead_sessions_one_unrevoked_per_lead_uidx",
+    "trg_prevent_active_free_review_lead_session_delete"
+  ],
+  "history": {
+    "prior_count": 186,
+    "target_version_absent": "20260913235500"
+  }
+}

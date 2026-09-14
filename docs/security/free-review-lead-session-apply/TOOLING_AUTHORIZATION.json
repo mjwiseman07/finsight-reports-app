@@ -1,0 +1,168 @@
+{
+  "package": "free-review-lead-session-apply-tooling",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
+  "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+  "migration_blob_oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+  "migration_sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+  "migration_bytes": 8108,
+  "migration_version": "20260913235500",
+  "migration_name": "free_review_lead_sessions",
+  "database_url_env": "FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL",
+  "tls_trust_root": "EMBEDDED_OFFICIAL_SUPABASE_CA",
+  "official_supabase_ca_der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+  "apply_authorization_token": "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500",
+  "advisory_lock": {
+    "name": "FREE_REVIEW_LEAD_SESSIONS_APPLY",
+    "key1": 1178940499,
+    "key2": 539363603
+  },
+  "required_prior_dry_run_evidence_sha256": null,
+  "required_prior_dry_run_freeze": null,
+  "required_prior_dry_run_evidence_tip": null,
+  "auth_seals_digest": "f91ef6bb252de388b1cd179b189a6e4657c3338cf955f5effad243da4dafe40e",
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
+    "oid": "71e57a3a6a44e9bc34992034ea101e9612bd5207",
+    "sha256": "9964fa25f0f8f363fa74aa3e9fd049c65dce8a4dae9184459936c756fa2a55aa",
+    "bytes": 26682,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
+  "native_entry": {
+    "path": "scripts/security/enter-free-review-lead-session-apply.ps1",
+    "oid": "00c89fc2eae5f313da74d40f5dac46482ca2cb75",
+    "sha256": "b2dda0af381ed0e8d629b201d628c162ba03a04f86ef2f4a716d2d883bb06b08",
+    "bytes": 11916
+  },
+  "evidence_protocol": {
+    "id": "FRLS_LEAD_SESSION_EVIDENCE_V1",
+    "frame": "FRLS_LEAD_SESSION_EVIDENCE_V1:<base64url-utf8-json>",
+    "schema_version": 1,
+    "path": "scripts/security/free-review-lead-session-evidence.js",
+    "oid": "49efce9c524191c5ec344d5a84ef8ac3756ebb27",
+    "sha256": "267a556ff6774c9f27aea18598cf8497289c3514eea7e325020d182c11c1438a",
+    "bytes": 8307,
+    "frame_tool": {
+      "path": "scripts/security/free-review-lead-session-evidence-frame-tool.js",
+      "oid": "3bdc10ddc0c62ebcac6470117ab2b7696527fed6",
+      "sha256": "1f7da9bd9ffee08c0c83fb99391acf221706763694f1f205865c36e85001f873",
+      "bytes": 2345
+    },
+    "decode_frame": {
+      "path": "scripts/security/free-review-lead-session-evidence-decode-frame.js",
+      "oid": "29cf0a77b625641648e5ecabbda75e7b29d03d09",
+      "sha256": "026285b64dc6a9538b71252d6bda815e7837531a643ad896a7440a21db020bbb",
+      "bytes": 1217
+    },
+    "shared_framing_module": {
+      "path": "scripts/security/containment-evidence-protocol.js",
+      "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+      "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+      "bytes": 16255
+    }
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-free-review-lead-session-production-dryrun-ceremony.ps1",
+    "oid": "256b74647e1d1b34e4203d5cb001bfd55933ebc5",
+    "sha256": "f08a3599542f741405b4e035f23e62bfed425f1d2fe6aedd0c4b7143a7a5f613",
+    "bytes": 21135
+  },
+  "operator_apply_ceremony": {
+    "path": "scripts/security/operator-free-review-lead-session-production-apply-ceremony.ps1",
+    "oid": "b1897eac2f4259ae2cac78cc34a097cba3c5f1a3",
+    "sha256": "acfb92d8470ece75246deaefa95a0da90b62b42f0007ca1ece3311db82bc477b",
+    "bytes": 29315
+  },
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "1f74bc4e0c0bf75eb47bb2e3ff8fa997404de29b",
+    "sha256": "659b49bf74733499c4ae218992d1e6a04a5ba8217d37f29eed86c9e5eb9c32cc",
+    "bytes": 34980
+  },
+  "visible_ceremony_entry": {
+    "path": "scripts/security/enter-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "aeaca81f29f192836f1fdadf94bde027083bd71a",
+    "sha256": "be89807ad6be517e76f1350fb2a8067a29324e35ec1c8681e1fa8a0f03ea208b",
+    "bytes": 24389
+  },
+  "visible_ceremony_launcher": {
+    "path": "scripts/security/launch-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "e70f980856656c3305add27c1e420f53cd6ecba5",
+    "sha256": "0675c295c23cea4a97c24f145b4cb01bf33fade4a166b557f287bf3581a09c05",
+    "bytes": 16765
+  },
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
+    "oid": "5ac0cb08f7e37f95407d5c1fbceb817c42601a64",
+    "sha256": "ed4d557f96ad7da26e66fafc36c7e031cd5ce7aaca703befac0081485750342f",
+    "bytes": 278460,
+    "pg_version": "8.21.0",
+    "lockfile_path": "package-lock.json",
+    "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+    "build_command": "node scripts/security/build-free-review-lead-session-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0"
+  },
+  "tooling_modules": [
+    {
+      "path": "scripts/security/apply-free-review-lead-session.js",
+      "oid": "0e47ffb3cc8a7691f687c5d367c7e3249ed0f083",
+      "sha256": "d50d3af12a69548650225c81cf2b65de1daa39e603b8bd53fa9550e933eea86a",
+      "bytes": 7035
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-core.js",
+      "oid": "6df7f053b4295ad87553529b278f590a942c9762",
+      "sha256": "1d45b9ae33d45e2f1613cb598420ee83e696e590699459a82f95eb98c1163d83",
+      "bytes": 43245
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-constants.js",
+      "oid": "4f54120f355fcfa76e882a5e160f68ed04e7edfd",
+      "sha256": "cbff066caf54dc976b12b82029c070c453ff4353abd945bd91c4fd12a03bf2e2",
+      "bytes": 3817
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-evidence.js",
+      "oid": "49efce9c524191c5ec344d5a84ef8ac3756ebb27",
+      "sha256": "267a556ff6774c9f27aea18598cf8497289c3514eea7e325020d182c11c1438a",
+      "bytes": 8307
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-tls-ca.js",
+      "oid": "2ed9ac270c717fa513aec59046fde6dafeae71ce",
+      "sha256": "a9f8cf9494a5198261eebb4c0a17c7c731ab30a435fba68834773e0823f21339",
+      "bytes": 1575
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
+    }
+  ],
+  "notes": [
+    "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
+    "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip.",
+    "Launcher materializes standalone_bundle from freeze git blobs before any DB connection.",
+    "TLS trust root is the freeze-sealed embedded official Supabase CA (DER-pinned); FREE_REVIEW_LEAD_SESSION_APPLY_SSL_ROOTCERT is forbidden.",
+    "Migration git cat-file authority (LF): OID 7dca9674673eb51ab5094d3ec09508d0711f16cd, SHA-256 b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb, bytes 8108 at artifact_commit b2c431fa4310f58c9ee667e858333e084c2fed52.",
+    "Operator-supplied CRLF worktree measurements (c4e34759f61f27781950295767fca3c3e2136eb8682a72e7f84d8d363e94f0ed / 8314 bytes) are NOT applicator pins; git blob OID is LF authority.",
+    "Native Windows Job Object containment lives in visible_ceremony_supervisor: it creates the job with ONLY JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (0x2000) via the FrlsVisible.JobApi P/Invoke surface, starts the entry CREATE_SUSPENDED, AssignProcessToJobObject, then ResumeThread. BREAKAWAY flags are never set; assign failure kills the suspended child without resuming.",
+    "SecureString credential ceremony lives in operator_ceremony and operator_apply_ceremony: Read-Host -AsSecureString, SecureStringToBSTR/PtrToStringBSTR, ZeroFreeBSTR, process-env handoff only, cleared on every outcome. The URL never reaches argv, chat, logs, or emitted evidence.",
+    "System32 PowerShell resolution (absolute %SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, reparse-point and PATH-shim rejected) is enforced in supervisor, visible entry, visible launcher, and both operator ceremonies before any child process starts.",
+    "Visible ceremony: run visible_ceremony_supervisor with -CeremonyKind dry-run|apply; it materializes visible_ceremony_entry from tip under the Job Object. CeremonyKind dry-run selects operator_ceremony; apply selects operator_apply_ceremony. Missing/unknown kind fails before PROMPT_READY.",
+    "Enter materializes launcher + the seal-selected ceremony from freeze blobs only; never execute mutable worktree scripts as authority.",
+    "FRLS has no fixture Target #2 world: the ceremonies forward only the sealed apply token, and FRLS_CEREMONY_ALLOW_SYNTHETIC_URL is the single harness channel (loopback 127.0.0.1 only, never on the interactive SecureString path).",
+    "CONTAINMENT_APPLY_DATABASE_URL is not an FRLS channel; both operator ceremonies fail closed with BLOCKED_RETIRED_CREDENTIAL_CHANNEL if it is set, and the visible chain clears it.",
+    "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip are null until the first authorized production dry-run publishes them. While they are null the apply ceremony, visible entry, and supervisor all refuse apply with BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED; -PriorDryRunEvidencePath is therefore optional at the shell boundary and enforced against the sealed authorization once the pins exist.",
+    "Child evidence frame is FRLS_LEAD_SESSION_EVIDENCE_V1; the FRLS evidence module requires the shared framing primitives in evidence_protocol.shared_framing_module, which ceremonies materialize as a sibling before decoding.",
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree."
+  ]
+}

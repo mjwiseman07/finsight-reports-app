@@ -1,0 +1,14 @@
+{
+  "name": "FREE_REVIEW_LEAD_SESSIONS_APPLY",
+  "key1": 1178940499,
+  "key1_hex": "0x46524c53",
+  "key1_ascii": "FRLS",
+  "key2": 539363603,
+  "key2_hex": "0x20260913",
+  "mechanism": "pg_advisory_xact_lock",
+  "scope": "transaction",
+  "notes": [
+    "Named lock unique to free_review_lead_sessions single-version apply.",
+    "Acquired only on apply path inside BEGIN/COMMIT; dry-run never acquires."
+  ]
+}
