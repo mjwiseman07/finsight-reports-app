@@ -33,7 +33,7 @@ var require_free_review_lead_session_apply_constants = __commonJS({
     var GIT_CWD_ENV = "FRLS_GIT_CWD";
     var EXPECTED_AUTH_SEALS_DIGEST = "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7";
     var EXPECTED_STANDALONE_BUNDLE_SHA256 = "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
-    var AUTHORIZED_TOOLING_FREEZE = "da763eb1f63eec99a76e1773dc3affc0c2ba6ff4";
+    var AUTHORIZED_TOOLING_FREEZE = "PENDING_AFTER_COMMIT";
     var STANDALONE_BUNDLE_PATH = "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs";
     var EVIDENCE_PROTOCOL_ID = "FRLS_LEAD_SESSION_EVIDENCE_V1";
     var CONTRACT_PATH = "docs/security/free-review-lead-session-apply/PRE_CHANGE_CONTRACT.json";
@@ -6621,6 +6621,12 @@ var require_free_review_lead_session_apply_core = __commonJS({
         migration_path: inputs.migrationPath,
         migration_version: inputs.version,
         migration_name: inputs.name,
+        migration_blob_oid: inputs.migrationBlobOid || null,
+        migration_sha256: inputs.migrationSha256 || null,
+        migration_bytes: typeof inputs.migrationBytes === "number" ? inputs.migrationBytes : null,
+        version_absent: null,
+        migration_objects_absent: null,
+        transaction_mutation: false,
         advisory_lock: {
           name: ADVISORY_LOCK2.name,
           key1: ADVISORY_LOCK2.key1,
@@ -7236,6 +7242,12 @@ var require_free_review_lead_session_apply_core = __commonJS({
               session_indexes_absent: !probe.token_hash_index_exists && !probe.one_unrevoked_index_exists,
               delete_guard_trigger_absent: !probe.delete_guard_trigger_exists
             };
+            evidence.version_absent = true;
+            evidence.migration_objects_absent = !probe.sessions_table_exists && !probe.rotate_fn_exists && !probe.cleanup_fn_exists && !probe.delete_guard_fn_exists && !probe.token_hash_index_exists && !probe.one_unrevoked_index_exists && !probe.delete_guard_trigger_exists;
+            evidence.transaction_mutation = false;
+            evidence.migration_blob_oid = packed.loaded.oid;
+            evidence.migration_sha256 = packed.loaded.sha256;
+            evidence.migration_bytes = packed.loaded.bytes;
             await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
             await assertVersionAbsent(client, inputs.version);
           },
@@ -7247,6 +7259,7 @@ var require_free_review_lead_session_apply_core = __commonJS({
         );
         evidence.sqlApplicationAttempts = 0;
         evidence.advisory_lock_acquired = false;
+        evidence.transaction_mutation = false;
         evidence.verdict = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
         evidence.result_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
         evidence.reason_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";

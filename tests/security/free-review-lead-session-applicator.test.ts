@@ -167,6 +167,9 @@ describe.skipIf(!dockerOk)("Free Review lead-session applicator (local simulatio
     expect(evidence.verdict).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
     expect(evidence.sqlApplicationAttempts).toBe(0);
     expect(evidence.advisory_lock_acquired).toBe(false);
+    expect(evidence.version_absent).toBe(true);
+    expect(evidence.migration_objects_absent).toBe(true);
+    expect(evidence.transaction_mutation).toBe(false);
     expect(JSON.stringify(evidence)).not.toMatch(/postgres:postgres|password=/i);
     expect(evidence.source_authority?.single_sealed_version_only).toBe(true);
   });

@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "da763eb1f63eec99a76e1773dc3affc0c2ba6ff4",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -64,15 +64,15 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-free-review-lead-session-production-dryrun-ceremony.ps1",
-    "oid": "256b74647e1d1b34e4203d5cb001bfd55933ebc5",
-    "sha256": "f08a3599542f741405b4e035f23e62bfed425f1d2fe6aedd0c4b7143a7a5f613",
-    "bytes": 21135
+    "oid": "3e3889e8d6653a4d6c896f76c24c3bb5cdd7127c",
+    "sha256": "85f4c5af59835e583b06061c8d399398ef83310e0b169bf62d9e571c34bce7b5",
+    "bytes": 21192
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-free-review-lead-session-production-apply-ceremony.ps1",
-    "oid": "6d39268f8a7b94a55952ad56202966b1f105ad56",
-    "sha256": "f1a896d4c2d9e19d7d0d3b1384d3f5741dbe7e234f0b82db44c8b272e631b99b",
-    "bytes": 25974
+    "oid": "be73cf04997d1f2e4b2711de386932707aa20ad6",
+    "sha256": "bc3b66f103dae946cf34a39a2c5c71a281f2844a3316ae68fdffca802d5b0bc0",
+    "bytes": 29029
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-free-review-lead-session-ceremony.ps1",
@@ -94,9 +94,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
-    "oid": "dc6a3f41a34d275a5ef218783b3f479b38fc1900",
-    "sha256": "96b5be9501375914c86977acc6fb8a296e8cacc7b0021b3de9eb2658816050b9",
-    "bytes": 278480,
+    "oid": "e89e07d5b1271962674317e5272accd583254dfd",
+    "sha256": "2f2f5214651777c410b8fd1321c62b7d0ba4bc6a331ae429e14d529651a719fa",
+    "bytes": 279385,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -112,15 +112,15 @@
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-core.js",
-      "oid": "6df7f053b4295ad87553529b278f590a942c9762",
-      "sha256": "1d45b9ae33d45e2f1613cb598420ee83e696e590699459a82f95eb98c1163d83",
-      "bytes": 43245
+      "oid": "2c2bc35d20e7d3d8cb3df246284eeddbd3093f0f",
+      "sha256": "146fc6494548459a997f45daed59377ec668b19a8fd6b60a716fd174b8c675de",
+      "bytes": 44194
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-constants.js",
-      "oid": "71cbb96816bcfdf6de0bb90607ccd1c7c5b8e1d0",
-      "sha256": "c442fffd953334ba8707cfae11b549c71afaac0684f3c899b5b853b8ec8e5302",
-      "bytes": 3837
+      "oid": "17c32adeb1f89c3bf454bcdc79cf5f14be6be1cc",
+      "sha256": "45db3a31db80bf4dad55399c7a847d5ce3c38cf2288519e3aafcae388d1285ab",
+      "bytes": 3817
     },
     {
       "path": "scripts/security/git-blob-authority.js",
@@ -168,16 +168,17 @@
   ],
   "prior_dry_run_gates": {
     "path": "scripts/security/free-review-lead-session-prior-dry-run-gates.ps1",
-    "oid": "3e874a821f7481f349f557f9c351d77a335eba2d",
-    "sha256": "d996cebfad8b20688dbe2a0488f1262ecf1b263285e504eeb072bcb1036cd442",
-    "bytes": 5614,
+    "oid": "7d3741a42357aac87ab75039691ff35389c903e2",
+    "sha256": "d4ba0a0705af7d88987d614c5ef93a917f48e24ac3d016059df459e702fe9590",
+    "bytes": 9642,
     "allowlist": [
       "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
       "DRY_RUN_READY"
     ],
     "notes": [
-      "Assert-PriorDryRunEvidence accepts identical allowlist for wrapper result_code and applicator verdict.",
-      "Long+short pairs are semantic synonyms; mixed success/failure is rejected."
+      "Must be materialized from authorized executable freeze and OID/SHA/byte verified before dotsource.",
+      "Never load from $PSScriptRoot or mutable worktree.",
+      "Assert-PriorDryRunEvidence requires full sealed dry-run evidence contract including history 186 and migration LF seals."
     ]
   }
 }

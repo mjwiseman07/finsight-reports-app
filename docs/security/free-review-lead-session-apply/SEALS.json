@@ -10,7 +10,7 @@
     "name": "free_review_lead_sessions"
   },
   "prior_history_count": 186,
-  "authorized_tooling_freeze": "da763eb1f63eec99a76e1773dc3affc0c2ba6ff4",
+  "authorized_tooling_freeze": "PENDING_AFTER_COMMIT",
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
-  "standalone_bundle_sha256": "96b5be9501375914c86977acc6fb8a296e8cacc7b0021b3de9eb2658816050b9"
+  "standalone_bundle_sha256": "2f2f5214651777c410b8fd1321c62b7d0ba4bc6a331ae429e14d529651a719fa"
 }

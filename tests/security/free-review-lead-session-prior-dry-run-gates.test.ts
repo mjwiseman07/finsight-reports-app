@@ -28,6 +28,17 @@ const SHORT = "DRY_RUN_READY";
 const FREEZE = "fdd365018a091d9f828df11af1c0afb66a7dcba5";
 const TIP = "e581569b458ee4c64613675242a3a3d2468c71c0";
 
+const PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
+const MIGRATION_VERSION = "20260913235500";
+const MIGRATION_NAME = "free_review_lead_sessions";
+const MIGRATION_PATH =
+  "supabase/migrations/20260913235500_free_review_lead_sessions.sql";
+const MIGRATION_BLOB_OID = "7dca9674673eb51ab5094d3ec09508d0711f16cd";
+const MIGRATION_SHA256 =
+  "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb";
+const MIGRATION_BYTES = 8108;
+const PRIOR_HISTORY_COUNT = 186;
+
 function systemPowerShell(): string {
   return path.join(
     process.env.SystemRoot || "C:\\Windows",
@@ -56,26 +67,59 @@ function baseEvidence(overrides: Record<string, unknown> = {}) {
     (overrides.applicator as Record<string, unknown> | undefined) || {};
   const cleanupOverrides =
     (overrides.cleanup as Record<string, unknown> | undefined) || {};
-  const { applicator: _a, cleanup: _c, ...top } = overrides;
+  const wrapCredOverrides =
+    (overrides.credential_redaction_confirmation as Record<string, unknown> | undefined) ||
+    {};
+  const appCredOverrides =
+    (appOverrides.credential_redaction_confirmation as Record<string, unknown> | undefined) ||
+    {};
+  const { applicator: _a, cleanup: _c, credential_redaction_confirmation: _wcr, ...top } =
+    overrides;
+  const { credential_redaction_confirmation: _acr, ...appRest } = appOverrides;
   return {
     result_code: LONG,
+    evidence_source: "sealed_applicator",
     mode: "dry-run",
+    freeze: FREEZE,
+    databaseConnectionAttempts: 1,
     sqlApplicationAttempts: 0,
     advisory_lock_acquired: false,
+    credential_redaction_confirmation: {
+      url_in_evidence: false,
+      url_in_argv: false,
+      ...wrapCredOverrides,
+    },
     applicator: {
       verdict: LONG,
-      result_code: LONG,
+      evidence_source: "sealed_applicator",
+      mode: "dry-run",
       read_only: true,
+      project_ref_provided: PROJECT_REF,
       authorized_tooling_freeze: FREEZE,
-      pr_head: FREEZE,
       evidence_tip: TIP,
+      migration_version: MIGRATION_VERSION,
+      migration_name: MIGRATION_NAME,
+      migration_path: MIGRATION_PATH,
+      migration_blob_oid: MIGRATION_BLOB_OID,
+      migration_sha256: MIGRATION_SHA256,
+      migration_bytes: MIGRATION_BYTES,
+      prior_history_count: PRIOR_HISTORY_COUNT,
+      version_absent: true,
+      migration_objects_absent: true,
+      transaction_mutation: false,
+      databaseConnectionAttempts: 1,
       sqlApplicationAttempts: 0,
       advisory_lock_acquired: false,
-      ...appOverrides,
+      credential_redaction_confirmation: {
+        values_undisclosed: true,
+        ...appCredOverrides,
+      },
+      ...appRest,
     },
     cleanup: {
       credential_cleared: true,
       ca_path_env_absent: true,
+      completed: true,
       ...cleanupOverrides,
     },
     ...top,
@@ -108,6 +152,25 @@ function writeEvidencePair(
   const authPath = path.join(dir, "auth-with-pins.json");
   fs.writeFileSync(authPath, `${JSON.stringify(auth, null, 2)}\n`, "utf8");
   return { evidencePath, authPath, sha };
+}
+
+function assertEvidenceRejected(
+  evidence: Record<string, unknown>,
+  pattern: RegExp,
+) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-neg-"));
+  const { evidencePath, authPath } = writeEvidencePair(dir, evidence);
+  const r = runHarness([
+    "-Action",
+    "assert-evidence",
+    "-EvidencePath",
+    evidencePath,
+    "-AuthJsonPath",
+    authPath,
+  ]);
+  expect(r.status).toBe(1);
+  expect(r.out).toMatch(pattern);
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 describe("FRLS prior-dry-run verdict allowlist (assert-codes)", () => {
@@ -254,7 +317,7 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
       dir,
       baseEvidence({
         result_code: SHORT,
-        applicator: { verdict: SHORT, result_code: SHORT },
+        applicator: { verdict: SHORT },
       }),
     );
     const r = runHarness([
@@ -307,60 +370,124 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
   });
 
   it("rejects non-zero sqlApplicationAttempts", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-sql-"));
-    const { evidencePath, authPath } = writeEvidencePair(
-      dir,
+    assertEvidenceRejected(
       baseEvidence({ sqlApplicationAttempts: 1 }),
+      /sqlApplicationAttempts must be 0/,
     );
-    const r = runHarness([
-      "-Action",
-      "assert-evidence",
-      "-EvidencePath",
-      evidencePath,
-      "-AuthJsonPath",
-      authPath,
-    ]);
-    expect(r.status).toBe(1);
-    expect(r.out).toMatch(/sqlApplicationAttempts must be 0/);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("rejects read_only false", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-ro-"));
-    const { evidencePath, authPath } = writeEvidencePair(
-      dir,
+    assertEvidenceRejected(
       baseEvidence({ applicator: { read_only: false } }),
+      /read_only must be true/,
     );
-    const r = runHarness([
-      "-Action",
-      "assert-evidence",
-      "-EvidencePath",
-      evidencePath,
-      "-AuthJsonPath",
-      authPath,
-    ]);
-    expect(r.status).toBe(1);
-    expect(r.out).toMatch(/read_only must be true/);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("rejects advisory_lock_acquired true", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-adv-"));
-    const { evidencePath, authPath } = writeEvidencePair(
-      dir,
+    assertEvidenceRejected(
       baseEvidence({ advisory_lock_acquired: true }),
+      /advisory_lock_acquired must be false/,
     );
-    const r = runHarness([
-      "-Action",
-      "assert-evidence",
-      "-EvidencePath",
-      evidencePath,
-      "-AuthJsonPath",
-      authPath,
-    ]);
-    expect(r.status).toBe(1);
-    expect(r.out).toMatch(/advisory_lock_acquired must be false/);
-    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rejects wrong prior_history_count", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { prior_history_count: 185 } }),
+      /BLOCKED_PRIOR_DRY_RUN_HISTORY/,
+    );
+  });
+
+  it("rejects version_absent false", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { version_absent: false } }),
+      /BLOCKED_PRIOR_DRY_RUN_VERSION/,
+    );
+  });
+
+  it("rejects wrong project_ref", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { project_ref_provided: "not-the-project" } }),
+      /BLOCKED_PRIOR_DRY_RUN_PROJECT/,
+    );
+  });
+
+  it("rejects wrong migration_blob_oid", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { migration_blob_oid: "deadbeef".repeat(5) } }),
+      /migration_blob_oid mismatch/,
+    );
+  });
+
+  it("rejects wrong migration_sha256", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { migration_sha256: "ff".repeat(32) } }),
+      /migration_sha256 mismatch/,
+    );
+  });
+
+  it("rejects wrong migration_bytes", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { migration_bytes: 99999 } }),
+      /migration_bytes mismatch/,
+    );
+  });
+
+  it("rejects databaseConnectionAttempts 0", () => {
+    assertEvidenceRejected(
+      baseEvidence({ databaseConnectionAttempts: 0 }),
+      /BLOCKED_PRIOR_DRY_RUN_DB_ATTEMPTS/,
+    );
+  });
+
+  it("rejects databaseConnectionAttempts 2", () => {
+    assertEvidenceRejected(
+      baseEvidence({ databaseConnectionAttempts: 2 }),
+      /BLOCKED_PRIOR_DRY_RUN_DB_ATTEMPTS/,
+    );
+  });
+
+  it("rejects applicator sqlApplicationAttempts 1", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { sqlApplicationAttempts: 1 } }),
+      /sqlApplicationAttempts must be 0/,
+    );
+  });
+
+  it("rejects applicator advisory_lock_acquired true", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { advisory_lock_acquired: true } }),
+      /advisory_lock_acquired must be false/,
+    );
+  });
+
+  it("rejects incomplete cleanup", () => {
+    assertEvidenceRejected(
+      baseEvidence({ cleanup: { completed: false } }),
+      /BLOCKED_PRIOR_DRY_RUN_CLEANUP/,
+    );
+  });
+
+  it("rejects missing evidence_source on wrapper", () => {
+    const ev = baseEvidence();
+    delete (ev as Record<string, unknown>).evidence_source;
+    assertEvidenceRejected(ev, /BLOCKED_PRIOR_DRY_RUN_SOURCE/);
+  });
+
+  it("rejects transaction_mutation true", () => {
+    assertEvidenceRejected(
+      baseEvidence({ applicator: { transaction_mutation: true } }),
+      /BLOCKED_PRIOR_DRY_RUN_TX/,
+    );
+  });
+
+  it("rejects wrapper/applicator freeze mismatch against auth pin", () => {
+    assertEvidenceRejected(
+      baseEvidence({
+        freeze: FREEZE,
+        applicator: { authorized_tooling_freeze: "b".repeat(40) },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_STALE_FREEZE/,
+    );
   });
 
   it("rejects malformed evidence JSON", () => {
@@ -437,15 +564,69 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);
 
-  it("apply ceremony dotsources shared gates and uses identical allowlist", () => {
+  it("apply ceremony materializes gates from freeze, not PSScriptRoot", () => {
     const ceremony = fs.readFileSync(path.join(ROOT, APPLY_CEREMONY), "utf8");
     const gates = fs.readFileSync(path.join(ROOT, GATES), "utf8");
-    expect(ceremony).toMatch(/free-review-lead-session-prior-dry-run-gates\.ps1/);
+    expect(ceremony).toMatch(/Import-FrlsPriorDryRunGatesFromFreeze/);
+    expect(ceremony).toMatch(/Materialize-GitBlob/);
+    expect(ceremony).toMatch(/BLOCKED_GATE_MODULE/);
+    expect(ceremony).toMatch(/Clear-FrlsMaterializedGates/);
+    expect(ceremony).not.toMatch(
+      /Join-Path \$PSScriptRoot "free-review-lead-session-prior-dry-run-gates\.ps1"/,
+    );
     expect(ceremony).not.toMatch(
       /applicator verdict must be DRY_RUN_READY"/,
     );
     expect(gates).toContain(LONG);
     expect(gates).toContain(SHORT);
     expect(gates).toMatch(/Assert-FrlsPriorDryRunReadyCodes/);
+  });
+});
+
+describe("FRLS prior-dry-run gate materialization authority", () => {
+  it("Import-FrlsPriorDryRunGatesFromFreeze reads freeze cat-file, not worktree path", () => {
+    const ceremony = fs.readFileSync(path.join(ROOT, APPLY_CEREMONY), "utf8");
+    expect(ceremony).toMatch(/function Import-FrlsPriorDryRunGatesFromFreeze/);
+    expect(ceremony).toMatch(/Materialize-GitBlob -Rel \$rel -Dest \$dest/);
+    expect(ceremony).toMatch(/cat-file blob \$\{Freeze\}:/);
+    expect(ceremony).not.toMatch(
+      /Join-Path \$PSScriptRoot "free-review-lead-session-prior-dry-run-gates\.ps1"/,
+    );
+  });
+
+  it("corrupted worktree gates file does not affect freeze cat-file authority", () => {
+    const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+    const seal = auth.prior_dry_run_gates;
+    const freeze = auth.authorized_pr_head;
+    const rel = seal.path;
+    const gatesPath = path.join(ROOT, rel);
+    const backup = fs.readFileSync(gatesPath);
+    fs.writeFileSync(
+      gatesPath,
+      "# CORRUPTED WORKTREE GATES\nthrow 'CORRUPTED'\n",
+      "utf8",
+    );
+    try {
+      const { execFileSync } = require("node:child_process");
+      const blob = execFileSync("git", ["cat-file", "blob", `${freeze}:${rel}`], {
+        encoding: "buffer",
+      });
+      expect(createHash("sha256").update(blob).digest("hex")).toBe(seal.sha256);
+      expect(blob.length).toBe(seal.bytes);
+      expect(blob.toString("utf8")).not.toMatch(/CORRUPTED WORKTREE/);
+    } finally {
+      fs.writeFileSync(gatesPath, backup);
+    }
+  });
+
+  it("documents gate module OID/SHA/bytes mismatch codes in apply ceremony", () => {
+    const ceremony = fs.readFileSync(path.join(ROOT, APPLY_CEREMONY), "utf8");
+    for (const code of [
+      "BLOCKED_GATE_MODULE_OID",
+      "BLOCKED_GATE_MODULE_SHA",
+      "BLOCKED_GATE_MODULE_BYTES",
+    ]) {
+      expect(ceremony, code).toContain(code);
+    }
   });
 });

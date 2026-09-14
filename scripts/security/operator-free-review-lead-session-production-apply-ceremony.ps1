@@ -35,15 +35,12 @@ $ProgressPreference = "SilentlyContinue"
 
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
-# Shared prior-dry-run gates (verdict allowlist + Assert-PriorDryRunEvidence).
-$script:FrlsPriorDryRunGates = Join-Path $PSScriptRoot "free-review-lead-session-prior-dry-run-gates.ps1"
-if (-not (Test-Path -LiteralPath $script:FrlsPriorDryRunGates)) {
-  throw "BLOCKED_TOOLING: missing free-review-lead-session-prior-dry-run-gates.ps1"
-}
-. $script:FrlsPriorDryRunGates
-
 # Sealed intent pin - never accept an operator-provided override of this value.
 $script:ExactApplyToken = "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500"
+# Gate module is materialized from freeze only — never $PSScriptRoot / worktree.
+$script:FrlsGatesTempDir = $null
+$script:FrlsGatesMaterializedPath = $null
+$script:FrlsGatesLoaded = $false
 
 function Get-Sha256Text([string]$Text) {
   $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
@@ -174,6 +171,9 @@ function Invoke-ProcessCapture {
 
 function Classify-CeremonyFailure([string]$Message) {
   $msg = [string]$Message
+  if ($msg -match "BLOCKED_GATE_MODULE|GATE_MODULE") {
+    return @{ code = "BLOCKED_GATE_MODULE"; phase = "gate_module_materialize" }
+  }
   if ($msg -match "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED") {
     return @{ code = "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED"; phase = "prior_dry_run_pin_publication" }
   }
@@ -265,6 +265,72 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   return $true
 }
 
+function Clear-FrlsMaterializedGates {
+  $script:FrlsGatesMaterializedPath = $null
+  $script:FrlsGatesLoaded = $false
+  if ($script:FrlsGatesTempDir -and (Test-Path -LiteralPath $script:FrlsGatesTempDir)) {
+    Remove-Item -LiteralPath $script:FrlsGatesTempDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  $script:FrlsGatesTempDir = $null
+}
+
+function Import-FrlsPriorDryRunGatesFromFreeze {
+  param([object]$Auth)
+
+  if ($script:FrlsGatesLoaded) { return }
+
+  $seal = $Auth.prior_dry_run_gates
+  if (-not $seal -or -not $seal.path -or -not $seal.oid -or -not $seal.sha256 -or -not $seal.bytes) {
+    throw "BLOCKED_GATE_MODULE_SEAL: TOOLING_AUTHORIZATION.prior_dry_run_gates incomplete"
+  }
+  $rel = [string]$seal.path
+  if ($rel -ne "scripts/security/free-review-lead-session-prior-dry-run-gates.ps1") {
+    throw "BLOCKED_GATE_MODULE_SEAL: unexpected prior_dry_run_gates.path"
+  }
+  if ([string]::IsNullOrWhiteSpace($Freeze) -or $Freeze -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "BLOCKED_GATE_MODULE_SEAL: freeze identity required before gate materialization"
+  }
+
+  $oid = Invoke-GitTextLocal @("rev-parse", "${Freeze}:${rel}")
+  if ($oid -ne [string]$seal.oid) {
+    throw "BLOCKED_GATE_MODULE_OID: freeze gate module OID mismatch"
+  }
+
+  $script:FrlsGatesTempDir = Join-Path $EvidenceOutDir ("gates-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $script:FrlsGatesTempDir | Out-Null
+  $dest = Join-Path $script:FrlsGatesTempDir "free-review-lead-session-prior-dry-run-gates.ps1"
+  $blobBytes = Materialize-GitBlob -Rel $rel -Dest $dest
+  $sha = Get-Sha256Bytes -Bytes $blobBytes
+  if ($sha -ne ([string]$seal.sha256).ToLowerInvariant()) {
+    throw "BLOCKED_GATE_MODULE_SHA: freeze gate module SHA-256 mismatch"
+  }
+  if ($blobBytes.Length -ne [int]$seal.bytes) {
+    throw "BLOCKED_GATE_MODULE_BYTES: freeze gate module byte count mismatch"
+  }
+  $item = Get-Item -LiteralPath $dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "BLOCKED_GATE_MODULE_REPARSE: materialized gate module is a reparse point"
+  }
+  if ($item.PSIsContainer) {
+    throw "BLOCKED_GATE_MODULE_TYPE: materialized gate module must be a file"
+  }
+  if ($item.Extension -ne ".ps1") {
+    throw "BLOCKED_GATE_MODULE_TYPE: materialized gate module must be .ps1"
+  }
+
+  $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
+  if ($hashOid -ne [string]$seal.oid) {
+    throw "BLOCKED_GATE_MODULE_OID: materialized content OID mismatch"
+  }
+
+  $script:FrlsGatesMaterializedPath = $dest
+  . $dest
+  if (-not (Get-Command -Name Assert-PriorDryRunEvidence -ErrorAction SilentlyContinue)) {
+    throw "BLOCKED_GATE_MODULE_LOAD: Assert-PriorDryRunEvidence missing after sealed dotsource"
+  }
+  $script:FrlsGatesLoaded = $true
+}
+
 if (-not $RepoRoot) {
   $RepoRoot = (git rev-parse --show-toplevel 2>$null)
   if (-not $RepoRoot) { throw "RepoRoot required" }
@@ -326,6 +392,11 @@ try {
     throw "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED: required_prior_dry_run_* pins are not published in TOOLING_AUTHORIZATION"
   }
   Write-Host ("Prior dry-run evidence pin: " + [string]$auth.required_prior_dry_run_evidence_sha256)
+
+  # Materialize + seal-verify gate module from executable freeze BEFORE trusting prior evidence
+  # and BEFORE any credential prompt / database connection.
+  Import-FrlsPriorDryRunGatesFromFreeze -Auth $auth
+  Write-Host "Prior-dry-run gate module materialized and verified from freeze."
 
   $priorMeta = Assert-PriorDryRunEvidence -Path $PriorDryRunEvidencePath -Auth $auth
   Write-Host ("Prior dry-run evidence SHA verified: " + $priorMeta.sha256)
@@ -495,6 +566,7 @@ finally {
   if ($entryTempDir -and (Test-Path -LiteralPath $entryTempDir)) {
     Remove-Item -LiteralPath $entryTempDir -Recurse -Force -ErrorAction SilentlyContinue
   }
+  Clear-FrlsMaterializedGates
   $entryPath = $null
   [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 

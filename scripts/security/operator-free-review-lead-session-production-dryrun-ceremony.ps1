@@ -431,6 +431,7 @@ finally {
       url_in_argv = $false
       url_in_evidence = $false
       url_printed = $false
+      values_undisclosed = $true
       process_env_cleared_after = (-not [bool]$env:FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL)
       securestring_zerofreed = $true
       ca_path_channel_retired = $true
@@ -445,6 +446,7 @@ finally {
       retired_containment_channel_absent = (-not [bool]$env:CONTAINMENT_APPLY_DATABASE_URL)
       raw_stdout_removed = $false
       evidence_local_only = $true
+      completed = $true
     }
     generated_at_utc = [DateTime]::UtcNow.ToString("o")
   }

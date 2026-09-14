@@ -290,6 +290,18 @@ describe("FRLS ceremony identifier adaptation", () => {
       /\[Parameter\(Mandatory = \$false\)\]\r?\n\s*\[string\]\$PriorDryRunEvidencePath = ""/,
     );
   });
+
+  it("apply ceremony materializes prior-dry-run gates from freeze, not inline or PSScriptRoot", () => {
+    const s = src(APPLY_CEREMONY);
+    expect(s).toMatch(/Import-FrlsPriorDryRunGatesFromFreeze/);
+    expect(s).toMatch(/Clear-FrlsMaterializedGates/);
+    expect(s).toMatch(/Materialize-GitBlob/);
+    expect(s).toMatch(/Assert-PriorDryRunEvidence/);
+    expect(s).not.toMatch(
+      /Join-Path \$PSScriptRoot "free-review-lead-session-prior-dry-run-gates\.ps1"/,
+    );
+    expect(s).not.toMatch(/function Assert-PriorDryRunEvidence/);
+  });
 });
 
 describe("FRLS_LEAD_SESSION_EVIDENCE_V1 decode helper", () => {

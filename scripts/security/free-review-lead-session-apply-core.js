@@ -200,6 +200,13 @@ function buildEvidenceBase(inputs) {
     migration_path: inputs.migrationPath,
     migration_version: inputs.version,
     migration_name: inputs.name,
+    migration_blob_oid: inputs.migrationBlobOid || null,
+    migration_sha256: inputs.migrationSha256 || null,
+    migration_bytes:
+      typeof inputs.migrationBytes === "number" ? inputs.migrationBytes : null,
+    version_absent: null,
+    migration_objects_absent: null,
+    transaction_mutation: false,
     advisory_lock: {
       name: ADVISORY_LOCK.name,
       key1: ADVISORY_LOCK.key1,
@@ -929,6 +936,19 @@ async function runDryRun(inputs) {
             !probe.token_hash_index_exists && !probe.one_unrevoked_index_exists,
           delete_guard_trigger_absent: !probe.delete_guard_trigger_exists,
         };
+        evidence.version_absent = true;
+        evidence.migration_objects_absent =
+          !probe.sessions_table_exists &&
+          !probe.rotate_fn_exists &&
+          !probe.cleanup_fn_exists &&
+          !probe.delete_guard_fn_exists &&
+          !probe.token_hash_index_exists &&
+          !probe.one_unrevoked_index_exists &&
+          !probe.delete_guard_trigger_exists;
+        evidence.transaction_mutation = false;
+        evidence.migration_blob_oid = packed.loaded.oid;
+        evidence.migration_sha256 = packed.loaded.sha256;
+        evidence.migration_bytes = packed.loaded.bytes;
 
         await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
         await assertVersionAbsent(client, inputs.version);
@@ -942,6 +962,7 @@ async function runDryRun(inputs) {
 
     evidence.sqlApplicationAttempts = 0;
     evidence.advisory_lock_acquired = false;
+    evidence.transaction_mutation = false;
     evidence.verdict = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
     evidence.result_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
     evidence.reason_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
