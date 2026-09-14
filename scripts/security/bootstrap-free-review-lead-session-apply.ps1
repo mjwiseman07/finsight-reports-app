@@ -612,12 +612,16 @@ try {
   $stdoutFile = Join-Path $parseDir "child-stdout.txt"
   $enrichFile = Join-Path $parseDir "enrich.json"
   $protoFile = Join-Path $parseDir "free-review-lead-session-evidence.js"
+  $sharedProtoFile = Join-Path $parseDir "containment-evidence-protocol.js"
   $toolFile = Join-Path $parseDir "free-review-lead-session-evidence-frame-tool.js"
   try {
     [System.IO.File]::WriteAllText($stdoutFile, [string]$stdout)
     $protoBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/free-review-lead-session-evidence.js") -WorkDir $RepoRoot
+    # free-review-lead-session-evidence.js requires ./containment-evidence-protocol — must be a sibling in parseDir
+    $sharedProtoBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/containment-evidence-protocol.js") -WorkDir $RepoRoot
     $toolBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:scripts/security/free-review-lead-session-evidence-frame-tool.js") -WorkDir $RepoRoot
     [System.IO.File]::WriteAllBytes($protoFile, $protoBytes)
+    [System.IO.File]::WriteAllBytes($sharedProtoFile, $sharedProtoBytes)
     [System.IO.File]::WriteAllBytes($toolFile, $toolBytes)
 
     $bootMeta = [ordered]@{

@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "ca004ba17b13c8a6c52043d7105eb48cc008ea36",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -21,13 +21,13 @@
   "required_prior_dry_run_evidence_sha256": null,
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
-  "bundle_source_commit": "88b3521558f6d0fbf1cd211843f4ee5553a1132c",
+  "bundle_source_commit": null,
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
-    "oid": "bff2ced3a136ead53c26702a76e6093cf570010d",
-    "sha256": "a33112709899eb8381836ad3727c39727e9568f8931a83935e64ba11b2d7df29",
-    "bytes": 33585,
+    "oid": "1449a689cba312dd6c8f9fce8f762c14431fe7f5",
+    "sha256": "b2c0f434a1dbe06aa11771a6c1e84d22b7032b1209d0f7576eb695edc47074c2",
+    "bytes": 34005,
     "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
   "native_entry": {

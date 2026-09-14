@@ -137,6 +137,50 @@ function runEnter(opts: {
 }
 
 describe.skipIf(!isWin)("FRLS native bootstrap / entry (Windows)", () => {
+  it("frame-tool parseDir requires containment-evidence-protocol sibling", () => {
+    const td = fs.mkdtempSync(path.join(os.tmpdir(), "frls-frame-sib-"));
+    try {
+      const evidence = path.join(ROOT, "scripts/security/free-review-lead-session-evidence.js");
+      const tool = path.join(ROOT, "scripts/security/free-review-lead-session-evidence-frame-tool.js");
+      const shared = path.join(ROOT, "scripts/security/containment-evidence-protocol.js");
+      fs.copyFileSync(evidence, path.join(td, "free-review-lead-session-evidence.js"));
+      fs.copyFileSync(tool, path.join(td, "free-review-lead-session-evidence-frame-tool.js"));
+      fs.writeFileSync(path.join(td, "child-stdout.txt"), "");
+      fs.writeFileSync(path.join(td, "enrich.json"), JSON.stringify({ nodeProcessStarted: true }));
+
+      const missing = spawnSync(
+        process.execPath,
+        [
+          path.join(td, "free-review-lead-session-evidence-frame-tool.js"),
+          "parse-and-enrich",
+          path.join(td, "child-stdout.txt"),
+          path.join(td, "enrich.json"),
+        ],
+        { cwd: td, encoding: "utf8", windowsHide: true },
+      );
+      expect(missing.status).not.toBe(0);
+      expect(String(missing.stdout || "")).not.toMatch(/^FRLS_LEAD_SESSION_EVIDENCE_V1:/);
+      expect(String(missing.stderr || "")).toMatch(/Cannot find module '\.\/containment-evidence-protocol'/);
+
+      fs.copyFileSync(shared, path.join(td, "containment-evidence-protocol.js"));
+      const ok = spawnSync(
+        process.execPath,
+        [
+          path.join(td, "free-review-lead-session-evidence-frame-tool.js"),
+          "parse-and-enrich",
+          path.join(td, "child-stdout.txt"),
+          path.join(td, "enrich.json"),
+        ],
+        { cwd: td, encoding: "utf8", windowsHide: true },
+      );
+      expect(String(ok.stdout || "").trim()).toMatch(/^FRLS_LEAD_SESSION_EVIDENCE_V1:/);
+      const ev = parseEvidence(ok.stdout);
+      expect(String(ev.reason_code || ev.error_code || "")).toMatch(/APPLICATOR_EVIDENCE_MISSING/);
+    } finally {
+      fs.rmSync(td, { recursive: true, force: true });
+    }
+  });
+
   it("rejects wrong PrHead before Node with structured zero attempts", () => {
     const r = runBootstrap({
       prHead: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -276,6 +320,12 @@ describe.skipIf(!isWin)("FRLS native bootstrap / entry (Windows)", () => {
     expect(String(ev.error_code || ev.reason_code || ev.result_code || "")).not.toMatch(
       /BUNDLE_OID_MISMATCH|BUNDLE_HASH_MISMATCH|BUNDLE_BYTES_MISMATCH|BLOCKED_BUNDLE_SOURCE/,
     );
+    // Regression: freeze-materialized frame-tool must load containment-evidence-protocol sibling.
+    // Missing sibling previously yielded APPLICATOR_EVIDENCE_MISSING after Node started (0 DB attempts).
+    expect(String(ev.error_code || ev.reason_code || "")).not.toMatch(/APPLICATOR_EVIDENCE_MISSING/);
+    expect(String(ev.evidence_source || "")).not.toBe("native_wrapper_fallback");
+    expect(ev.nodeProcessStarted === true || ev.bootstrap?.nodeProcessStarted === true).toBe(true);
+    expect(Number(ev.databaseConnectionAttempts ?? 0)).toBeGreaterThanOrEqual(1);
     expect(ev.sqlApplicationAttempts ?? 0).toBe(0);
   });
 
