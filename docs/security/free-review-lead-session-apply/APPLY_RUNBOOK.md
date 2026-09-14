@@ -40,4 +40,18 @@ Apply requires the exact `--i-authorize-production-apply` token on a **separate*
 
 ## Native entry (after freeze publication)
 
-Materialize bootstrap from freeze via `enter-free-review-lead-session-apply.ps1` — see `TOOLING_AUTHORIZATION.json` for seals.
+Materialize bootstrap from the **executable freeze** via `enter-free-review-lead-session-apply.ps1` — see `TOOLING_AUTHORIZATION.json` for seals.
+
+## Two-authority tip/freeze model
+
+- **Executable freeze** (`authorized_pr_head` / `-PrHead`): runtime and pin identity. Pass this to ceremonies and bootstrap.
+- **Bundle source commit** (`bundle_source_commit`): immutable commit whose tree contains the finalized standalone bundle sealed by tip authorization.
+- Bootstrap loads tip authorization, verifies freeze identity and ancestry, then materializes the bundle from `${bundle_source_commit}:…standalone.cjs` (never from the freeze tree). This avoids the circular “bundle embeds its own tip SHA” problem: tip authorization may be a descendant commit that only seals `bundle_source_commit`.
+
+Publication order:
+
+1. Freeze commit — tooling changes; `AUTHORIZED_TOOLING_FREEZE` / `authorized_pr_head` may still be `PENDING_AFTER_COMMIT`.
+2. Bundle-source commit — bake freeze SHA into constants, rebuild the standalone bundle, seal OID/SHA/bytes; set `authorized_pr_head` to the freeze; leave `bundle_source_commit` null until the tip pin.
+3. Final tip — set `bundle_source_commit` to the bundle-source commit SHA (no bundle rebuild required if the blob is unchanged).
+
+Prior-dry-run pins remain null until a separately authorized production dry-run publishes them.

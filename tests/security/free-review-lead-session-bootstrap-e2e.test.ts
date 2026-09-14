@@ -211,6 +211,148 @@ describe.skipIf(!isWin)("FRLS native bootstrap / entry (Windows)", () => {
     const auth = readAuth();
     expect(auth.notes.join(" ")).toMatch(/System32 PowerShell/);
   });
+
+  it("rejects argv bundle-source override before Node", () => {
+    const r = runBootstrap({
+      env: { FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db" },
+      forward: ["--bundle-source-commit", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+    });
+    expect(r.status).toBe(2);
+    const ev = parseEvidence(r.stdout);
+    expect(String(ev.error_code || ev.reason_code)).toMatch(/PROHIBITED_BUNDLE_AUTHORITY_OVERRIDE/);
+    expect(ev.databaseConnectionAttempts).toBe(0);
+    expect(ev.nodeProcessStarted).toBe(false);
+  });
+
+  it("rejects env bundle-source override before Node", () => {
+    const r = runBootstrap({
+      env: {
+        FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+        FRLS_BUNDLE_SOURCE_COMMIT: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+    });
+    expect(r.status).toBe(2);
+    const ev = parseEvidence(r.stdout);
+    expect(String(ev.error_code || ev.reason_code)).toMatch(/PROHIBITED_BUNDLE_AUTHORITY_OVERRIDE/);
+    expect(ev.databaseConnectionAttempts).toBe(0);
+    expect(ev.nodeProcessStarted).toBe(false);
+  });
+
+  it("published tip/freeze chain materializes tip-sealed bundle (not freeze stale)", () => {
+    const auth = readAuth();
+    const freeze = String(auth.authorized_pr_head || "");
+    const source = String(auth.bundle_source_commit || "");
+    if (!/^[0-9a-f]{40}$/i.test(freeze) || !/^[0-9a-f]{40}$/i.test(source)) {
+      // Freeze-only intermediate publication still uses PENDING/null; tip pin required.
+      expect(freeze === "PENDING_AFTER_COMMIT" || source === "" || source === "null").toBeTruthy();
+      return;
+    }
+    const tipBundle = execFileSync(
+      "git",
+      ["rev-parse", `HEAD:${auth.standalone_bundle.path}`],
+      { cwd: ROOT, encoding: "utf8" },
+    ).trim();
+    const sourceBundle = execFileSync(
+      "git",
+      ["rev-parse", `${source}:${auth.standalone_bundle.path}`],
+      { cwd: ROOT, encoding: "utf8" },
+    ).trim();
+    const freezeBundle = execFileSync(
+      "git",
+      ["rev-parse", `${freeze}:${auth.standalone_bundle.path}`],
+      { cwd: ROOT, encoding: "utf8" },
+    ).trim();
+    expect(sourceBundle).toBe(auth.standalone_bundle.oid);
+    expect(tipBundle).toBe(auth.standalone_bundle.oid);
+    expect(freezeBundle).not.toBe(auth.standalone_bundle.oid);
+
+    const r = runBootstrap({
+      prHead: freeze,
+      env: { FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db" },
+    });
+    expect(r.status).not.toBe(0);
+    const ev = parseEvidence(r.stdout);
+    // Past bundle verify: Node may start and fail on loopback; must not be BUNDLE_OID_MISMATCH.
+    expect(String(ev.error_code || ev.reason_code || ev.result_code || "")).not.toMatch(
+      /BUNDLE_OID_MISMATCH|BUNDLE_HASH_MISMATCH|BUNDLE_BYTES_MISMATCH|BLOCKED_BUNDLE_SOURCE/,
+    );
+    expect(ev.sqlApplicationAttempts ?? 0).toBe(0);
+  });
+
+  it("wrong bundle_source_commit fails before Node with zero attempts", () => {
+    const auth = readAuth();
+    const freeze = String(auth.authorized_pr_head || "");
+    const source = String(auth.bundle_source_commit || "");
+    if (!/^[0-9a-f]{40}$/i.test(freeze) || !/^[0-9a-f]{40}$/i.test(source)) {
+      return;
+    }
+    const wt = fs.mkdtempSync(path.join(os.tmpdir(), "frls-badsrc-"));
+    try {
+      execFileSync("git", ["worktree", "add", "--detach", wt, "HEAD"], {
+        cwd: ROOT,
+        encoding: "utf8",
+      });
+      const authPath = path.join(
+        wt,
+        "docs/security/free-review-lead-session-apply/TOOLING_AUTHORIZATION.json",
+      );
+      const bad = JSON.parse(fs.readFileSync(authPath, "utf8"));
+      bad.bundle_source_commit = freeze; // equal to freeze — rejected
+      fs.writeFileSync(authPath, `${JSON.stringify(bad, null, 2)}\n`);
+      execFileSync("git", ["add", "docs/security/free-review-lead-session-apply/TOOLING_AUTHORIZATION.json"], {
+        cwd: wt,
+      });
+      execFileSync(
+        "git",
+        ["-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-m", "bad bundle source"],
+        { cwd: wt, encoding: "utf8" },
+      );
+      const bootFile = path.join(wt, "bootstrap-test.ps1");
+      materializeBootstrap(bootFile);
+      const r = spawnSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          bootFile,
+          "-PrHead",
+          freeze,
+          "-Mode",
+          "dry-run",
+          "-RepoRoot",
+          wt,
+        ],
+        {
+          cwd: wt,
+          encoding: "utf8",
+          windowsHide: true,
+          env: {
+            PATH: process.env.PATH,
+            SystemRoot: process.env.SystemRoot,
+            TEMP: process.env.TEMP,
+            TMP: process.env.TMP,
+            FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+          },
+        },
+      );
+      expect(r.status).toBe(2);
+      const ev = parseEvidence(r.stdout);
+      expect(String(ev.error_code || ev.reason_code)).toMatch(
+        /BLOCKED_BUNDLE_SOURCE|BLOCKED_BUNDLE_SOURCE_ANCESTRY|AUTH_METADATA/,
+      );
+      expect(ev.databaseConnectionAttempts).toBe(0);
+      expect(ev.nodeProcessStarted).toBe(false);
+    } finally {
+      try {
+        execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: ROOT });
+      } catch {
+        fs.rmSync(wt, { recursive: true, force: true });
+      }
+    }
+  });
 });
 
 void ARTIFACT_COMMIT;

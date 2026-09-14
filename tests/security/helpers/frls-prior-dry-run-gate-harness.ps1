@@ -59,7 +59,7 @@ try {
   }
   $auth = Get-Content -LiteralPath $AuthJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
   $meta = Assert-PriorDryRunEvidence -Path $EvidencePath -Auth $auth
-  Write-Output ("ACCEPTED:" + $meta.sha256)
+  Write-Output ("ACCEPTED:" + [string]$meta.sha256)
   exit 0
 } catch {
   Write-Output ([string]$_.Exception.Message)

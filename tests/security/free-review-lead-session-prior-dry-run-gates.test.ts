@@ -386,8 +386,109 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
   it("rejects advisory_lock_acquired true", () => {
     assertEvidenceRejected(
       baseEvidence({ advisory_lock_acquired: true }),
-      /advisory_lock_acquired must be false/,
+      /BLOCKED_PRIOR_DRY_RUN_LOCK|advisory_lock_acquired must be false/,
     );
+  });
+
+  it("rejects missing wrapper advisory_lock_acquired", () => {
+    const ev = baseEvidence();
+    delete (ev as Record<string, unknown>).advisory_lock_acquired;
+    assertEvidenceRejected(ev, /BLOCKED_PRIOR_DRY_RUN_LOCK|missing field advisory_lock_acquired/);
+  });
+
+  it("rejects missing applicator advisory_lock_acquired", () => {
+    const ev = baseEvidence();
+    delete (ev.applicator as Record<string, unknown>).advisory_lock_acquired;
+    assertEvidenceRejected(ev, /BLOCKED_PRIOR_DRY_RUN_LOCK|missing field advisory_lock_acquired/);
+  });
+
+  it("rejects null wrapper advisory_lock_acquired", () => {
+    assertEvidenceRejected(
+      baseEvidence({ advisory_lock_acquired: null }),
+      /BLOCKED_PRIOR_DRY_RUN_LOCK|null field advisory_lock_acquired/,
+    );
+  });
+
+  it("rejects string wrapper advisory_lock_acquired", () => {
+    assertEvidenceRejected(
+      baseEvidence({ advisory_lock_acquired: "false" as unknown as boolean }),
+      /BLOCKED_PRIOR_DRY_RUN_LOCK|non-boolean field advisory_lock_acquired/,
+    );
+  });
+
+  it("rejects number wrapper advisory_lock_acquired", () => {
+    assertEvidenceRejected(
+      baseEvidence({ advisory_lock_acquired: 0 as unknown as boolean }),
+      /BLOCKED_PRIOR_DRY_RUN_LOCK|non-boolean field advisory_lock_acquired/,
+    );
+  });
+
+  it("rejects wrapper/applicator advisory_lock disagreement", () => {
+    assertEvidenceRejected(
+      baseEvidence({
+        advisory_lock_acquired: false,
+        applicator: { advisory_lock_acquired: true },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_LOCK/,
+    );
+  });
+
+  it("accepts explicit boolean false advisory_lock on wrapper and applicator", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-lockok-"));
+    const { evidencePath, authPath } = writeEvidencePair(dir, baseEvidence());
+    const r = runHarness([
+      "-Action",
+      "assert-evidence",
+      "-EvidencePath",
+      evidencePath,
+      "-AuthJsonPath",
+      authPath,
+    ]);
+    expect(r.status).toBe(0);
+    expect(r.out).toMatch(/ACCEPTED|sha256/i);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rejects missing read_only (no false inference success)", () => {
+    const ev = baseEvidence();
+    delete (ev.applicator as Record<string, unknown>).read_only;
+    assertEvidenceRejected(ev, /missing field read_only|BLOCKED_PRIOR_DRY_RUN_INVALID/);
+  });
+
+  it("rejects missing version_absent", () => {
+    const ev = baseEvidence();
+    delete (ev.applicator as Record<string, unknown>).version_absent;
+    assertEvidenceRejected(ev, /missing field version_absent|BLOCKED_PRIOR_DRY_RUN_VERSION/);
+  });
+
+  it("rejects missing migration_objects_absent", () => {
+    const ev = baseEvidence();
+    delete (ev.applicator as Record<string, unknown>).migration_objects_absent;
+    assertEvidenceRejected(ev, /missing field migration_objects_absent|BLOCKED_PRIOR_DRY_RUN_OBJECTS/);
+  });
+
+  it("rejects missing transaction_mutation", () => {
+    const ev = baseEvidence();
+    delete (ev.applicator as Record<string, unknown>).transaction_mutation;
+    assertEvidenceRejected(ev, /missing field transaction_mutation|BLOCKED_PRIOR_DRY_RUN_TX/);
+  });
+
+  it("rejects missing cleanup.completed", () => {
+    const ev = baseEvidence();
+    delete (ev.cleanup as Record<string, unknown>).completed;
+    assertEvidenceRejected(ev, /missing field completed|BLOCKED_PRIOR_DRY_RUN_CLEANUP/);
+  });
+
+  it("rejects missing cleanup.credential_cleared", () => {
+    const ev = baseEvidence();
+    delete (ev.cleanup as Record<string, unknown>).credential_cleared;
+    assertEvidenceRejected(ev, /missing field credential_cleared|BLOCKED_PRIOR_DRY_RUN_CLEANUP/);
+  });
+
+  it("rejects missing url_in_evidence redaction boolean", () => {
+    const ev = baseEvidence();
+    delete (ev.credential_redaction_confirmation as Record<string, unknown>).url_in_evidence;
+    assertEvidenceRejected(ev, /missing field url_in_evidence|BLOCKED_PRIOR_DRY_RUN_REDACTION/);
   });
 
   it("rejects wrong prior_history_count", () => {
@@ -456,7 +557,7 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
   it("rejects applicator advisory_lock_acquired true", () => {
     assertEvidenceRejected(
       baseEvidence({ applicator: { advisory_lock_acquired: true } }),
-      /advisory_lock_acquired must be false/,
+      /BLOCKED_PRIOR_DRY_RUN_LOCK|advisory_lock_acquired must be false/,
     );
   });
 
@@ -534,7 +635,14 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
     expect(tipAuth.required_prior_dry_run_evidence_sha256).toBeNull();
     expect(tipAuth.required_prior_dry_run_freeze).toBeNull();
     expect(tipAuth.required_prior_dry_run_evidence_tip).toBeNull();
-    expect(tipAuth.authorized_pr_head).toMatch(/^[0-9a-f]{40}$/i);
+    expect(
+      tipAuth.authorized_pr_head === "PENDING_AFTER_COMMIT" ||
+        /^[0-9a-f]{40}$/i.test(String(tipAuth.authorized_pr_head)),
+    ).toBe(true);
+    if (/^[0-9a-f]{40}$/i.test(String(tipAuth.authorized_pr_head))) {
+      expect(tipAuth.bundle_source_commit).toMatch(/^[0-9a-f]{40}$/i);
+      expect(tipAuth.bundle_source_commit).not.toBe(tipAuth.authorized_pr_head);
+    }
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-nullpins-"));
     const r = spawnSync(
@@ -597,23 +705,31 @@ describe("FRLS prior-dry-run gate materialization authority", () => {
   it("corrupted worktree gates file does not affect freeze cat-file authority", () => {
     const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
     const seal = auth.prior_dry_run_gates;
-    const freeze = auth.authorized_pr_head;
+    const { execFileSync } = require("node:child_process");
+    const freeze = String(auth.authorized_pr_head || "");
     const rel = seal.path;
     const gatesPath = path.join(ROOT, rel);
     const backup = fs.readFileSync(gatesPath);
+    const authority =
+      /^[0-9a-f]{40}$/i.test(freeze) ? `${freeze}:${rel}` : `HEAD:${rel}`;
+    const before = execFileSync("git", ["cat-file", "blob", authority], {
+      encoding: "buffer",
+    });
     fs.writeFileSync(
       gatesPath,
       "# CORRUPTED WORKTREE GATES\nthrow 'CORRUPTED'\n",
       "utf8",
     );
     try {
-      const { execFileSync } = require("node:child_process");
-      const blob = execFileSync("git", ["cat-file", "blob", `${freeze}:${rel}`], {
+      const blob = execFileSync("git", ["cat-file", "blob", authority], {
         encoding: "buffer",
       });
-      expect(createHash("sha256").update(blob).digest("hex")).toBe(seal.sha256);
-      expect(blob.length).toBe(seal.bytes);
+      expect(Buffer.compare(blob, before)).toBe(0);
       expect(blob.toString("utf8")).not.toMatch(/CORRUPTED WORKTREE/);
+      if (/^[0-9a-f]{40}$/i.test(freeze)) {
+        expect(createHash("sha256").update(blob).digest("hex")).toBe(seal.sha256);
+        expect(blob.length).toBe(seal.bytes);
+      }
     } finally {
       fs.writeFileSync(gatesPath, backup);
     }

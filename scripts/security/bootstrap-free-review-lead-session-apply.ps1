@@ -150,7 +150,29 @@ function Invoke-GitBytes {
 function Invoke-GitText {
   param([string[]]$GitArgs, [string]$WorkDir)
   $bytes = Invoke-GitBytes -GitArgs $GitArgs -WorkDir $WorkDir
+  if ($null -eq $bytes -or $bytes.Length -eq 0) { return "" }
   return [System.Text.Encoding]::UTF8.GetString($bytes).Trim()
+}
+
+function Test-GitIsAncestor {
+  param([string]$Ancestor, [string]$Descendant, [string]$WorkDir)
+  # Exit-code only: merge-base --is-ancestor emits no stdout on success, which must not
+  # be treated as failure under StrictMode empty-pipeline unwrapping.
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "merge-base --is-ancestor $Ancestor $Descendant"
+  $psi.WorkingDirectory = $WorkDir
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $p = New-Object System.Diagnostics.Process
+  $p.StartInfo = $psi
+  [void]$p.Start()
+  [void]$p.StandardOutput.ReadToEnd()
+  [void]$p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  return ($p.ExitCode -eq 0)
 }
 
 function Clear-TempPath {
@@ -275,6 +297,10 @@ try {
     if ($a -eq "--database-url" -or $a -eq "--databaseUrl" -or $a -eq "--db-url") {
       Stop-Bootstrap -Code "PROHIBITED_CREDENTIAL_CHANNEL" -Phase "parse_args" -Message "database URL must not appear on bootstrap argv"
     }
+    if ($a -eq "--bundle-source-commit" -or $a -eq "--bundleSourceCommit" -or $a -eq "-BundleSourceCommit" -or
+        $a -eq "--bundle-oid" -or $a -eq "--bundle-sha256" -or $a -eq "--bundle-bytes") {
+      Stop-Bootstrap -Code "PROHIBITED_BUNDLE_AUTHORITY_OVERRIDE" -Phase "parse_args" -Message "bundle source/seals cannot be overridden via argv"
+    }
   }
 
   $tipHead = Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot
@@ -295,10 +321,50 @@ try {
     $authSource = "worktree_fallback_pre_freeze"
   }
 
+  if ([string]$authJson -match "PENDING_AFTER_COMMIT") {
+    Stop-Bootstrap -Code "BLOCKED_PIN_MISMATCH" -Phase "tip_freeze_relation" -Message "authorization still PENDING_AFTER_COMMIT" -Extra @{ tipHead = $tipHead }
+  }
+  foreach ($badEnv in @(
+      "FRLS_BUNDLE_SOURCE_COMMIT",
+      "BUNDLE_SOURCE_COMMIT",
+      "FRLS_STANDALONE_BUNDLE_OID",
+      "FRLS_STANDALONE_BUNDLE_SHA256",
+      "FRLS_STANDALONE_BUNDLE_BYTES"
+    )) {
+    $present = $null -ne [Environment]::GetEnvironmentVariable($badEnv, "Process") -and [Environment]::GetEnvironmentVariable($badEnv, "Process") -ne ""
+    if ($present) {
+      Stop-Bootstrap -Code "PROHIBITED_BUNDLE_AUTHORITY_OVERRIDE" -Phase "parse_args" -Message ("bundle source/seals cannot be overridden via environment: " + $badEnv) -Extra @{ tipHead = $tipHead }
+    }
+  }
   if ($auth.authorized_pr_head -ne $PrHead) {
     Stop-Bootstrap -Code "BLOCKED_PIN_MISMATCH" -Phase "tip_freeze_relation" -Message "--pr-head does not equal authorization.authorized_pr_head" -Extra @{ tipHead = $tipHead; freeze = [string]$auth.authorized_pr_head }
   }
   $freeze = [string]$auth.authorized_pr_head
+  if (-not ($freeze -match '^[0-9a-fA-F]{40}$')) {
+    Stop-Bootstrap -Code "AUTH_METADATA_INVALID" -Phase "load_auth" -Message "authorized_pr_head must be the 40-hex executable freeze" -Extra @{ tipHead = $tipHead }
+  }
+
+  # Two-authority model (non-circular):
+  # - executable freeze (authorized_pr_head / -PrHead) = runtime/pin identity
+  # - bundle_source_commit = immutable commit whose tree holds the finalized sealed bundle blob
+  # Tip authorization seals the bundle; bootstrap materializes from bundle_source_commit, never from freeze.
+  $bundleSource = [string]$auth.bundle_source_commit
+  if (-not ($bundleSource -match '^[0-9a-fA-F]{40}$')) {
+    Stop-Bootstrap -Code "AUTH_METADATA_INVALID" -Phase "load_auth" -Message "missing sealed bundle_source_commit" -Extra @{ tipHead = $tipHead; freeze = $freeze }
+  }
+  if ($bundleSource -eq $freeze) {
+    Stop-Bootstrap -Code "BLOCKED_BUNDLE_SOURCE" -Phase "tip_freeze_relation" -Message "bundle_source_commit cannot equal executable freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource }
+  }
+  # Source must be an allowed descendant of the executable freeze in the publication chain.
+  if (-not (Test-GitIsAncestor -Ancestor $freeze -Descendant $bundleSource -WorkDir $RepoRoot)) {
+    Stop-Bootstrap -Code "BLOCKED_BUNDLE_SOURCE_ANCESTRY" -Phase "tip_freeze_relation" -Message "bundle_source_commit is not a descendant of the executable freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource }
+  }
+  # Final tip HEAD must equal the bundle source or be a descendant of it (tip-pin commit after bundle finalize).
+  if ($tipHead -ne $bundleSource) {
+    if (-not (Test-GitIsAncestor -Ancestor $bundleSource -Descendant $tipHead -WorkDir $RepoRoot)) {
+      Stop-Bootstrap -Code "BLOCKED_TIP_BUNDLE_SOURCE" -Phase "tip_freeze_relation" -Message "HEAD tip is not the sealed bundle_source_commit or a descendant of it" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource }
+    }
+  }
 
   if ($EvidenceTip -and ($EvidenceTip -eq $freeze)) {
     Stop-Bootstrap -Code "BLOCKED_PIN_MISMATCH" -Phase "tip_freeze_relation" -Message "evidence tip cannot equal tooling freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze }
@@ -307,47 +373,81 @@ try {
 
   $bundle = $auth.standalone_bundle
   if (-not $bundle -or -not $bundle.path -or -not $bundle.oid -or -not $bundle.sha256 -or -not $bundle.bytes) {
-    Stop-Bootstrap -Code "AUTH_METADATA_INVALID" -Phase "load_auth" -Message "missing standalone_bundle seals" -Extra @{ tipHead = $tipHead; freeze = $freeze }
+    Stop-Bootstrap -Code "AUTH_METADATA_INVALID" -Phase "load_auth" -Message "missing standalone_bundle seals" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource }
+  }
+  if ([string]$bundle.path -ne "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs") {
+    Stop-Bootstrap -Code "AUTH_METADATA_INVALID" -Phase "load_auth" -Message "unexpected standalone_bundle.path" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource }
   }
 
-  # Materialize bundle from freeze
+  # Materialize finalized bundle from sealed bundle_source_commit (not freeze).
   $script:tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("frls-bootstrap-" + [guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Path $script:tempRoot | Out-Null
   $bundleDest = Join-Path $script:tempRoot "applicator.standalone.cjs"
 
+  # Prove freeze-tree stale bundle is never selected when tip seals differ.
   try {
-    $bundleOid = Invoke-GitText -GitArgs @("rev-parse", "${freeze}:$($bundle.path)") -WorkDir $RepoRoot
-    $bundleBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${freeze}:$($bundle.path)") -WorkDir $RepoRoot
+    $freezeBundleOid = Invoke-GitText -GitArgs @("rev-parse", "${freeze}:$($bundle.path)") -WorkDir $RepoRoot
+  } catch {
+    $freezeBundleOid = $null
+  }
+
+  try {
+    $bundleOid = Invoke-GitText -GitArgs @("rev-parse", "${bundleSource}:$($bundle.path)") -WorkDir $RepoRoot
+    $bundleBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${bundleSource}:$($bundle.path)") -WorkDir $RepoRoot
   }
   catch {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "GIT_BLOB_EXTRACT_FAIL" -Phase "materialize_bundle" -Message "failed to extract standalone bundle from freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "GIT_BLOB_EXTRACT_FAIL" -Phase "materialize_bundle" -Message "failed to extract standalone bundle from bundle_source_commit" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
 
   if ($bundleOid -ne [string]$bundle.oid) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_OID_MISMATCH" -Phase "verify_bundle" -Message "bundle OID mismatch" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "BUNDLE_OID_MISMATCH" -Phase "verify_bundle" -Message "bundle OID mismatch against tip authorization" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; freezeBundleOid = $freezeBundleOid; cleanup = $script:cleanupResult }
   }
   $bundleSha = Get-Sha256Hex -Bytes $bundleBytes
   if ($bundleSha -ne ([string]$bundle.sha256).ToLowerInvariant()) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_HASH_MISMATCH" -Phase "verify_bundle" -Message "bundle SHA-256 mismatch" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "BUNDLE_HASH_MISMATCH" -Phase "verify_bundle" -Message "bundle SHA-256 mismatch" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
   if ($bundleBytes.Length -ne [int]$bundle.bytes) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_BYTES_MISMATCH" -Phase "verify_bundle" -Message "bundle byte length mismatch" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "BUNDLE_BYTES_MISMATCH" -Phase "verify_bundle" -Message "bundle byte length mismatch" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
   # Refuse CR in sealed bundle
   if ($bundleBytes -contains 0x0D) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_CR_FORBIDDEN" -Phase "verify_bundle" -Message "CR bytes in sealed bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "BUNDLE_CR_FORBIDDEN" -Phase "verify_bundle" -Message "CR bytes in sealed bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
+  }
+
+  # Embedded FRLS AUTHORIZED_TOOLING_FREEZE must equal the executable freeze (not tip, not PENDING).
+  $bundleText = [System.Text.Encoding]::UTF8.GetString($bundleBytes)
+  $frlsFreezeMatch = [regex]::Match(
+    $bundleText,
+    'free-review-lead-session-apply-constants\.js[\s\S]{0,4000}?AUTHORIZED_TOOLING_FREEZE = "([0-9a-fA-F]{40}|PENDING_AFTER_COMMIT)"'
+  )
+  if (-not $frlsFreezeMatch.Success) {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISSING" -Phase "verify_bundle" -Message "FRLS AUTHORIZED_TOOLING_FREEZE constant missing from bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
+  }
+  $embeddedFreeze = [string]$frlsFreezeMatch.Groups[1].Value
+  if ($embeddedFreeze -eq "PENDING_AFTER_COMMIT") {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_PENDING" -Phase "verify_bundle" -Message "FRLS AUTHORIZED_TOOLING_FREEZE still PENDING_AFTER_COMMIT" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
+  }
+  if ($embeddedFreeze.ToLowerInvariant() -ne $freeze.ToLowerInvariant()) {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISMATCH" -Phase "verify_bundle" -Message "embedded AUTHORIZED_TOOLING_FREEZE does not equal executable freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; embeddedFreeze = $embeddedFreeze; cleanup = $script:cleanupResult }
   }
 
   [System.IO.File]::WriteAllBytes($bundleDest, $bundleBytes)
   $item = Get-Item -LiteralPath $bundleDest
   if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "SYMLINK_REFUSED" -Phase "materialize_bundle" -Message "symlink/junction materialized bundle refused" -Extra @{ tipHead = $tipHead; freeze = $freeze; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "SYMLINK_REFUSED" -Phase "materialize_bundle" -Message "symlink/junction materialized bundle refused" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
+  }
+  if ($item.PSIsContainer) {
+    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+    Stop-Bootstrap -Code "BUNDLE_TYPE_INVALID" -Phase "materialize_bundle" -Message "materialized bundle must be a regular file" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
 
   # Sanitized child environment: strip Node injection; pass DB URL env by name only (do not read value into evidence)
