@@ -4,9 +4,9 @@ import { supabaseAdmin } from "../../../../lib/supabase";
 import {
   clearLeadAuthCookies,
   issueLeadSession,
+  planLeadEnrichUpdate,
   resolveLeadSessionFromRequest,
   rotateLeadSessionForRequest,
-  serverControlledStatusAfterEnrich,
   setLeadSessionCookie,
 } from "@/lib/free-review/lead-session";
 
@@ -116,8 +116,9 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "status_not_writable" }, { status: 400 });
   }
 
-  const nextStatus = serverControlledStatusAfterEnrich(session.leadStatus);
-  if (!nextStatus) {
+  // Conditional plan: revalidate exact status at UPDATE time (never trust resolve-only status).
+  const enrichPlan = planLeadEnrichUpdate(session.leadStatus);
+  if (!enrichPlan.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -130,9 +131,12 @@ export async function PATCH(request) {
       body.additional_business_information && typeof body.additional_business_information === "object"
         ? body.additional_business_information
         : {},
-    status: nextStatus,
     updated_at: new Date().toISOString(),
   };
+  // Only write status when advancing lead_captured → onboarding_started under exact predicate.
+  if (enrichPlan.statusWrite) {
+    updatePayload.status = enrichPlan.statusWrite;
+  }
   if (nextBusinessName) {
     updatePayload.legal_company_name = nextBusinessName;
     updatePayload.business_name = nextBusinessName;
@@ -142,6 +146,7 @@ export async function PATCH(request) {
     .from("free_review_leads")
     .update(updatePayload)
     .eq("id", session.leadId)
+    .eq("status", enrichPlan.statusPredicate)
     .select("*")
     .maybeSingle();
 
@@ -151,6 +156,13 @@ export async function PATCH(request) {
 
   if (error) {
     return NextResponse.json({ error: "Unable to enrich free review lead." }, { status: 500 });
+  }
+
+  // Zero rows ⇒ concurrent deactivation / status change — fail closed, no enrichment committed.
+  if (!data?.id) {
+    const denial = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    clearLeadAuthCookies(denial);
+    return denial;
   }
 
   const response = NextResponse.json({ lead: data });

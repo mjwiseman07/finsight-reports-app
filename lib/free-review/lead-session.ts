@@ -89,6 +89,41 @@ export function serverControlledStatusAfterEnrich(
   return normalized;
 }
 
+/**
+ * Conditional enrich plan: status written only with an exact DB predicate.
+ * - lead_captured → set onboarding_started iff row still exactly lead_captured
+ * - other allowlisted → do not overwrite status; predicate is the exact current status
+ * - inactive/unknown → deny (caller must not write enrichment fields)
+ */
+export type LeadEnrichUpdatePlan =
+  | {
+      ok: true;
+      /** Exact status required on the row at UPDATE time. */
+      statusPredicate: ActiveLeadStatus;
+      /** When set, include status in the UPDATE payload; otherwise leave status untouched. */
+      statusWrite: ActiveLeadStatus | null;
+    }
+  | { ok: false };
+
+export function planLeadEnrichUpdate(
+  resolvedStatus: string | null | undefined,
+): LeadEnrichUpdatePlan {
+  if (!isActiveLeadStatus(resolvedStatus)) return { ok: false };
+  const normalized = String(resolvedStatus).trim().toLowerCase() as ActiveLeadStatus;
+  if (normalized === "lead_captured") {
+    return {
+      ok: true,
+      statusPredicate: "lead_captured",
+      statusWrite: "onboarding_started",
+    };
+  }
+  return {
+    ok: true,
+    statusPredicate: normalized,
+    statusWrite: null,
+  };
+}
+
 export function looksLikeLegacyLeadIdCookie(value: string): boolean {
   return UUID_RE.test(String(value || "").trim());
 }
@@ -178,6 +213,16 @@ export async function issueLeadSession(args: {
 
   if (error || !sessionId) {
     const message = String(error?.message || "");
+    const code = String((error as { code?: string } | null)?.code || "");
+    // Unique conflicts (token_hash or one-unrevoked-per-lead) — sanitized fail-closed.
+    if (
+      code === "23505" ||
+      message.includes("free_review_lead_sessions_one_unrevoked_per_lead") ||
+      message.includes("free_review_lead_sessions_token_hash") ||
+      /duplicate key|unique/i.test(message)
+    ) {
+      throw new Error("lead_session_conflict");
+    }
     if (message.includes("lead_status_not_active")) {
       throw new Error("lead_status_not_active");
     }

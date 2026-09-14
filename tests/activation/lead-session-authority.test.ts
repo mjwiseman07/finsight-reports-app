@@ -60,8 +60,9 @@ describe("lead-session server authority", () => {
     expect(source).toContain("rotateLeadSessionForRequest");
     expect(source).toContain("issueLeadSession");
     expect(source).toContain("setLeadSessionCookie");
-    expect(source).toContain("serverControlledStatusAfterEnrich");
+    expect(source).toContain("planLeadEnrichUpdate");
     expect(source).toContain("status_not_writable");
+    expect(source).toContain('.eq("status", enrichPlan.statusPredicate)');
     expect(source).not.toContain('cookies.get("free_review_lead_id")');
   });
 });

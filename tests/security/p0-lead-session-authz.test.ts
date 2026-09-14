@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
   leads: [] as Array<Record<string, unknown>>,
   sessions: [] as Array<Record<string, unknown>>,
   getUser: vi.fn(),
-  rpcFail: null as null | "revoke" | "insert" | "cleanup",
+  rpcFail: null as null | "revoke" | "insert" | "cleanup" | "unique",
   rpc: vi.fn(),
 }));
 
@@ -56,6 +56,12 @@ vi.mock("@/lib/supabase", () => {
     if (name === "rotate_free_review_lead_session") {
       if (state.rpcFail === "revoke") {
         return { data: null, error: { message: "forced_revoke_failure" } };
+      }
+      if (state.rpcFail === "unique") {
+        return {
+          data: null,
+          error: { message: "duplicate key value violates unique constraint", code: "23505" },
+        };
       }
       const leadId = String(args.p_lead_id);
       const tokenHash = String(args.p_token_hash);
@@ -140,6 +146,7 @@ import {
   isActiveLeadStatus,
   issueLeadSession,
   looksLikeLegacyLeadIdCookie,
+  planLeadEnrichUpdate,
   resolveLeadSessionFromToken,
   serverControlledStatusAfterEnrich,
   LEAD_SESSION_COOKIE,
@@ -213,11 +220,126 @@ describe("explicit lead status allowlist", () => {
     expect(serverControlledStatusAfterEnrich("")).toBeNull();
   });
 
-  it("PATCH route rejects client status fields and uses server-controlled transition", () => {
+  it("planLeadEnrichUpdate advances lead_captured only under exact predicate", () => {
+    expect(planLeadEnrichUpdate("lead_captured")).toEqual({
+      ok: true,
+      statusPredicate: "lead_captured",
+      statusWrite: "onboarding_started",
+    });
+  });
+
+  it("planLeadEnrichUpdate does not regress or overwrite other allowlisted statuses", () => {
+    expect(planLeadEnrichUpdate("onboarding_started")).toEqual({
+      ok: true,
+      statusPredicate: "onboarding_started",
+      statusWrite: null,
+    });
+    expect(planLeadEnrichUpdate("quickbooks_connected")).toEqual({
+      ok: true,
+      statusPredicate: "quickbooks_connected",
+      statusWrite: null,
+    });
+    expect(planLeadEnrichUpdate("xero_connected")).toEqual({
+      ok: true,
+      statusPredicate: "xero_connected",
+      statusWrite: null,
+    });
+  });
+
+  it("planLeadEnrichUpdate fails closed for inactive/unknown statuses", () => {
+    expect(planLeadEnrichUpdate("revoked")).toEqual({ ok: false });
+    expect(planLeadEnrichUpdate("converted")).toEqual({ ok: false });
+    expect(planLeadEnrichUpdate("")).toEqual({ ok: false });
+    expect(planLeadEnrichUpdate(null)).toEqual({ ok: false });
+  });
+
+  it("PATCH route uses exact status predicate and planLeadEnrichUpdate (no resolve-only write)", () => {
     const source = readFileSync(join(process.cwd(), "app/api/free-review/leads/route.js"), "utf8");
     expect(source).toContain("status_not_writable");
-    expect(source).toContain("serverControlledStatusAfterEnrich");
+    expect(source).toContain("planLeadEnrichUpdate");
+    expect(source).toContain('.eq("status", enrichPlan.statusPredicate)');
+    expect(source).toContain("if (!data?.id)");
     expect(source).not.toMatch(/status:\s*normalizeText\(body\.status/);
+    expect(source).not.toContain("serverControlledStatusAfterEnrich");
+  });
+});
+
+describe("PATCH enrich TOCTOU status predicate", () => {
+  /**
+   * Deterministic simulation of the route's conditional update:
+   * UPDATE ... WHERE id = ? AND status = predicate.
+   */
+  function applyEnrichUpdate(args: {
+    leadId: string;
+    resolvedStatusAtAuth: string;
+    enrichment: Record<string, unknown>;
+  }): { affected: number; lead: Record<string, unknown> | null } {
+    const plan = planLeadEnrichUpdate(args.resolvedStatusAtAuth);
+    if (!plan.ok) return { affected: 0, lead: null };
+    const lead = state.leads.find((l) => l.id === args.leadId);
+    if (!lead) return { affected: 0, lead: null };
+    if (String(lead.status) !== plan.statusPredicate) return { affected: 0, lead: null };
+    Object.assign(lead, args.enrichment);
+    if (plan.statusWrite) lead.status = plan.statusWrite;
+    return { affected: 1, lead };
+  }
+
+  it("fails closed with zero enrichment writes after concurrent deactivation", () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId, "lead_captured");
+    const resolvedStatusAtAuth = "lead_captured";
+    // Concurrent deactivation after session resolve, before update:
+    state.leads[0].status = "revoked";
+    const result = applyEnrichUpdate({
+      leadId,
+      resolvedStatusAtAuth,
+      enrichment: { industry: "should_not_write" },
+    });
+    expect(result.affected).toBe(0);
+    expect(state.leads[0].status).toBe("revoked");
+    expect(state.leads[0].industry).toBeUndefined();
+  });
+
+  it("advances lead_captured → onboarding_started only when row still lead_captured", () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId, "lead_captured");
+    const result = applyEnrichUpdate({
+      leadId,
+      resolvedStatusAtAuth: "lead_captured",
+      enrichment: { industry: "Manufacturing" },
+    });
+    expect(result.affected).toBe(1);
+    expect(state.leads[0].status).toBe("onboarding_started");
+    expect(state.leads[0].industry).toBe("Manufacturing");
+  });
+
+  it("does not regress quickbooks_connected when enriching under matching predicate", () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId, "quickbooks_connected");
+    const result = applyEnrichUpdate({
+      leadId,
+      resolvedStatusAtAuth: "quickbooks_connected",
+      enrichment: { industry: "Retail" },
+    });
+    expect(result.affected).toBe(1);
+    expect(state.leads[0].status).toBe("quickbooks_connected");
+    expect(state.leads[0].industry).toBe("Retail");
+  });
+
+  it("fails closed when allowed status advanced between resolve and update", () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId, "lead_captured");
+    const resolvedStatusAtAuth = "lead_captured";
+    // Concurrent OAuth callback advanced status before enrich UPDATE:
+    state.leads[0].status = "quickbooks_connected";
+    const result = applyEnrichUpdate({
+      leadId,
+      resolvedStatusAtAuth,
+      enrichment: { industry: "should_not_write" },
+    });
+    expect(result.affected).toBe(0);
+    expect(state.leads[0].status).toBe("quickbooks_connected");
+    expect(state.leads[0].industry).toBeUndefined();
   });
 });
 
@@ -320,6 +442,13 @@ describe("lead session lifecycle", () => {
     await expect(issueLeadSession({ leadId })).rejects.toThrow("lead_session_issue_failed");
     expect(state.sessions.filter((s) => s.revoked_at == null)).toHaveLength(1);
     expect(await resolveLeadSessionFromToken(first.token)).not.toBeNull();
+  });
+
+  it("maps uniqueness conflicts to sanitized lead_session_conflict", async () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId);
+    state.rpcFail = "unique";
+    await expect(issueLeadSession({ leadId })).rejects.toThrow("lead_session_conflict");
   });
 });
 
