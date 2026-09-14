@@ -54,4 +54,11 @@ Publication order:
 2. Bundle-source commit — bake freeze SHA into constants, rebuild the standalone bundle, seal OID/SHA/bytes; set `authorized_pr_head` to the freeze; leave `bundle_source_commit` null until the tip pin.
 3. Final tip — set `bundle_source_commit` to the bundle-source commit SHA (no bundle rebuild required if the blob is unchanged).
 
-Prior-dry-run pins remain null until a separately authorized production dry-run publishes them.
+Prior-dry-run pins are published after the authorized production dry-run:
+
+- Evidence SHA-256: `b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209`
+- Dry-run freeze: `7e4d4e4b4e57052ed2bdfdc201b12564edc46349`
+- Dry-run tip: `d08134526141be86e8936f477da38b76a8ae4c26`
+- Dry-run bundle source: `823b466445599b6095e03a376f57ffc86fe0bf1d`
+
+Apply requires `-PriorDryRunEvidencePath` pointing at the exact retained evidence file whose SHA and contents match these seals. Rejected: closed headless attempt; superseded evidence `e5202a46…`.

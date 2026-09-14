@@ -620,9 +620,79 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("tip auth null prior-dry-run pins still block apply ceremony", () => {
+  it("tip auth published prior-dry-run pins accept fixture and block missing/wrong evidence", () => {
     const { execFileSync } = require("node:child_process");
-    const tipAuth = JSON.parse(
+    // Prefer worktree auth (pin publication); tip HEAD is authoritative after freeze/source/tip seals.
+    const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+    const publishedSha = String(auth.required_prior_dry_run_evidence_sha256 || "");
+    expect(publishedSha).toBe(
+      "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+    );
+    expect(auth.required_prior_dry_run_freeze).toBe(
+      "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+    );
+    expect(auth.required_prior_dry_run_evidence_tip).toBe(
+      "d08134526141be86e8936f477da38b76a8ae4c26",
+    );
+    expect(auth.required_prior_dry_run_bundle_source).toBe(
+      "823b466445599b6095e03a376f57ffc86fe0bf1d",
+    );
+    expect(auth.published_prior_dry_run?.rejected_evidence_sha256).toContain(
+      "e5202a46c3a3055b6debb5ee7ce2865d34a369e120fa789eb4c6abff42b05096",
+    );
+    expect(
+      auth.authorized_pr_head === "PENDING_AFTER_COMMIT" ||
+        /^[0-9a-f]{40}$/i.test(String(auth.authorized_pr_head)),
+    ).toBe(true);
+    if (/^[0-9a-f]{40}$/i.test(String(auth.authorized_pr_head))) {
+      expect(auth.bundle_source_commit).toMatch(/^[0-9a-f]{40}$/i);
+      expect(auth.bundle_source_commit).not.toBe(auth.authorized_pr_head);
+    }
+
+    const fixture = path.join(
+      ROOT,
+      "tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json",
+    );
+    const fixtureSha = createHash("sha256")
+      .update(fs.readFileSync(fixture))
+      .digest("hex");
+    expect(fixtureSha).toBe(publishedSha);
+
+    const acceptDir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-accept-"));
+    const acceptAuth = path.join(acceptDir, "auth.json");
+    fs.writeFileSync(acceptAuth, `${JSON.stringify(auth, null, 2)}\n`, "utf8");
+    const accept = runHarness([
+      "-Action",
+      "assert-evidence",
+      "-EvidencePath",
+      fixture,
+      "-AuthJsonPath",
+      acceptAuth,
+    ]);
+    expect(accept.status, accept.out).toBe(0);
+    expect(accept.out).toMatch(/ACCEPTED:[0-9a-f]{64}/i);
+    fs.rmSync(acceptDir, { recursive: true, force: true });
+
+    // Superseded APPLICATOR_EVIDENCE_MISSING evidence must not satisfy the pin.
+    const rejectDir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-rej-"));
+    const bogus = path.join(rejectDir, "e5202a46.json");
+    fs.writeFileSync(bogus, `${JSON.stringify(baseEvidence({}), null, 2)}\n`, "utf8");
+    const rejectAuth = path.join(rejectDir, "auth.json");
+    fs.writeFileSync(rejectAuth, `${JSON.stringify(auth, null, 2)}\n`, "utf8");
+    const rejected = runHarness([
+      "-Action",
+      "assert-evidence",
+      "-EvidencePath",
+      bogus,
+      "-AuthJsonPath",
+      rejectAuth,
+    ]);
+    expect(rejected.status).toBe(1);
+    expect(rejected.out).toMatch(/BLOCKED_PRIOR_DRY_RUN_SHA_MISMATCH/);
+    fs.rmSync(rejectDir, { recursive: true, force: true });
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-nullpins-"));
+    const tipAuthJson = String(
       execFileSync(
         "git",
         [
@@ -632,43 +702,41 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
         { encoding: "utf8" },
       ),
     );
-    expect(tipAuth.required_prior_dry_run_evidence_sha256).toBeNull();
-    expect(tipAuth.required_prior_dry_run_freeze).toBeNull();
-    expect(tipAuth.required_prior_dry_run_evidence_tip).toBeNull();
-    expect(
-      tipAuth.authorized_pr_head === "PENDING_AFTER_COMMIT" ||
-        /^[0-9a-f]{40}$/i.test(String(tipAuth.authorized_pr_head)),
-    ).toBe(true);
-    if (/^[0-9a-f]{40}$/i.test(String(tipAuth.authorized_pr_head))) {
-      expect(tipAuth.bundle_source_commit).toMatch(/^[0-9a-f]{40}$/i);
-      expect(tipAuth.bundle_source_commit).not.toBe(tipAuth.authorized_pr_head);
+    const tipAuthLive = JSON.parse(tipAuthJson);
+    const tipReady =
+      /^[0-9a-f]{40}$/i.test(String(tipAuthLive.authorized_pr_head)) &&
+      /^[0-9a-f]{40}$/i.test(String(tipAuthLive.bundle_source_commit)) &&
+      Boolean(tipAuthLive.required_prior_dry_run_evidence_sha256) &&
+      !tipAuthJson.includes("PENDING_AFTER_COMMIT");
+    if (tipReady) {
+      const r = spawnSync(
+        systemPowerShell(),
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          path.join(ROOT, APPLY_CEREMONY),
+          "-PrHead",
+          String(tipAuthLive.authorized_pr_head),
+          "-RepoRoot",
+          ROOT,
+          "-EvidenceOutDir",
+          dir,
+        ],
+        { cwd: ROOT, encoding: "utf8", windowsHide: true, timeout: 120000 },
+      );
+      const summaryPath = path.join(dir, "PRODUCTION_APPLY_SUMMARY.json");
+      expect(fs.existsSync(summaryPath)).toBe(true);
+      const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+      expect(summary.result_code).toMatch(
+        /^BLOCKED_PRIOR_DRY_RUN_(MISSING|EVIDENCE)$/,
+      );
+      expect(summary.result_code).not.toBe("APPLY_COMMITTED");
+      expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
+      expect(r.status).not.toBe(0);
     }
-
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-nullpins-"));
-    const r = spawnSync(
-      systemPowerShell(),
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        path.join(ROOT, APPLY_CEREMONY),
-        "-PrHead",
-        tipAuth.authorized_pr_head,
-        "-RepoRoot",
-        ROOT,
-        "-EvidenceOutDir",
-        dir,
-      ],
-      { cwd: ROOT, encoding: "utf8", windowsHide: true, timeout: 120000 },
-    );
-    const summary = JSON.parse(
-      fs.readFileSync(path.join(dir, "PRODUCTION_APPLY_SUMMARY.json"), "utf8"),
-    );
-    expect(summary.result_code).toBe("BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED");
-    expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
-    expect(r.status).not.toBe(0);
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);
 

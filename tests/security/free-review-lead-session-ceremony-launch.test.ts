@@ -150,12 +150,15 @@ describe("FRLS ceremony seals are published in TOOLING_AUTHORIZATION", () => {
     expect(src(EVIDENCE_MODULE)).toMatch(/require\("\.\/containment-evidence-protocol"\)/);
   });
 
-  it("keeps the tooling freeze pending and prior dry-run pins unpublished", () => {
+  it("publishes sealed prior dry-run pins and keeps freeze/source non-circular", () => {
     const auth = readAuth() as {
       authorized_pr_head: string;
+      bundle_source_commit: string | null;
       required_prior_dry_run_evidence_sha256: string | null;
       required_prior_dry_run_freeze: string | null;
       required_prior_dry_run_evidence_tip: string | null;
+      required_prior_dry_run_bundle_source: string | null;
+      published_prior_dry_run?: { evidence_sha256?: string; rejected_evidence_sha256?: string[] };
     };
     expect(
       auth.authorized_pr_head === "PENDING_AFTER_COMMIT" ||
@@ -165,9 +168,24 @@ describe("FRLS ceremony seals are published in TOOLING_AUTHORIZATION", () => {
       expect(auth.bundle_source_commit).toMatch(/^[0-9a-f]{40}$/i);
       expect(auth.bundle_source_commit).not.toBe(auth.authorized_pr_head);
     }
-    expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
-    expect(auth.required_prior_dry_run_freeze).toBeNull();
-    expect(auth.required_prior_dry_run_evidence_tip).toBeNull();
+    expect(auth.required_prior_dry_run_evidence_sha256).toBe(
+      "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+    );
+    expect(auth.required_prior_dry_run_freeze).toBe(
+      "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+    );
+    expect(auth.required_prior_dry_run_evidence_tip).toBe(
+      "d08134526141be86e8936f477da38b76a8ae4c26",
+    );
+    expect(auth.required_prior_dry_run_bundle_source).toBe(
+      "823b466445599b6095e03a376f57ffc86fe0bf1d",
+    );
+    expect(auth.published_prior_dry_run?.evidence_sha256).toBe(
+      auth.required_prior_dry_run_evidence_sha256,
+    );
+    expect(auth.published_prior_dry_run?.rejected_evidence_sha256).toContain(
+      "e5202a46c3a3055b6debb5ee7ce2865d34a369e120fa789eb4c6abff42b05096",
+    );
   });
 });
 
@@ -395,9 +413,16 @@ describe("FRLS ceremony fail-closed runtime (no DB, no credentials)", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);
 
-  it("apply ceremony runs non-interactively without -PriorDryRunEvidencePath and never commits", () => {
+  it("apply ceremony blocks on missing PriorDryRunEvidencePath once pins are published", () => {
+    const auth = readAuth() as {
+      authorized_pr_head: string;
+      required_prior_dry_run_evidence_sha256: string | null;
+    };
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-cer-apply-"));
-    const r = runCeremony({ script: APPLY_CEREMONY, outDir: dir });
+    const prHead = /^[0-9a-f]{40}$/i.test(auth.authorized_pr_head)
+      ? auth.authorized_pr_head
+      : UNAUTHORIZED_FREEZE;
+    const r = runCeremony({ script: APPLY_CEREMONY, outDir: dir, prHead });
     // A mandatory parameter would have blocked on a prompt instead of finishing.
     expect(r.status).not.toBeNull();
     const summary = JSON.parse(
@@ -412,6 +437,15 @@ describe("FRLS ceremony fail-closed runtime (no DB, no credentials)", () => {
     expect(evidence.prior_dry_run_evidence_sha256).toBeNull();
     expect(evidence.harness_derived_forward_args).toBe(false);
     expect(fs.existsSync(path.join(dir, "PROMPT_READY.txt"))).toBe(false);
+    if (
+      /^[0-9a-f]{40}$/i.test(auth.authorized_pr_head) &&
+      auth.required_prior_dry_run_evidence_sha256 &&
+      !JSON.stringify(auth).includes("PENDING_AFTER_COMMIT")
+    ) {
+      expect(summary.result_code).toMatch(
+        /^BLOCKED_PRIOR_DRY_RUN_(MISSING|EVIDENCE)$/,
+      );
+    }
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);
 

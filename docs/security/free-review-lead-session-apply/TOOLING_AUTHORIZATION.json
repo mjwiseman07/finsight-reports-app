@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -18,10 +18,10 @@
     "key1": 1179798611,
     "key2": 539363603
   },
-  "required_prior_dry_run_evidence_sha256": null,
-  "required_prior_dry_run_freeze": null,
-  "required_prior_dry_run_evidence_tip": null,
-  "bundle_source_commit": "823b466445599b6095e03a376f57ffc86fe0bf1d",
+  "required_prior_dry_run_evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+  "required_prior_dry_run_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+  "required_prior_dry_run_evidence_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
+  "bundle_source_commit": null,
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
@@ -164,7 +164,7 @@
     "Enter materializes launcher + the seal-selected ceremony from freeze blobs only; never execute mutable worktree scripts as authority.",
     "FRLS has no fixture Target #2 world: the ceremonies forward only the sealed apply token, and FRLS_CEREMONY_ALLOW_SYNTHETIC_URL is the single harness channel (loopback 127.0.0.1 only, never on the interactive SecureString path).",
     "CONTAINMENT_APPLY_DATABASE_URL is not an FRLS channel; both operator ceremonies fail closed with BLOCKED_RETIRED_CREDENTIAL_CHANNEL if it is set, and the visible chain clears it.",
-    "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip are null until the first authorized production dry-run publishes them. While they are null the apply ceremony, visible entry, and supervisor all refuse apply with BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED; -PriorDryRunEvidencePath is therefore optional at the shell boundary and enforced against the sealed authorization once the pins exist.",
+    "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip / required_prior_dry_run_bundle_source are published from the authorized production dry-run (evidence SHA b27e927b…, freeze 7e4d4e4b…, tip d0813452…, bundle source 823b4664…). Apply ceremony, visible entry, and supervisor require -PriorDryRunEvidencePath and Assert-PriorDryRunEvidence against these sealed pins. Pins cannot be overridden via argv, environment, worktree files, alternate evidence paths, or operator input. Rejected: closed headless attempt; superseded evidence e5202a46….",
     "Child evidence frame is FRLS_LEAD_SESSION_EVIDENCE_V1; the FRLS evidence module requires the shared framing primitives in evidence_protocol.shared_framing_module, which ceremonies materialize as a sibling before decoding.",
     "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",
     "Prior-dry-run verdict gate: shared scripts/security/free-review-lead-session-prior-dry-run-gates.ps1; allowlist DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION and historical DRY_RUN_READY. Mandatory booleans/counters fail closed when missing, null, wrong-type, or inferred."
@@ -184,5 +184,48 @@
       "Assert-PriorDryRunEvidence requires full sealed dry-run evidence contract including history 186 and migration LF seals.",
       "Mandatory booleans (including advisory_lock_acquired on wrapper and applicator) and counters fail closed when missing, null, wrong-type, or inferred; no default-false success path."
     ]
+  },
+  "required_prior_dry_run_bundle_source": "823b466445599b6095e03a376f57ffc86fe0bf1d",
+  "published_prior_dry_run": {
+    "status": "PUBLISHED",
+    "verdict": "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+    "evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+    "evidence_bytes": 110391,
+    "evidence_source": "sealed_applicator",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json",
+    "dry_run_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
+    "dry_run_bundle_source": "823b466445599b6095e03a376f57ffc86fe0bf1d",
+    "dry_run_executable_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+    "dry_run_standalone_bundle": {
+      "oid": "8a78cbfe6e3d35ad9c599d5df018ab25c2f70858",
+      "sha256": "b00b1aa726b8b6089fd0e2d845ead6bb88194aad7af56170111ad273360db2c7",
+      "bytes": 279405
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "migration_version": "20260913235500",
+    "migration_name": "free_review_lead_sessions",
+    "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+    "migration_blob_oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+    "migration_sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+    "migration_bytes": 8108,
+    "prior_history_count": 186,
+    "version_absent": true,
+    "migration_objects_absent": true,
+    "mode": "dry-run",
+    "read_only": true,
+    "databaseConnectionAttempts": 1,
+    "sqlApplicationAttempts": 0,
+    "advisory_lock_acquired": false,
+    "cleanup_completed": true,
+    "credential_cleared": true,
+    "credential_redaction_confirmed": true,
+    "rejected_evidence_sha256": [
+      "e5202a46c3a3055b6debb5ee7ce2865d34a369e120fa789eb4c6abff42b05096"
+    ],
+    "rejected_attempts": [
+      "closed_headless_cursor_redirect_no_visible_console",
+      "superseded_APPLICATOR_EVIDENCE_MISSING_e5202a46"
+    ],
+    "notes": "Sanitized evidence identity only. Operator must supply the exact evidence file whose SHA-256 matches evidence_sha256 at apply time. Pins are tip/freeze authorization only — never argv, env, worktree, or operator override."
   }
 }
