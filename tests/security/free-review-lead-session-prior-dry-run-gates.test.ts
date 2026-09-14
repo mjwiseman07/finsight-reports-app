@@ -730,9 +730,8 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
       const summaryPath = path.join(dir, "PRODUCTION_APPLY_SUMMARY.json");
       expect(fs.existsSync(summaryPath)).toBe(true);
       const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
-      expect(summary.result_code).toMatch(
-        /^BLOCKED_PRIOR_DRY_RUN_(MISSING|EVIDENCE)$/,
-      );
+      // Classify maps BLOCKED_PRIOR_DRY_RUN_MISSING → BLOCKED_PRIOR_DRY_RUN_EVIDENCE.
+      expect(summary.result_code).toBe("BLOCKED_PRIOR_DRY_RUN_EVIDENCE");
       expect(summary.result_code).not.toBe("APPLY_COMMITTED");
       expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
       expect(r.status).not.toBe(0);

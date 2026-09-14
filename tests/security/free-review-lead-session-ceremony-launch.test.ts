@@ -442,9 +442,8 @@ describe("FRLS ceremony fail-closed runtime (no DB, no credentials)", () => {
       auth.required_prior_dry_run_evidence_sha256 &&
       !JSON.stringify(auth).includes("PENDING_AFTER_COMMIT")
     ) {
-      expect(summary.result_code).toMatch(
-        /^BLOCKED_PRIOR_DRY_RUN_(MISSING|EVIDENCE)$/,
-      );
+      // Classify maps BLOCKED_PRIOR_DRY_RUN_MISSING → BLOCKED_PRIOR_DRY_RUN_EVIDENCE.
+      expect(summary.result_code).toBe("BLOCKED_PRIOR_DRY_RUN_EVIDENCE");
     }
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);

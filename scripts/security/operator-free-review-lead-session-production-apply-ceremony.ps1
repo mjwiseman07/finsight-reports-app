@@ -324,7 +324,29 @@ function Import-FrlsPriorDryRunGatesFromFreeze {
   }
 
   $script:FrlsGatesMaterializedPath = $dest
-  . $dest
+  # Dot-sourcing inside a function only populates the function's local scope.
+  # Promote every gate command into script scope so Assert-* survives Import return.
+  $gateText = [IO.File]::ReadAllText($dest)
+  $gateScript = $ExecutionContext.InvokeCommand.NewScriptBlock($gateText)
+  . $gateScript
+  $gateNames = @(
+    "Get-FrlsDryRunReadyAllowlist",
+    "Test-FrlsDryRunReadyCode",
+    "Assert-FrlsPriorDryRunReadyCodes",
+    "Get-FrlsSha256Bytes",
+    "Get-FrlsRequiredString",
+    "Get-FrlsRequiredBoolean",
+    "Get-FrlsRequiredInt",
+    "Assert-FrlsRequiredBooleanEquals",
+    "Assert-PriorDryRunEvidence"
+  )
+  foreach ($name in $gateNames) {
+    $cmd = Get-Command -Name $name -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $cmd) {
+      throw ("BLOCKED_GATE_MODULE_LOAD: " + $name + " missing after sealed dotsource")
+    }
+    Set-Item -Path ("function:script:" + $name) -Value $cmd.ScriptBlock
+  }
   if (-not (Get-Command -Name Assert-PriorDryRunEvidence -ErrorAction SilentlyContinue)) {
     throw "BLOCKED_GATE_MODULE_LOAD: Assert-PriorDryRunEvidence missing after sealed dotsource"
   }
