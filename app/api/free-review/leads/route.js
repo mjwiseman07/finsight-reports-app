@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import {
+  clearLeadAuthCookies,
+  issueLeadSession,
+  resolveLeadSessionFromRequest,
+  rotateLeadSessionForRequest,
+  setLeadSessionCookie,
+} from "@/lib/free-review/lead-session";
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
@@ -63,14 +70,15 @@ export async function POST(request) {
     return NextResponse.json({ error: "Unable to capture free review lead." }, { status: 500 });
   }
 
+  let issued;
+  try {
+    issued = await issueLeadSession({ leadId: data.id });
+  } catch {
+    return NextResponse.json({ error: "Unable to establish free review session." }, { status: 500 });
+  }
+
   const response = NextResponse.json({ lead: data });
-  response.cookies.set("free_review_lead_id", data.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-    path: "/",
-  });
+  setLeadSessionCookie(response, issued.token);
   return response;
 }
 
@@ -82,16 +90,21 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const leadId = normalizeText(body.lead_id, 80);
-  if (!leadId) return NextResponse.json({ error: "Lead id is required." }, { status: 400 });
-
-  const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
-  if (!cookieLeadId || cookieLeadId !== leadId) {
-    return NextResponse.json(
-      { error: "Free Review lead session cookie is required to update this lead." },
+  const session = await resolveLeadSessionFromRequest(request);
+  if (!session) {
+    const denial = NextResponse.json(
+      { error: "Free Review lead session is required to update this lead." },
       { status: 401 },
     );
+    clearLeadAuthCookies(denial);
+    return denial;
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const claimedLeadId = normalizeText(body.lead_id, 80);
+  // Body lead_id is UX only; session proves identity. Mismatch → deny.
+  if (claimedLeadId && claimedLeadId !== session.leadId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const nextBusinessName = normalizeText(body.business_name || body.legal_company_name, 180);
@@ -114,7 +127,7 @@ export async function PATCH(request) {
   const { data, error } = await supabaseAdmin
     .from("free_review_leads")
     .update(updatePayload)
-    .eq("id", leadId)
+    .eq("id", session.leadId)
     .select("*")
     .maybeSingle();
 
@@ -126,5 +139,8 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Unable to enrich free review lead." }, { status: 500 });
   }
 
-  return NextResponse.json({ lead: data });
+  const response = NextResponse.json({ lead: data });
+  // Rotate session at enrich lifecycle transition.
+  await rotateLeadSessionForRequest({ request, response });
+  return response;
 }

@@ -129,30 +129,61 @@ describe("POST /api/audit-ready/[engagementId]/pbc/parse authz", () => {
       canWrite: true,
       scope: "company",
     });
+    const eng = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const sha = "a".repeat(64);
     uploadState.rows = [
       {
         id: "up1",
-        engagement_id: "eng-1",
+        engagement_id: eng,
         status: "uploaded",
-        storage_path: "eng-1/file.pdf",
+        storage_path: `${eng}/${sha}-file.pdf`,
         content_type: "application/pdf",
       },
     ];
     parseUpload.mockResolvedValue({ requestsExtracted: 3 });
 
     const res = await parseRoute(makeReq({ upload_id: "up1" }), {
-      params: Promise.resolve({ engagementId: "eng-1" }),
+      params: Promise.resolve({ engagementId: eng }),
     });
     expect(res.status).toBe(200);
     expect(parseUpload).toHaveBeenCalledWith(
       expect.objectContaining({
-        engagementId: "eng-1",
+        engagementId: eng,
         uploadId: "up1",
         calledByUserId: "u1",
+        storagePath: `${eng}/${sha}-file.pdf`,
       }),
     );
-    // require + recheck-before-load + recheck-before-parse
     expect(resolveActor.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("rejects poisoned storage_path / cross-engagement object key", async () => {
+    requireUser.mockResolvedValue({ user: { id: "u1", email: "a@b.c" } });
+    resolveActor.mockResolvedValue({
+      userId: "u1",
+      canRead: true,
+      canWrite: true,
+      scope: "company",
+    });
+    const eng = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const other = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const sha = "a".repeat(64);
+    uploadState.rows = [
+      {
+        id: "up1",
+        engagement_id: eng,
+        status: "uploaded",
+        storage_path: `${other}/${sha}-file.pdf`,
+        content_type: "application/pdf",
+      },
+    ];
+
+    const res = await parseRoute(makeReq({ upload_id: "up1" }), {
+      params: Promise.resolve({ engagementId: eng }),
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not_found" });
+    expect(parseUpload).not.toHaveBeenCalled();
   });
 
   it("fails closed if membership revoked between auth and parse (TOCTOU)", async () => {
@@ -168,15 +199,15 @@ describe("POST /api/audit-ready/[engagementId]/pbc/parse authz", () => {
     uploadState.rows = [
       {
         id: "up1",
-        engagement_id: "eng-1",
+        engagement_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         status: "uploaded",
-        storage_path: "eng-1/file.pdf",
+        storage_path: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/${"a".repeat(64)}-file.pdf`,
         content_type: "application/pdf",
       },
     ];
 
     const res = await parseRoute(makeReq({ upload_id: "up1" }), {
-      params: Promise.resolve({ engagementId: "eng-1" }),
+      params: Promise.resolve({ engagementId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
     });
     expect(res.status).toBe(404);
     expect(parseUpload).not.toHaveBeenCalled();

@@ -6,6 +6,7 @@ import {
   recheckEngagementAccess,
   requireEngagementAccess,
 } from '@/lib/audit-ready/require-engagement-access';
+import { assertPbcStoragePathForEngagement } from '@/lib/audit-ready/pbc-storage-path';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -49,6 +50,15 @@ export async function POST(
     if (upErr || !upload || upload.engagement_id !== engagementId) {
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
+
+    const boundPath = assertPbcStoragePathForEngagement({
+      engagementId,
+      storagePath: upload.storage_path,
+    });
+    if (!boundPath.ok) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    }
+
     if (upload.status === 'parsed') {
       return NextResponse.json(
         {
@@ -89,7 +99,7 @@ export async function POST(
         engagementId,
         uploadId: upload.id,
         calledByUserId: access.userId,
-        storagePath: upload.storage_path,
+        storagePath: boundPath.storagePath,
         contentType: upload.content_type,
       });
       return NextResponse.json({ ok: true, ...result }, { status: 200 });

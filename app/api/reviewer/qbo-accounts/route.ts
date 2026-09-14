@@ -11,6 +11,11 @@ import { withAutoFile } from "@/lib/support/api-error-wrapper";
 const cache = new Map<string, { expires: number; accounts: Array<{ id: string; name: string }> }>();
 const TTL_MS = 5 * 60 * 1000;
 
+/** Test-only: clear in-memory COA cache between cases. */
+export function __resetQboAccountsCacheForTests(): void {
+  cache.clear();
+}
+
 async function getImpl(req: NextRequest) {
   try {
     const auth = await requireFirmAuth(req);
@@ -32,6 +37,8 @@ async function getImpl(req: NextRequest) {
     const cacheKey = `${auth.userId}:${firmClientId}`;
     const hit = cache.get(cacheKey);
     if (hit && hit.expires > Date.now()) {
+      // TOCTOU: re-assert membership before returning cached privileged data.
+      await assertFirmClientAccess({ firmClientId, firmIds: auth.firmIds });
       return NextResponse.json({ accounts: hit.accounts });
     }
 

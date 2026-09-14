@@ -5,6 +5,11 @@ import { makeReviewerMockDb, seedClient, seedFirmUser, bearer } from "../reviewe
 const mock = makeReviewerMockDb();
 const resolveToken = vi.hoisted(() => vi.fn());
 const qboFetch = vi.hoisted(() => vi.fn());
+const assertAccess = vi.hoisted(() => vi.fn());
+const authActual = vi.hoisted(() => ({
+  assertFirmClientAccess: null as null | ((args: { firmClientId: string; firmIds: string[] }) => Promise<{ firmClientId: string; firmId: string }>),
+  ReviewerAuthError: null as null | (new (message: string, status: number) => Error),
+}));
 
 vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: () => Object.assign(mock, { auth: mock.auth, storage: mock.storage }),
@@ -18,14 +23,30 @@ vi.mock("@/lib/qbo/api-fetch.js", () => ({
 vi.mock("@/lib/support/api-error-wrapper", () => ({
   withAutoFile: (fn: (req: Request) => Promise<Response>) => fn,
 }));
+vi.mock("@/lib/reviewer/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/reviewer/auth")>();
+  authActual.assertFirmClientAccess = actual.assertFirmClientAccess;
+  authActual.ReviewerAuthError = actual.ReviewerAuthError;
+  assertAccess.mockImplementation(actual.assertFirmClientAccess);
+  return {
+    ...actual,
+    assertFirmClientAccess: (...args: [{ firmClientId: string; firmIds: string[] }]) =>
+      assertAccess(...args),
+  };
+});
 
-import { GET as getQboAccounts } from "@/app/api/reviewer/qbo-accounts/route";
+import { GET as getQboAccounts, __resetQboAccountsCacheForTests } from "@/app/api/reviewer/qbo-accounts/route";
 import { assertFirmClientAccess, ReviewerAuthError } from "@/lib/reviewer/auth";
 
 beforeEach(() => {
   mock.__reset();
   resolveToken.mockReset();
   qboFetch.mockReset();
+  assertAccess.mockReset();
+  __resetQboAccountsCacheForTests();
+  if (authActual.assertFirmClientAccess) {
+    assertAccess.mockImplementation(authActual.assertFirmClientAccess);
+  }
 });
 
 describe("assertFirmClientAccess", () => {
@@ -102,5 +123,42 @@ describe("GET /api/reviewer/qbo-accounts", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not_found" });
     expect(resolveToken).not.toHaveBeenCalled();
+  });
+
+  it("rechecks membership on cache hit after revocation (no disclosure)", async () => {
+    seedFirmUser(mock, "u1", "f1");
+    seedClient(mock, "fc1", "f1");
+    resolveToken.mockResolvedValue({ accessToken: "at", realmId: "realm1" });
+    qboFetch.mockResolvedValue({
+      ok: true,
+      json: { QueryResponse: { Account: [{ Id: "1", Name: "Cash" }] } },
+    });
+
+    let accessCalls = 0;
+    assertAccess.mockImplementation(async (args: { firmClientId: string; firmIds: string[] }) => {
+      accessCalls += 1;
+      // Request 1 (miss): calls 1–2. Request 2 (hit): call 3 pre-cache OK, call 4 on-hit revoked.
+      if (accessCalls <= 3) {
+        return { firmClientId: args.firmClientId, firmId: "f1" };
+      }
+      throw new ReviewerAuthError("not_found", 404);
+    });
+
+    const req1 = new NextRequest(
+      "http://localhost/api/reviewer/qbo-accounts?firmClientId=fc1",
+      bearer(),
+    );
+    expect((await getQboAccounts(req1)).status).toBe(200);
+    expect(resolveToken).toHaveBeenCalledTimes(1);
+
+    const req2 = new NextRequest(
+      "http://localhost/api/reviewer/qbo-accounts?firmClientId=fc1",
+      bearer(),
+    );
+    const res2 = await getQboAccounts(req2);
+    expect(res2.status).toBe(404);
+    expect(await res2.json()).toEqual({ error: "not_found" });
+    expect(resolveToken).toHaveBeenCalledTimes(1);
+    expect(accessCalls).toBeGreaterThanOrEqual(4);
   });
 });
