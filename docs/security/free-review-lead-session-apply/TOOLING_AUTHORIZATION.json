@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "PENDING_AFTER_COMMIT",
+  "authorized_pr_head": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -95,8 +95,8 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
-    "oid": "a2182aef60147cd978ed1d5abe143a6f9f9a9ab2",
-    "sha256": "6092a223a24e72e896427d375947c1cdaf7899bc83f1456b90b55a7053e111f9",
+    "oid": "8a78cbfe6e3d35ad9c599d5df018ab25c2f70858",
+    "sha256": "b00b1aa726b8b6089fd0e2d845ead6bb88194aad7af56170111ad273360db2c7",
     "bytes": 279405,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
@@ -119,8 +119,8 @@
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-constants.js",
-      "oid": "b11a343717be17c619171f9763a6a07f8c92d1f0",
-      "sha256": "94d989b19d4be86b4d540dc57b6be759193b819fb7bc3da99ab83c0075e841a4",
+      "oid": "c38b082545a283609d6825851ab193abe1e1c8ec",
+      "sha256": "50565d8846c96310a75ef13c2e177da3943a8809d692087e5592b532958056d4",
       "bytes": 3837
     },
     {
