@@ -1,9 +1,9 @@
 {
   "package": "free-review-lead-session-applicator-standalone",
   "bundle_path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
-  "bundle_sha256": "2f2f5214651777c410b8fd1321c62b7d0ba4bc6a331ae429e14d529651a719fa",
-  "bundle_bytes": 279385,
-  "bundle_oid_hash_object": "e89e07d5b1271962674317e5272accd583254dfd",
+  "bundle_sha256": "2dbe28327817e1240a85961292bebd9736821a06c576b5be919d04a528c30b30",
+  "bundle_bytes": 279405,
+  "bundle_oid_hash_object": "19b02f69843fe32e409d395d3d22dbd7d5d8809b",
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "lockfile_path": "package-lock.json",
   "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -38,9 +38,9 @@
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-constants.js",
-      "oid": "17c32adeb1f89c3bf454bcdc79cf5f14be6be1cc",
-      "sha256": "45db3a31db80bf4dad55399c7a847d5ce3c38cf2288519e3aafcae388d1285ab",
-      "bytes": 3817
+      "oid": "77d469e1c4635f297fe6faae23b16b822a12c015",
+      "sha256": "3d4dad08a8bb47f1dafc623ba434e0a1ddf0b6d41fa7d17071e067939c869c8b",
+      "bytes": 3837
     },
     {
       "path": "scripts/security/git-blob-authority.js",
