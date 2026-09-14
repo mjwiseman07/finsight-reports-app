@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "fdd365018a091d9f828df11af1c0afb66a7dcba5",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -70,9 +70,9 @@
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-free-review-lead-session-production-apply-ceremony.ps1",
-    "oid": "b1897eac2f4259ae2cac78cc34a097cba3c5f1a3",
-    "sha256": "acfb92d8470ece75246deaefa95a0da90b62b42f0007ca1ece3311db82bc477b",
-    "bytes": 29315
+    "oid": "6d39268f8a7b94a55952ad56202966b1f105ad56",
+    "sha256": "f1a896d4c2d9e19d7d0d3b1384d3f5741dbe7e234f0b82db44c8b272e631b99b",
+    "bytes": 25974
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-free-review-lead-session-ceremony.ps1",
@@ -94,9 +94,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
-    "oid": "8a90efd53d37c03994362070431004850692ced1",
-    "sha256": "288d86dfcf6c3985d3bf707663cabcd6153cb398fff137d4b32546b6f9781734",
-    "bytes": 278480,
+    "oid": "b3663a41a8e08390da76bfce9acdb1902ebafcfd",
+    "sha256": "443701183f9f905cf299ab8d92ac57403bdc4334b1d6440e84ed674f72ee9d04",
+    "bytes": 278460,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -118,9 +118,9 @@
     },
     {
       "path": "scripts/security/free-review-lead-session-apply-constants.js",
-      "oid": "5b0e9e1e8004754c2f9addf7ec336c46b958a8ff",
-      "sha256": "2e7d68a713b7d23b92b417eab2dd09cbaa9811d9374c18a9a298864504fbfc7d",
-      "bytes": 3837
+      "oid": "17c32adeb1f89c3bf454bcdc79cf5f14be6be1cc",
+      "sha256": "45db3a31db80bf4dad55399c7a847d5ce3c38cf2288519e3aafcae388d1285ab",
+      "bytes": 3817
     },
     {
       "path": "scripts/security/git-blob-authority.js",
@@ -163,6 +163,21 @@
     "CONTAINMENT_APPLY_DATABASE_URL is not an FRLS channel; both operator ceremonies fail closed with BLOCKED_RETIRED_CREDENTIAL_CHANNEL if it is set, and the visible chain clears it.",
     "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip are null until the first authorized production dry-run publishes them. While they are null the apply ceremony, visible entry, and supervisor all refuse apply with BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED; -PriorDryRunEvidencePath is therefore optional at the shell boundary and enforced against the sealed authorization once the pins exist.",
     "Child evidence frame is FRLS_LEAD_SESSION_EVIDENCE_V1; the FRLS evidence module requires the shared framing primitives in evidence_protocol.shared_framing_module, which ceremonies materialize as a sibling before decoding.",
-    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree."
-  ]
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",
+    "Prior-dry-run verdict gate: shared scripts/security/free-review-lead-session-prior-dry-run-gates.ps1; allowlist DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION and historical DRY_RUN_READY."
+  ],
+  "prior_dry_run_gates": {
+    "path": "scripts/security/free-review-lead-session-prior-dry-run-gates.ps1",
+    "oid": "3e874a821f7481f349f557f9c351d77a335eba2d",
+    "sha256": "d996cebfad8b20688dbe2a0488f1262ecf1b263285e504eeb072bcb1036cd442",
+    "bytes": 5614,
+    "allowlist": [
+      "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+      "DRY_RUN_READY"
+    ],
+    "notes": [
+      "Assert-PriorDryRunEvidence accepts identical allowlist for wrapper result_code and applicator verdict.",
+      "Long+short pairs are semantic synonyms; mixed success/failure is rejected."
+    ]
+  }
 }

@@ -35,6 +35,13 @@ $ProgressPreference = "SilentlyContinue"
 
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
+# Shared prior-dry-run gates (verdict allowlist + Assert-PriorDryRunEvidence).
+$script:FrlsPriorDryRunGates = Join-Path $PSScriptRoot "free-review-lead-session-prior-dry-run-gates.ps1"
+if (-not (Test-Path -LiteralPath $script:FrlsPriorDryRunGates)) {
+  throw "BLOCKED_TOOLING: missing free-review-lead-session-prior-dry-run-gates.ps1"
+}
+. $script:FrlsPriorDryRunGates
+
 # Sealed intent pin - never accept an operator-provided override of this value.
 $script:ExactApplyToken = "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500"
 
@@ -256,84 +263,6 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   if ($freeze -match '^(?i)pending') { return $false }
   if ($tip -match '^(?i)pending') { return $false }
   return $true
-}
-
-function Assert-PriorDryRunEvidence {
-  param(
-    [string]$Path,
-    [object]$Auth
-  )
-  if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
-    throw "BLOCKED_PRIOR_DRY_RUN_MISSING: PriorDryRunEvidencePath required"
-  }
-  $item = Get-Item -LiteralPath $Path -Force
-  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-    throw "BLOCKED_PRIOR_DRY_RUN_INVALID: PriorDryRunEvidencePath is a reparse point"
-  }
-  $bytes = [IO.File]::ReadAllBytes($Path)
-  $sha = Get-Sha256Bytes -Bytes $bytes
-  $expectedSha = [string]$Auth.required_prior_dry_run_evidence_sha256
-  if ([string]::IsNullOrWhiteSpace($expectedSha) -or $expectedSha.Length -ne 64) {
-    throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_evidence_sha256"
-  }
-  if ($sha -ne $expectedSha.ToLowerInvariant()) {
-    throw "BLOCKED_PRIOR_DRY_RUN_SHA_MISMATCH: evidence SHA-256 does not match authorization pin"
-  }
-  $expectedFreeze = [string]$Auth.required_prior_dry_run_freeze
-  $expectedTip = [string]$Auth.required_prior_dry_run_evidence_tip
-  if (-not ($expectedFreeze -match '^[0-9a-fA-F]{40}$')) {
-    throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_freeze"
-  }
-  if (-not ($expectedTip -match '^[0-9a-fA-F]{40}$')) {
-    throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_evidence_tip"
-  }
-  $json = [Text.Encoding]::UTF8.GetString($bytes)
-  $ev = $json | ConvertFrom-Json
-  $app = $ev.applicator
-  if (-not $app) { throw "BLOCKED_PRIOR_DRY_RUN_INVALID: missing applicator evidence" }
-
-  $verdict = [string]$(if ($app.verdict) { $app.verdict } else { $app.result_code })
-  if ($verdict -ne "DRY_RUN_READY") {
-    throw "BLOCKED_PRIOR_DRY_RUN_NOT_READY: applicator verdict must be DRY_RUN_READY"
-  }
-  $wrapper = [string]$ev.result_code
-  if ($wrapper -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -and $wrapper -ne "DRY_RUN_READY") {
-    throw "BLOCKED_PRIOR_DRY_RUN_NOT_READY: wrapper result_code not ready for apply"
-  }
-  if ([string]$ev.mode -ne "dry-run") {
-    throw "BLOCKED_PRIOR_DRY_RUN_INVALID: mode must be dry-run"
-  }
-  if ([bool]$app.read_only -ne $true) {
-    throw "BLOCKED_PRIOR_DRY_RUN_INVALID: read_only must be true"
-  }
-  $evFreeze = [string]$(if ($app.authorized_tooling_freeze) { $app.authorized_tooling_freeze } elseif ($app.pr_head) { $app.pr_head } else { $ev.freeze })
-  $evTip = [string]$app.evidence_tip
-  if ($evFreeze.ToLowerInvariant() -ne $expectedFreeze.ToLowerInvariant()) {
-    throw "BLOCKED_PRIOR_DRY_RUN_STALE_FREEZE: evidence freeze does not match required_prior_dry_run_freeze"
-  }
-  if ($evTip.ToLowerInvariant() -ne $expectedTip.ToLowerInvariant()) {
-    throw "BLOCKED_PRIOR_DRY_RUN_STALE_TIP: evidence tip does not match required_prior_dry_run_evidence_tip"
-  }
-  $sql = 0
-  if ($null -ne $ev.sqlApplicationAttempts) { $sql = [int]$ev.sqlApplicationAttempts }
-  elseif ($null -ne $app.sqlApplicationAttempts) { $sql = [int]$app.sqlApplicationAttempts }
-  if ($sql -ne 0) { throw "BLOCKED_PRIOR_DRY_RUN_INVALID: sqlApplicationAttempts must be 0" }
-  $adv = $false
-  if ($null -ne $ev.advisory_lock_acquired) { $adv = [bool]$ev.advisory_lock_acquired }
-  elseif ($null -ne $app.advisory_lock_acquired) { $adv = [bool]$app.advisory_lock_acquired }
-  if ($adv) { throw "BLOCKED_PRIOR_DRY_RUN_INVALID: advisory_lock_acquired must be false" }
-  $cleanup = $ev.cleanup
-  if (-not $cleanup -or [bool]$cleanup.credential_cleared -ne $true) {
-    throw "BLOCKED_PRIOR_DRY_RUN_CLEANUP: credential_cleared required"
-  }
-  if ([bool]$cleanup.ca_path_env_absent -ne $true) {
-    throw "BLOCKED_PRIOR_DRY_RUN_CLEANUP: ca_path_env_absent required"
-  }
-  return @{
-    sha256 = $sha
-    freeze = $evFreeze
-    tip    = $evTip
-  }
 }
 
 if (-not $RepoRoot) {
