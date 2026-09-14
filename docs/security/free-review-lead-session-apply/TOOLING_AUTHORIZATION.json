@@ -21,7 +21,7 @@
   "required_prior_dry_run_evidence_sha256": null,
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
-  "bundle_source_commit": null,
+  "bundle_source_commit": "823b466445599b6095e03a376f57ffc86fe0bf1d",
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
