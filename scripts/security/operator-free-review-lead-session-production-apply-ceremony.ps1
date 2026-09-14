@@ -256,12 +256,19 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   $sha = [string]$Auth.required_prior_dry_run_evidence_sha256
   $freeze = [string]$Auth.required_prior_dry_run_freeze
   $tip = [string]$Auth.required_prior_dry_run_evidence_tip
+  $bundleSource = [string]$Auth.required_prior_dry_run_bundle_source
   if ([string]::IsNullOrWhiteSpace($sha)) { return $false }
   if ([string]::IsNullOrWhiteSpace($freeze)) { return $false }
   if ([string]::IsNullOrWhiteSpace($tip)) { return $false }
+  if ([string]::IsNullOrWhiteSpace($bundleSource)) { return $false }
   if ($sha -match '^(?i)pending') { return $false }
   if ($freeze -match '^(?i)pending') { return $false }
   if ($tip -match '^(?i)pending') { return $false }
+  if ($bundleSource -match '^(?i)pending') { return $false }
+  if ($sha.Length -ne 64) { return $false }
+  if ($freeze -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ($tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ($bundleSource -notmatch '^[0-9a-fA-F]{40}$') { return $false }
   return $true
 }
 
@@ -338,6 +345,7 @@ function Import-FrlsPriorDryRunGatesFromFreeze {
     "Get-FrlsRequiredBoolean",
     "Get-FrlsRequiredInt",
     "Assert-FrlsRequiredBooleanEquals",
+    "Get-OptionalFrlsBundleSourceString",
     "Assert-PriorDryRunEvidence"
   )
   foreach ($name in $gateNames) {

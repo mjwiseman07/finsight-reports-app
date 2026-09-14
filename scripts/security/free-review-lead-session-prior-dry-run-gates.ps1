@@ -111,6 +111,20 @@ function Assert-FrlsRequiredBooleanEquals {
   }
 }
 
+function Get-OptionalFrlsBundleSourceString($Obj, [string]$Name, [string]$Code) {
+  if ($null -eq $Obj) { return $null }
+  if ($null -eq $Obj.PSObject.Properties[$Name]) { return $null }
+  $v = $Obj.PSObject.Properties[$Name].Value
+  if ($null -eq $v) { return $null }
+  if ($v -isnot [string]) {
+    throw "$Code`: non-string field $Name"
+  }
+  if ([string]::IsNullOrWhiteSpace($v)) {
+    throw "$Code`: empty field $Name"
+  }
+  return [string]$v
+}
+
 function Assert-PriorDryRunEvidence {
   param(
     [string]$Path,
@@ -134,11 +148,25 @@ function Assert-PriorDryRunEvidence {
   }
   $expectedFreeze = [string]$Auth.required_prior_dry_run_freeze
   $expectedTip = [string]$Auth.required_prior_dry_run_evidence_tip
+  $expectedBundleSource = [string]$Auth.required_prior_dry_run_bundle_source
   if (-not ($expectedFreeze -match '^[0-9a-fA-F]{40}$')) {
     throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_freeze"
   }
   if (-not ($expectedTip -match '^[0-9a-fA-F]{40}$')) {
     throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_evidence_tip"
+  }
+  if (-not ($expectedBundleSource -match '^[0-9a-fA-F]{40}$')) {
+    throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_bundle_source"
+  }
+  # Never confuse prior dry-run bundle source with the current apply tip's bundle_source_commit.
+  $applyBundleSource = $null
+  if ($null -ne $Auth.PSObject.Properties["bundle_source_commit"] -and $null -ne $Auth.bundle_source_commit) {
+    $applyBundleSource = [string]$Auth.bundle_source_commit
+  }
+  if (-not [string]::IsNullOrWhiteSpace($applyBundleSource) -and $applyBundleSource -match '^[0-9a-fA-F]{40}$') {
+    if ($applyBundleSource.ToLowerInvariant() -eq $expectedBundleSource.ToLowerInvariant()) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: required_prior_dry_run_bundle_source must not equal current apply bundle_source_commit"
+    }
   }
 
   $json = [Text.Encoding]::UTF8.GetString($bytes)
@@ -201,6 +229,87 @@ function Assert-PriorDryRunEvidence {
   }
   if ($evTip.ToLowerInvariant() -ne $expectedTip.ToLowerInvariant()) {
     throw "BLOCKED_PRIOR_DRY_RUN_STALE_TIP: evidence tip does not match required_prior_dry_run_evidence_tip"
+  }
+
+  # Dry-run bundle-source pin: production evidence does not embed the 40-hex
+  # bundle_source_commit string. Authoritative present identity is
+  # applicator.bootstrap.bundle_{oid,sha256,bytes}, which must match the sealed
+  # standalone bundle of required_prior_dry_run_bundle_source (never the current
+  # apply tip's standalone_bundle). If a literal bundle_source(_commit) field is
+  # present on wrapper or applicator, it must equal the pin and agree across sides.
+  $pub = $null
+  if ($null -ne $Auth.PSObject.Properties["published_prior_dry_run"] -and $null -ne $Auth.published_prior_dry_run) {
+    $pub = $Auth.published_prior_dry_run
+  }
+  $expectedBundleOid = $null
+  $expectedBundleSha = $null
+  $expectedBundleBytes = $null
+  if ($null -ne $pub -and $null -ne $pub.PSObject.Properties["dry_run_standalone_bundle"] -and $null -ne $pub.dry_run_standalone_bundle) {
+    $expectedBundleOid = [string]$pub.dry_run_standalone_bundle.oid
+    $expectedBundleSha = [string]$pub.dry_run_standalone_bundle.sha256
+    $expectedBundleBytes = [int]$pub.dry_run_standalone_bundle.bytes
+  }
+  if ([string]::IsNullOrWhiteSpace($expectedBundleOid) -or $expectedBundleOid.Length -ne 40) {
+    throw "AUTH_METADATA_INVALID: missing published_prior_dry_run.dry_run_standalone_bundle.oid"
+  }
+  if ([string]::IsNullOrWhiteSpace($expectedBundleSha) -or $expectedBundleSha.Length -ne 64) {
+    throw "AUTH_METADATA_INVALID: missing published_prior_dry_run.dry_run_standalone_bundle.sha256"
+  }
+  if ($null -eq $expectedBundleBytes -or $expectedBundleBytes -le 0) {
+    throw "AUTH_METADATA_INVALID: missing published_prior_dry_run.dry_run_standalone_bundle.bytes"
+  }
+  if ($null -ne $pub.PSObject.Properties["dry_run_bundle_source"] -and $null -ne $pub.dry_run_bundle_source) {
+    if (([string]$pub.dry_run_bundle_source).ToLowerInvariant() -ne $expectedBundleSource.ToLowerInvariant()) {
+      throw "AUTH_METADATA_INVALID: published_prior_dry_run.dry_run_bundle_source disagrees with required_prior_dry_run_bundle_source"
+    }
+  }
+
+  $wrapBundleSrc = Get-OptionalFrlsBundleSourceString $ev "bundle_source_commit" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE"
+  if ($null -eq $wrapBundleSrc) { $wrapBundleSrc = Get-OptionalFrlsBundleSourceString $ev "bundle_source" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE" }
+  $appBundleSrc = Get-OptionalFrlsBundleSourceString $app "bundle_source_commit" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE"
+  if ($null -eq $appBundleSrc) { $appBundleSrc = Get-OptionalFrlsBundleSourceString $app "bundle_source" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE" }
+  if ($null -ne $wrapBundleSrc -or $null -ne $appBundleSrc) {
+    if ($null -ne $wrapBundleSrc -and $null -ne $appBundleSrc -and $wrapBundleSrc.ToLowerInvariant() -ne $appBundleSrc.ToLowerInvariant()) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: wrapper/applicator bundle_source disagree"
+    }
+    $literal = if ($null -ne $appBundleSrc) { $appBundleSrc } else { $wrapBundleSrc }
+    if (-not ($literal -match '^[0-9a-fA-F]{40}$')) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: literal bundle_source must be exact 40-hex"
+    }
+    if ($literal.ToLowerInvariant() -ne $expectedBundleSource.ToLowerInvariant()) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: literal bundle_source does not match required_prior_dry_run_bundle_source"
+    }
+  }
+
+  $boot = $null
+  if ($null -ne $app.PSObject.Properties["bootstrap"]) {
+    $boot = $app.bootstrap
+  }
+  if ($null -eq $boot) {
+    throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: applicator.bootstrap required (authoritative dry-run bundle identity)"
+  }
+  $bootOid = Get-FrlsRequiredString $boot "bundle_oid" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE"
+  $bootSha = Get-FrlsRequiredString $boot "bundle_sha256" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE"
+  $bootBytes = Get-FrlsRequiredInt $boot "bundle_bytes" "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE"
+  if ($bootOid.ToLowerInvariant() -ne $expectedBundleOid.ToLowerInvariant()) {
+    throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: bootstrap.bundle_oid does not match sealed dry-run standalone bundle"
+  }
+  if ($bootSha.ToLowerInvariant() -ne $expectedBundleSha.ToLowerInvariant()) {
+    throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: bootstrap.bundle_sha256 does not match sealed dry-run standalone bundle"
+  }
+  if ($bootBytes -ne $expectedBundleBytes) {
+    throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: bootstrap.bundle_bytes does not match sealed dry-run standalone bundle"
+  }
+  # Reject prior/apply bundle confusion: evidence must not present the current apply tip bundle.
+  if ($null -ne $Auth.PSObject.Properties["standalone_bundle"] -and $null -ne $Auth.standalone_bundle) {
+    $applyOid = [string]$Auth.standalone_bundle.oid
+    $applySha = [string]$Auth.standalone_bundle.sha256
+    if (-not [string]::IsNullOrWhiteSpace($applyOid) -and $bootOid.ToLowerInvariant() -eq $applyOid.ToLowerInvariant()) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_oid matches current apply standalone_bundle (prior/apply confusion)"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($applySha) -and $bootSha.ToLowerInvariant() -eq $applySha.ToLowerInvariant()) {
+      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_sha256 matches current apply standalone_bundle (prior/apply confusion)"
+    }
   }
 
   if ((Get-FrlsRequiredString $app "migration_version" "BLOCKED_PRIOR_DRY_RUN_MIGRATION") -ne [string]$Auth.migration_version) {
@@ -271,8 +380,9 @@ function Assert-PriorDryRunEvidence {
   Assert-FrlsRequiredBooleanEquals $appCred "values_undisclosed" $true "BLOCKED_PRIOR_DRY_RUN_REDACTION"
 
   return [pscustomobject]@{
-    sha256 = $sha
-    freeze = $evFreeze
-    tip    = $evTip
+    sha256        = $sha
+    freeze        = $evFreeze
+    tip           = $evTip
+    bundle_source = $expectedBundleSource
   }
 }

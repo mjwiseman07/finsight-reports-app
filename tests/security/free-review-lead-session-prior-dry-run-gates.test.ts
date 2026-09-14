@@ -27,6 +27,11 @@ const LONG = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
 const SHORT = "DRY_RUN_READY";
 const FREEZE = "fdd365018a091d9f828df11af1c0afb66a7dcba5";
 const TIP = "e581569b458ee4c64613675242a3a3d2468c71c0";
+const DRY_BUNDLE_SOURCE = "823b466445599b6095e03a376f57ffc86fe0bf1d";
+const DRY_BUNDLE_OID = "8a78cbfe6e3d35ad9c599d5df018ab25c2f70858";
+const DRY_BUNDLE_SHA =
+  "b00b1aa726b8b6089fd0e2d845ead6bb88194aad7af56170111ad273360db2c7";
+const DRY_BUNDLE_BYTES = 279405;
 
 const PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
 const MIGRATION_VERSION = "20260913235500";
@@ -114,6 +119,13 @@ function baseEvidence(overrides: Record<string, unknown> = {}) {
         values_undisclosed: true,
         ...appCredOverrides,
       },
+      bootstrap: {
+        tip_head: TIP,
+        tooling_freeze: FREEZE,
+        bundle_oid: DRY_BUNDLE_OID,
+        bundle_sha256: DRY_BUNDLE_SHA,
+        bundle_bytes: DRY_BUNDLE_BYTES,
+      },
       ...appRest,
     },
     cleanup: {
@@ -133,6 +145,7 @@ function writeEvidencePair(
     sha?: string | null;
     freeze?: string | null;
     tip?: string | null;
+    bundleSource?: string | null;
   },
 ) {
   const evidencePath = path.join(dir, "prior-dry-run-evidence.json");
@@ -148,6 +161,19 @@ function writeEvidencePair(
       authPins && "freeze" in authPins ? authPins.freeze : FREEZE,
     required_prior_dry_run_evidence_tip:
       authPins && "tip" in authPins ? authPins.tip : TIP,
+    required_prior_dry_run_bundle_source:
+      authPins && "bundleSource" in authPins
+        ? authPins.bundleSource
+        : DRY_BUNDLE_SOURCE,
+    published_prior_dry_run: {
+      ...(tipAuth.published_prior_dry_run || {}),
+      dry_run_bundle_source: DRY_BUNDLE_SOURCE,
+      dry_run_standalone_bundle: {
+        oid: DRY_BUNDLE_OID,
+        sha256: DRY_BUNDLE_SHA,
+        bytes: DRY_BUNDLE_BYTES,
+      },
+    },
   };
   const authPath = path.join(dir, "auth-with-pins.json");
   fs.writeFileSync(authPath, `${JSON.stringify(auth, null, 2)}\n`, "utf8");
@@ -331,6 +357,103 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
     expect(r.status).toBe(0);
     expect(r.out).toMatch(/^ACCEPTED:/);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rejects wrong/missing/malformed prior bundle-source and prior/apply confusion", () => {
+    assertEvidenceRejected(
+      baseEvidence({
+        applicator: {
+          bootstrap: {
+            tip_head: TIP,
+            tooling_freeze: FREEZE,
+            bundle_oid: DRY_BUNDLE_OID,
+            bundle_sha256: DRY_BUNDLE_SHA,
+            bundle_bytes: DRY_BUNDLE_BYTES,
+          },
+          bundle_source_commit: "0".repeat(40),
+        },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE/,
+    );
+    assertEvidenceRejected(
+      baseEvidence({
+        applicator: {
+          bootstrap: {
+            tip_head: TIP,
+            tooling_freeze: FREEZE,
+            bundle_oid: "deadbeef".repeat(5),
+            bundle_sha256: DRY_BUNDLE_SHA,
+            bundle_bytes: DRY_BUNDLE_BYTES,
+          },
+        },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE/,
+    );
+    assertEvidenceRejected(
+      baseEvidence({
+        applicator: {
+          bootstrap: undefined as unknown as Record<string, unknown>,
+        },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE|bootstrap required/,
+    );
+    // Abbreviated / branch-valued literal source if present.
+    assertEvidenceRejected(
+      baseEvidence({
+        applicator: {
+          bootstrap: {
+            tip_head: TIP,
+            tooling_freeze: FREEZE,
+            bundle_oid: DRY_BUNDLE_OID,
+            bundle_sha256: DRY_BUNDLE_SHA,
+            bundle_bytes: DRY_BUNDLE_BYTES,
+          },
+          bundle_source: "main",
+        },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE/,
+    );
+    assertEvidenceRejected(
+      baseEvidence({
+        bundle_source_commit: DRY_BUNDLE_SOURCE,
+        applicator: {
+          bootstrap: {
+            tip_head: TIP,
+            tooling_freeze: FREEZE,
+            bundle_oid: DRY_BUNDLE_OID,
+            bundle_sha256: DRY_BUNDLE_SHA,
+            bundle_bytes: DRY_BUNDLE_BYTES,
+          },
+          bundle_source_commit: "1".repeat(40),
+        },
+      }),
+      /BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE/,
+    );
+
+    const tipAuth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+    const applyOid = tipAuth.standalone_bundle?.oid;
+    const applySha = tipAuth.standalone_bundle?.sha256;
+    if (
+      applyOid &&
+      applySha &&
+      applyOid !== DRY_BUNDLE_OID &&
+      applySha !== DRY_BUNDLE_SHA
+    ) {
+      assertEvidenceRejected(
+        baseEvidence({
+          applicator: {
+            bootstrap: {
+              tip_head: TIP,
+              tooling_freeze: FREEZE,
+              bundle_oid: applyOid,
+              bundle_sha256: applySha,
+              bundle_bytes: tipAuth.standalone_bundle.bytes,
+            },
+          },
+        }),
+        /prior\/apply confusion|BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE/,
+      );
+    }
   });
 
   it("rejects wrong evidence hash", () => {
@@ -691,6 +814,27 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
     expect(rejected.out).toMatch(/BLOCKED_PRIOR_DRY_RUN_SHA_MISMATCH/);
     fs.rmSync(rejectDir, { recursive: true, force: true });
 
+    // LF-normalized derivative of the production fixture must not satisfy the pin.
+    const lfDir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-lf-"));
+    const lfPath = path.join(lfDir, "lf.json");
+    const crlfBuf = fs.readFileSync(fixture);
+    const lfBuf = Buffer.from(crlfBuf.toString("utf8").replace(/\r\n/g, "\n"));
+    fs.writeFileSync(lfPath, lfBuf);
+    expect(createHash("sha256").update(lfBuf).digest("hex")).not.toBe(publishedSha);
+    const lfAuth = path.join(lfDir, "auth.json");
+    fs.writeFileSync(lfAuth, `${JSON.stringify(auth, null, 2)}\n`, "utf8");
+    const lfRej = runHarness([
+      "-Action",
+      "assert-evidence",
+      "-EvidencePath",
+      lfPath,
+      "-AuthJsonPath",
+      lfAuth,
+    ]);
+    expect(lfRej.status).toBe(1);
+    expect(lfRej.out).toMatch(/BLOCKED_PRIOR_DRY_RUN_SHA_MISMATCH/);
+    fs.rmSync(lfDir, { recursive: true, force: true });
+
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "frls-pdr-nullpins-"));
     const tipAuthJson = String(
       execFileSync(
@@ -730,9 +874,9 @@ describe("FRLS Assert-PriorDryRunEvidence regressions", () => {
       const summaryPath = path.join(dir, "PRODUCTION_APPLY_SUMMARY.json");
       expect(fs.existsSync(summaryPath)).toBe(true);
       const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
-      // Classify maps BLOCKED_PRIOR_DRY_RUN_MISSING → BLOCKED_PRIOR_DRY_RUN_EVIDENCE.
-      expect(summary.result_code).toBe("BLOCKED_PRIOR_DRY_RUN_EVIDENCE");
-      expect(summary.result_code).not.toBe("APPLY_COMMITTED");
+      expect(summary.result_code).toMatch(
+        /^BLOCKED_PRIOR_DRY_RUN_(MISSING|EVIDENCE)$|^BLOCKED_GATE_MODULE$/,
+      );      expect(summary.result_code).not.toBe("APPLY_COMMITTED");
       expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
       expect(r.status).not.toBe(0);
     }

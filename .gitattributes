@@ -40,3 +40,7 @@ tests/security/helpers/synthetic-visible-ceremony-*.ps1 text eol=lf
 tests/security/helpers/fixtures/prior-production-dry-run-evidence.json -text
 tests/security/containment-tls-ca.test.ts text eol=lf
 tests/security/containment-evidence-protocol.test.ts text eol=lf
+
+# FRLS prior-dry-run evidence fixture — intentionally CRLF, byte-authoritative pin
+# (SHA-256 b27e927b… / 110391 bytes). Distinct from LF-authoritative migration blobs.
+tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json -text

@@ -1,6 +1,6 @@
 {
   "package": "free-review-lead-session-apply-tooling",
-  "authorized_pr_head": "bc14f49ba64a5ac35ff98bdbb1593f08e2e066af",
+  "authorized_pr_head": "PENDING_AFTER_COMMIT",
   "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
@@ -21,7 +21,7 @@
   "required_prior_dry_run_evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
   "required_prior_dry_run_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
   "required_prior_dry_run_evidence_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
-  "bundle_source_commit": "7a73508c329a5af6b8944a6df5117c7cb591cd38",
+  "bundle_source_commit": null,
   "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
@@ -71,21 +71,21 @@
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-free-review-lead-session-production-apply-ceremony.ps1",
-    "oid": "700ce88a3a63166fbed4d60ebcb3fee3c7ba7659",
-    "sha256": "6e9cc865eec83849599e97aa1c472dafb9d5280fdbb24c84703c96f01efdb9ae",
-    "bytes": 29945
+    "oid": "c8a027b044e99566def8e20e48b70b38325cbf76",
+    "sha256": "83eb38e4bdcdf010931480b3373b48eaadddb411887516d5e6043b56cca51509",
+    "bytes": 30422
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-free-review-lead-session-ceremony.ps1",
-    "oid": "1f74bc4e0c0bf75eb47bb2e3ff8fa997404de29b",
-    "sha256": "659b49bf74733499c4ae218992d1e6a04a5ba8217d37f29eed86c9e5eb9c32cc",
-    "bytes": 34980
+    "oid": "f4d0f7616056c708ffc40ea9cb4759204badcf28",
+    "sha256": "561b18603ce73ec056ceb92ce7a49a635a4acd2912870d756b95cd9206dd2bfe",
+    "bytes": 35456
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-free-review-lead-session-ceremony.ps1",
-    "oid": "aeaca81f29f192836f1fdadf94bde027083bd71a",
-    "sha256": "be89807ad6be517e76f1350fb2a8067a29324e35ec1c8681e1fa8a0f03ea208b",
-    "bytes": 24389
+    "oid": "7b25e81c4d3960da14b72fd297d323254646eb38",
+    "sha256": "a9f28153ae1f226a06a15a19462862b3d683cb88fa9214ad1009e18b3993c6a7",
+    "bytes": 24865
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-free-review-lead-session-ceremony.ps1",
@@ -167,13 +167,15 @@
     "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip / required_prior_dry_run_bundle_source are published from the authorized production dry-run (evidence SHA b27e927b…, freeze 7e4d4e4b…, tip d0813452…, bundle source 823b4664…). Apply ceremony, visible entry, and supervisor require -PriorDryRunEvidencePath and Assert-PriorDryRunEvidence against these sealed pins. Pins cannot be overridden via argv, environment, worktree files, alternate evidence paths, or operator input. Rejected: closed headless attempt; superseded evidence e5202a46….",
     "Child evidence frame is FRLS_LEAD_SESSION_EVIDENCE_V1; the FRLS evidence module requires the shared framing primitives in evidence_protocol.shared_framing_module, which ceremonies materialize as a sibling before decoding.",
     "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",
-    "Prior-dry-run verdict gate: shared scripts/security/free-review-lead-session-prior-dry-run-gates.ps1; allowlist DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION and historical DRY_RUN_READY. Mandatory booleans/counters fail closed when missing, null, wrong-type, or inferred."
+    "Prior-dry-run verdict gate: shared scripts/security/free-review-lead-session-prior-dry-run-gates.ps1; allowlist DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION and historical DRY_RUN_READY. Mandatory booleans/counters fail closed when missing, null, wrong-type, or inferred.",
+    "Prior-dry-run evidence fixture tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json is intentionally CRLF and marked -text in .gitattributes; tip blob SHA-256 must remain b27e927b… / 110391 bytes. Migration SQL remains LF-authoritative (OID 7dca9674…). Do not normalize the evidence fixture.",
+    "required_prior_dry_run_bundle_source (823b4664…) is runtime-enforced: Test-PriorDryRunPinsPublished requires exact 40-hex; Assert-PriorDryRunEvidence requires applicator.bootstrap.bundle_{oid,sha256,bytes} match published_prior_dry_run.dry_run_standalone_bundle and rejects prior/apply standalone_bundle confusion. Production evidence lacks a literal bundle_source_commit field — bootstrap seals are the authoritative present identity."
   ],
   "prior_dry_run_gates": {
     "path": "scripts/security/free-review-lead-session-prior-dry-run-gates.ps1",
-    "oid": "c4fa92ac622a609251e973b54b44fc05e80bd16b",
-    "sha256": "1fc5d58a968ed453e97a65cbc2331327b565ddd011b0b685bb981de9043f289c",
-    "bytes": 12156,
+    "oid": "e86a91f9b0f9f062acd3744f6ab3cb9c43429d78",
+    "sha256": "dc27a7f333bc243d3653c5900b901e3a28da414715620048ba5449795108a936",
+    "bytes": 18841,
     "allowlist": [
       "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
       "DRY_RUN_READY"
@@ -181,7 +183,8 @@
     "notes": [
       "Must be materialized from authorized executable freeze and OID/SHA/byte verified before dotsource.",
       "Never load from $PSScriptRoot or mutable worktree.",
-      "Assert-PriorDryRunEvidence requires full sealed dry-run evidence contract including history 186 and migration LF seals.",
+      "Assert-PriorDryRunEvidence requires full sealed dry-run evidence contract including history 186, migration LF seals, and dry-run bundle identity via applicator.bootstrap.bundle_{oid,sha256,bytes} bound to required_prior_dry_run_bundle_source / published_prior_dry_run.dry_run_standalone_bundle.",
+      "Production evidence does not embed the 40-hex bundle_source_commit string; bootstrap bundle seals are the authoritative present fields. Literal bundle_source(_commit) fields, if present, must equal the pin and agree across wrapper/applicator.",
       "Mandatory booleans (including advisory_lock_acquired on wrapper and applicator) and counters fail closed when missing, null, wrong-type, or inferred; no default-false success path."
     ]
   },
@@ -226,6 +229,10 @@
       "closed_headless_cursor_redirect_no_visible_console",
       "superseded_APPLICATOR_EVIDENCE_MISSING_e5202a46"
     ],
-    "notes": "Sanitized evidence identity only. Operator must supply the exact evidence file whose SHA-256 matches evidence_sha256 at apply time. Pins are tip/freeze authorization only — never argv, env, worktree, or operator override."
+    "notes": "Sanitized evidence identity only. Operator must supply the exact evidence file whose SHA-256 matches evidence_sha256 at apply time. Pins are tip/freeze authorization only — never argv, env, worktree, or operator override.",
+    "evidence_line_endings": "CRLF",
+    "evidence_git_attributes": "-text (no EOL conversion)",
+    "evidence_blob_authority": "Tip git cat-file blob must SHA-256 to b27e927b… / 110391 bytes. Distinct from LF-authoritative migration blob 7dca9674….",
+    "dry_run_bundle_source_binding": "required_prior_dry_run_bundle_source is tip auth only; evidence binds via applicator.bootstrap.bundle_{oid,sha256,bytes} == dry_run_standalone_bundle (never current apply standalone_bundle / bundle_source_commit)."
   }
 }

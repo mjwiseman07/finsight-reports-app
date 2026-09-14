@@ -611,11 +611,16 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   foreach ($v in @(
       [string]$Auth.required_prior_dry_run_evidence_sha256,
       [string]$Auth.required_prior_dry_run_freeze,
-      [string]$Auth.required_prior_dry_run_evidence_tip
+      [string]$Auth.required_prior_dry_run_evidence_tip,
+      [string]$Auth.required_prior_dry_run_bundle_source
     )) {
     if ([string]::IsNullOrWhiteSpace($v)) { return $false }
     if ($v -match '^(?i)pending') { return $false }
   }
+  if ([string]$Auth.required_prior_dry_run_evidence_sha256 -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+  if ([string]$Auth.required_prior_dry_run_freeze -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_prior_dry_run_evidence_tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_prior_dry_run_bundle_source -notmatch '^[0-9a-fA-F]{40}$') { return $false }
   return $true
 }
 

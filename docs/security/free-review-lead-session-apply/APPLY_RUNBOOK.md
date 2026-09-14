@@ -62,3 +62,12 @@ Prior-dry-run pins are published after the authorized production dry-run:
 - Dry-run bundle source: `823b466445599b6095e03a376f57ffc86fe0bf1d`
 
 Apply requires `-PriorDryRunEvidencePath` pointing at the exact retained evidence file whose SHA and contents match these seals. Rejected: closed headless attempt; superseded evidence `e5202a46…`.
+
+### Evidence fixture vs migration line endings
+
+- **Prior-dry-run evidence fixture** (`tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json`) is intentionally **CRLF**, marked `-text` in `.gitattributes`, and is **byte-authoritative**: tip Git blob SHA-256 must equal `b27e927b…` / 110391 bytes. No EOL conversion is permitted.
+- **Migration SQL** remains **LF-authoritative** via git blob OID `7dca9674…` (SHA-256 `b7e1e68b…` / 8108 bytes). Do not conflate the two authorities.
+
+### Dry-run bundle-source pin
+
+`required_prior_dry_run_bundle_source` (`823b4664…`) is tip-authorization metadata. Production evidence does **not** embed that 40-hex as a JSON field; the authoritative present identity is `applicator.bootstrap.bundle_{oid,sha256,bytes}`, which must match `published_prior_dry_run.dry_run_standalone_bundle` (the sealed artifact of that dry-run bundle-source commit). This is never the current apply tip’s `bundle_source_commit` / `standalone_bundle`.

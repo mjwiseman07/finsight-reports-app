@@ -58,7 +58,7 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
 
 /** Exact executable tooling freeze (40-hex). Set after freeze commit. */
-const AUTHORIZED_TOOLING_FREEZE = "bc14f49ba64a5ac35ff98bdbb1593f08e2e066af";
+const AUTHORIZED_TOOLING_FREEZE = "PENDING_AFTER_COMMIT";
 
 const STANDALONE_BUNDLE_PATH =
   "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs";
