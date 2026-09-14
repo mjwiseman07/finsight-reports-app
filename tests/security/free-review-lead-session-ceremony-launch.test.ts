@@ -157,7 +157,9 @@ describe("FRLS ceremony seals are published in TOOLING_AUTHORIZATION", () => {
       required_prior_dry_run_freeze: string | null;
       required_prior_dry_run_evidence_tip: string | null;
     };
-    expect(auth.authorized_pr_head).toBe("PENDING_AFTER_COMMIT");
+    expect(auth.authorized_pr_head).toBe(
+      "fdd365018a091d9f828df11af1c0afb66a7dcba5",
+    );
     expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
     expect(auth.required_prior_dry_run_freeze).toBeNull();
     expect(auth.required_prior_dry_run_evidence_tip).toBeNull();
