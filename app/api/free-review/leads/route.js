@@ -6,6 +6,7 @@ import {
   issueLeadSession,
   resolveLeadSessionFromRequest,
   rotateLeadSessionForRequest,
+  serverControlledStatusAfterEnrich,
   setLeadSessionCookie,
 } from "@/lib/free-review/lead-session";
 
@@ -107,6 +108,19 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Lifecycle status is server-controlled; clients cannot set authorization-relevant status.
+  if (
+    Object.prototype.hasOwnProperty.call(body, "status") ||
+    Object.prototype.hasOwnProperty.call(body, "lead_status")
+  ) {
+    return NextResponse.json({ error: "status_not_writable" }, { status: 400 });
+  }
+
+  const nextStatus = serverControlledStatusAfterEnrich(session.leadStatus);
+  if (!nextStatus) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const nextBusinessName = normalizeText(body.business_name || body.legal_company_name, 180);
   const updatePayload = {
     industry: normalizeText(body.industry, 120),
@@ -116,7 +130,7 @@ export async function PATCH(request) {
       body.additional_business_information && typeof body.additional_business_information === "object"
         ? body.additional_business_information
         : {},
-    status: normalizeText(body.status || "onboarding_started", 80),
+    status: nextStatus,
     updated_at: new Date().toISOString(),
   };
   if (nextBusinessName) {

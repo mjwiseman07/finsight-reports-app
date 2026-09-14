@@ -11,9 +11,12 @@ Branch: `security/p0-launch-authorization-hardening`
 | Cookie value | Opaque 32-byte random (`base64url`); never the lead UUID |
 | Cookie flags | HttpOnly, Secure (production), SameSite=Lax, host-only, path=`/api` |
 | Server store | `free_review_lead_sessions.token_hash` = SHA-256(token) hex |
-| Active means | `revoked_at IS NULL` AND `expires_at > now()` AND lead status not inactive |
-| Inactive lead statuses | cancelled/canceled, expired, revoked, closed, rejected, inactive |
-| Rotation | New session on lead create; rotate on PATCH enrich; prior sessions revoked |
+| Active session | `revoked_at IS NULL` AND `expires_at > now()` AND lead status ∈ allowlist |
+| Active lead statuses (allowlist) | `lead_captured`, `onboarding_started`, `quickbooks_connected`, `xero_connected` |
+| Fail closed | empty/null/unknown/converted/suspended/blocked/deleted/rejected/expired/… |
+| Rotation | Atomic RPC `rotate_free_review_lead_session` (lead `FOR UPDATE`); revoke-all then insert one |
+| Retention | 30 days after session becomes non-authorizing; cleanup via `cleanup_free_review_lead_sessions` (no production cron in this PR) |
+| Status writes | Server-controlled only; PATCH rejects client `status` / `lead_status` |
 | Legacy | `free_review_lead_id` never authorizes; cleared on set/deny |
 | Never auth | body/query/URL/localStorage lead UUID |
 
@@ -25,7 +28,7 @@ Bearer precedence: valid bearer → user principal (cookie ignored). Invalid bea
 | Audit Ready writer | `POST .../pbc/upload` | Cookie auth + write engagement actor; rechecked before service-role storage/DB | `401` / `404` |
 | Audit Ready writer | `POST .../pbc/parse` | Write actor; upload bound to engagement; storage key must match `{engagementId}/{sha256}-{safeName}` | `401` / `404` (no path leak) |
 | Signed-in user | accounting routes | Bearer `auth.getUser` | `401` invalid token |
-| Free Review lead | accounting + connect + free-review APIs | Opaque session cookie → hashed active session + active lead | `401 Unauthorized` |
+| Free Review lead | accounting + connect + free-review APIs | Opaque session cookie → hashed active session + allowlisted lead | `401 Unauthorized` |
 
 ## Neighboring routes
 

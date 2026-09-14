@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const state = vi.hoisted(() => ({
   leads: [] as Array<Record<string, unknown>>,
   sessions: [] as Array<Record<string, unknown>>,
   getUser: vi.fn(),
+  rpcFail: null as null | "revoke" | "insert" | "cleanup",
+  rpc: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => {
@@ -20,11 +24,6 @@ vi.mock("@/lib/supabase", () => {
             },
           }),
         }),
-        insert: () => ({
-          select: () => ({
-            single: async () => ({ data: null, error: { message: "unused" } }),
-          }),
-        }),
       };
     }
     if (table === "free_review_lead_sessions") {
@@ -37,79 +36,114 @@ vi.mock("@/lib/supabase", () => {
             },
           }),
         }),
-        insert: (payload: Record<string, unknown>) => ({
-          select: () => ({
-            single: async () => {
-              const row = {
-                id: randomUUID(),
-                ...payload,
-                revoked_at: null,
-              };
-              state.sessions.push(row);
-              return { data: { id: row.id }, error: null };
+        update: (patch: Record<string, unknown>) => ({
+          eq: (col: string, val: string) => ({
+            is: () => {
+              for (const s of state.sessions) {
+                if (s[col] === val && s.revoked_at == null) Object.assign(s, patch);
+              }
+              return Promise.resolve({ error: null });
             },
           }),
-        }),
-        update: (patch: Record<string, unknown>) => ({
-          eq: (col: string, val: string) => {
-            const apply = (predicate: (s: Record<string, unknown>) => boolean) => {
-              for (const s of state.sessions) {
-                if (predicate(s)) Object.assign(s, patch);
-              }
-              return {
-                is: () => ({
-                  neq: () => Promise.resolve({ error: null }),
-                }),
-                neq: () => Promise.resolve({ error: null }),
-              };
-            };
-            if (col === "id") {
-              return {
-                is: (_c: string, _v: null) => {
-                  apply((s) => s.id === val && s.revoked_at == null);
-                  return Promise.resolve({ error: null });
-                },
-              };
-            }
-            if (col === "lead_id") {
-              return {
-                is: (_c: string, _v: null) => ({
-                  neq: (_c2: string, sid: string) => {
-                    apply((s) => s.lead_id === val && s.id !== sid && s.revoked_at == null);
-                    return Promise.resolve({ error: null });
-                  },
-                }),
-              };
-            }
-            if (col === "token_hash" || col === "id") {
-              apply((s) => s[col] === val);
-            }
-            return {
-              is: () => Promise.resolve({ error: null }),
-              neq: () => Promise.resolve({ error: null }),
-            };
-          },
         }),
       };
     }
     throw new Error(`unexpected table ${table}`);
   }
 
+  async function rpc(name: string, args: Record<string, unknown>) {
+    state.rpc(name, args);
+    if (name === "rotate_free_review_lead_session") {
+      if (state.rpcFail === "revoke") {
+        return { data: null, error: { message: "forced_revoke_failure" } };
+      }
+      const leadId = String(args.p_lead_id);
+      const tokenHash = String(args.p_token_hash);
+      const expiresAt = String(args.p_expires_at);
+      const lead = state.leads.find((l) => l.id === leadId);
+      if (!lead) return { data: null, error: { message: "lead_not_found" } };
+      const status = String(lead.status || "").trim().toLowerCase();
+      const allowed = new Set([
+        "lead_captured",
+        "onboarding_started",
+        "quickbooks_connected",
+        "xero_connected",
+      ]);
+      if (!allowed.has(status)) {
+        return { data: null, error: { message: "lead_status_not_active" } };
+      }
+      if (state.rpcFail === "insert") {
+        // Transaction would roll back revoke+insert; leave state unchanged.
+        return { data: null, error: { message: "forced_insert_failure" } };
+      }
+      const nowIso = new Date().toISOString();
+      for (const s of state.sessions) {
+        if (s.lead_id === leadId && s.revoked_at == null) {
+          s.revoked_at = nowIso;
+        }
+      }
+      const id = randomUUID();
+      for (const s of state.sessions) {
+        if (s.lead_id === leadId && s.revoked_at === nowIso && !s.replaced_by_session_id) {
+          s.replaced_by_session_id = id;
+        }
+      }
+      state.sessions.push({
+        id,
+        lead_id: leadId,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        revoked_at: null,
+        created_at: nowIso,
+      });
+      return { data: id, error: null };
+    }
+    if (name === "cleanup_free_review_lead_sessions") {
+      if (state.rpcFail === "cleanup") {
+        return { data: null, error: { message: "forced_cleanup_failure" } };
+      }
+      const retentionDays = Number(args.p_retention_days || 30);
+      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      let deleted = 0;
+      state.sessions = state.sessions.filter((s) => {
+        const revokedAt = s.revoked_at ? Date.parse(String(s.revoked_at)) : null;
+        const expiresAt = Date.parse(String(s.expires_at));
+        const active = revokedAt == null && expiresAt > now;
+        if (active) return true;
+        const deadAt = revokedAt ?? expiresAt;
+        if (deadAt < cutoff) {
+          deleted += 1;
+          return false;
+        }
+        return true;
+      });
+      return { data: deleted, error: null };
+    }
+    return { data: null, error: { message: `unexpected_rpc:${name}` } };
+  }
+
   return {
     supabaseAdmin: {
       auth: { getUser: (...a: unknown[]) => state.getUser(...a) },
       from,
+      rpc,
     },
   };
 });
 
 import {
+  ACTIVE_LEAD_STATUSES,
+  cleanupExpiredLeadSessions,
   generateLeadSessionToken,
   hashLeadSessionToken,
+  isActiveLeadStatus,
   issueLeadSession,
   looksLikeLegacyLeadIdCookie,
   resolveLeadSessionFromToken,
+  serverControlledStatusAfterEnrich,
   LEAD_SESSION_COOKIE,
+  LEAD_SESSION_RETENTION_DAYS,
 } from "@/lib/free-review/lead-session";
 import {
   isAccountingPrincipalDenial,
@@ -120,6 +154,8 @@ beforeEach(() => {
   state.leads = [];
   state.sessions = [];
   state.getUser.mockReset();
+  state.rpc.mockReset();
+  state.rpcFail = null;
 });
 
 function seedLead(id: string, status = "lead_captured") {
@@ -138,6 +174,53 @@ describe("opaque lead session crypto contract", () => {
   });
 });
 
+describe("explicit lead status allowlist", () => {
+  it.each([...ACTIVE_LEAD_STATUSES])("allows known active status %s", (status) => {
+    expect(isActiveLeadStatus(status)).toBe(true);
+  });
+
+  it.each([
+    "",
+    null,
+    undefined,
+    "converted",
+    "suspended",
+    "blocked",
+    "deleted",
+    "rejected",
+    "expired",
+    "revoked",
+    "cancelled",
+    "canceled",
+    "closed",
+    "inactive",
+    "future_unknown_status",
+  ])("fails closed for disallowed status %s", (status) => {
+    expect(isActiveLeadStatus(status as string | null | undefined)).toBe(false);
+  });
+
+  it("case-folds allowlisted statuses", () => {
+    expect(isActiveLeadStatus("Lead_Captured")).toBe(true);
+    expect(isActiveLeadStatus("QUICKBOOKS_CONNECTED")).toBe(true);
+  });
+
+  it("serverControlledStatusAfterEnrich never accepts client status strings", () => {
+    expect(serverControlledStatusAfterEnrich("lead_captured")).toBe("onboarding_started");
+    expect(serverControlledStatusAfterEnrich("onboarding_started")).toBe("onboarding_started");
+    expect(serverControlledStatusAfterEnrich("quickbooks_connected")).toBe("quickbooks_connected");
+    expect(serverControlledStatusAfterEnrich("xero_connected")).toBe("xero_connected");
+    expect(serverControlledStatusAfterEnrich("suspended")).toBeNull();
+    expect(serverControlledStatusAfterEnrich("")).toBeNull();
+  });
+
+  it("PATCH route rejects client status fields and uses server-controlled transition", () => {
+    const source = readFileSync(join(process.cwd(), "app/api/free-review/leads/route.js"), "utf8");
+    expect(source).toContain("status_not_writable");
+    expect(source).toContain("serverControlledStatusAfterEnrich");
+    expect(source).not.toMatch(/status:\s*normalizeText\(body\.status/);
+  });
+});
+
 describe("lead session lifecycle", () => {
   it("issues session and resolves active lead", async () => {
     seedLead("11111111-1111-4111-8111-111111111111");
@@ -146,6 +229,13 @@ describe("lead session lifecycle", () => {
     expect(resolved?.leadId).toBe("11111111-1111-4111-8111-111111111111");
     expect(state.sessions[0].token_hash).toBe(hashLeadSessionToken(issued.token));
     expect(issued.token).not.toEqual(state.sessions[0].token_hash);
+    expect(state.rpc).toHaveBeenCalledWith(
+      "rotate_free_review_lead_session",
+      expect.objectContaining({
+        p_lead_id: "11111111-1111-4111-8111-111111111111",
+        p_token_hash: hashLeadSessionToken(issued.token),
+      }),
+    );
   });
 
   it("rejects forged random token", async () => {
@@ -174,21 +264,108 @@ describe("lead session lifecycle", () => {
     expect(await resolveLeadSessionFromToken(issued.token)).toBeNull();
   });
 
-  it("rejects inactive/revoked lead status", async () => {
-    seedLead("11111111-1111-4111-8111-111111111111", "revoked");
-    const issued = await issueLeadSession({ leadId: "11111111-1111-4111-8111-111111111111" });
-    expect(await resolveLeadSessionFromToken(issued.token)).toBeNull();
+  it.each(["revoked", "expired", "suspended", "converted", "future_x"])(
+    "rejects issue/resolve when lead status is %s",
+    async (status) => {
+      const leadId = "11111111-1111-4111-8111-111111111111";
+      seedLead(leadId, status);
+      await expect(issueLeadSession({ leadId })).rejects.toThrow(/lead_status_not_active|lead_session_issue_failed/);
+      // Pre-seed a stale hashed row to prove resolve also fails closed on status.
+      const token = generateLeadSessionToken();
+      state.sessions.push({
+        id: randomUUID(),
+        lead_id: leadId,
+        token_hash: hashLeadSessionToken(token),
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        revoked_at: null,
+      });
+      expect(await resolveLeadSessionFromToken(token)).toBeNull();
+    },
+  );
+
+  it.each([...ACTIVE_LEAD_STATUSES])("resolves session for allowlisted status %s", async (status) => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId, status);
+    const issued = await issueLeadSession({ leadId });
+    expect(await resolveLeadSessionFromToken(issued.token)).toMatchObject({ leadId, leadStatus: status });
   });
 
-  it("rejects rotated/replaced prior token", async () => {
+  it("rejects rotated/replaced prior token without manual revoke patching", async () => {
     const leadId = "11111111-1111-4111-8111-111111111111";
     seedLead(leadId);
     const first = await issueLeadSession({ leadId });
-    const second = await issueLeadSession({ leadId, replaceSessionId: first.sessionId });
-    state.sessions.find((s) => s.id === first.sessionId)!.revoked_at = new Date().toISOString();
+    const second = await issueLeadSession({ leadId });
     expect(await resolveLeadSessionFromToken(first.token)).toBeNull();
-    const stillActive = await resolveLeadSessionFromToken(second.token);
-    expect(stillActive?.leadId).toBe(leadId);
+    expect(await resolveLeadSessionFromToken(second.token)).toMatchObject({ leadId });
+    const active = state.sessions.filter((s) => s.lead_id === leadId && s.revoked_at == null);
+    expect(active).toHaveLength(1);
+  });
+
+  it("propagates forced revoke/update failure without issuing a usable cookie path", async () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId);
+    state.rpcFail = "revoke";
+    await expect(issueLeadSession({ leadId })).rejects.toThrow("lead_session_issue_failed");
+    expect(state.sessions.filter((s) => s.revoked_at == null)).toHaveLength(0);
+  });
+
+  it("propagates forced insert failure and relies on transaction rollback (prior session unchanged in unit mock)", async () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId);
+    const first = await issueLeadSession({ leadId });
+    expect(await resolveLeadSessionFromToken(first.token)).not.toBeNull();
+    state.rpcFail = "insert";
+    // Unit mock rolls back mutations on insert failure; disposable Postgres rehearsal
+    // proves revoke+insert atomicity under a failing AFTER-REVOKE insert trigger.
+    await expect(issueLeadSession({ leadId })).rejects.toThrow("lead_session_issue_failed");
+    expect(state.sessions.filter((s) => s.revoked_at == null)).toHaveLength(1);
+    expect(await resolveLeadSessionFromToken(first.token)).not.toBeNull();
+  });
+});
+
+describe("bounded retention cleanup", () => {
+  it("deletes expired/revoked rows outside retention window only", async () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId);
+    const oldRevoked = {
+      id: randomUUID(),
+      lead_id: leadId,
+      token_hash: "a".repeat(64),
+      expires_at: new Date(Date.now() - 40 * 86400_000).toISOString(),
+      revoked_at: new Date(Date.now() - 40 * 86400_000).toISOString(),
+    };
+    const recentRevoked = {
+      id: randomUUID(),
+      lead_id: leadId,
+      token_hash: "b".repeat(64),
+      expires_at: new Date(Date.now() + 86400_000).toISOString(),
+      revoked_at: new Date(Date.now() - 2 * 86400_000).toISOString(),
+    };
+    const active = {
+      id: randomUUID(),
+      lead_id: leadId,
+      token_hash: "c".repeat(64),
+      expires_at: new Date(Date.now() + 86400_000).toISOString(),
+      revoked_at: null,
+    };
+    state.sessions.push(oldRevoked, recentRevoked, active);
+    const deleted = await cleanupExpiredLeadSessions(LEAD_SESSION_RETENTION_DAYS);
+    expect(deleted).toBe(1);
+    expect(state.sessions.map((s) => s.id).sort()).toEqual([recentRevoked.id, active.id].sort());
+  });
+
+  it("never deletes active sessions", async () => {
+    const leadId = "11111111-1111-4111-8111-111111111111";
+    seedLead(leadId);
+    const issued = await issueLeadSession({ leadId });
+    const deleted = await cleanupExpiredLeadSessions(1);
+    expect(deleted).toBe(0);
+    expect(await resolveLeadSessionFromToken(issued.token)).not.toBeNull();
+  });
+
+  it("reports cleanup failure instead of swallowing", async () => {
+    state.rpcFail = "cleanup";
+    await expect(cleanupExpiredLeadSessions(30)).rejects.toThrow("lead_session_cleanup_failed");
   });
 });
 

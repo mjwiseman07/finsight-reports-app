@@ -7,7 +7,8 @@
  *    - Valid bearer takes precedence over a co-present lead session cookie
  *      (explicit precedence: signed-in user wins).
  * 2. Opaque HttpOnly `free_review_lead_session` cookie → hashed server session
- *    + active lead row (not inactive/revoked/expired).
+ *    + lead status ∈ explicit allowlist (lead_captured | onboarding_started |
+ *    quickbooks_connected | xero_connected).
  *
  * Never authenticating:
  * - body/query/URL leadId

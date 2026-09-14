@@ -5,10 +5,12 @@
  * - Cookie `free_review_lead_session` holds only a cryptographically random opaque token.
  * - Server stores SHA-256(token) hex in `free_review_lead_sessions.token_hash`.
  * - Lead UUID from body/query/URL/localStorage/legacy cookie never authenticates.
- * - Active session requires: unrevoked, unexpired, lead status not inactive.
+ * - Active session requires: unrevoked, unexpired, lead status ∈ ACTIVE_LEAD_STATUSES.
+ * - Rotation is atomic via RPC `rotate_free_review_lead_session` (lead row lock).
+ * - Retention: 30 days after a session becomes non-authorizing; cleanup via
+ *   `cleanup_free_review_lead_sessions` (no production cron in this change).
  * - Bearer and session cookie: invalid bearer fails closed (no cookie fallback).
- *   Valid bearer takes precedence; both present with valid bearer is bearer-wins
- *   (documented). Conflicting claimed lead identity vs resolved session fails closed.
+ *   Valid bearer takes precedence; conflicting claimed lead vs session fails closed.
  */
 import { createHash, randomBytes } from "node:crypto";
 import type { NextResponse } from "next/server";
@@ -23,15 +25,27 @@ export const LEAD_SESSION_COOKIE_PATH = "/api";
 
 export const LEAD_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-const INACTIVE_LEAD_STATUSES = new Set([
-  "cancelled",
-  "canceled",
-  "expired",
-  "revoked",
-  "closed",
-  "rejected",
-  "inactive",
-]);
+/** Hashed session rows kept this long after becoming non-authorizing. */
+export const LEAD_SESSION_RETENTION_DAYS = 30;
+
+/**
+ * Explicit allowlist of Free Review lifecycle statuses that may authenticate.
+ * Inventory (server-produced only):
+ * - lead_captured — POST /api/free-review/leads
+ * - onboarding_started — PATCH enrich (server-controlled)
+ * - quickbooks_connected — QBO OAuth callback
+ * - xero_connected — Xero entity selection
+ */
+export const ACTIVE_LEAD_STATUSES = [
+  "lead_captured",
+  "onboarding_started",
+  "quickbooks_connected",
+  "xero_connected",
+] as const;
+
+export type ActiveLeadStatus = (typeof ACTIVE_LEAD_STATUSES)[number];
+
+const ACTIVE_LEAD_STATUS_SET = new Set<string>(ACTIVE_LEAD_STATUSES);
 
 /** UUID v4-ish — used to reject legacy raw lead-id cookie values. */
 const UUID_RE =
@@ -51,8 +65,28 @@ export function generateLeadSessionToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+export function isActiveLeadStatus(status: string | null | undefined): boolean {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return ACTIVE_LEAD_STATUS_SET.has(normalized);
+}
+
+/** @deprecated Prefer isActiveLeadStatus (allowlist). Kept for call-site clarity in denials. */
 export function isInactiveLeadStatus(status: string | null | undefined): boolean {
-  return INACTIVE_LEAD_STATUSES.has(String(status || "").trim().toLowerCase());
+  return !isActiveLeadStatus(status);
+}
+
+/**
+ * Server-controlled enrich transition. Clients never choose auth-relevant status.
+ * Preserves provider-connected statuses; advances lead_captured → onboarding_started.
+ */
+export function serverControlledStatusAfterEnrich(
+  currentStatus: string | null | undefined,
+): ActiveLeadStatus | null {
+  if (!isActiveLeadStatus(currentStatus)) return null;
+  const normalized = String(currentStatus).trim().toLowerCase() as ActiveLeadStatus;
+  if (normalized === "lead_captured") return "onboarding_started";
+  return normalized;
 }
 
 export function looksLikeLegacyLeadIdCookie(value: string): boolean {
@@ -78,7 +112,6 @@ export function clearLeadAuthCookies(response: NextResponse): void {
     path: LEAD_SESSION_COOKIE_PATH,
     maxAge: 0,
   });
-  // Expire legacy cookie on both historical and current paths.
   for (const path of ["/", LEAD_SESSION_COOKIE_PATH]) {
     response.cookies.set(LEGACY_LEAD_ID_COOKIE, "", {
       httpOnly: true,
@@ -107,7 +140,6 @@ function readCookieHeader(request: Request, name: string): string {
 }
 
 export function readLeadSessionTokenFromRequest(request: Request): string {
-  // Prefer NextRequest cookies when available.
   const anyReq = request as Request & {
     cookies?: { get?: (n: string) => { value?: string } | undefined };
   };
@@ -126,12 +158,11 @@ export function readLegacyLeadIdCookie(request: Request): string {
 }
 
 /**
- * Create a new session for a lead; revoke prior active sessions (rotation).
- * Returns the opaque token once (never log it).
+ * Atomically rotate/issue a session via DB transaction RPC.
+ * Returns the opaque token once (never log it; never send plaintext to SQL).
  */
 export async function issueLeadSession(args: {
   leadId: string;
-  replaceSessionId?: string | null;
 }): Promise<{ token: string; sessionId: string; expiresAt: string }> {
   if (!supabaseAdmin) throw new Error("supabase_admin_unavailable");
 
@@ -139,46 +170,42 @@ export async function issueLeadSession(args: {
   const tokenHash = hashLeadSessionToken(token);
   const expiresAt = new Date(Date.now() + LEAD_SESSION_TTL_SECONDS * 1000).toISOString();
 
-  const { data: created, error: insertError } = await supabaseAdmin
-    .from("free_review_lead_sessions")
-    .insert({
-      lead_id: args.leadId,
-      token_hash: tokenHash,
-      expires_at: expiresAt,
-    })
-    .select("id")
-    .single();
+  const { data: sessionId, error } = await supabaseAdmin.rpc("rotate_free_review_lead_session", {
+    p_lead_id: args.leadId,
+    p_token_hash: tokenHash,
+    p_expires_at: expiresAt,
+  });
 
-  if (insertError || !created?.id) {
+  if (error || !sessionId) {
+    const message = String(error?.message || "");
+    if (message.includes("lead_status_not_active")) {
+      throw new Error("lead_status_not_active");
+    }
+    if (message.includes("lead_not_found")) {
+      throw new Error("lead_not_found");
+    }
     throw new Error("lead_session_issue_failed");
   }
 
-  const sessionId = created.id as string;
+  return { token, sessionId: String(sessionId), expiresAt };
+}
 
-  // Revoke other active sessions for this lead (rotation / replace).
-  const nowIso = new Date().toISOString();
-  await supabaseAdmin
-    .from("free_review_lead_sessions")
-    .update({
-      revoked_at: nowIso,
-      replaced_by_session_id: sessionId,
-    })
-    .eq("lead_id", args.leadId)
-    .is("revoked_at", null)
-    .neq("id", sessionId);
-
-  if (args.replaceSessionId) {
-    await supabaseAdmin
-      .from("free_review_lead_sessions")
-      .update({
-        revoked_at: nowIso,
-        replaced_by_session_id: sessionId,
-      })
-      .eq("id", args.replaceSessionId)
-      .is("revoked_at", null);
+/**
+ * Delete expired/revoked hashed sessions older than retention.
+ * Failures must be reported to the caller (do not swallow).
+ * Never deletes active unexpired sessions (enforced in SQL).
+ */
+export async function cleanupExpiredLeadSessions(
+  retentionDays: number = LEAD_SESSION_RETENTION_DAYS,
+): Promise<number> {
+  if (!supabaseAdmin) throw new Error("supabase_admin_unavailable");
+  const { data, error } = await supabaseAdmin.rpc("cleanup_free_review_lead_sessions", {
+    p_retention_days: retentionDays,
+  });
+  if (error) {
+    throw new Error(`lead_session_cleanup_failed:${error.message || "unknown"}`);
   }
-
-  return { token, sessionId, expiresAt };
+  return Number(data || 0);
 }
 
 export async function resolveLeadSessionFromToken(
@@ -188,7 +215,6 @@ export async function resolveLeadSessionFromToken(
   const trimmed = String(token || "").trim();
   if (!trimmed) return null;
 
-  // Legacy raw lead UUID must never authenticate as a session token.
   if (looksLikeLegacyLeadIdCookie(trimmed)) return null;
 
   const tokenHash = hashLeadSessionToken(trimmed);
@@ -211,9 +237,8 @@ export async function resolveLeadSessionFromToken(
     .maybeSingle();
 
   if (leadError || !lead?.id) return null;
-  if (isInactiveLeadStatus(lead.status)) return null;
+  if (!isActiveLeadStatus(lead.status)) return null;
 
-  // Best-effort last-used touch (ignore failures).
   void supabaseAdmin
     .from("free_review_lead_sessions")
     .update({ last_used_at: nowIso })
@@ -230,7 +255,6 @@ export async function resolveLeadSessionFromToken(
 export async function resolveLeadSessionFromRequest(
   request: Request,
 ): Promise<LeadSessionRecord | null> {
-  // Presence of legacy cookie alone must not authorize.
   const token = readLeadSessionTokenFromRequest(request);
   if (!token) return null;
   return resolveLeadSessionFromToken(token);
@@ -242,10 +266,7 @@ export async function rotateLeadSessionForRequest(args: {
 }): Promise<LeadSessionRecord | null> {
   const current = await resolveLeadSessionFromRequest(args.request);
   if (!current) return null;
-  const issued = await issueLeadSession({
-    leadId: current.leadId,
-    replaceSessionId: current.sessionId,
-  });
+  const issued = await issueLeadSession({ leadId: current.leadId });
   setLeadSessionCookie(args.response, issued.token);
   return {
     sessionId: issued.sessionId,
