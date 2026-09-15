@@ -1,11 +1,11 @@
 /**
  * Stripe webhook → entitlement sync. Idempotent via stripe_webhook_events PK.
  *
- * Cutover note (gate-only prep): main ledger INSERT-then-process + PK dedupe
- * treats any prior row (including failed) as permanent `duplicate` on redelivery.
- * Therefore RA Pro cutover holds MUST avoid leaving a ledger row — check the
- * commerce gate before insert, and delete the row if a gated error is thrown
- * after insert. Do not mark gated holds as processed/skipped/failed.
+ * Cutover note (gate-only prep): the RA Pro commerce gate is an *admission*
+ * check only. Closed/missing/malformed blocks RA Pro checkout.session.completed
+ * *before* ledger insert (retryable HTTP 500, no row). Once admitted under an
+ * open gate and inserted, the row is never deleted for gate reasons — closure
+ * does not cancel in-flight work; main processing/failure semantics apply.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
@@ -17,7 +17,6 @@ import {
 import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
 import {
   isRaProCutoverCommerceClosed,
-  RaProCutoverCommerceGatedError,
   RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
 } from "@/lib/review-assist-pro/cutover-commerce-gate";
 
@@ -57,24 +56,12 @@ function isRaProCheckoutCompletedEvent(event: MinimalStripeEvent): boolean {
   return event.data.object.metadata?.tier_key === "review_assist_pro";
 }
 
-async function releaseLedgerRowForRedelivery(eventId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
-    .from("stripe_webhook_events")
-    .delete()
-    .eq("stripe_event_id", eventId);
-  if (error) {
-    throw new Error(
-      `stripe_webhook_events delete for gated redelivery failed: ${error.message}`,
-    );
-  }
-}
-
 export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
 ): Promise<StripeWebhookResult> {
-  // Pre-insert hold: PK dedupe would otherwise make HTTP 500 non-retryable.
+  // Admission check only: hold before insert so HTTP 500 stays retryable.
+  // Never erase an admitted (inserted) row to make a gate hold retryable.
   if (isRaProCheckoutCompletedEvent(event) && isRaProCutoverCommerceClosed()) {
     return {
       status: "retryable_error",
@@ -186,14 +173,6 @@ export async function handleStripeWebhook(
     await markProcessed(event.id, "processed");
     return { status: "processed" };
   } catch (err) {
-    if (err instanceof RaProCutoverCommerceGatedError) {
-      // Defense in depth: never leave a PK row that blocks Stripe redelivery.
-      await releaseLedgerRowForRedelivery(event.id);
-      return {
-        status: "retryable_error",
-        error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
-      };
-    }
     await markProcessed(event.id, "failed", err instanceof Error ? err.message : String(err));
     throw err;
   }

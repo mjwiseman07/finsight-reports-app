@@ -1,13 +1,19 @@
 /**
- * Temporary RA Pro commerce/activation cutover gate (gate-only prep).
+ * Temporary RA Pro commerce cutover gate (gate-only prep) — admission check.
  *
  * Server-controlled only via process env. Never read from client input,
  * Stripe metadata, query params, cookies, or NEXT_PUBLIC_* values.
+ * There is no externally supplied "already admitted" bypass; admission is
+ * solely the pre-insert check in stripe-sync / create-session.
  *
  * Contract:
- *   RA_PRO_CUTOVER_COMMERCE_GATE=open   → checkout + activation allowed
- *   RA_PRO_CUTOVER_COMMERCE_GATE=closed → checkout blocked; RA Pro webhooks held retryable
+ *   RA_PRO_CUTOVER_COMMERCE_GATE=open   → new RA Pro checkout + webhook admission allowed
+ *   RA_PRO_CUTOVER_COMMERCE_GATE=closed → new admissions blocked (retryable hold)
  *   missing / malformed / any other value → closed (fail closed)
+ *
+ * Closure blocks *new* admissions only. It does not cancel work already
+ * admitted (ledger row inserted under open). Do not delete ledger rows or
+ * throw gate-related retryable errors after insert.
  *
  * Distinct from LAUNCH_GATE_REVIEW_ASSIST_PRO (cookie/token bypass).
  * Do not use the launch-gate bypass path for cutover.
@@ -43,19 +49,9 @@ export function resolveRaProCutoverCommerceGate(
   return resolveRaProCutoverCommerceGateValue(env[RA_PRO_CUTOVER_COMMERCE_GATE_ENV]);
 }
 
-/** True when RA Pro checkout/activation must not proceed. */
+/** True when new RA Pro admissions must not proceed. */
 export function isRaProCutoverCommerceClosed(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   return resolveRaProCutoverCommerceGate(env) === "closed";
-}
-
-/** Thrown when activation is held for cutover; callers must allow Stripe redelivery. */
-export class RaProCutoverCommerceGatedError extends Error {
-  readonly code = RA_PRO_CUTOVER_COMMERCE_GATED_CODE;
-
-  constructor() {
-    super(RA_PRO_CUTOVER_COMMERCE_GATED_CODE);
-    this.name = "RaProCutoverCommerceGatedError";
-  }
 }

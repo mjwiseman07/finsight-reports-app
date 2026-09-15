@@ -52,4 +52,25 @@ describe("POST /api/webhooks/stripe — cutover gate HTTP (prep)", () => {
     expect(body.status).toBe("retryable_error");
     expect(body.received).toBe(false);
   });
+
+  it("returns HTTP 200 for duplicate without implying ledger removal", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_dup",
+      type: "checkout.session.completed",
+      livemode: false,
+      data: { object: {} },
+    });
+    handleMock.mockResolvedValue({ status: "duplicate" });
+
+    const { POST } = await import("@/app/api/webhooks/stripe/route");
+    const req = new NextRequest("http://localhost/api/webhooks/stripe", {
+      method: "POST",
+      body: "{}",
+      headers: { "stripe-signature": "t=1,v1=x" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ received: true, status: "duplicate" });
+  });
 });
