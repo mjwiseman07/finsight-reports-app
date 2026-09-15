@@ -5,6 +5,9 @@ const mock = makeMockSupabase();
 const publishSpy = vi.hoisted(() => vi.fn(async () => ({ id: "evt" })));
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishSpy }));
+vi.mock("@/lib/subscription-sync", () => ({
+  reconcilePilotSlotStatus: vi.fn(async () => ({ updated: false })),
+}));
 
 import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements/stripe-sync";
 

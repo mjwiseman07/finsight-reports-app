@@ -1,5 +1,11 @@
 /**
  * Stripe webhook → entitlement sync. Idempotent via stripe_webhook_events PK.
+ *
+ * Cutover note (gate-only prep): main ledger INSERT-then-process + PK dedupe
+ * treats any prior row (including failed) as permanent `duplicate` on redelivery.
+ * Therefore RA Pro cutover holds MUST avoid leaving a ledger row — check the
+ * commerce gate before insert, and delete the row if a gated error is thrown
+ * after insert. Do not mark gated holds as processed/skipped/failed.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
@@ -9,6 +15,11 @@ import {
   handleTcp1SubscriptionDeleted,
 } from "@/lib/tcp1/stripe-pilot-checkout";
 import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
+import {
+  isRaProCutoverCommerceClosed,
+  RaProCutoverCommerceGatedError,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface MinimalStripeEvent {
   id: string;
@@ -30,6 +41,10 @@ export interface MinimalStripeEvent {
   };
 }
 
+export type StripeWebhookResult =
+  | { status: "processed" | "skipped" | "duplicate" }
+  | { status: "retryable_error"; error: string };
+
 const HANDLED_TYPES = new Set<string>([
   "customer.subscription.created",
   "customer.subscription.updated",
@@ -37,10 +52,36 @@ const HANDLED_TYPES = new Set<string>([
   "checkout.session.completed",
 ]);
 
+function isRaProCheckoutCompletedEvent(event: MinimalStripeEvent): boolean {
+  if (event.type !== "checkout.session.completed") return false;
+  return event.data.object.metadata?.tier_key === "review_assist_pro";
+}
+
+async function releaseLedgerRowForRedelivery(eventId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("stripe_webhook_events")
+    .delete()
+    .eq("stripe_event_id", eventId);
+  if (error) {
+    throw new Error(
+      `stripe_webhook_events delete for gated redelivery failed: ${error.message}`,
+    );
+  }
+}
+
 export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
-): Promise<{ status: "processed" | "skipped" | "duplicate" }> {
+): Promise<StripeWebhookResult> {
+  // Pre-insert hold: PK dedupe would otherwise make HTTP 500 non-retryable.
+  if (isRaProCheckoutCompletedEvent(event) && isRaProCutoverCommerceClosed()) {
+    return {
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+    };
+  }
+
   const supabase = createServiceClient();
 
   const { error: insertError } = await supabase.from("stripe_webhook_events").insert({
@@ -145,6 +186,14 @@ export async function handleStripeWebhook(
     await markProcessed(event.id, "processed");
     return { status: "processed" };
   } catch (err) {
+    if (err instanceof RaProCutoverCommerceGatedError) {
+      // Defense in depth: never leave a PK row that blocks Stripe redelivery.
+      await releaseLedgerRowForRedelivery(event.id);
+      return {
+        status: "retryable_error",
+        error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+      };
+    }
     await markProcessed(event.id, "failed", err instanceof Error ? err.message : String(err));
     throw err;
   }

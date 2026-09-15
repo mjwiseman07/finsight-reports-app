@@ -3,6 +3,10 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";
+import {
+  isRaProCutoverCommerceClosed,
+  RaProCutoverCommerceGatedError,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface CheckoutSessionPayload {
   id: string;
@@ -26,6 +30,12 @@ export async function handleTcp1CheckoutCompleted(
       session_id: session.id,
     });
     return { handled: false, reason: "missing_tier_key" };
+  }
+
+  // Cutover commerce gate: hold RA Pro activation (defense in depth).
+  // Callers must not mark the ledger terminal — see stripe-sync pre-insert hold.
+  if (tierKey === "review_assist_pro" && isRaProCutoverCommerceClosed()) {
+    throw new RaProCutoverCommerceGatedError();
   }
 
   // W1 + W2.5 scope guard — expand this list as later weeks launch.
