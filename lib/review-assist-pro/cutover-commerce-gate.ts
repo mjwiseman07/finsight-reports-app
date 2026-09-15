@@ -31,14 +31,14 @@ export function resolveRaProCutoverCommerceGateValue(
 
 /** Resolve from server process env only. */
 export function resolveRaProCutoverCommerceGate(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): RaProCutoverCommerceGateState {
   return resolveRaProCutoverCommerceGateValue(env[RA_PRO_CUTOVER_COMMERCE_GATE_ENV]);
 }
 
 /** True when RA Pro checkout/activation must not proceed. */
 export function isRaProCutoverCommerceClosed(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): boolean {
   return resolveRaProCutoverCommerceGate(env) === "closed";
 }
