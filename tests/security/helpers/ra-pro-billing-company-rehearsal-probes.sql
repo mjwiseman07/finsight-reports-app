@@ -15,15 +15,22 @@ INSERT INTO public.firms (id, name) VALUES
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'UnlinkedFirm')
 ON CONFLICT DO NOTHING;
 
--- Existing row remains null
+-- After migration: production-shaped zero-backfill expectation for fixture firm.
 DO $$
+DECLARE
+  v_linked int;
 BEGIN
+  SELECT count(*)::int INTO v_linked
+  FROM public.firms
+  WHERE billing_company_id IS NOT NULL;
+  -- Rehearsal may later link via activation RPC; at probe start expect 0
+  -- for the unlinked seed firm inserted above.
   IF EXISTS (
     SELECT 1 FROM public.firms
     WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
       AND billing_company_id IS NOT NULL
   ) THEN
-    RAISE EXCEPTION 'unlinked_firm_not_null';
+    RAISE EXCEPTION 'no_backfill_seed_firm_must_remain_null';
   END IF;
 END $$;
 

@@ -24,6 +24,10 @@ import {
   isReviewAssistProGated,
   isReviewAssistProBypassAllowed,
 } from "@/lib/tcp1/launch-gates";
+import {
+  isRaProCutoverCommerceClosed,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -178,6 +182,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { error: "tier_not_supported", tier_key: tierKey },
       { status: 400 },
+    );
+  }
+  // Temporary cutover commerce gate (server env only; no cookie/token bypass).
+  // Must run before Stripe session creation. Fail-closed when unset/malformed.
+  if (tierKey === "review_assist_pro" && isRaProCutoverCommerceClosed()) {
+    return NextResponse.json(
+      {
+        error: "temporarily_unavailable",
+        code: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+      },
+      { status: 503 },
     );
   }
   // Launch gates — parity with middleware.ts via shared launch-gates helper.

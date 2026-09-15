@@ -54,6 +54,7 @@ function thenableQuery(data: unknown, error: null | object = null) {
 
 describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
   beforeEach(() => {
+    process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "open";
     fromMock.mockReset();
     activateMock.mockReset();
     upsertMock.mockReset();

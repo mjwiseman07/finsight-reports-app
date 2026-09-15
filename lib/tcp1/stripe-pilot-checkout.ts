@@ -12,6 +12,10 @@ import {
   RA_PRO_PILOT_COHORT_CAP,
   RA_PRO_TIER_KEY,
 } from "@/lib/review-assist-pro/limits";
+import {
+  isRaProCutoverCommerceClosed,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface CheckoutSessionPayload {
   id: string;
@@ -102,6 +106,15 @@ function mapActivationError(err: RaProActivationError): CheckoutCompletionOutcom
 async function handleRaProCheckoutCompleted(
   session: CheckoutSessionPayload,
 ): Promise<CheckoutCompletionOutcome> {
+  // Cutover commerce gate: hold activation as retryable (never terminal).
+  // Server env only — ignore Stripe metadata / client hints.
+  if (isRaProCutoverCommerceClosed()) {
+    return {
+      outcome: "retryable_failure",
+      reason: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+    };
+  }
+
   const companyId = session.metadata?.company_id;
   const firmId = session.metadata?.firm_id;
   const track = session.metadata?.track;

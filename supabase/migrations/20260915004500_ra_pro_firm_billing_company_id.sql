@@ -5,6 +5,13 @@
 -- Protects the column as server-controlled entitlement metadata.
 -- Provides atomic activation RPC for company-owned RA Pro subscriptions.
 -- Does NOT relax pilot_slots_entity_xor_check.
+--
+-- CUTOVER: This migration performs NO company↔firm backfill.
+-- Operator decision (docs/security/ra-pro-cutover-operator-decision.json):
+--   NO_CUTOVER × 4 (internal smoke/demo entitlements excluded).
+-- All existing firms.billing_company_id values remain NULL after apply.
+-- Unlinked firms remain denied from /reviewer. Future customers must use
+-- the canonical activation RPC path after commerce gate reopening.
 
 BEGIN;
 
@@ -13,6 +20,22 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.firms
   ADD COLUMN IF NOT EXISTS billing_company_id uuid;
+
+-- Fail closed if any non-null billing link already exists at schema apply.
+-- Production at authorized cutover: column absent → all NULL after ADD.
+-- Explicitly forbids embedding legacy backfill in this release.
+DO $$
+DECLARE
+  v_linked int;
+BEGIN
+  SELECT count(*)::int INTO v_linked
+  FROM public.firms
+  WHERE billing_company_id IS NOT NULL;
+  IF v_linked <> 0 THEN
+    RAISE EXCEPTION
+      'ra_pro_no_backfill_expected_zero_linked_firms got %', v_linked;
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -711,5 +734,19 @@ COMMENT ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integ
   'Atomically claim or reclaim a Stripe webhook event lease. Never reclaims terminal or unexpired processing leases.';
 COMMENT ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) IS
   'Finalize a webhook event only when stripe_event_id + lease_token match an active processing lease.';
+
+-- Final no-backfill seal (still inside the migration transaction).
+DO $$
+DECLARE
+  v_linked int;
+BEGIN
+  SELECT count(*)::int INTO v_linked
+  FROM public.firms
+  WHERE billing_company_id IS NOT NULL;
+  IF v_linked <> 0 THEN
+    RAISE EXCEPTION
+      'ra_pro_no_backfill_postcondition_failed linked=%', v_linked;
+  END IF;
+END $$;
 
 COMMIT;

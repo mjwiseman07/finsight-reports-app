@@ -13,11 +13,11 @@ const SUPERSEDED_CRLF_SHA =
   "c54ff8f915d24a90de810b95882899fa8e3560fc810b18341f66d0736cfdfdcf";
 const SUPERSEDED_CRLF_BYTES = 15822;
 
-/** Post-lease remediation tip seal (Git LF blob). */
-const EXPECTED_OID = "9d7a929c1d855fb07fd0acd243abb49a8b6ba819";
+/** Post–NO_CUTOVER bind / no-backfill tip seal (Git LF blob). */
+const EXPECTED_OID = "cf93ae69c2a07479b3ad575bb581d6bc1ee60a49";
 const EXPECTED_SHA256 =
-  "1a97bb2f681f948c0baad26fb338737258e248cf07d179d1933ec95e5e287b91";
-const EXPECTED_BYTES = 23526;
+  "2efa0cd40036ae7d5f9b85452dbd0cf7642a509c0516381ee5feadf14c4120b9";
+const EXPECTED_BYTES = 24765;
 
 function blobAtHead(): { oid: string; bytes: Buffer; sha256: string } {
   const oid = execFileSync("git", ["rev-parse", `HEAD:${MIGRATION_PATH}`], {
@@ -38,8 +38,17 @@ describe("RA Pro migration Git LF seal authority", () => {
 
   it("HEAD blob matches the published tip seal", () => {
     const { oid, bytes, sha256 } = blobAtHead();
-    expect(oid).toBe(EXPECTED_OID);
     expect(sha256).toBe(EXPECTED_SHA256);
     expect(bytes.length).toBe(EXPECTED_BYTES);
+    expect(oid).toBe(EXPECTED_OID);
+  });
+
+  it("migration text forbids legacy backfill", () => {
+    const { bytes } = blobAtHead();
+    const text = bytes.toString("utf8");
+    expect(text).toMatch(/NO company↔firm backfill|NO company.+firm backfill|no_backfill/i);
+    expect(text).toMatch(/ra_pro_no_backfill_expected_zero_linked_firms/);
+    expect(text).toMatch(/ra_pro_no_backfill_postcondition_failed/);
+    expect(text).not.toMatch(/UPDATE\s+public\.firms\s+SET\s+billing_company_id\s*=\s*'[0-9a-f-]{36}'/i);
   });
 });

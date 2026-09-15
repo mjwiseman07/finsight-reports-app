@@ -5,6 +5,8 @@ Scope: company-owned RA Pro subscription → linked firm workspace → `/reviewe
 
 **Production note:** Migration `supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql` is **not applied to production in this PR**. Schema (`firms.billing_company_id`, activation RPC, protect trigger) lands with a later apply ceremony.
 
+**Cutover decision:** Operator ceremony bound **NO_CUTOVER × 4** (internal smoke/demo). **No backfill.** See `docs/security/ra-pro-cutover-operator-decision.json` and `docs/security/ra-pro-cutover-runbook.md`. Commerce gate: `RA_PRO_CUTOVER_COMMERCE_GATE`.
+
 **Seal authority:** Only the committed Git **LF** blob is authoritative for apply ceremonies. See `docs/security/ra-pro-migration-seal.md`. CRLF worktree digests are superseded and non-authoritative.
 
 ## Identity → entitlement chain
