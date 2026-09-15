@@ -34,7 +34,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS firms_billing_company_id_uidx
   WHERE billing_company_id IS NOT NULL;
 
 COMMENT ON COLUMN public.firms.billing_company_id IS
-  'RA Pro: canonical billing company that owns this firm workspace. Server-controlled; nullable for legacy/demo firms without company billing.';
+  'RA Pro: canonical billing company that owns this firm workspace. Server-controlled. Nullable only until linked; unlinked firms never authorize /reviewer.';
 
 -- service_role write path (PostgREST bypasses RLS in hosted Supabase; policy is defense-in-depth).
 DROP POLICY IF EXISTS firms_service_role_all ON public.firms;
@@ -66,6 +66,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.firm_memberships TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.firm_clients TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pilot_slots TO service_role;
 GRANT SELECT, UPDATE ON public.companies TO service_role;
+GRANT SELECT ON public.company_users TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 2. Server-controlled field protection (SECURITY INVOKER trigger)
@@ -77,13 +78,10 @@ SECURITY INVOKER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-  jwt_role text := coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), '');
   allowed boolean := false;
 BEGIN
-  -- Trusted server roles only. Never allow anon/authenticated JWT roles.
+  -- Trusted database roles only. Never trust JWT claims, GUCs, headers, or parameters.
   IF current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
-    allowed := true;
-  ELSIF jwt_role = 'service_role' THEN
     allowed := true;
   END IF;
 
@@ -265,7 +263,6 @@ SECURITY INVOKER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-  v_jwt_role text := coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), '');
   v_firm_id uuid;
   v_slot_id uuid;
   v_slot_number int;
@@ -277,9 +274,10 @@ DECLARE
   v_n int;
   v_seat_count int;
   v_created_firm boolean := false;
+  v_buyer_ok boolean := false;
 BEGIN
-  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role')
-     AND v_jwt_role IS DISTINCT FROM 'service_role' THEN
+  -- Trusted database roles only. Never trust JWT claims or GUC impersonation.
+  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
     RAISE EXCEPTION 'activate_ra_pro_forbidden' USING ERRCODE = '42501';
   END IF;
 
@@ -305,6 +303,19 @@ BEGIN
   PERFORM 1 FROM public.companies c WHERE c.id = p_company_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'activate_ra_pro_company_not_found' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Buyer must own/belong to the billing company (canonical company_users).
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.company_users cu
+    WHERE cu.company_id = p_company_id
+      AND cu.user_id = p_buyer_user_id
+      AND cu.status = 'active'
+  ) INTO v_buyer_ok;
+
+  IF NOT v_buyer_ok THEN
+    RAISE EXCEPTION 'activate_ra_pro_buyer_not_company_member' USING ERRCODE = '42501';
   END IF;
 
   -- Existing slot for this company + tier.

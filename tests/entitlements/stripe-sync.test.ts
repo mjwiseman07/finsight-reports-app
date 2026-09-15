@@ -3,8 +3,19 @@ import { makeMockSupabase } from "./_mock-supabase";
 
 const mock = makeMockSupabase();
 const publishSpy = vi.hoisted(() => vi.fn(async () => ({ id: "evt" })));
+const reconcileSpy = vi.hoisted(() =>
+  vi.fn(async () => ({
+    updated: false,
+    targetStatus: null,
+    previousStatus: null,
+    rowsAffected: 0,
+  })),
+);
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishSpy }));
+vi.mock("@/lib/subscription-sync", () => ({
+  reconcilePilotSlotStatus: (...args: unknown[]) => reconcileSpy(...args),
+}));
 
 import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements/stripe-sync";
 
@@ -37,6 +48,7 @@ function baseEvt(overrides: Partial<MinimalStripeEvent> = {}): MinimalStripeEven
 beforeEach(() => {
   for (const k of Object.keys(mock.__state)) mock.__state[k] = [];
   publishSpy.mockClear();
+  reconcileSpy.mockClear();
 });
 
 describe("entitlements/stripe-sync", () => {

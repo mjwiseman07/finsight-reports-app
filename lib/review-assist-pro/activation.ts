@@ -54,6 +54,12 @@ function mapRpcError(err: { message?: string; code?: string }): RaProActivationE
   if (msg.includes("activate_ra_pro_company_not_found")) {
     return new RaProActivationError("company_not_found", "company_not_found");
   }
+  if (msg.includes("activate_ra_pro_buyer_not_company_member")) {
+    return new RaProActivationError("buyer_not_company_member", "buyer_not_company_member");
+  }
+  if (msg.includes("activate_ra_pro_forbidden")) {
+    return new RaProActivationError("activation_forbidden", "activation_forbidden");
+  }
   return new RaProActivationError(msg, err.code || "activation_failed");
 }
 

@@ -5,16 +5,21 @@ Scope: company-owned RA Pro subscription → linked firm workspace → `/reviewe
 
 **Production note:** Migration `supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql` is **not applied to production in this PR**. Schema (`firms.billing_company_id`, activation RPC, protect trigger) lands with a later apply ceremony.
 
+**Seal authority:** Only the committed Git **LF** blob is authoritative for apply ceremonies. See `docs/security/ra-pro-migration-seal.md`. CRLF worktree digests are superseded and non-authoritative.
+
 ## Identity → entitlement chain
 
 | Principal | Subscription owner | Linked firm | Client entities | Permitted `/reviewer` surfaces |
 |-----------|--------------------|-------------|-----------------|--------------------------------|
-| Signed-in firm member (`firm_memberships.status=active`) | Company row owning `pilot_slots` where `tier_key=review_assist_pro` | Firm with `billing_company_id = company.id` (server-set; unique) | `firm_clients` under that firm (included cap below) | Firm-scoped reviewer APIs after `filterReviewerAuthorizedFirmIds` |
-| Same principal, firm **without** `billing_company_id` | N/A (legacy / RA base / solo BK firm-tier path) | Unlinked firm passes filter unchanged | Firm’s own clients | Legacy firm-tier `/reviewer` (no company RA Pro check) |
-| Same principal, firm **with** `billing_company_id` but slot not authorizing | Company present but `pilot_status` not authorizing | Linked firm **dropped** from authorized set | No reviewer access via that firm | Deny (`403 forbidden` at auth layer when no firms remain) |
+| Signed-in firm member (`firm_memberships.status=active`) | Company row owning `pilot_slots` where `tier_key=review_assist_pro` with authorizing status | Firm with `billing_company_id = company.id` (server-set; unique) | `firm_clients` under that firm (included cap below) | Firm-scoped reviewer APIs after `filterReviewerAuthorizedFirmIds` |
+| Same principal, firm **without** `billing_company_id` | N/A | Unlinked firm **denied** | No `/reviewer` access | Deny (`403 forbidden` when no entitled firms remain) |
+| Same principal, firm **with** `billing_company_id` but slot not authorizing | Company present but `pilot_status` not authorizing | Linked firm **dropped** | No reviewer access via that firm | Deny |
+| Review Assist base / Solo Bookkeeper firm membership only | Firm-entity pilot slot (if any) does **not** authorize `/reviewer` | Unlinked or non–RA Pro | Their customer UI is a separate workstream | Deny |
 | Caller-supplied `firm_id` in Stripe checkout metadata | Rejected for RA Pro | Must not override server linking | — | Checkout activation fails closed (`unexpected_firm_id_on_ra_pro`) |
 
-Canonical activation writes the company → firm link via `activate_review_assist_pro_subscription` (service role). Checkout must send `company_id` + buyer; it must **not** send `firm_id`.
+Canonical activation writes the company → firm link via `activate_review_assist_pro_subscription` (trusted DB role only). Checkout must send `company_id` + buyer; it must **not** send `firm_id`. Buyer must have an active `company_users` row for that company inside the activation transaction.
+
+**No grandfathering:** ordinary firm membership alone never grants `/reviewer`.
 
 ## Canonical limits (decisions 1A / 2A / 3A)
 
@@ -48,3 +53,25 @@ Mapping lives in `lib/subscription-sync.js` (`STRIPE_TO_PILOT_STATUS`). RA Pro `
 **Reactivation:** Restoring an authorizing Stripe status maps back to `pilot_status=active` on the **same** `pilot_slots` row / company owner. The firm’s `billing_company_id` link is not rewritten by status sync — reactivation restores access through the existing company → firm link.
 
 **Complimentary** slots (`pilot_status=complimentary`) also authorize `/reviewer` for the linked firm (same filter path as `active`).
+
+## Checkout webhook outcomes
+
+`handleTcp1CheckoutCompleted` returns an explicit outcome (not an ignored boolean):
+
+| Outcome | Ledger | HTTP (TCP1 webhook) |
+|---------|--------|---------------------|
+| `handled` | `processed` | 200 |
+| `not_applicable` | `skipped` | 200 |
+| `permanent_conflict` | `failed` (error tagged `permanent_conflict:…`) | 200 (operator reconciliation) |
+| `retryable_failure` | row **deleted** (idempotency not consumed) | 500 (Stripe retry) |
+
+## Fixture impact inventory (non-production)
+
+Demo constants (`lib/demo/constants.ts` / `DEMO_FIRMS`): **2** demo firms.
+
+| Fixture firm | `billing_company_id` after seed | `/reviewer` after this change |
+|--------------|---------------------------------|-------------------------------|
+| Advisacor Demo — Review Assist Firm | unset (RA base) | **Denied** (intentional; base UI is a later workstream) |
+| Advisacor Demo — Review Assist Pro Firm | set to RA Pro company | Allowed when membership + authorizing slot present |
+
+Sanitized count: **1 of 2** demo firms lose `/reviewer` via membership alone. No production inventory was queried under this authorization.

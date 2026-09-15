@@ -12,6 +12,11 @@ supabase/migrations-draft/recovered-production-history/*.sql text eol=lf
 
 # Stage-1 credential browser containment — force LF for seal-critical artifacts
 supabase/migrations/20260908031736_connection_credential_browser_containment.sql text eol=lf
+# RA Pro billing-company migration — LF-authoritative Git blob for seal ceremonies
+supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql text eol=lf
+docs/security/ra-pro-*.md text eol=lf
+tests/security/ra-pro-*.test.ts text eol=lf
+tests/security/helpers/ra-pro-*.sql text eol=lf
 docs/security/connection-credential-browser-containment/** text eol=lf
 scripts/security/rehearse-credential-browser-containment.js text eol=lf
 scripts/security/apply-credential-browser-containment.js text eol=lf

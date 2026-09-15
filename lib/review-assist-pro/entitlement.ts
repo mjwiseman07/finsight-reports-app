@@ -1,5 +1,10 @@
 /**
  * Review Assist Pro entitlement checks for /reviewer.
+ *
+ * Locked product rule: /reviewer is an RA Pro paid surface only.
+ * Ordinary firm membership (including Review Assist base / Solo Bookkeeper
+ * firm-tier rows) never grants access. Unlinked firms
+ * (`billing_company_id IS NULL`) are always denied.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import {
@@ -49,8 +54,13 @@ export async function resolveRaProEntitlementForFirm(
 
 /**
  * Filter membership firm IDs to those authorized for /reviewer under RA Pro 1A.
- * Firms without billing_company_id keep legacy firm-tier access (RA base / solo BK).
- * Firms with billing_company_id require an authorizing RA Pro company subscription.
+ *
+ * Every authorized firm MUST have:
+ * - a non-null canonical billing_company_id
+ * - an authorizing RA Pro company pilot slot for that billing company
+ *
+ * Unlinked firms and linked firms without an authorizing slot are dropped.
+ * Active membership is enforced by the caller (requireFirmAuth) before this filter.
  */
 export async function filterReviewerAuthorizedFirmIds(
   firmIds: string[],
@@ -65,16 +75,16 @@ export async function filterReviewerAuthorizedFirmIds(
   if (error) throw error;
 
   const linked: Array<{ id: string; billing_company_id: string }> = [];
-  const unlinked: string[] = [];
   for (const f of firms ?? []) {
     if (f.billing_company_id) {
-      linked.push({ id: f.id as string, billing_company_id: f.billing_company_id as string });
-    } else {
-      unlinked.push(f.id as string);
+      linked.push({
+        id: f.id as string,
+        billing_company_id: f.billing_company_id as string,
+      });
     }
   }
 
-  if (linked.length === 0) return unlinked;
+  if (linked.length === 0) return [];
 
   const companyIds = [...new Set(linked.map((f) => f.billing_company_id))];
   const { data: slots, error: slotErr } = await supabase
@@ -90,9 +100,7 @@ export async function filterReviewerAuthorizedFirmIds(
       .map((s) => s.company_id as string),
   );
 
-  const entitledLinked = linked
+  return linked
     .filter((f) => authorizedCompanies.has(f.billing_company_id))
     .map((f) => f.id);
-
-  return [...unlinked, ...entitledLinked];
 }

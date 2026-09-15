@@ -1,13 +1,18 @@
 -- Disposable rehearsal probes for 20260915004500_ra_pro_firm_billing_company_id
 -- Applied after bootstrap + migration in local docker only.
+-- Requires company_users table + trusted DB roles (no JWT claim shortcuts).
 
 INSERT INTO public.companies (id, name) VALUES
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'BillCo'),
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'OtherCo')
 ON CONFLICT DO NOTHING;
 
+INSERT INTO public.company_users (company_id, user_id, role, status) VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'admin', 'active')
+ON CONFLICT DO NOTHING;
+
 INSERT INTO public.firms (id, name) VALUES
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'LegacyFirm')
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'UnlinkedFirm')
 ON CONFLICT DO NOTHING;
 
 -- Existing row remains null
@@ -18,44 +23,129 @@ BEGIN
     WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
       AND billing_company_id IS NOT NULL
   ) THEN
-    RAISE EXCEPTION 'legacy_firm_not_null';
+    RAISE EXCEPTION 'unlinked_firm_not_null';
   END IF;
 END $$;
 
--- Authenticated cannot set billing_company_id even with a permissive UPDATE policy
+-- Authenticated cannot set billing_company_id even with forged JWT service_role claim
 SET ROLE postgres;
 DROP POLICY IF EXISTS firms_auth_update_rehearsal ON public.firms;
+DROP POLICY IF EXISTS firms_auth_select_rehearsal ON public.firms;
+CREATE POLICY firms_auth_select_rehearsal ON public.firms
+  FOR SELECT TO authenticated USING (true);
 CREATE POLICY firms_auth_update_rehearsal ON public.firms
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.role', 'authenticated', true);
+SET SESSION AUTHORIZATION authenticated;
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
 DO $$
+DECLARE
+  v_who text := current_user;
+  v_n int;
+  v_link uuid;
 BEGIN
+  IF v_who IS DISTINCT FROM 'authenticated' THEN
+    RAISE EXCEPTION 'expected_authenticated_got_%', v_who;
+  END IF;
   UPDATE public.firms
   SET billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
   WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-  RAISE EXCEPTION 'authenticated_update_should_fail';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n > 0 THEN
+    RAISE EXCEPTION 'forged_jwt_update_should_fail';
+  END IF;
 EXCEPTION
   WHEN insufficient_privilege THEN NULL;
   WHEN OTHERS THEN
-    IF SQLERRM = 'authenticated_update_should_fail' THEN RAISE; END IF;
-    -- billing_company_id_immutable / forbidden also OK
+    IF SQLERRM = 'forged_jwt_update_should_fail' THEN RAISE; END IF;
+    IF SQLERRM LIKE 'expected_authenticated_got_%' THEN RAISE; END IF;
     IF SQLERRM NOT LIKE '%billing_company_id%' THEN
       RAISE EXCEPTION 'unexpected_auth_deny: %', SQLERRM;
     END IF;
 END $$;
--- Name updates still allowed under rehearsal policy
-UPDATE public.firms SET name = 'LegacyFirmRenamed'
-WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-RESET ROLE;
+
+-- Confirm link still null under authenticated
+DO $$
+DECLARE
+  v_link uuid;
+BEGIN
+  SELECT billing_company_id INTO v_link
+  FROM public.firms
+  WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  IF v_link IS NOT NULL THEN
+    RAISE EXCEPTION 'billing_company_id_mutated_by_authenticated';
+  END IF;
+END $$;
+
+-- Authenticated cannot invoke activation even with forged JWT claim
+DO $$
+BEGIN
+  PERFORM public.activate_review_assist_pro_subscription(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'RA Pro Firm',
+    'sub_forged',
+    'cus_forged',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  RAISE EXCEPTION 'forged_jwt_activate_should_fail';
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'forged_jwt_activate_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%activate_ra_pro_forbidden%'
+       AND SQLERRM NOT LIKE '%permission denied%' THEN
+      RAISE EXCEPTION 'unexpected_activate_deny: %', SQLERRM;
+    END IF;
+END $$;
+
+RESET SESSION AUTHORIZATION;
 SET ROLE postgres;
 DROP POLICY IF EXISTS firms_auth_update_rehearsal ON public.firms;
+DROP POLICY IF EXISTS firms_auth_select_rehearsal ON public.firms;
 
--- service_role activation + replay
-SET ROLE service_role;
-SELECT set_config('request.jwt.claim.role', 'service_role', true);
+-- Buyer without company_users membership fails closed (postgres is a trusted role)
+DO $$
+BEGIN
+  PERFORM public.activate_review_assist_pro_subscription(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    'RA Pro Firm',
+    'sub_no_owner',
+    'cus_no_owner',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  RAISE EXCEPTION 'buyer_mismatch_should_fail';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLERRM = 'buyer_mismatch_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%activate_ra_pro_buyer_not_company_member%' THEN
+      RAISE EXCEPTION 'unexpected_buyer_error: %', SQLERRM;
+    END IF;
+END $$;
 
+-- Prove no firm/slot leaked from failed ownership activation
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.firms WHERE billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ) THEN
+    RAISE EXCEPTION 'orphaned_firm_after_buyer_mismatch';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.pilot_slots
+    WHERE company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      AND tier_key = 'review_assist_pro'
+  ) THEN
+    RAISE EXCEPTION 'orphaned_slot_after_buyer_mismatch';
+  END IF;
+END $$;
+
+-- Trusted DB role (postgres) activation + replay — no JWT claim required
 SELECT public.activate_review_assist_pro_subscription(
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   'cccccccc-cccc-cccc-cccc-cccccccccccc',
@@ -77,6 +167,20 @@ SELECT public.activate_review_assist_pro_subscription(
   'monthly',
   'pilot'
 ) AS replay_activation;
+
+-- service_role path also works without JWT claim
+SET ROLE service_role;
+SELECT public.activate_review_assist_pro_subscription(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  'RA Pro Firm',
+  'sub_test_1',
+  'cus_test_1',
+  'flat',
+  'monthly',
+  'pilot'
+) AS service_role_replay;
+RESET ROLE;
 
 -- Conflicting subscription fails closed
 DO $$
@@ -139,21 +243,22 @@ BEGIN
   END;
 END $$;
 
--- Fill pilot slots 2-10 then reject 11
-RESET ROLE;
+-- Fill pilot slots 2-10 then reject 11 (postgres trusted role; buyers are company members)
 DO $$
 DECLARE
   i int;
   cid uuid;
+  uid uuid;
 BEGIN
   FOR i IN 2..10 LOOP
     cid := gen_random_uuid();
+    uid := gen_random_uuid();
     INSERT INTO public.companies (id, name) VALUES (cid, 'Pilot' || i);
-    PERFORM set_config('request.jwt.claim.role', 'service_role', true);
-    -- Call as table owner; JWT claim still marks trusted server path.
+    INSERT INTO public.company_users (company_id, user_id, role, status)
+    VALUES (cid, uid, 'admin', 'active');
     PERFORM public.activate_review_assist_pro_subscription(
       cid,
-      'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      uid,
       'Firm ' || i,
       'sub_pilot_' || i,
       'cus_pilot_' || i,
@@ -167,13 +272,15 @@ END $$;
 DO $$
 DECLARE
   cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
 BEGIN
   INSERT INTO public.companies (id, name) VALUES (cid, 'Pilot11');
-  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
   BEGIN
     PERFORM public.activate_review_assist_pro_subscription(
       cid,
-      'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      uid,
       'Firm 11',
       'sub_pilot_11',
       'cus_pilot_11',

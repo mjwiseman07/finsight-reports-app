@@ -1,5 +1,11 @@
 /**
  * Stripe webhook → entitlement sync. Idempotent via stripe_webhook_events PK.
+ *
+ * Checkout outcomes from handleTcp1CheckoutCompleted drive ledger status:
+ * - handled → processed
+ * - not_applicable → skipped
+ * - permanent_conflict → failed (tagged permanent_conflict:…)
+ * - retryable_failure → ledger row deleted so Stripe can retry
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
@@ -7,6 +13,7 @@ import { isAddonCode, type AddonCode } from "./registry";
 import {
   handleTcp1CheckoutCompleted,
   handleTcp1SubscriptionDeleted,
+  type CheckoutCompletionOutcome,
 } from "@/lib/tcp1/stripe-pilot-checkout";
 import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
 
@@ -30,6 +37,10 @@ export interface MinimalStripeEvent {
   };
 }
 
+export type StripeWebhookResult =
+  | { status: "processed" | "skipped" | "duplicate" | "conflicted" }
+  | { status: "retryable_error"; error: string };
+
 const HANDLED_TYPES = new Set<string>([
   "customer.subscription.created",
   "customer.subscription.updated",
@@ -37,10 +48,12 @@ const HANDLED_TYPES = new Set<string>([
   "checkout.session.completed",
 ]);
 
+const TERMINAL_STATUSES = new Set(["processed", "skipped", "failed"]);
+
 export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
-): Promise<{ status: "processed" | "skipped" | "duplicate" }> {
+): Promise<StripeWebhookResult> {
   const supabase = createServiceClient();
 
   const { error: insertError } = await supabase.from("stripe_webhook_events").insert({
@@ -53,9 +66,28 @@ export async function handleStripeWebhook(
 
   if (insertError) {
     if ((insertError as { code?: string }).code === "23505") {
-      return { status: "duplicate" };
+      const { data: existing } = await supabase
+        .from("stripe_webhook_events")
+        .select("processing_status")
+        .eq("stripe_event_id", event.id)
+        .maybeSingle();
+      const status = (existing?.processing_status as string | undefined) ?? "processed";
+      if (TERMINAL_STATUSES.has(status)) {
+        return { status: "duplicate" };
+      }
+      // Non-terminal (e.g. stuck "processing") — reclaim for a fresh attempt.
+      await supabase
+        .from("stripe_webhook_events")
+        .update({
+          processing_status: "processing",
+          processing_error: null,
+          processed_at: null,
+          raw_payload: rawPayload ?? event,
+        })
+        .eq("stripe_event_id", event.id);
+    } else {
+      throw new Error(`stripe_webhook_events insert failed: ${insertError.message}`);
     }
-    throw new Error(`stripe_webhook_events insert failed: ${insertError.message}`);
   }
 
   if (!HANDLED_TYPES.has(event.type)) {
@@ -71,9 +103,8 @@ export async function handleStripeWebhook(
         customer?: string | null;
         metadata?: Record<string, string | undefined>;
       };
-      await handleTcp1CheckoutCompleted(session);
-      await markProcessed(event.id, "processed");
-      return { status: "processed" };
+      const outcome = await handleTcp1CheckoutCompleted(session);
+      return applyCheckoutOutcome(event.id, outcome);
     }
 
     const sub = event.data.object;
@@ -145,8 +176,37 @@ export async function handleStripeWebhook(
     await markProcessed(event.id, "processed");
     return { status: "processed" };
   } catch (err) {
-    await markProcessed(event.id, "failed", err instanceof Error ? err.message : String(err));
+    // Do not consume idempotency on unexpected failures — allow Stripe retry.
+    await releaseEventForRetry(event.id);
     throw err;
+  }
+}
+
+async function applyCheckoutOutcome(
+  eventId: string,
+  outcome: CheckoutCompletionOutcome,
+): Promise<StripeWebhookResult> {
+  switch (outcome.outcome) {
+    case "handled":
+      await markProcessed(eventId, "processed");
+      return { status: "processed" };
+    case "not_applicable":
+      await markProcessed(eventId, "skipped", outcome.reason);
+      return { status: "skipped" };
+    case "permanent_conflict":
+      await markProcessed(
+        eventId,
+        "failed",
+        `permanent_conflict:${outcome.reason}`,
+      );
+      return { status: "conflicted" };
+    case "retryable_failure":
+      await releaseEventForRetry(eventId);
+      return { status: "retryable_error", error: outcome.reason };
+    default: {
+      const _exhaustive: never = outcome;
+      return _exhaustive;
+    }
   }
 }
 
@@ -190,4 +250,9 @@ async function markProcessed(
       processing_error: error ?? null,
     })
     .eq("stripe_event_id", eventId);
+}
+
+async function releaseEventForRetry(eventId: string): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase.from("stripe_webhook_events").delete().eq("stripe_event_id", eventId);
 }

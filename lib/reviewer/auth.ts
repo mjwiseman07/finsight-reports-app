@@ -1,6 +1,8 @@
 /**
  * D6.4d — Shared authentication + firm-scope resolution for reviewer API routes.
- * RA Pro (1A): firms with billing_company_id also require an authorizing company subscription.
+ * RA Pro (1A): /reviewer requires an authorizing company-owned RA Pro subscription
+ * plus a canonical billing_company_id link and active firm membership.
+ * Unlinked firms (billing_company_id IS NULL) are always denied.
  */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";

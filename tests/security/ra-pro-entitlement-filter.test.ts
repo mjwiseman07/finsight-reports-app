@@ -30,7 +30,7 @@ describe("filterReviewerAuthorizedFirmIds", () => {
     expect(fromMock).not.toHaveBeenCalled();
   });
 
-  it("lets unlinked firms (no billing_company_id) pass through", async () => {
+  it("denies unlinked firms (no billing_company_id)", async () => {
     fromMock.mockImplementation((table: string) => {
       if (table === "firms") {
         return thenableQuery([
@@ -43,7 +43,7 @@ describe("filterReviewerAuthorizedFirmIds", () => {
 
     await expect(
       filterReviewerAuthorizedFirmIds(["firm-unlinked-1", "firm-unlinked-2"]),
-    ).resolves.toEqual(["firm-unlinked-1", "firm-unlinked-2"]);
+    ).resolves.toEqual([]);
     expect(fromMock).toHaveBeenCalledTimes(1);
     expect(fromMock).toHaveBeenCalledWith("firms");
   });
@@ -80,11 +80,11 @@ describe("filterReviewerAuthorizedFirmIds", () => {
     await expect(filterReviewerAuthorizedFirmIds(["firm-cancelled"])).resolves.toEqual([]);
   });
 
-  it("mixes unlinked pass-through with linked entitlement filtering", async () => {
+  it("denies unlinked firms even when mixed with entitled linked firms", async () => {
     fromMock.mockImplementation((table: string) => {
       if (table === "firms") {
         return thenableQuery([
-          { id: "firm-legacy", billing_company_id: null },
+          { id: "firm-unlinked", billing_company_id: null },
           { id: "firm-ok", billing_company_id: "co-ok" },
           { id: "firm-bad", billing_company_id: "co-bad" },
         ]);
@@ -99,7 +99,7 @@ describe("filterReviewerAuthorizedFirmIds", () => {
     });
 
     await expect(
-      filterReviewerAuthorizedFirmIds(["firm-legacy", "firm-ok", "firm-bad"]),
-    ).resolves.toEqual(["firm-legacy", "firm-ok"]);
+      filterReviewerAuthorizedFirmIds(["firm-unlinked", "firm-ok", "firm-bad"]),
+    ).resolves.toEqual(["firm-ok"]);
   });
 });

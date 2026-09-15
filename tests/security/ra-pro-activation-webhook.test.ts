@@ -25,8 +25,10 @@ vi.mock("@/lib/review-assist-pro/activation", () => {
 });
 
 import { handleTcp1CheckoutCompleted } from "@/lib/tcp1/stripe-pilot-checkout";
+import { RaProActivationError } from "@/lib/review-assist-pro/activation";
 
 const BUYER_USER_ID = "11111111-1111-1111-1111-111111111111";
+const OTHER_USER_ID = "99999999-9999-9999-9999-999999999999";
 const COMPANY_ID = "22222222-2222-2222-2222-222222222222";
 const FIRM_ID = "33333333-3333-3333-3333-333333333333";
 
@@ -68,7 +70,7 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
     });
   });
 
-  it("rejects firm_id metadata on RA Pro checkout", async () => {
+  it("rejects firm_id metadata on RA Pro checkout as permanent conflict", async () => {
     const result = await handleTcp1CheckoutCompleted({
       id: "cs_ra_pro_firm_meta",
       subscription: "sub_ra_pro",
@@ -85,7 +87,7 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
     });
 
     expect(result).toEqual({
-      handled: false,
+      outcome: "permanent_conflict",
       reason: "unexpected_firm_id_on_ra_pro",
     });
     expect(activateMock).not.toHaveBeenCalled();
@@ -106,11 +108,21 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
       },
     });
 
-    expect(result).toEqual({ handled: false, reason: "missing_company_id" });
+    expect(result).toEqual({
+      outcome: "permanent_conflict",
+      reason: "missing_company_id",
+    });
     expect(activateMock).not.toHaveBeenCalled();
   });
 
-  it("calls activate path with buyer from metadata", async () => {
+  it("calls activate path when Stripe customer maps to buyer", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "users") {
+        return thenableQuery([{ id: BUYER_USER_ID }]);
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
     const result = await handleTcp1CheckoutCompleted({
       id: "cs_ra_pro_ok",
       subscription: "sub_ra_pro_1",
@@ -126,7 +138,7 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
       },
     });
 
-    expect(result).toEqual({ handled: true });
+    expect(result).toEqual({ outcome: "handled" });
     expect(activateMock).toHaveBeenCalledTimes(1);
     expect(activateMock).toHaveBeenCalledWith({
       companyId: COMPANY_ID,
@@ -139,6 +151,89 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
       track: "pilot",
     });
     expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("permanent-conflicts when metadata buyer disagrees with Stripe customer user", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "users") {
+        return thenableQuery([{ id: OTHER_USER_ID }]);
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    const result = await handleTcp1CheckoutCompleted({
+      id: "cs_ra_pro_mismatch",
+      subscription: "sub_ra_pro_m",
+      customer: "cus_ra_pro_m",
+      metadata: {
+        tier_key: "review_assist_pro",
+        company_id: COMPANY_ID,
+        track: "pilot",
+        buyer_user_id: BUYER_USER_ID,
+      },
+    });
+
+    expect(result).toEqual({
+      outcome: "permanent_conflict",
+      reason: "buyer_customer_mismatch",
+    });
+    expect(activateMock).not.toHaveBeenCalled();
+  });
+
+  it("maps pilot_cap_reached to permanent_conflict", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "users") {
+        return thenableQuery([{ id: BUYER_USER_ID }]);
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+    activateMock.mockRejectedValue(new RaProActivationError("pilot_cap_reached", "pilot_cap_reached"));
+
+    const result = await handleTcp1CheckoutCompleted({
+      id: "cs_ra_pro_cap",
+      subscription: "sub_cap",
+      customer: "cus_cap",
+      metadata: {
+        tier_key: "review_assist_pro",
+        company_id: COMPANY_ID,
+        track: "pilot",
+        buyer_user_id: BUYER_USER_ID,
+      },
+    });
+
+    expect(result).toEqual({
+      outcome: "permanent_conflict",
+      reason: "pilot_cap_reached",
+    });
+  });
+
+  it("maps buyer_not_company_member to permanent_conflict", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "users") {
+        return thenableQuery([{ id: BUYER_USER_ID }]);
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+    activateMock.mockRejectedValue(
+      new RaProActivationError("buyer_not_company_member", "buyer_not_company_member"),
+    );
+
+    const result = await handleTcp1CheckoutCompleted({
+      id: "cs_ra_pro_owner",
+      subscription: "sub_owner",
+      customer: "cus_owner",
+      metadata: {
+        tier_key: "review_assist_pro",
+        company_id: COMPANY_ID,
+        track: "pilot",
+        buyer_user_id: BUYER_USER_ID,
+      },
+    });
+
+    expect(result).toEqual({
+      outcome: "permanent_conflict",
+      reason: "buyer_not_company_member",
+    });
   });
 
   it("non-RA-Pro firm tier still uses pilot_slots upsert path", async () => {
@@ -162,7 +257,7 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
       },
     });
 
-    expect(result).toEqual({ handled: true });
+    expect(result).toEqual({ outcome: "handled" });
     expect(activateMock).not.toHaveBeenCalled();
     expect(upsertMock).toHaveBeenCalledTimes(1);
     expect(upsertMock).toHaveBeenCalledWith(
@@ -175,5 +270,18 @@ describe("handleTcp1CheckoutCompleted — review_assist_pro", () => {
       }),
       { onConflict: "tier_key,firm_id" },
     );
+  });
+
+  it("marks out-of-scope tiers as not_applicable", async () => {
+    const result = await handleTcp1CheckoutCompleted({
+      id: "cs_future",
+      subscription: "sub_x",
+      customer: "cus_x",
+      metadata: { tier_key: "enterprise_firm", track: "pilot" },
+    });
+    expect(result).toEqual({
+      outcome: "not_applicable",
+      reason: "out_of_scope_tier",
+    });
   });
 });
