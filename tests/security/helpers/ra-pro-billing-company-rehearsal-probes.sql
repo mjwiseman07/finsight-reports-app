@@ -311,6 +311,125 @@ BEGIN
   END;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- Webhook lease probes
+-- ---------------------------------------------------------------------------
+SET ROLE service_role;
+
+SELECT public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120)
+  AS claim1;
+
+-- Concurrent second claim while lease active → lease_held
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'lease_held' THEN
+    RAISE EXCEPTION 'expected_lease_held_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Finalize processed with correct lease
+DO $$
+DECLARE
+  v_token uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_token FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_1';
+  v := public.finalize_stripe_webhook_event('evt_lease_1', v_token, 'processed', NULL);
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'finalize_processed_failed';
+  END IF;
+END $$;
+
+-- Terminal never reclaimed
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'duplicate_terminal' THEN
+    RAISE EXCEPTION 'expected_duplicate_terminal_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Retryable then reclaim
+SELECT public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120) AS claim2;
+DO $$
+DECLARE
+  v_token uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_token FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_token, 'retryable', 'missing_buyer_user');
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'finalize_retryable_failed';
+  END IF;
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'reclaimed' THEN
+    RAISE EXCEPTION 'expected_reclaimed_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Stale finalize after lease transfer
+DO $$
+DECLARE
+  v_old uuid;
+  v_new uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_old FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  -- Force expiry and reclaim
+  UPDATE public.stripe_webhook_events
+  SET lease_expires_at = now() - interval '1 second'
+  WHERE stripe_event_id = 'evt_lease_2';
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'reclaimed' THEN
+    RAISE EXCEPTION 'expected_expiry_reclaim_got_%', v->>'outcome';
+  END IF;
+  SELECT lease_token INTO v_new FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_old, 'processed', NULL);
+  IF v->>'outcome' IS DISTINCT FROM 'stale_lease' THEN
+    RAISE EXCEPTION 'expected_stale_lease_got_%', v->>'outcome';
+  END IF;
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_new, 'failed_conflict', 'pilot_cap_reached');
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'conflict_finalize_failed';
+  END IF;
+END $$;
+
+-- Conflict remains visible / not reclaimable
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'duplicate_terminal' THEN
+    RAISE EXCEPTION 'conflict_should_stay_terminal';
+  END IF;
+  IF v->>'processing_status' IS DISTINCT FROM 'failed_conflict' THEN
+    RAISE EXCEPTION 'conflict_status_wrong';
+  END IF;
+END $$;
+
+-- Authenticated cannot claim
+SET SESSION AUTHORIZATION authenticated;
+DO $$
+BEGIN
+  PERFORM public.claim_stripe_webhook_event('evt_auth', 'checkout.session.completed', false, 120);
+  RAISE EXCEPTION 'auth_claim_should_fail';
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'auth_claim_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%claim_stripe_webhook_forbidden%'
+       AND SQLERRM NOT LIKE '%permission denied%' THEN
+      RAISE EXCEPTION 'unexpected_auth_claim_deny: %', SQLERRM;
+    END IF;
+END $$;
+RESET SESSION AUTHORIZATION;
+
 RESET ROLE;
 
 SELECT 'REHEARSAL_OK' AS result;

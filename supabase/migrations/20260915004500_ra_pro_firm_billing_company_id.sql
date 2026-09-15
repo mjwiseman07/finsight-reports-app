@@ -67,6 +67,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.firm_clients TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pilot_slots TO service_role;
 GRANT SELECT, UPDATE ON public.companies TO service_role;
 GRANT SELECT ON public.company_users TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.stripe_webhook_events TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 2. Server-controlled field protection (SECURITY INVOKER trigger)
@@ -476,5 +477,239 @@ COMMENT ON FUNCTION public.activate_review_assist_pro_subscription(
   uuid, uuid, text, text, text, text, text, text
 ) IS
   'RA Pro 1A activation: company billing + linked firm + buyer membership + pilot slot 1-10. service_role only.';
+
+-- ---------------------------------------------------------------------------
+-- 5. Durable Stripe webhook event leasing (no DELETE-on-retry)
+-- ---------------------------------------------------------------------------
+-- Widen processing_status; add lease ownership columns.
+ALTER TABLE public.stripe_webhook_events
+  DROP CONSTRAINT IF EXISTS stripe_webhook_events_processing_status_check;
+
+ALTER TABLE public.stripe_webhook_events
+  ADD CONSTRAINT stripe_webhook_events_processing_status_check
+  CHECK (processing_status IN (
+    'received',
+    'processing',
+    'processed',
+    'skipped',
+    'retryable',
+    'failed_conflict',
+    'failed'
+  ));
+
+ALTER TABLE public.stripe_webhook_events
+  ADD COLUMN IF NOT EXISTS lease_token uuid,
+  ADD COLUMN IF NOT EXISTS lease_acquired_at timestamptz,
+  ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS attempt_count integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS failure_code text,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+COMMENT ON COLUMN public.stripe_webhook_events.lease_token IS
+  'Cryptographically random lease owner for in-flight processing. Finalizers must match this token.';
+COMMENT ON COLUMN public.stripe_webhook_events.failure_code IS
+  'Sanitized fixed failure/conflict code only. Never store payloads, PII, or secrets.';
+
+CREATE OR REPLACE FUNCTION public.claim_stripe_webhook_event(
+  p_stripe_event_id text,
+  p_event_type text,
+  p_livemode boolean,
+  p_lease_ttl_seconds integer DEFAULT 120
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_token uuid := gen_random_uuid();
+  v_ttl int := greatest(coalesce(p_lease_ttl_seconds, 120), 30);
+  v_now timestamptz := now();
+  v_expires timestamptz := v_now + make_interval(secs => v_ttl);
+  v_row public.stripe_webhook_events%ROWTYPE;
+BEGIN
+  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RAISE EXCEPTION 'claim_stripe_webhook_forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_stripe_event_id IS NULL OR length(trim(p_stripe_event_id)) = 0 THEN
+    RAISE EXCEPTION 'claim_stripe_webhook_missing_event' USING ERRCODE = '22023';
+  END IF;
+
+  -- First delivery
+  BEGIN
+    INSERT INTO public.stripe_webhook_events (
+      stripe_event_id,
+      event_type,
+      processing_status,
+      raw_payload,
+      livemode,
+      lease_token,
+      lease_acquired_at,
+      lease_expires_at,
+      attempt_count,
+      failure_code,
+      updated_at
+    ) VALUES (
+      p_stripe_event_id,
+      coalesce(p_event_type, 'unknown'),
+      'processing',
+      jsonb_build_object('stripe_event_id', p_stripe_event_id, 'event_type', coalesce(p_event_type, 'unknown')),
+      coalesce(p_livemode, false),
+      v_token,
+      v_now,
+      v_expires,
+      1,
+      NULL,
+      v_now
+    )
+    RETURNING * INTO v_row;
+
+    RETURN jsonb_build_object(
+      'outcome', 'claimed',
+      'lease_token', v_row.lease_token,
+      'attempt_count', v_row.attempt_count,
+      'processing_status', v_row.processing_status
+    );
+  EXCEPTION
+    WHEN unique_violation THEN
+      NULL;
+  END;
+
+  -- Reclaim retryable OR expired processing lease only.
+  UPDATE public.stripe_webhook_events e
+  SET processing_status = 'processing',
+      lease_token = v_token,
+      lease_acquired_at = v_now,
+      lease_expires_at = v_expires,
+      attempt_count = e.attempt_count + 1,
+      failure_code = NULL,
+      processed_at = NULL,
+      processing_error = NULL,
+      updated_at = v_now
+  WHERE e.stripe_event_id = p_stripe_event_id
+    AND (
+      e.processing_status = 'retryable'
+      OR (
+        e.processing_status = 'processing'
+        AND e.lease_expires_at IS NOT NULL
+        AND e.lease_expires_at < v_now
+      )
+    )
+  RETURNING * INTO v_row;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object(
+      'outcome', 'reclaimed',
+      'lease_token', v_row.lease_token,
+      'attempt_count', v_row.attempt_count,
+      'processing_status', v_row.processing_status
+    );
+  END IF;
+
+  SELECT * INTO v_row
+  FROM public.stripe_webhook_events e
+  WHERE e.stripe_event_id = p_stripe_event_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'claim_stripe_webhook_missing_row' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_row.processing_status IN ('processed', 'skipped', 'failed_conflict', 'failed') THEN
+    RETURN jsonb_build_object(
+      'outcome', 'duplicate_terminal',
+      'processing_status', v_row.processing_status,
+      'failure_code', v_row.failure_code
+    );
+  END IF;
+
+  -- Active unexpired lease held by another worker.
+  RETURN jsonb_build_object(
+    'outcome', 'lease_held',
+    'processing_status', v_row.processing_status,
+    'lease_expires_at', v_row.lease_expires_at
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.finalize_stripe_webhook_event(
+  p_stripe_event_id text,
+  p_lease_token uuid,
+  p_status text,
+  p_failure_code text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_n int;
+  v_now timestamptz := now();
+BEGIN
+  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RAISE EXCEPTION 'finalize_stripe_webhook_forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_status IS NULL OR p_status NOT IN ('processed', 'skipped', 'retryable', 'failed_conflict') THEN
+    RAISE EXCEPTION 'finalize_stripe_webhook_invalid_status' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_lease_token IS NULL THEN
+    RAISE EXCEPTION 'finalize_stripe_webhook_missing_lease' USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.stripe_webhook_events e
+  SET processing_status = p_status,
+      processed_at = CASE
+        WHEN p_status IN ('processed', 'skipped', 'failed_conflict') THEN v_now
+        ELSE NULL
+      END,
+      failure_code = CASE
+        WHEN p_status IN ('retryable', 'failed_conflict') THEN left(coalesce(p_failure_code, 'unknown'), 64)
+        ELSE NULL
+      END,
+      processing_error = CASE
+        WHEN p_status IN ('retryable', 'failed_conflict') THEN left(coalesce(p_failure_code, 'unknown'), 64)
+        ELSE NULL
+      END,
+      lease_token = CASE WHEN p_status = 'retryable' THEN NULL ELSE e.lease_token END,
+      lease_expires_at = CASE WHEN p_status = 'retryable' THEN NULL ELSE e.lease_expires_at END,
+      updated_at = v_now
+  WHERE e.stripe_event_id = p_stripe_event_id
+    AND e.lease_token = p_lease_token
+    AND e.processing_status = 'processing';
+
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+
+  IF v_n <> 1 THEN
+    RETURN jsonb_build_object(
+      'ok', false,
+      'outcome', 'stale_lease',
+      'rows_affected', v_n
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'outcome', 'finalized',
+    'processing_status', p_status,
+    'rows_affected', 1
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integer) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integer) TO service_role;
+
+REVOKE ALL ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) TO service_role;
+
+COMMENT ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integer) IS
+  'Atomically claim or reclaim a Stripe webhook event lease. Never reclaims terminal or unexpired processing leases.';
+COMMENT ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) IS
+  'Finalize a webhook event only when stripe_event_id + lease_token match an active processing lease.';
 
 COMMIT;

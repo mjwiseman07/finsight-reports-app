@@ -9,16 +9,15 @@ import { describe, expect, it } from "vitest";
 const MIGRATION_PATH =
   "supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql";
 
-/** Superseded CRLF worktree measurement — must never match the Git blob. */
 const SUPERSEDED_CRLF_SHA =
   "c54ff8f915d24a90de810b95882899fa8e3560fc810b18341f66d0736cfdfdcf";
 const SUPERSEDED_CRLF_BYTES = 15822;
 
-/** Post-remediation tip seal (Git LF blob). */
-const EXPECTED_OID = "3ee639dcabd64484bf48c281fd987ab1eef33930";
+/** Post-lease remediation tip seal (Git LF blob). */
+const EXPECTED_OID = "9d7a929c1d855fb07fd0acd243abb49a8b6ba819";
 const EXPECTED_SHA256 =
-  "46cfc6780de07445541bdaefdd5b2b70bbb5fe0416b26a8efcd5cd8d6dc58486";
-const EXPECTED_BYTES = 15639;
+  "1a97bb2f681f948c0baad26fb338737258e248cf07d179d1933ec95e5e287b91";
+const EXPECTED_BYTES = 23526;
 
 function blobAtHead(): { oid: string; bytes: Buffer; sha256: string } {
   const oid = execFileSync("git", ["rev-parse", `HEAD:${MIGRATION_PATH}`], {

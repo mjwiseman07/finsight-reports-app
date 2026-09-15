@@ -56,14 +56,21 @@ Mapping lives in `lib/subscription-sync.js` (`STRIPE_TO_PILOT_STATUS`). RA Pro `
 
 ## Checkout webhook outcomes
 
-`handleTcp1CheckoutCompleted` returns an explicit outcome (not an ignored boolean):
+`handleTcp1CheckoutCompleted` returns an explicit outcome. Ledger finalization is
+lease-token gated via `claim_stripe_webhook_event` /
+`finalize_stripe_webhook_event` (no DELETE-on-retry).
 
 | Outcome | Ledger | HTTP (TCP1 webhook) |
 |---------|--------|---------------------|
 | `handled` | `processed` | 200 |
 | `not_applicable` | `skipped` | 200 |
-| `permanent_conflict` | `failed` (error tagged `permanent_conflict:…`) | 200 (operator reconciliation) |
-| `retryable_failure` | row **deleted** (idempotency not consumed) | 500 (Stripe retry) |
+| `permanent_conflict` | `failed_conflict` | 200 |
+| `retryable_failure` | `retryable` (reclaimable) | 500 |
+| Active lease held by another worker | unchanged | 409 |
+| Terminal duplicate delivery | unchanged | 200 `duplicate` |
+
+See `docs/security/ra-pro-webhook-reconciliation.md` and
+`docs/security/ra-pro-cutover-derivation.md`.
 
 ## Fixture impact inventory (non-production)
 

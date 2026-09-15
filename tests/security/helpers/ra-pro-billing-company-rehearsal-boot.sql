@@ -62,3 +62,16 @@ CREATE TABLE pilot_slots (
   )
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated, anon, service_role;
+
+CREATE TABLE IF NOT EXISTS public.stripe_webhook_events (
+  stripe_event_id text PRIMARY KEY,
+  event_type text NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz,
+  processing_status text NOT NULL DEFAULT 'received'
+    CHECK (processing_status IN ('received','processing','processed','skipped','failed')),
+  processing_error text,
+  raw_payload jsonb NOT NULL,
+  livemode boolean NOT NULL DEFAULT false
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.stripe_webhook_events TO service_role;
