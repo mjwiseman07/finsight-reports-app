@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getLatestNormalizedAccountingData } from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import {
+  isAccountingPrincipalDenial,
+  resolveAccountingRequestPrincipal,
+} from "../../../../lib/integrations/accounting/resolve-request-principal";
 import { rateLimit } from "../../../../lib/rate-limit";
 
 export async function POST(request) {
@@ -14,42 +18,28 @@ export async function POST(request) {
     const sourceSystem = String(body.sourceSystem || body.source_system || "");
     const companyId = body.companyId || body.company_id || null;
     const reportPeriod = body.reportPeriod || body.report_period || null;
-    const authorization = request.headers.get("authorization") || "";
-    const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
-    const leadId = String(body.leadId || body.lead_id || "");
 
     if (!sourceSystem) return NextResponse.json({ error: "sourceSystem is required" }, { status: 400 });
     if (sourceSystem === "xero" && connectionId.startsWith("lead:xero:")) connectionId = "";
 
-    if (token) {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-      let connectionQuery = supabaseAdmin
-        .from("accounting_connections")
-        .select("id")
-        .eq("user_id", authData.user.id)
-        .eq("provider", sourceSystem)
-        .order("updated_at", { ascending: false });
-      if (connectionId) connectionQuery = connectionQuery.eq("id", connectionId);
-      const { data: connection, error: connectionError } = await connectionQuery.limit(1);
-      if (connectionError) throw connectionError;
-      if (!connection?.[0]) return NextResponse.json({ error: "Accounting connection not found" }, { status: 404 });
-      connectionId = connection[0].id;
-    } else if (leadId) {
-      let connectionQuery = supabaseAdmin
-        .from("accounting_connections")
-        .select("id")
-        .eq("user_id", leadId)
-        .eq("provider", sourceSystem)
-        .order("updated_at", { ascending: false });
-      if (connectionId) connectionQuery = connectionQuery.eq("id", connectionId);
-      const { data: connection, error: connectionError } = await connectionQuery.limit(1);
-      if (connectionError) throw connectionError;
-      if (!connection?.[0]) return NextResponse.json({ error: "Accounting connection not found for lead" }, { status: 404 });
-      connectionId = connection[0].id;
-    } else {
-      return NextResponse.json({ error: "Missing Authorization bearer token or leadId" }, { status: 401 });
+    const principal = await resolveAccountingRequestPrincipal({ request, body });
+    if (isAccountingPrincipalDenial(principal)) {
+      return NextResponse.json(principal.body, { status: principal.status });
     }
+
+    let connectionQuery = supabaseAdmin
+      .from("accounting_connections")
+      .select("id")
+      .eq("user_id", principal.userId)
+      .eq("provider", sourceSystem)
+      .order("updated_at", { ascending: false });
+    if (connectionId) connectionQuery = connectionQuery.eq("id", connectionId);
+    const { data: connection, error: connectionError } = await connectionQuery.limit(1);
+    if (connectionError) throw connectionError;
+    if (!connection?.[0]) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    connectionId = connection[0].id;
 
     const result = await getLatestNormalizedAccountingData({
       companyId,

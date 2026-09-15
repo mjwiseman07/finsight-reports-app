@@ -146,3 +146,32 @@ export function authErrorResponse(e: unknown): NextResponse {
   console.error("[reviewer-auth] unexpected error", e);
   return NextResponse.json({ error: "internal_error" }, { status: 500 });
 }
+
+/**
+ * Prove firmClientId belongs to one of the caller's active firm memberships.
+ * Returns a generic not_found denial for both missing and cross-tenant ids
+ * (no existence oracle). Re-query immediately before privileged work for TOCTOU.
+ */
+export async function assertFirmClientAccess(args: {
+  firmClientId: string;
+  firmIds: string[];
+}): Promise<{ firmClientId: string; firmId: string }> {
+  if (!args.firmClientId || !args.firmIds.length) {
+    throw new ReviewerAuthError("not_found", 404);
+  }
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("firm_clients")
+    .select("id, firm_id")
+    .eq("id", args.firmClientId)
+    .in("firm_id", args.firmIds)
+    .maybeSingle();
+
+  if (error) throw new ReviewerAuthError("membership_query_failed", 500);
+  if (!data?.id || !data.firm_id) {
+    throw new ReviewerAuthError("not_found", 404);
+  }
+
+  return { firmClientId: data.id as string, firmId: data.firm_id as string };
+}

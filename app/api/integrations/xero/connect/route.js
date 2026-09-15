@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { getAccountingProvider, startConnection, saveOAuthCookies } from "../../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { rateLimit } from "../../../../../lib/rate-limit";
+import { resolveLeadSessionFromRequest } from "@/lib/free-review/lead-session";
 
 async function handleConnect(request) {
   try {
@@ -13,16 +14,15 @@ async function handleConnect(request) {
     const returnTo = url.searchParams.get("returnTo") || (cookieReturnTo ? decodeURIComponent(cookieReturnTo) : "") || "/dashboard";
     const authorization = request.headers.get("authorization") || "";
     const cookieToken = request.cookies.get("advisacor_oauth_token")?.value || "";
-    // Lead authority matches dashboard + QBO: HttpOnly free_review_lead_id only.
-    // Legacy advisacor_oauth_lead_id is cleared below and never authorizes connect.
-    const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
+    // Lead authority: opaque free_review_lead_session only. Legacy cookies never authorize.
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : (cookieToken ? decodeURIComponent(cookieToken) : "");
-    const leadId = cookieLeadId;
+    const leadSession = token ? null : await resolveLeadSessionFromRequest(request);
+    const leadId = leadSession?.leadId || "";
     console.log("XERO CONNECT ROUTE HIT");
     console.log("[integrations/xero/connect] reached", {
       method: request.method,
       hasAuthorization: Boolean(token),
-      hasLeadId: Boolean(leadId),
+      hasLeadSession: Boolean(leadId),
       returnTo,
       hasClientId: Boolean(process.env.XERO_CLIENT_ID),
       hasClientSecret: Boolean(process.env.XERO_CLIENT_SECRET),
@@ -33,14 +33,6 @@ async function handleConnect(request) {
     if (!token) {
       console.log("session user:", "NO SESSION");
       if (leadId) {
-        const { data: lead, error: leadError } = await supabaseAdmin
-          .from("free_review_leads")
-          .select("id")
-          .eq("id", leadId)
-          .maybeSingle();
-        if (leadError || !lead?.id) {
-          return NextResponse.json({ error: "Lead capture is required before connecting Xero." }, { status: 401 });
-        }
         const state = crypto.randomUUID();
         const provider = getAccountingProvider("xero");
         const authorizationUrl = await provider.getAuthorizationUrl({ state, returnTo });
@@ -62,9 +54,9 @@ async function handleConnect(request) {
             : "/dashboard",
           cookieOptions,
         );
-        // Clear legacy lead cookie — authority is free_review_lead_id only.
         response.cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 });
         response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
+        response.cookies.set("free_review_lead_id", "", { path: "/", maxAge: 0 });
         return response;
       }
       const signinUrl = new URL("/signin", request.url);

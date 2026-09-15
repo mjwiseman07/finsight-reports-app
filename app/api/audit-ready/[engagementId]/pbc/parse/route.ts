@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { parsePbcUpload } from '@/lib/audit-ready/pbc-parser';
-import { requireAuditReadyUser } from '@/lib/audit-ready/server-auth';
+import {
+  isEngagementAccessDenial,
+  recheckEngagementAccess,
+  requireEngagementAccess,
+} from '@/lib/audit-ready/require-engagement-access';
+import { assertPbcStoragePathForEngagement } from '@/lib/audit-ready/pbc-storage-path';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -12,8 +17,12 @@ export async function POST(
 ) {
   try {
     const { engagementId } = await params;
-    const auth = await requireAuditReadyUser();
-    if ('error' in auth) return auth.error;
+
+    const access = await requireEngagementAccess({
+      engagementId,
+      capability: 'write',
+    });
+    if (isEngagementAccessDenial(access)) return access;
 
     const body = await req.json().catch(() => ({}));
     const uploadId = body.upload_id as string | undefined;
@@ -21,50 +30,89 @@ export async function POST(
       return NextResponse.json({ error: 'upload_id_required' }, { status: 400 });
     }
 
+    // TOCTOU: recheck before service-role upload load.
+    const beforeLoad = await recheckEngagementAccess({
+      engagementId,
+      userId: access.userId,
+      capability: 'write',
+    });
+    if (isEngagementAccessDenial(beforeLoad)) return beforeLoad;
+
     const service = createServiceClient();
     const { data: upload, error: upErr } = await service
       .from('audit_ready_pbc_uploads')
-      .select('*')
+      .select('id, engagement_id, status, storage_path, content_type')
       .eq('id', uploadId)
       .eq('engagement_id', engagementId)
-      .single();
+      .maybeSingle();
 
-    if (upErr || !upload) {
-      return NextResponse.json({ error: 'upload_not_found' }, { status: 404 });
+    // Same generic denial for missing upload, wrong engagement, or cross-tenant id.
+    if (upErr || !upload || upload.engagement_id !== engagementId) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
+
+    const boundPath = assertPbcStoragePathForEngagement({
+      engagementId,
+      storagePath: upload.storage_path,
+    });
+    if (!boundPath.ok) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    }
+
     if (upload.status === 'parsed') {
-      return NextResponse.json({ upload, already_parsed: true }, { status: 200 });
+      return NextResponse.json(
+        {
+          upload: {
+            id: upload.id,
+            engagement_id: upload.engagement_id,
+            status: upload.status,
+          },
+          already_parsed: true,
+        },
+        { status: 200 },
+      );
     }
     if (upload.status === 'parsing') {
       return NextResponse.json(
-        { upload, already_in_progress: true },
+        {
+          upload: {
+            id: upload.id,
+            engagement_id: upload.engagement_id,
+            status: upload.status,
+          },
+          already_in_progress: true,
+        },
         { status: 202 },
       );
     }
+
+    // TOCTOU: recheck again immediately before privileged parse / Bedrock spend.
+    const beforeParse = await recheckEngagementAccess({
+      engagementId,
+      userId: access.userId,
+      capability: 'write',
+    });
+    if (isEngagementAccessDenial(beforeParse)) return beforeParse;
 
     try {
       const result = await parsePbcUpload({
         engagementId,
         uploadId: upload.id,
-        calledByUserId: auth.user.id,
-        storagePath: upload.storage_path,
+        calledByUserId: access.userId,
+        storagePath: boundPath.storagePath,
         contentType: upload.content_type,
       });
       return NextResponse.json({ ok: true, ...result }, { status: 200 });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const status = message.startsWith('engagement_cap_exceeded') ? 402 : 500;
-      return NextResponse.json({ error: message }, { status });
+      return NextResponse.json(
+        { error: status === 402 ? 'engagement_cap_exceeded' : 'parse_failed' },
+        { status },
+      );
     }
   } catch (err) {
-    // Last-resort envelope: catch anything (module-load pathologies, formData
-    // parse crashes, cookie handler throws) so the client always sees JSON,
-    // never Vercel's HTML 500 page.
-    const message = err instanceof Error ? err.message : String(err);
     console.error('pbc/parse route uncaught', err);
-    return NextResponse.json(
-      { error: 'route_uncaught', detail: message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'route_uncaught' }, { status: 500 });
   }
 }

@@ -1,0 +1,21 @@
+{
+  "package": "free-review-lead-session-apply",
+  "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
+  "migration": {
+    "path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+    "oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+    "sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+    "bytes": 8108,
+    "version": "20260913235500",
+    "name": "free_review_lead_sessions"
+  },
+  "prior_history_count": 186,
+  "authorized_tooling_freeze": "c85af49c829b3ead12182c509464459e40bf4ba9",
+  "bundle_source_commit": "1bb1ac1004b0268f2433e0536f2b693311a13c3e",
+  "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
+  "standalone_bundle_sha256": "33b4826c4199ad0f8621267adac3be3b5e30f972ddffcf9dc9c9b6dfb9a0c4fc",
+  "required_prior_dry_run_evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+  "required_prior_dry_run_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+  "required_prior_dry_run_evidence_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
+  "required_prior_dry_run_bundle_source": "823b466445599b6095e03a376f57ffc86fe0bf1d"
+}

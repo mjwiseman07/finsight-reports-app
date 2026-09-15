@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../../../../lib/supabase";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { createQboOAuthEnvironmentState } from "@/lib/erp/quickbooks/oauth-environment-state";
+import { resolveLeadSessionFromRequest } from "@/lib/free-review/lead-session";
 
 async function handleConnect(request) {
   try {
@@ -35,9 +36,7 @@ async function handleConnect(request) {
     const requestUrl = new URL(request.url);
     const authorization = request.headers.get("authorization") || "";
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
-    // Lead authority matches dashboard session: HttpOnly free_review_lead_id + DB row only.
-    // Query ?leadId= is navigation/UX and must not authorize OAuth lead mode.
-    const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
+    // Lead authority: opaque free_review_lead_session only (never query/body/legacy lead UUID).
     let connectContext = null;
 
     if (token) {
@@ -48,6 +47,7 @@ async function handleConnect(request) {
           message: authError?.message,
           status: authError?.status,
         });
+        // Fail closed: do not fall through to lead session when bearer is present but invalid.
         return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
       }
 
@@ -56,27 +56,16 @@ async function handleConnect(request) {
         userId: authData.user.id,
         token,
       };
-    } else if (cookieLeadId) {
-      const { data: lead, error: leadError } = await supabaseAdmin
-        .from("free_review_leads")
-        .select("id, email, business_name")
-        .eq("id", cookieLeadId)
-        .maybeSingle();
-
-      if (leadError?.code === "42P01") {
-        return NextResponse.json({ error: "Run the free review leads migration before connecting QuickBooks from onboarding." }, { status: 501 });
-      }
-
-      if (leadError || !lead?.id) {
-        return NextResponse.json({ error: "Lead capture is required before connecting QuickBooks." }, { status: 401 });
+    } else {
+      const leadSession = await resolveLeadSessionFromRequest(request);
+      if (!leadSession) {
+        return NextResponse.json({ error: "Lead capture or sign-in is required before connecting QuickBooks." }, { status: 401 });
       }
 
       connectContext = {
         mode: "lead",
-        leadId: lead.id,
+        leadId: leadSession.leadId,
       };
-    } else {
-      return NextResponse.json({ error: "Lead capture or sign-in is required before connecting QuickBooks." }, { status: 401 });
     }
 
     const { state, expectedProviderEnvironment } = createQboOAuthEnvironmentState();

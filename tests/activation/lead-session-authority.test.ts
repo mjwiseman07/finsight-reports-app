@@ -21,20 +21,20 @@ function memoryStorage(seed: Record<string, string> = {}) {
 }
 
 describe("lead-session server authority", () => {
-  it("exposes GET /api/free-review/session with cookie + DB validation", () => {
+  it("exposes GET /api/free-review/session with opaque session resolution", () => {
     const source = readFileSync(join(root, "app/api/free-review/session/route.ts"), "utf8");
-    expect(source).toContain('cookies.get("free_review_lead_id")');
-    expect(source).toContain('.from("free_review_leads")');
+    expect(source).toContain("resolveLeadSessionFromRequest");
+    expect(source).toContain("clearLeadAuthCookies");
     expect(source).toContain('reason: "lead_free_review"');
     expect(source).toContain("status: 401");
+    expect(source).not.toContain('cookies.get("free_review_lead_id")');
   });
 
   it("dashboard loadAccess uses server session endpoint before allowing lead access", () => {
     const source = readFileSync(join(root, "app/dashboard/page.jsx"), "utf8");
     expect(source).toContain('fetch("/api/free-review/session"');
-    expect(source).toContain("credentials: \"include\"");
+    expect(source).toContain('credentials: "include"');
     expect(source).toContain("rememberValidatedLeadSession");
-    // Must not set lead_free_review from localStorage alone
     expect(source).not.toMatch(/if \(!storedToken && leadSessionMode\)/);
   });
 
@@ -54,10 +54,16 @@ describe("lead-session server authority", () => {
     expect(raw.companyName).toBe("Acme");
   });
 
-  it("free-review lead PATCH requires matching HttpOnly cookie", () => {
+  it("free-review lead PATCH requires opaque session (not raw lead UUID cookie)", () => {
     const source = readFileSync(join(root, "app/api/free-review/leads/route.js"), "utf8");
-    expect(source).toContain('cookies.get("free_review_lead_id")');
-    expect(source).toContain("cookieLeadId !== leadId");
+    expect(source).toContain("resolveLeadSessionFromRequest");
+    expect(source).toContain("rotateLeadSessionForRequest");
+    expect(source).toContain("issueLeadSession");
+    expect(source).toContain("setLeadSessionCookie");
+    expect(source).toContain("planLeadEnrichUpdate");
+    expect(source).toContain("status_not_writable");
+    expect(source).toContain('.eq("status", enrichPlan.statusPredicate)');
+    expect(source).not.toContain('cookies.get("free_review_lead_id")');
   });
 });
 
@@ -84,26 +90,22 @@ describe("ActivationCard identity + industry model", () => {
 });
 
 describe("provider OAuth lead authority alignment", () => {
-  it("QBO connect uses free_review_lead_id cookie only (query leadId does not authorize)", () => {
+  it("QBO connect uses opaque lead session (query leadId does not authorize)", () => {
     const source = readFileSync(join(root, "app/api/quickbooks/connect/route.js"), "utf8");
-    expect(source).toContain('cookies.get("free_review_lead_id")');
-    expect(source).toContain("cookieLeadId");
+    expect(source).toContain("resolveLeadSessionFromRequest");
     expect(source).toContain('mode: "user"');
     expect(source).toContain('mode: "lead"');
-    // Query leadId must not win over / authorize lead mode
-    expect(source).not.toMatch(/searchParams\.get\(["']leadId["']\).*free_review_lead_id/);
-    expect(source).not.toContain('searchParams.get("leadId") || request.cookies.get("free_review_lead_id")');
-    // OAuth transaction cookie still set after cookie+DB validation
+    expect(source).not.toContain('cookies.get("free_review_lead_id")');
     expect(source).toContain('cookies.set("qb_oauth_lead_id"');
   });
 
-  it("Xero connect uses free_review_lead_id; legacy advisacor_oauth_lead_id does not authorize", () => {
+  it("Xero connect uses opaque lead session; legacy cookies do not authorize", () => {
     const source = readFileSync(join(root, "app/api/integrations/xero/connect/route.js"), "utf8");
-    expect(source).toContain('cookies.get("free_review_lead_id")');
+    expect(source).toContain("resolveLeadSessionFromRequest");
     expect(source).toContain('cookies.set("xero_oauth_lead_id"');
-    // Legacy cookie cleared, never read for authority
     expect(source).toContain('cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 })');
     expect(source).not.toMatch(/cookies\.get\(["']advisacor_oauth_lead_id["']\)/);
+    expect(source).not.toContain('cookies.get("free_review_lead_id")');
   });
 });
 

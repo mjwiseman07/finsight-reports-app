@@ -1,0 +1,238 @@
+{
+  "package": "free-review-lead-session-apply-tooling",
+  "authorized_pr_head": "c85af49c829b3ead12182c509464459e40bf4ba9",
+  "artifact_commit": "b2c431fa4310f58c9ee667e858333e084c2fed52",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+  "migration_blob_oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+  "migration_sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+  "migration_bytes": 8108,
+  "migration_version": "20260913235500",
+  "migration_name": "free_review_lead_sessions",
+  "database_url_env": "FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL",
+  "tls_trust_root": "EMBEDDED_OFFICIAL_SUPABASE_CA",
+  "official_supabase_ca_der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+  "apply_authorization_token": "I_AUTHORIZE_FREE_REVIEW_LEAD_SESSIONS_APPLY_20260913235500",
+  "advisory_lock": {
+    "name": "FREE_REVIEW_LEAD_SESSIONS_APPLY",
+    "key1": 1179798611,
+    "key2": 539363603
+  },
+  "required_prior_dry_run_evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+  "required_prior_dry_run_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+  "required_prior_dry_run_evidence_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
+  "bundle_source_commit": "1bb1ac1004b0268f2433e0536f2b693311a13c3e",
+  "auth_seals_digest": "9c00b9c188d3b31c242b26707ceb25afcf69d705b5de3ebd3cec2f7cd566b0d7",
+  "native_bootstrap": {
+    "path": "scripts/security/bootstrap-free-review-lead-session-apply.ps1",
+    "oid": "1449a689cba312dd6c8f9fce8f762c14431fe7f5",
+    "sha256": "b2c0f434a1dbe06aa11771a6c1e84d22b7032b1209d0f7576eb695edc47074c2",
+    "bytes": 34005,
+    "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
+  },
+  "native_entry": {
+    "path": "scripts/security/enter-free-review-lead-session-apply.ps1",
+    "oid": "00c89fc2eae5f313da74d40f5dac46482ca2cb75",
+    "sha256": "b2dda0af381ed0e8d629b201d628c162ba03a04f86ef2f4a716d2d883bb06b08",
+    "bytes": 11916
+  },
+  "evidence_protocol": {
+    "id": "FRLS_LEAD_SESSION_EVIDENCE_V1",
+    "frame": "FRLS_LEAD_SESSION_EVIDENCE_V1:<base64url-utf8-json>",
+    "schema_version": 1,
+    "path": "scripts/security/free-review-lead-session-evidence.js",
+    "oid": "49efce9c524191c5ec344d5a84ef8ac3756ebb27",
+    "sha256": "267a556ff6774c9f27aea18598cf8497289c3514eea7e325020d182c11c1438a",
+    "bytes": 8307,
+    "frame_tool": {
+      "path": "scripts/security/free-review-lead-session-evidence-frame-tool.js",
+      "oid": "3bdc10ddc0c62ebcac6470117ab2b7696527fed6",
+      "sha256": "1f7da9bd9ffee08c0c83fb99391acf221706763694f1f205865c36e85001f873",
+      "bytes": 2345
+    },
+    "decode_frame": {
+      "path": "scripts/security/free-review-lead-session-evidence-decode-frame.js",
+      "oid": "29cf0a77b625641648e5ecabbda75e7b29d03d09",
+      "sha256": "026285b64dc6a9538b71252d6bda815e7837531a643ad896a7440a21db020bbb",
+      "bytes": 1217
+    },
+    "shared_framing_module": {
+      "path": "scripts/security/containment-evidence-protocol.js",
+      "oid": "b230732cb8ddfb22861e48b4da1a4a3a2bad1fc5",
+      "sha256": "deda307fd8236b6c2d535675ae3d2bb4234ca816fc8458125f420b6981f47594",
+      "bytes": 16255
+    }
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-free-review-lead-session-production-dryrun-ceremony.ps1",
+    "oid": "3e3889e8d6653a4d6c896f76c24c3bb5cdd7127c",
+    "sha256": "85f4c5af59835e583b06061c8d399398ef83310e0b169bf62d9e571c34bce7b5",
+    "bytes": 21192
+  },
+  "operator_apply_ceremony": {
+    "path": "scripts/security/operator-free-review-lead-session-production-apply-ceremony.ps1",
+    "oid": "c8a027b044e99566def8e20e48b70b38325cbf76",
+    "sha256": "83eb38e4bdcdf010931480b3373b48eaadddb411887516d5e6043b56cca51509",
+    "bytes": 30422
+  },
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "f4d0f7616056c708ffc40ea9cb4759204badcf28",
+    "sha256": "561b18603ce73ec056ceb92ce7a49a635a4acd2912870d756b95cd9206dd2bfe",
+    "bytes": 35456
+  },
+  "visible_ceremony_entry": {
+    "path": "scripts/security/enter-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "7b25e81c4d3960da14b72fd297d323254646eb38",
+    "sha256": "a9f28153ae1f226a06a15a19462862b3d683cb88fa9214ad1009e18b3993c6a7",
+    "bytes": 24865
+  },
+  "visible_ceremony_launcher": {
+    "path": "scripts/security/launch-visible-free-review-lead-session-ceremony.ps1",
+    "oid": "e70f980856656c3305add27c1e420f53cd6ecba5",
+    "sha256": "0675c295c23cea4a97c24f145b4cb01bf33fade4a166b557f287bf3581a09c05",
+    "bytes": 16765
+  },
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/free-review-lead-session-applicator.standalone.cjs",
+    "oid": "1307466495c2e94b3642eb60e3ab35f8a1226878",
+    "sha256": "33b4826c4199ad0f8621267adac3be3b5e30f972ddffcf9dc9c9b6dfb9a0c4fc",
+    "bytes": 279405,
+    "pg_version": "8.21.0",
+    "lockfile_path": "package-lock.json",
+    "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
+    "build_command": "node scripts/security/build-free-review-lead-session-applicator-standalone-bundle.js",
+    "esbuild_version": "0.25.0"
+  },
+  "tooling_modules": [
+    {
+      "path": "scripts/security/apply-free-review-lead-session.js",
+      "oid": "0e47ffb3cc8a7691f687c5d367c7e3249ed0f083",
+      "sha256": "d50d3af12a69548650225c81cf2b65de1daa39e603b8bd53fa9550e933eea86a",
+      "bytes": 7035
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-core.js",
+      "oid": "2c2bc35d20e7d3d8cb3df246284eeddbd3093f0f",
+      "sha256": "146fc6494548459a997f45daed59377ec668b19a8fd6b60a716fd174b8c675de",
+      "bytes": 44194
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-apply-constants.js",
+      "oid": "908f43178a250845906f150b66f25195c23cbeb4",
+      "sha256": "cca3078c442bfc1509e9dad93bdd44d0e0af733eef997d09f7485b795e335937",
+      "bytes": 3837
+    },
+    {
+      "path": "scripts/security/git-blob-authority.js",
+      "oid": "e6b9337d1f48f0e511188aad939b4cdcf2854d20",
+      "sha256": "2dce853dbc5e957bbb2fe67ceb60ac9902726b2b3f403392e2a483913d8172e4",
+      "bytes": 5444
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-evidence.js",
+      "oid": "49efce9c524191c5ec344d5a84ef8ac3756ebb27",
+      "sha256": "267a556ff6774c9f27aea18598cf8497289c3514eea7e325020d182c11c1438a",
+      "bytes": 8307
+    },
+    {
+      "path": "scripts/security/free-review-lead-session-tls-ca.js",
+      "oid": "2ed9ac270c717fa513aec59046fde6dafeae71ce",
+      "sha256": "a9f8cf9494a5198261eebb4c0a17c7c731ab30a435fba68834773e0823f21339",
+      "bytes": 1575
+    },
+    {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870
+    }
+  ],
+  "notes": [
+    "Two-authority publication model (non-circular): authorized_pr_head / -PrHead is the executable tooling freeze (runtime/pin identity). bundle_source_commit is the immutable commit whose tree contains the finalized standalone bundle blob sealed by tip authorization. Bootstrap materializes the bundle from ${bundle_source_commit}:${standalone_bundle.path}, never from ${freeze}:${path}. The tip commit that only pins bundle_source_commit may be a descendant of the bundle-source commit so tip authorization never needs to embed its own commit SHA inside the bundle.",
+    "authorized_pr_head is the executable tooling freeze commit (set in pin publication).",
+    "Pass --pr-head equal to authorized_pr_head (tooling freeze), not the evidence tip or bundle_source_commit.",
+    "Launcher/bootstrap materializes standalone_bundle from sealed bundle_source_commit git blobs before any DB connection; freeze-tree stale bundles are never selected.",
+    "bundle_source_commit and standalone_bundle seals are tip-authorization only — never argv, environment, worktree, prior evidence, or operator override.",
+    "TLS trust root is the freeze-sealed embedded official Supabase CA (DER-pinned); FREE_REVIEW_LEAD_SESSION_APPLY_SSL_ROOTCERT is forbidden.",
+    "Migration git cat-file authority (LF): OID 7dca9674673eb51ab5094d3ec09508d0711f16cd, SHA-256 b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb, bytes 8108 at artifact_commit b2c431fa4310f58c9ee667e858333e084c2fed52.",
+    "Operator-supplied CRLF worktree measurements (c4e34759f61f27781950295767fca3c3e2136eb8682a72e7f84d8d363e94f0ed / 8314 bytes) are NOT applicator pins; git blob OID is LF authority.",
+    "Native Windows Job Object containment lives in visible_ceremony_supervisor: it creates the job with ONLY JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (0x2000) via the FrlsVisible.JobApi P/Invoke surface, starts the entry CREATE_SUSPENDED, AssignProcessToJobObject, then ResumeThread. BREAKAWAY flags are never set; assign failure kills the suspended child without resuming.",
+    "SecureString credential ceremony lives in operator_ceremony and operator_apply_ceremony: Read-Host -AsSecureString, SecureStringToBSTR/PtrToStringBSTR, ZeroFreeBSTR, process-env handoff only, cleared on every outcome. The URL never reaches argv, chat, logs, or emitted evidence.",
+    "System32 PowerShell resolution (absolute %SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe, reparse-point and PATH-shim rejected) is enforced in supervisor, visible entry, visible launcher, and both operator ceremonies before any child process starts.",
+    "Visible ceremony: run visible_ceremony_supervisor with -CeremonyKind dry-run|apply; it materializes visible_ceremony_entry from tip under the Job Object. CeremonyKind dry-run selects operator_ceremony; apply selects operator_apply_ceremony. Missing/unknown kind fails before PROMPT_READY.",
+    "Enter materializes launcher + the seal-selected ceremony from freeze blobs only; never execute mutable worktree scripts as authority.",
+    "FRLS has no fixture Target #2 world: the ceremonies forward only the sealed apply token, and FRLS_CEREMONY_ALLOW_SYNTHETIC_URL is the single harness channel (loopback 127.0.0.1 only, never on the interactive SecureString path).",
+    "CONTAINMENT_APPLY_DATABASE_URL is not an FRLS channel; both operator ceremonies fail closed with BLOCKED_RETIRED_CREDENTIAL_CHANNEL if it is set, and the visible chain clears it.",
+    "required_prior_dry_run_evidence_sha256 / required_prior_dry_run_freeze / required_prior_dry_run_evidence_tip / required_prior_dry_run_bundle_source are published from the authorized production dry-run (evidence SHA b27e927b…, freeze 7e4d4e4b…, tip d0813452…, bundle source 823b4664…). Apply ceremony, visible entry, and supervisor require -PriorDryRunEvidencePath and Assert-PriorDryRunEvidence against these sealed pins. Pins cannot be overridden via argv, environment, worktree files, alternate evidence paths, or operator input. Rejected: closed headless attempt; superseded evidence e5202a46….",
+    "Child evidence frame is FRLS_LEAD_SESSION_EVIDENCE_V1; the FRLS evidence module requires the shared framing primitives in evidence_protocol.shared_framing_module, which ceremonies materialize as a sibling before decoding.",
+    "Supervisor hard-kill residual: no V1 frame; job handle closure still kills the contained process tree.",
+    "Prior-dry-run verdict gate: shared scripts/security/free-review-lead-session-prior-dry-run-gates.ps1; allowlist DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION and historical DRY_RUN_READY. Mandatory booleans/counters fail closed when missing, null, wrong-type, or inferred.",
+    "Prior-dry-run evidence fixture tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json is intentionally CRLF and marked -text in .gitattributes; tip blob SHA-256 must remain b27e927b… / 110391 bytes. Migration SQL remains LF-authoritative (OID 7dca9674…). Do not normalize the evidence fixture.",
+    "required_prior_dry_run_bundle_source (823b4664…) is runtime-enforced: Test-PriorDryRunPinsPublished requires exact 40-hex; Assert-PriorDryRunEvidence requires applicator.bootstrap.bundle_{oid,sha256,bytes} match published_prior_dry_run.dry_run_standalone_bundle and rejects prior/apply standalone_bundle confusion. Production evidence lacks a literal bundle_source_commit field — bootstrap seals are the authoritative present identity."
+  ],
+  "prior_dry_run_gates": {
+    "path": "scripts/security/free-review-lead-session-prior-dry-run-gates.ps1",
+    "oid": "e86a91f9b0f9f062acd3744f6ab3cb9c43429d78",
+    "sha256": "dc27a7f333bc243d3653c5900b901e3a28da414715620048ba5449795108a936",
+    "bytes": 18841,
+    "allowlist": [
+      "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+      "DRY_RUN_READY"
+    ],
+    "notes": [
+      "Must be materialized from authorized executable freeze and OID/SHA/byte verified before dotsource.",
+      "Never load from $PSScriptRoot or mutable worktree.",
+      "Assert-PriorDryRunEvidence requires full sealed dry-run evidence contract including history 186, migration LF seals, and dry-run bundle identity via applicator.bootstrap.bundle_{oid,sha256,bytes} bound to required_prior_dry_run_bundle_source / published_prior_dry_run.dry_run_standalone_bundle.",
+      "Production evidence does not embed the 40-hex bundle_source_commit string; bootstrap bundle seals are the authoritative present fields. Literal bundle_source(_commit) fields, if present, must equal the pin and agree across wrapper/applicator.",
+      "Mandatory booleans (including advisory_lock_acquired on wrapper and applicator) and counters fail closed when missing, null, wrong-type, or inferred; no default-false success path."
+    ]
+  },
+  "required_prior_dry_run_bundle_source": "823b466445599b6095e03a376f57ffc86fe0bf1d",
+  "published_prior_dry_run": {
+    "status": "PUBLISHED",
+    "verdict": "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+    "evidence_sha256": "b27e927b98efc8be40d74940cf1e547a968687dfcfccff4b7d0c85c416141209",
+    "evidence_bytes": 110391,
+    "evidence_source": "sealed_applicator",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json",
+    "dry_run_tip": "d08134526141be86e8936f477da38b76a8ae4c26",
+    "dry_run_bundle_source": "823b466445599b6095e03a376f57ffc86fe0bf1d",
+    "dry_run_executable_freeze": "7e4d4e4b4e57052ed2bdfdc201b12564edc46349",
+    "dry_run_standalone_bundle": {
+      "oid": "8a78cbfe6e3d35ad9c599d5df018ab25c2f70858",
+      "sha256": "b00b1aa726b8b6089fd0e2d845ead6bb88194aad7af56170111ad273360db2c7",
+      "bytes": 279405
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "migration_version": "20260913235500",
+    "migration_name": "free_review_lead_sessions",
+    "migration_path": "supabase/migrations/20260913235500_free_review_lead_sessions.sql",
+    "migration_blob_oid": "7dca9674673eb51ab5094d3ec09508d0711f16cd",
+    "migration_sha256": "b7e1e68b82a5975e85e1b9d6f0c491fa632474801ce00b311cea366f3b9b0ddb",
+    "migration_bytes": 8108,
+    "prior_history_count": 186,
+    "version_absent": true,
+    "migration_objects_absent": true,
+    "mode": "dry-run",
+    "read_only": true,
+    "databaseConnectionAttempts": 1,
+    "sqlApplicationAttempts": 0,
+    "advisory_lock_acquired": false,
+    "cleanup_completed": true,
+    "credential_cleared": true,
+    "credential_redaction_confirmed": true,
+    "rejected_evidence_sha256": [
+      "e5202a46c3a3055b6debb5ee7ce2865d34a369e120fa789eb4c6abff42b05096"
+    ],
+    "rejected_attempts": [
+      "closed_headless_cursor_redirect_no_visible_console",
+      "superseded_APPLICATOR_EVIDENCE_MISSING_e5202a46"
+    ],
+    "notes": "Sanitized evidence identity only. Operator must supply the exact evidence file whose SHA-256 matches evidence_sha256 at apply time. Pins are tip/freeze authorization only — never argv, env, worktree, or operator override.",
+    "evidence_line_endings": "CRLF",
+    "evidence_git_attributes": "-text (no EOL conversion)",
+    "evidence_blob_authority": "Tip git cat-file blob must SHA-256 to b27e927b… / 110391 bytes. Distinct from LF-authoritative migration blob 7dca9674….",
+    "dry_run_bundle_source_binding": "required_prior_dry_run_bundle_source is tip auth only; evidence binds via applicator.bootstrap.bundle_{oid,sha256,bytes} == dry_run_standalone_bundle (never current apply standalone_bundle / bundle_source_commit)."
+  }
+}

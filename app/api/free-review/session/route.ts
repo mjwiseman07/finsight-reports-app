@@ -1,12 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { supabaseAdmin } from "@/lib/supabase";
+import {
+  clearLeadAuthCookies,
+  resolveLeadSessionFromRequest,
+} from "@/lib/free-review/lead-session";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Server authority for anonymous Free Review dashboard sessions.
- * Mirrors QBO connect lead mode: HttpOnly free_review_lead_id cookie + live DB row.
+ * Opaque HttpOnly free_review_lead_session cookie → hashed row + active lead.
  * URL/localStorage leadId is never sufficient to grant access.allowed.
  */
 export async function GET(request: NextRequest) {
@@ -21,23 +25,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
   }
 
-  const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
-
-  if (!cookieLeadId) {
-    return NextResponse.json(
+  const session = await resolveLeadSessionFromRequest(request);
+  if (!session) {
+    const denial = NextResponse.json(
       {
         allowed: false,
-        reason: "missing_lead_cookie",
-        error: "Free Review lead session cookie is required.",
+        reason: "invalid_lead_session",
+        error: "Free Review lead session is invalid or expired.",
       },
       { status: 401 },
     );
+    clearLeadAuthCookies(denial);
+    return denial;
   }
 
   const { data: lead, error } = await supabaseAdmin
     .from("free_review_leads")
     .select("id, email, business_name, legal_company_name, first_name, last_name, status")
-    .eq("id", cookieLeadId)
+    .eq("id", session.leadId)
     .maybeSingle();
 
   if (error?.code === "42P01") {
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (error || !lead?.id) {
-    return NextResponse.json(
+    const denial = NextResponse.json(
       {
         allowed: false,
         reason: "invalid_lead",
@@ -56,6 +61,8 @@ export async function GET(request: NextRequest) {
       },
       { status: 401 },
     );
+    clearLeadAuthCookies(denial);
+    return denial;
   }
 
   const businessName =
