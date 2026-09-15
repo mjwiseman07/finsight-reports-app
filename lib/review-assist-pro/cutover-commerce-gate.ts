@@ -11,6 +11,9 @@
  *
  * This is distinct from LAUNCH_GATE_REVIEW_ASSIST_PRO (cookie/token bypass).
  * Do not use the launch-gate bypass path for cutover.
+ *
+ * Pre-gate builds ignore this env var. Setting it to `closed` does not by
+ * itself prove commerce is blocked; see docs/security/ra-pro-cutover-runbook.md.
  */
 export const RA_PRO_CUTOVER_COMMERCE_GATE_ENV = "RA_PRO_CUTOVER_COMMERCE_GATE";
 

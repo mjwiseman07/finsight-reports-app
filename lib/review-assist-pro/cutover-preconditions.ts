@@ -1,6 +1,15 @@
 /**
  * Sanitized cutover inventory preconditions (no production I/O).
  * Sealed constants must match docs/security/ra-pro-cutover-operator-decision.json.
+ *
+ * Evidence contract (see docs/security/ra-pro-cutover-runbook.md):
+ * `assertCutoverPreconditions(observed)` validates caller-supplied observations
+ * only. It does not collect or independently authenticate production facts.
+ * Every required field must be backed by independently collected, authorized
+ * read-only evidence (source, collection time, serving deployment/commit
+ * identity, sanitized results). Missing, stale, contradictory, or self-attested
+ * values block cutover. Do not fabricate observations or treat unit-test
+ * fixtures as production evidence.
  */
 
 export const AUTHORIZED_MAPPING_ARTIFACT_SHA256 =
@@ -45,6 +54,7 @@ export type CutoverPreconditionResult =
   | { ok: true }
   | { ok: false; code: string; detail?: string };
 
+/** Predicate over supplied observations — not a production evidence collector. */
 export function assertCutoverPreconditions(
   observed: CutoverInventoryObservation,
 ): CutoverPreconditionResult {
