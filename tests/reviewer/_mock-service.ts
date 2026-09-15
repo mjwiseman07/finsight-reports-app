@@ -69,6 +69,8 @@ export function seedFirmUser(
   role = "firm_admin",
 ) {
   mock.__seed("firm_memberships", [{ firm_id: firmId, user_id: userId, role, status: "active" }]);
+  // Legacy/unlinked firm (no billing_company_id) — remains reviewer-eligible without RA Pro slot.
+  mock.__seed("firms", [{ id: firmId, billing_company_id: null, name: `Firm ${firmId}` }]);
   mock.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
 }
 

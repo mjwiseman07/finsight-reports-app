@@ -1,14 +1,109 @@
 /**
  * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots upsert.
+ * Review Assist Pro (1A) activates via transactional RPC (company + linked firm).
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";
+import {
+  activateReviewAssistProSubscription,
+  RaProActivationError,
+} from "@/lib/review-assist-pro/activation";
+import {
+  RA_PRO_PILOT_COHORT_CAP,
+  RA_PRO_TIER_KEY,
+} from "@/lib/review-assist-pro/limits";
 
 export interface CheckoutSessionPayload {
   id: string;
   subscription?: string | null;
   customer?: string | null;
   metadata?: Record<string, string | undefined>;
+}
+
+async function resolveBuyerUserId(args: {
+  metadataUserId?: string;
+  stripeCustomerId: string | null;
+}): Promise<string | null> {
+  if (args.metadataUserId && /^[0-9a-f-]{36}$/i.test(args.metadataUserId)) {
+    return args.metadataUserId;
+  }
+  if (!args.stripeCustomerId) return null;
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("stripe_customer_id", args.stripeCustomerId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string) || null;
+}
+
+async function handleRaProCheckoutCompleted(
+  session: CheckoutSessionPayload,
+): Promise<{ handled: boolean; reason?: string }> {
+  const companyId = session.metadata?.company_id;
+  const firmId = session.metadata?.firm_id;
+  const track = session.metadata?.track;
+  const pricingStructure = session.metadata?.pricing_structure ?? "flat";
+  const pricingCadence = session.metadata?.pricing_cadence ?? "monthly";
+  const stripeSubscriptionId =
+    typeof session.subscription === "string" ? session.subscription : null;
+  const stripeCustomerId =
+    typeof session.customer === "string" ? session.customer : null;
+
+  if (!companyId) {
+    console.error("[stripe/webhook] RA Pro checkout missing company_id", {
+      session_id: session.id,
+    });
+    return { handled: false, reason: "missing_company_id" };
+  }
+  // Caller-supplied firm_id must never override canonical server linking.
+  if (firmId) {
+    console.error("[stripe/webhook] RA Pro checkout rejected firm_id metadata", {
+      session_id: session.id,
+    });
+    return { handled: false, reason: "unexpected_firm_id_on_ra_pro" };
+  }
+  if (track !== "pilot" && track !== "standard") {
+    return { handled: false, reason: "invalid_track" };
+  }
+  if (!stripeSubscriptionId) {
+    return { handled: false, reason: "missing_subscription" };
+  }
+
+  const buyerUserId = await resolveBuyerUserId({
+    metadataUserId: session.metadata?.buyer_user_id,
+    stripeCustomerId,
+  });
+  if (!buyerUserId) {
+    console.error("[stripe/webhook] RA Pro checkout could not resolve buyer", {
+      session_id: session.id,
+    });
+    return { handled: false, reason: "missing_buyer_user" };
+  }
+
+  try {
+    await activateReviewAssistProSubscription({
+      companyId,
+      buyerUserId,
+      firmName: session.metadata?.business_name || "Review Assist Pro Firm",
+      stripeSubscriptionId,
+      stripeCustomerId,
+      pricingStructure,
+      pricingCadence,
+      track,
+    });
+    return { handled: true };
+  } catch (err) {
+    if (err instanceof RaProActivationError) {
+      console.error("[stripe/webhook] RA Pro activation failed", {
+        session_id: session.id,
+        code: err.code,
+      });
+      return { handled: false, reason: err.code };
+    }
+    throw err;
+  }
 }
 
 export async function handleTcp1CheckoutCompleted(
@@ -39,6 +134,10 @@ export async function handleTcp1CheckoutCompleted(
   if (!TCP1_LAUNCHED_TIERS.has(tierKey)) {
     console.warn("[stripe/webhook] tier not yet launched; ignoring", { tierKey });
     return { handled: false, reason: "out_of_scope_tier" };
+  }
+
+  if (tierKey === RA_PRO_TIER_KEY) {
+    return handleRaProCheckoutCompleted(session);
   }
 
   // Add-on tiers (client_seat_alacarte) attach to an existing parent slot and
@@ -102,7 +201,7 @@ export async function handleTcp1CheckoutCompleted(
       .order("pilot_slot_number", { ascending: true });
 
     const taken = new Set((existingSlots ?? []).map((r) => r.pilot_slot_number as number));
-    for (let n = 1; n <= 10; n++) {
+    for (let n = 1; n <= RA_PRO_PILOT_COHORT_CAP; n++) {
       if (!taken.has(n)) {
         assignedSlot = n;
         break;

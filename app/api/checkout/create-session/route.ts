@@ -15,6 +15,7 @@ import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
 import { bootstrapCompanyForUser } from "@/lib/tcp1/create-session-company";
+import { RA_PRO_PILOT_COHORT_CAP } from "@/lib/review-assist-pro/limits";
 import {
   isSoloBkGated,
   isSoloBkBypassAllowed,
@@ -352,17 +353,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (tierKey === "review_assist_pro" && track === "pilot") {
-    const cap = parseInt(process.env.PILOT_CAP_REVIEW_ASSIST_PRO ?? "25", 10);
+    // Canonical cohort cap (decision 3A). Env overrides are ignored so checkout
+    // and webhook cannot diverge.
     const { count, error: capError } = await admin
       .from("pilot_slots")
       .select("id", { count: "exact", head: true })
       .eq("tier_key", "review_assist_pro")
-      .eq("pilot_status", "active");
+      .eq("pilot_status", "active")
+      .not("pilot_slot_number", "is", null);
     if (capError) {
       console.error("[create-session] RA Pro pilot-cap query failed", capError);
       return NextResponse.json({ error: "pilot_cap_query_failed" }, { status: 500 });
     }
-    if ((count ?? 0) >= cap) {
+    if ((count ?? 0) >= RA_PRO_PILOT_COHORT_CAP) {
       return NextResponse.json({ error: "pilot_cap_reached" }, { status: 409 });
     }
   }
@@ -388,6 +391,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     pricing_structure: pricingStructure,
     pricing_cadence: pricingCadence,
     track,
+    buyer_user_id: user.id,
+    business_name: businessName,
   };
   if (firmId) metadata.firm_id = firmId;
   if (companyId) metadata.company_id = companyId;

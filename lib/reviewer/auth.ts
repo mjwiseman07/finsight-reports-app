@@ -1,10 +1,12 @@
 /**
  * D6.4d — Shared authentication + firm-scope resolution for reviewer API routes.
+ * RA Pro (1A): firms with billing_company_id also require an authorizing company subscription.
  */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 import { createServiceClient } from "@/lib/supabase/service";
+import { filterReviewerAuthorizedFirmIds } from "@/lib/review-assist-pro/entitlement";
 
 export { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 
@@ -69,9 +71,25 @@ async function authenticateWithAccessToken(token: string): Promise<Authenticated
     throw new ReviewerAuthError("no_firm_membership", 403);
   }
 
-  const firmIds = memberships.map((m) => m.firm_id as string);
+  const membershipFirmIds = memberships.map((m) => m.firm_id as string);
+  let firmIds: string[];
+  try {
+    firmIds = await filterReviewerAuthorizedFirmIds(membershipFirmIds);
+  } catch {
+    throw new ReviewerAuthError("membership_query_failed", 500);
+  }
+  if (firmIds.length === 0) {
+    // Generic denial — do not reveal whether membership vs entitlement failed.
+    throw new ReviewerAuthError("forbidden", 403);
+  }
+
+  const entitled = new Set(firmIds);
   const writerFirmIds = memberships
-    .filter((m) => WRITER_ROLES.includes(m.role as (typeof WRITER_ROLES)[number]))
+    .filter(
+      (m) =>
+        entitled.has(m.firm_id as string) &&
+        WRITER_ROLES.includes(m.role as (typeof WRITER_ROLES)[number]),
+    )
     .map((m) => m.firm_id as string);
 
   return { userId, firmIds, writerFirmIds, isServiceRoleCaller: false };
