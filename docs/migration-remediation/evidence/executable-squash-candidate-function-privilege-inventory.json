@@ -1,0 +1,2358 @@
+{
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "packageSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+  "totalFunctions": 100,
+  "unclassifiedCount": 0,
+  "classCounts": {
+    "trigger_only": 55,
+    "internal_service_role_only": 29,
+    "migration_admin_or_internal": 11,
+    "authenticated_rls_helper": 5
+  },
+  "engagement_posting_policy": {
+    "createVer": "20260907010031",
+    "enableVer": "20260907010031",
+    "createLine": 31,
+    "enableLine": 2063,
+    "okOrder": true,
+    "sameModule": true
+  },
+  "public_users_anon_all_absent": true,
+  "public_users_authenticated_update_revoked": true,
+  "public_users_update_policy_absent": true,
+  "publicUsersColumnContract": {
+    "table": "public.users",
+    "authenticatedTablePrivileges": [
+      "SELECT"
+    ],
+    "authenticatedUpdateAllowlist": [],
+    "authenticatedUpdateFullyRevoked": true,
+    "rationale": "No browser Supabase client updates public.users. Signup/onboarding/billing/trial/account writes use service_role (supabaseAdmin). Fail-closed: revoke authenticated UPDATE entirely.",
+    "columns": {
+      "id": {
+        "class": "server_managed_identity",
+        "userEditable": false
+      },
+      "email": {
+        "class": "server_managed_identity",
+        "userEditable": false
+      },
+      "first_name": {
+        "class": "server_managed_profile_at_signup",
+        "userEditable": false,
+        "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+      },
+      "last_name": {
+        "class": "server_managed_profile_at_signup",
+        "userEditable": false,
+        "evidence": "Set via auth.users raw_user_meta_data → handle_new_auth_user; no browser UPDATE path"
+      },
+      "business_name": {
+        "class": "server_path_profile",
+        "userEditable": false,
+        "evidence": "app/api/account/route.js PATCH uses supabaseAdmin (service_role), not browser role"
+      },
+      "ip_address_signup": {
+        "class": "immutable_audit_system",
+        "userEditable": false,
+        "evidence": "app/api/signup/route.js writes via supabaseAdmin only"
+      },
+      "trial_used": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+      },
+      "reports_generated": {
+        "class": "usage_quota",
+        "userEditable": false,
+        "evidence": "app/api/mark-trial-used uses supabaseAdmin"
+      },
+      "subscription_status": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "lib/subscription-sync.js service-role webhook path"
+      },
+      "stripe_customer_id": {
+        "class": "billing_subscription",
+        "userEditable": false,
+        "evidence": "lib/stripe-customer.ts ensureStripeCustomerForUser (admin client)"
+      },
+      "created_at": {
+        "class": "immutable_audit_system",
+        "userEditable": false
+      }
+    }
+  },
+  "serviceRoleRpcIdentityAllowlist": [
+    "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+    "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+    "public.clear_audit_ready_recon_bridge(uuid)",
+    "public.gap2_cancel_purge(uuid,text,uuid)",
+    "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+    "public.get_similar_kickout_resolution_counts(uuid[])",
+    "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+    "public.increment_pbc_request_count(uuid,int4)",
+    "public.increment_share_token_access(uuid)",
+    "public.next_document_number(uuid,text)",
+    "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+    "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+    "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+    "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+    "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+    "public.sp_list_public_columns()",
+    "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)"
+  ],
+  "spWriteAnchorBatchDisposition": {
+    "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+    "serviceRoleExecute": "REVOKED",
+    "finalPrivilege": "owner_admin_only",
+    "rationale": "No repository .rpc() caller found. Historical comment referenced block9_shipped/anchor-batcher.ts (absent). Retain DEFINER/search_path hardening; do not weaken anchoring/custody. Separate authorization required before service_role re-grant."
+  },
+  "functions": [
+    {
+      "identity": "public.prevent_si_snapshot_metadata_mutation()",
+      "schema": "public",
+      "name": "prevent_si_snapshot_metadata_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010010",
+      "sliceName": "esc_public_users_and_foundations_baseline",
+      "line": 2002,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_si_snapshot_child_mutation_when_parent_locked()",
+      "schema": "public",
+      "name": "prevent_si_snapshot_child_mutation_when_parent_locked",
+      "argsRaw": "",
+      "sliceVersion": "20260907010010",
+      "sliceName": "esc_public_users_and_foundations_baseline",
+      "line": 2042,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_company_memory_record_unsafe_mutation()",
+      "schema": "public",
+      "name": "prevent_company_memory_record_unsafe_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010010",
+      "sliceName": "esc_public_users_and_foundations_baseline",
+      "line": 2684,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_company_memory_append_only_mutation()",
+      "schema": "public",
+      "name": "prevent_company_memory_append_only_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010010",
+      "sliceName": "esc_public_users_and_foundations_baseline",
+      "line": 2752,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_company_memory_version_unsafe_mutation()",
+      "schema": "public",
+      "name": "prevent_company_memory_version_unsafe_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010010",
+      "sliceName": "esc_public_users_and_foundations_baseline",
+      "line": 2785,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.tg_set_updated_at()",
+      "schema": "public",
+      "name": "tg_set_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010020",
+      "sliceName": "esc_phase1_subscriptions_rls_atomic",
+      "line": 210,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.set_updated_at()",
+      "schema": "public",
+      "name": "set_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 159,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.increment_share_token_access(uuid)",
+      "schema": "public",
+      "name": "increment_share_token_access",
+      "argsRaw": "p_token_id uuid",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 745,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_je_audit_update()",
+      "schema": "public",
+      "name": "prevent_je_audit_update",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 1886,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.touch_je_post_attempts()",
+      "schema": "public",
+      "name": "touch_je_post_attempts",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 1902,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.ledger_events_prevent_mutation()",
+      "schema": "public",
+      "name": "ledger_events_prevent_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 2158,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.ledger_events_notify()",
+      "schema": "public",
+      "name": "ledger_events_notify",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 2191,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.engagement_addons_set_updated_at()",
+      "schema": "public",
+      "name": "engagement_addons_set_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 2533,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.entitlement_check_audit_no_mutation()",
+      "schema": "public",
+      "name": "entitlement_check_audit_no_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 2577,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public._intake_touch_updated_at()",
+      "schema": "public",
+      "name": "_intake_touch_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 2998,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_company_memory_record_unsafe_mutation()",
+      "schema": "public",
+      "name": "prevent_company_memory_record_unsafe_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3069,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_memory_payload_update()",
+      "schema": "public",
+      "name": "prevent_memory_payload_update",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3133,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.touch_uncategorized_proposals_updated_at()",
+      "schema": "public",
+      "name": "touch_uncategorized_proposals_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3206,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.prevent_proposal_decision_mutation()",
+      "schema": "public",
+      "name": "prevent_proposal_decision_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3217,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.touch_recurring_templates_updated_at()",
+      "schema": "public",
+      "name": "touch_recurring_templates_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3453,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.touch_recurring_fires_updated_at()",
+      "schema": "public",
+      "name": "touch_recurring_fires_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3466,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.guard_recurring_fire_immutability()",
+      "schema": "public",
+      "name": "guard_recurring_fire_immutability",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3484,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.curated_rule_fires_immutable()",
+      "schema": "public",
+      "name": "curated_rule_fires_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3658,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pre_close_review_items_je_draft_check()",
+      "schema": "public",
+      "name": "pre_close_review_items_je_draft_check",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3842,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pre_close_review_items_immutable()",
+      "schema": "public",
+      "name": "pre_close_review_items_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010030",
+      "sliceName": "esc_application_schema_slice_1_of_5",
+      "line": 3906,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.engagement_posting_policy_preset_consistency()",
+      "schema": "public",
+      "name": "engagement_posting_policy_preset_consistency",
+      "argsRaw": "",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 62,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pre_close_review_items_immutable()",
+      "schema": "public",
+      "name": "pre_close_review_items_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 123,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.validate_assertions_array(text[])",
+      "schema": "public",
+      "name": "validate_assertions_array",
+      "argsRaw": "assertion_ids text[]",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 1185,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.close_gap_review_items_touch_updated_at()",
+      "schema": "public",
+      "name": "close_gap_review_items_touch_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 1347,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.mfa_audit_log_prevent_mutation()",
+      "schema": "public",
+      "name": "mfa_audit_log_prevent_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 1515,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.user_webauthn_credentials_prevent_column_mutation()",
+      "schema": "public",
+      "name": "user_webauthn_credentials_prevent_column_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 1588,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public._d651_slugify_name(text)",
+      "schema": "public",
+      "name": "_d651_slugify_name",
+      "argsRaw": "p_name text",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 1767,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "schema": "public",
+      "name": "publish_ledger_event",
+      "argsRaw": " p_event_type TEXT, p_event_category TEXT, p_event_version INTEGER, p_firm_id UUID, p_firm_client_id UUID, p_engagement_id UUID, p_portco_id UUID, p_close_period_id TEXT, p_aggregate_type TEXT, p_aggregate_id TEXT, p_actor_type TEXT, p_actor_id TEXT, p_event_payload JSONB, p_event_metadata JSONB, p_causation_event_id UUID, p_event_payload_canonical TEXT ",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 2732,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.next_document_number(uuid,text)",
+      "schema": "public",
+      "name": "next_document_number",
+      "argsRaw": " p_company_id UUID, p_doc_type TEXT ",
+      "sliceVersion": "20260907010031",
+      "sliceName": "esc_application_schema_slice_2_of_5",
+      "line": 2959,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.preset_pack_registry_immutable()",
+      "schema": "public",
+      "name": "preset_pack_registry_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1055,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.observation_events_immutable()",
+      "schema": "public",
+      "name": "observation_events_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1130,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.drafted_amendments_terminal_immutable()",
+      "schema": "public",
+      "name": "drafted_amendments_terminal_immutable",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1187,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.qbo_webhook_events_enforce_append_only()",
+      "schema": "public",
+      "name": "qbo_webhook_events_enforce_append_only",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1392,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.qbo_webhook_events_block_delete()",
+      "schema": "public",
+      "name": "qbo_webhook_events_block_delete",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1434,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.gap3_materiality_bucket(int8,uuid)",
+      "schema": "public",
+      "name": "gap3_materiality_bucket",
+      "argsRaw": " total_debit_cents bigint, engagement_id_arg uuid default null ",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1890,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.gap3_pre_close_ri_materiality_before_insert()",
+      "schema": "public",
+      "name": "gap3_pre_close_ri_materiality_before_insert",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1930,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.gap3_pre_close_ri_sod_before_update()",
+      "schema": "public",
+      "name": "gap3_pre_close_ri_sod_before_update",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 1962,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.gap2_audit_append_only()",
+      "schema": "public",
+      "name": "gap2_audit_append_only",
+      "argsRaw": "",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 2299,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+      "schema": "public",
+      "name": "gap2_schedule_purge",
+      "argsRaw": " p_firm_id uuid, p_subscription_id uuid, p_stripe_subscription_id text, p_stripe_customer_id text, p_reason text, p_triggered_by_user_id uuid default null, p_triggered_by_stripe_event_id text default null, p_grace_days integer default 30 ",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 2415,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.gap2_cancel_purge(uuid,text,uuid)",
+      "schema": "public",
+      "name": "gap2_cancel_purge",
+      "argsRaw": " p_firm_id uuid, p_cancelled_reason text, p_actor_user_id uuid default null ",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 2493,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.increment_pbc_request_count(uuid,int4)",
+      "schema": "public",
+      "name": "increment_pbc_request_count",
+      "argsRaw": " p_engagement_id uuid, p_delta integer ",
+      "sliceVersion": "20260907010032",
+      "sliceName": "esc_application_schema_slice_3_of_5",
+      "line": 3085,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+      "schema": "public",
+      "name": "audit_ready_latest_bs_kickout_lines",
+      "argsRaw": " p_engagement_ids uuid[] ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 187,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+      "schema": "public",
+      "name": "audit_ready_latest_pbc_kickout_runs",
+      "argsRaw": " p_engagement_ids uuid[] ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 237,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+      "schema": "public",
+      "name": "get_similar_kickout_resolutions",
+      "argsRaw": " p_engagement_id uuid, p_source_type text, p_source_key jsonb ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 502,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.get_similar_kickout_resolution_counts(uuid[])",
+      "schema": "public",
+      "name": "get_similar_kickout_resolution_counts",
+      "argsRaw": " p_engagement_ids uuid[] ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 591,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.handle_new_auth_user()",
+      "schema": "public",
+      "name": "handle_new_auth_user",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 727,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_canonical_payload",
+      "argsRaw": " p_event_kind text, p_event_at timestamptz, p_schema_version text, p_pilot_slot_id uuid, p_from_status text, p_to_status text, p_classification_hint text, p_company_id uuid, p_firm_id uuid, p_actor_kind text, p_actor_user_id uuid, p_actor_via text, p_assertions_covered text[], p_evidence_refs jsonb, p_reason_code text, p_reason_text text, p_payload jsonb ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 963,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_before_insert",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 1529,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, extensions, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_reject_mutations",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 1098,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_verify_chain",
+      "argsRaw": " p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 1668,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, extensions, pg_temp",
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
+      "classified": true
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "schema": "public",
+      "name": "sp_write_anchor_batch",
+      "argsRaw": " p_batch_start_chain_seq bigint, p_batch_end_chain_seq bigint, p_leaf_count integer, p_merkle_root text, p_leaves jsonb, p_tsrs jsonb ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 1937,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
+      "classified": true
+    },
+    {
+      "identity": "public.sp_list_public_columns()",
+      "schema": "public",
+      "name": "sp_list_public_columns",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2147,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "''",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.resolve_assertion_impact_by_table(text)",
+      "schema": "public",
+      "name": "resolve_assertion_impact_by_table",
+      "argsRaw": "p_table text",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2587,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.backfill_schema_drift_assertion_impact(bool)",
+      "schema": "public",
+      "name": "backfill_schema_drift_assertion_impact",
+      "argsRaw": " p_force_recompute boolean DEFAULT false ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2853,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
+      "classified": true
+    },
+    {
+      "identity": "public.trg_lifecycle_issues_assertion_impact()",
+      "schema": "public",
+      "name": "trg_lifecycle_issues_assertion_impact",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2792,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.resolve_assertion_confidence_by_table(text)",
+      "schema": "public",
+      "name": "resolve_assertion_confidence_by_table",
+      "argsRaw": "p_table text",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2665,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.resolve_fr_relevance_by_table(text)",
+      "schema": "public",
+      "name": "resolve_fr_relevance_by_table",
+      "argsRaw": "p_table text",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2709,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.resolve_mapping_source_by_table(text)",
+      "schema": "public",
+      "name": "resolve_mapping_source_by_table",
+      "argsRaw": "p_table text",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 2746,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.trg_ar_reconciling_items_stamp_run_identity()",
+      "schema": "public",
+      "name": "trg_ar_reconciling_items_stamp_run_identity",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 3422,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+      "schema": "public",
+      "name": "persist_audit_ready_recon_bridge",
+      "argsRaw": " p_run_id uuid, p_items jsonb, p_identified_items_total_cents bigint, p_unidentified_residual_cents bigint, p_reconciling_item_count integer, p_unresolved_material_count integer, p_recon_outcome text, p_allows_timing_reconciled boolean, p_persisted_at timestamptz DEFAULT now() ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 3464,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.clear_audit_ready_recon_bridge(uuid)",
+      "schema": "public",
+      "name": "clear_audit_ready_recon_bridge",
+      "argsRaw": " p_run_id uuid ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 3626,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.trg_arte_stamp_run_identity()",
+      "schema": "public",
+      "name": "trg_arte_stamp_run_identity",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4022,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.accounting_measurement_snapshots_deny_update()",
+      "schema": "public",
+      "name": "accounting_measurement_snapshots_deny_update",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4151,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.continuous_close_runs_deny_mutation()",
+      "schema": "public",
+      "name": "continuous_close_runs_deny_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4292,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "persist_continuous_close_observe_run",
+      "argsRaw": " p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4374,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.journal_entry_proposals_deny_mutation()",
+      "schema": "public",
+      "name": "journal_entry_proposals_deny_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4587,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "persist_journal_entry_proposal",
+      "argsRaw": " p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4665,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.journal_entry_approvals_deny_mutation()",
+      "schema": "public",
+      "name": "journal_entry_approvals_deny_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4871,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "persist_journal_entry_approval",
+      "argsRaw": " p_row jsonb, p_event_type text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010033",
+      "sliceName": "esc_application_schema_slice_4_of_5",
+      "line": 4947,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.journal_entry_executions_guard_mutation()",
+      "schema": "public",
+      "name": "journal_entry_executions_guard_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 131,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.je_execution_immutable_binding_matches(public.journal_entry_executions,jsonb)",
+      "schema": "public",
+      "name": "je_execution_immutable_binding_matches",
+      "argsRaw": " p_existing public.journal_entry_executions, p_row jsonb ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 215,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "persist_journal_entry_execution_reservation",
+      "argsRaw": " p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 243,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "transition_journal_entry_execution",
+      "argsRaw": " p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_new_status text, p_patch jsonb, p_event_type text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 1035,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.journal_entry_provider_attempts_guard_mutation()",
+      "schema": "public",
+      "name": "journal_entry_provider_attempts_guard_mutation",
+      "argsRaw": "",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 662,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": "public",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+      "schema": "public",
+      "name": "persist_journal_entry_provider_attempt",
+      "argsRaw": " p_row jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text, p_publish_posting_started boolean DEFAULT false ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 3382,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+      "schema": "public",
+      "name": "patch_journal_entry_provider_attempt",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_patch jsonb ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2678,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_commit_discovered",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_qbo_je_id text, p_provider_response_hash text, p_discovery_summary jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 1276,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_not_found_confirmed",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_discovery_summary jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 1411,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_dispatch_started",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 1952,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_posted",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_qbo_je_id text, p_intuit_tid text, p_provider_response_hash text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2081,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_post_unknown",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_intuit_tid text, p_provider_error_code text, p_provider_error_message text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2234,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_provider_precommit_failed",
+      "argsRaw": " p_attempt_id uuid, p_expected_status text, p_provider_error_code text, p_provider_error_message text, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2379,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_verified",
+      "argsRaw": " p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_attempt_id uuid, p_expected_attempt_status text, p_provider_readback_hash text, p_verification_snapshot jsonb, p_verification_metadata jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2772,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "apply_journal_entry_verification_mismatch",
+      "argsRaw": " p_execution_id uuid, p_expected_status text, p_expected_state_version integer, p_attempt_id uuid, p_expected_attempt_status text, p_provider_readback_hash text, p_verification_snapshot jsonb, p_verification_metadata jsonb, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 2966,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    },
+    {
+      "identity": "public.je_publish_posting_started_from_ready(public.journal_entry_executions,jsonb,text,uuid,uuid,uuid,text,text)",
+      "schema": "public",
+      "name": "je_publish_posting_started_from_ready",
+      "argsRaw": " p_execution public.journal_entry_executions, p_event_payload jsonb, p_event_payload_canonical text, p_firm_id uuid, p_firm_client_id uuid, p_engagement_id uuid, p_close_period_id text, p_actor_id text ",
+      "sliceVersion": "20260907010034",
+      "sliceName": "esc_application_schema_slice_5_of_5",
+      "line": 3298,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
+      "classified": true
+    },
+    {
+      "identity": "public.is_active_company_member(uuid)",
+      "schema": "public",
+      "name": "is_active_company_member",
+      "argsRaw": "_company_id uuid",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 835,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "authenticated_rls_helper",
+      "revoke": [
+        "PUBLIC",
+        "anon"
+      ],
+      "grant": [
+        "authenticated",
+        "service_role"
+      ],
+      "rationale": "Q8 RLS predicate helper; authenticated EXECUTE required for policy evaluation",
+      "classified": true
+    },
+    {
+      "identity": "public.has_active_company_role(uuid,text[])",
+      "schema": "public",
+      "name": "has_active_company_role",
+      "argsRaw": " _company_id uuid, _roles text[] ",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 851,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "authenticated_rls_helper",
+      "revoke": [
+        "PUBLIC",
+        "anon"
+      ],
+      "grant": [
+        "authenticated",
+        "service_role"
+      ],
+      "rationale": "Q8 RLS predicate helper; authenticated EXECUTE required for policy evaluation",
+      "classified": true
+    },
+    {
+      "identity": "public.is_company_admin(uuid)",
+      "schema": "public",
+      "name": "is_company_admin",
+      "argsRaw": "_company_id uuid",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 871,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "authenticated_rls_helper",
+      "revoke": [
+        "PUBLIC",
+        "anon"
+      ],
+      "grant": [
+        "authenticated",
+        "service_role"
+      ],
+      "rationale": "Q8 RLS predicate helper; authenticated EXECUTE required for policy evaluation",
+      "classified": true
+    },
+    {
+      "identity": "public.is_active_firm_member(uuid)",
+      "schema": "public",
+      "name": "is_active_firm_member",
+      "argsRaw": "_firm_id uuid",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 882,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "authenticated_rls_helper",
+      "revoke": [
+        "PUBLIC",
+        "anon"
+      ],
+      "grant": [
+        "authenticated",
+        "service_role"
+      ],
+      "rationale": "Q8 RLS predicate helper; authenticated EXECUTE required for policy evaluation",
+      "classified": true
+    },
+    {
+      "identity": "public.has_active_firm_role(uuid,text[])",
+      "schema": "public",
+      "name": "has_active_firm_role",
+      "argsRaw": " _firm_id uuid, _roles text[] ",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 898,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public",
+      "class": "authenticated_rls_helper",
+      "revoke": [
+        "PUBLIC",
+        "anon"
+      ],
+      "grant": [
+        "authenticated",
+        "service_role"
+      ],
+      "rationale": "Q8 RLS predicate helper; authenticated EXECUTE required for policy evaluation",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_before_insert",
+      "argsRaw": "",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 1316,
+      "returnsTrigger": true,
+      "securityDefiner": true,
+      "searchPath": "public, extensions, pg_temp",
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "schema": "public",
+      "name": "pilot_lifecycle_events_verify_chain",
+      "argsRaw": " p_company_id uuid DEFAULT NULL, p_firm_id uuid DEFAULT NULL ",
+      "sliceVersion": "20260907010035",
+      "sliceName": "esc_security_rls_grants_hardening_atomic",
+      "line": 1392,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, extensions, pg_temp",
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "SECURITY DEFINER/sensitive name without proven exact-identity RPC caller — owner/admin only",
+      "classified": true
+    },
+    {
+      "identity": "public.set_pilot_slots_updated_at()",
+      "schema": "public",
+      "name": "set_pilot_slots_updated_at",
+      "argsRaw": "",
+      "sliceVersion": "20260907010050",
+      "sliceName": "esc_guarded_dataless_safe_initialization",
+      "line": 296,
+      "returnsTrigger": true,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "trigger_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "Trigger/immutability helper — binding/owner semantics; no direct EXECUTE for browser or service_role",
+      "classified": true
+    },
+    {
+      "identity": "public.public_pilot_slot_count(text)",
+      "schema": "public",
+      "name": "public_pilot_slot_count",
+      "argsRaw": "p_tier_key TEXT",
+      "sliceVersion": "20260907010050",
+      "sliceName": "esc_guarded_dataless_safe_initialization",
+      "line": 362,
+      "returnsTrigger": false,
+      "securityDefiner": false,
+      "searchPath": null,
+      "class": "migration_admin_or_internal",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated",
+        "service_role"
+      ],
+      "grant": [],
+      "rationale": "No evidence-backed browser or service_role RPC contract",
+      "classified": true
+    },
+    {
+      "identity": "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "schema": "public",
+      "name": "publish_ledger_event",
+      "argsRaw": " p_event_type TEXT, p_event_category TEXT, p_event_version INTEGER, p_firm_id UUID, p_firm_client_id UUID, p_engagement_id UUID, p_portco_id UUID, p_close_period_id TEXT, p_aggregate_type TEXT, p_aggregate_id TEXT, p_actor_type TEXT, p_actor_id TEXT, p_event_payload JSONB, p_event_metadata JSONB, p_causation_event_id UUID, p_event_payload_canonical TEXT ",
+      "sliceVersion": "20260907010060",
+      "sliceName": "esc_forward_tail_main_unapplied",
+      "line": 31,
+      "returnsTrigger": false,
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "class": "internal_service_role_only",
+      "revoke": [
+        "PUBLIC",
+        "anon",
+        "authenticated"
+      ],
+      "grant": [
+        "service_role"
+      ],
+      "rationale": "Exact-identity proven server-side RPC/caller; service_role EXECUTE only",
+      "classified": true
+    }
+  ]
+}

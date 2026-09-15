@@ -1,0 +1,37 @@
+{
+  "authHash": "0eee4dc3b803db3e632443ac7f45b740345279f4c9171ff25ad6f310592a6cd4",
+  "portHash": "b745ecfc25965f70ffe19b8fd0b92c3257407eccd8ba02bc07e3e33078512b0c",
+  "authBytes": 904746,
+  "portBytes": 786947,
+  "dropped": {
+    "owner": 344,
+    "grant": 922,
+    "revoke": 45,
+    "defaultPriv": 12
+  },
+  "authHits": {
+    "copyData": 0,
+    "insertInto": 0,
+    "copyTerminator": 0,
+    "jwt": 0,
+    "awsKey": 0,
+    "privateKey": 0,
+    "passwordAssign": 0,
+    "connectionUri": 0
+  },
+  "portHits": {
+    "copyData": 0,
+    "insertInto": 0,
+    "copyTerminator": 0,
+    "jwt": 0,
+    "awsKey": 0,
+    "privateKey": 0,
+    "passwordAssign": 0,
+    "connectionUri": 0
+  },
+  "createTable": 226,
+  "createFunction": 96,
+  "createPolicy": 424,
+  "createView": 9,
+  "createTrigger": 65
+}
