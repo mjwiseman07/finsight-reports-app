@@ -14,6 +14,8 @@ supabase/migrations-draft/recovered-production-history/*.sql text eol=lf
 supabase/migrations/20260908031736_connection_credential_browser_containment.sql text eol=lf
 # RA Pro billing-company migration — LF-authoritative Git blob for seal ceremonies
 supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql text eol=lf
+# RA Pro cutover operator decision — committed LF blob is the only digest authority
+docs/security/ra-pro-cutover-operator-decision.json text eol=lf
 docs/security/ra-pro-*.md text eol=lf
 tests/security/ra-pro-*.test.ts text eol=lf
 tests/security/helpers/ra-pro-*.sql text eol=lf

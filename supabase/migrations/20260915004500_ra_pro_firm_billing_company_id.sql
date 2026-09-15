@@ -407,6 +407,9 @@ BEGIN
   END IF;
 
   -- Pilot cohort allocation (1–10 only).
+  -- Occupancy matches lib/review-assist-pro/limits.ts:
+  --   every row with pilot_slot_number BETWEEN 1 AND 10 occupies capacity
+  --   regardless of pilot_status (no silent reclaim of cancelled/non-active).
   IF p_track = 'pilot' THEN
     IF v_slot_id IS NOT NULL AND v_slot_number IS NOT NULL AND v_slot_number BETWEEN 1 AND 10 THEN
       NULL; -- keep existing number on replay
@@ -415,8 +418,7 @@ BEGIN
         INTO v_taken
       FROM public.pilot_slots ps
       WHERE ps.tier_key = 'review_assist_pro'
-        AND ps.pilot_slot_number IS NOT NULL
-        AND ps.pilot_slot_number > 0
+        AND ps.pilot_slot_number BETWEEN 1 AND 10
         AND (v_slot_id IS NULL OR ps.id IS DISTINCT FROM v_slot_id);
 
       v_slot_number := NULL;

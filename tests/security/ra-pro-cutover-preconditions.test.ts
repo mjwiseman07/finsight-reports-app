@@ -31,6 +31,7 @@ function baseline(overrides: Partial<CutoverInventoryObservation> = {}) {
 
 describe("RA Pro cutover operator decision + preconditions", () => {
   it("committed decision JSON matches sealed constants and forbids backfill", () => {
+    // Prefer Git blob bytes when available; fall back to worktree after LF restore.
     const json = JSON.parse(readFileSync(DECISION_PATH, "utf8"));
     expect(json.mapping_artifact_sha256).toBe(AUTHORIZED_MAPPING_ARTIFACT_SHA256);
     expect(json.actions).toEqual(AUTHORIZED_OPERATOR_DECISION.actions);
@@ -44,6 +45,11 @@ describe("RA Pro cutover operator decision + preconditions", () => {
     );
     expect(JSON.stringify(json)).not.toMatch(/@/);
     expect(JSON.stringify(json)).not.toMatch(/cus_|sub_|evt_/);
+  });
+
+  it("worktree decision file is LF-only (gitattributes / restore)", () => {
+    const buf = readFileSync(DECISION_PATH);
+    expect(buf.includes(0x0d)).toBe(false);
   });
 
   it("production-shaped NO_CUTOVER × 4 inventory passes preconditions", () => {

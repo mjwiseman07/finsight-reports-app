@@ -15,7 +15,11 @@ import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
 import { bootstrapCompanyForUser } from "@/lib/tcp1/create-session-company";
-import { RA_PRO_PILOT_COHORT_CAP } from "@/lib/review-assist-pro/limits";
+import {
+  RA_PRO_TIER_KEY,
+  allocateNextRaProPilotSlotNumber,
+  collectRaProPilotCohortOccupiedNumbers,
+} from "@/lib/review-assist-pro/limits";
 import {
   isSoloBkGated,
   isSoloBkBypassAllowed,
@@ -368,19 +372,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (tierKey === "review_assist_pro" && track === "pilot") {
-    // Canonical cohort cap (decision 3A). Env overrides are ignored so checkout
-    // and webhook cannot diverge.
-    const { count, error: capError } = await admin
+    // Canonical cohort occupancy (decision 3A) — must match activation RPC:
+    // every valid pilot_slot_number in 1..CAP occupies capacity regardless of
+    // pilot_status. No silent reclaim of cancelled/non-active numbered slots.
+    const { data: cohortRows, error: capError } = await admin
       .from("pilot_slots")
-      .select("id", { count: "exact", head: true })
-      .eq("tier_key", "review_assist_pro")
-      .eq("pilot_status", "active")
+      .select("pilot_slot_number")
+      .eq("tier_key", RA_PRO_TIER_KEY)
       .not("pilot_slot_number", "is", null);
     if (capError) {
       console.error("[create-session] RA Pro pilot-cap query failed", capError);
       return NextResponse.json({ error: "pilot_cap_query_failed" }, { status: 500 });
     }
-    if ((count ?? 0) >= RA_PRO_PILOT_COHORT_CAP) {
+    const occupied = collectRaProPilotCohortOccupiedNumbers(cohortRows ?? []);
+    if (allocateNextRaProPilotSlotNumber(occupied) === null) {
       return NextResponse.json({ error: "pilot_cap_reached" }, { status: 409 });
     }
   }

@@ -10,11 +10,18 @@ Committed sanitized record:
 |-------|-------|
 | Protocol | `ra-pro-cutover-operator-decision/v1` |
 | Mapping artifact SHA-256 | `93f6fe31360222ccd282e814a3764ccf07929e7cb91c25c70e10b750ec0ec953` |
+| Decision-record Git OID | `0dd39de5ffbfd2b35d3d73887dd0fa915a061c93` |
+| Decision-record SHA-256 (Git **LF** blob) | `f00039cb536b0ffef09ea41c0613ce83d7f52067b2bffc4ff27980f8e9bd46e1` |
+| Decision-record bytes | `1122` |
 | Actions | **NO_CUTOVER × 4** |
 | Link / create | 0 / 0 |
 | Collisions | 0 |
 | Backfill authorized | **false** |
 | Classification | internal smoke/demo entitlements excluded |
+
+Digest authority: committed Git **LF** blob only (see
+`docs/security/ra-pro-decision-record-seal.md`). Superseded CRLF worktree digest
+`8499dd36…` / 1148 bytes is non-authoritative.
 
 The detailed handle-bearing ceremony artifact remains **local-only** under
 `scripts/output/` (gitignored). Do not commit handles, names, emails, or IDs.

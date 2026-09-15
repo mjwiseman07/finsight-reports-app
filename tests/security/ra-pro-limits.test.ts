@@ -4,6 +4,10 @@ import {
   RA_PRO_INCLUDED_CLIENT_COMPANIES,
   RA_PRO_PILOT_COHORT_CAP,
   RA_PRO_TIER_KEY,
+  allocateNextRaProPilotSlotNumber,
+  collectRaProPilotCohortOccupiedNumbers,
+  isRaProPilotCohortOccupyingNumber,
+  raProPilotCohortHasCapacity,
 } from "@/lib/review-assist-pro/limits";
 import {
   REVIEW_ASSIST_PRO_BASE_LIMITS,
@@ -52,6 +56,95 @@ describe("RA Pro Phase B — canonical limits", () => {
     expect(REVIEW_ASSIST_PRO_BASE_LIMITS.max_auditor_users).toBe(RA_PRO_FIRM_SEATS);
   });
 
+  describe("pilot cohort occupancy predicate (status-agnostic)", () => {
+    it("accepts only integers in 1..CAP", () => {
+      expect(isRaProPilotCohortOccupyingNumber(1)).toBe(true);
+      expect(isRaProPilotCohortOccupyingNumber(10)).toBe(true);
+      expect(isRaProPilotCohortOccupyingNumber(0)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber(11)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber(-1)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber(1.5)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber(null)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber(undefined)).toBe(false);
+      expect(isRaProPilotCohortOccupyingNumber("3")).toBe(false);
+    });
+
+    it("ten active numbered slots fill the cohort", () => {
+      const rows = Array.from({ length: 10 }, (_, i) => ({
+        pilot_slot_number: i + 1,
+        pilot_status: "active",
+      }));
+      const occupied = collectRaProPilotCohortOccupiedNumbers(rows);
+      expect(occupied.size).toBe(10);
+      expect(raProPilotCohortHasCapacity(occupied)).toBe(false);
+      expect(allocateNextRaProPilotSlotNumber(occupied)).toBeNull();
+    });
+
+    it("ten non-active but numbered slots still fill the cohort", () => {
+      const statuses = [
+        "cancelled",
+        "pending",
+        "converted",
+        "complimentary",
+        "cancelled",
+        "pending",
+        "cancelled",
+        "failed",
+        "expired",
+        "cancelled",
+      ];
+      const rows = statuses.map((pilot_status, i) => ({
+        pilot_slot_number: i + 1,
+        pilot_status,
+      }));
+      const occupied = collectRaProPilotCohortOccupiedNumbers(rows);
+      expect(occupied.size).toBe(10);
+      expect(allocateNextRaProPilotSlotNumber(occupied)).toBeNull();
+    });
+
+    it("mixed statuses totaling ten numbered slots fill the cohort", () => {
+      const rows = [
+        { pilot_slot_number: 1, pilot_status: "active" },
+        { pilot_slot_number: 2, pilot_status: "cancelled" },
+        { pilot_slot_number: 3, pilot_status: "complimentary" },
+        { pilot_slot_number: 4, pilot_status: "pending" },
+        { pilot_slot_number: 5, pilot_status: "active" },
+        { pilot_slot_number: 6, pilot_status: "cancelled" },
+        { pilot_slot_number: 7, pilot_status: "active" },
+        { pilot_slot_number: 8, pilot_status: "converted" },
+        { pilot_slot_number: 9, pilot_status: "cancelled" },
+        { pilot_slot_number: 10, pilot_status: "pending" },
+      ];
+      expect(
+        allocateNextRaProPilotSlotNumber(collectRaProPilotCohortOccupiedNumbers(rows)),
+      ).toBeNull();
+    });
+
+    it("unnumbered and malformed/out-of-range rows do not occupy", () => {
+      const rows = [
+        { pilot_slot_number: null, pilot_status: "active" },
+        { pilot_slot_number: 0, pilot_status: "active" },
+        { pilot_slot_number: 11, pilot_status: "active" },
+        { pilot_slot_number: -3, pilot_status: "cancelled" },
+        { pilot_slot_number: 1.2 as unknown as number, pilot_status: "active" },
+        { pilot_slot_number: 3, pilot_status: "cancelled" },
+      ];
+      const occupied = collectRaProPilotCohortOccupiedNumbers(rows);
+      expect([...occupied]).toEqual([3]);
+      expect(allocateNextRaProPilotSlotNumber(occupied)).toBe(1);
+      expect(raProPilotCohortHasCapacity(occupied)).toBe(true);
+    });
+
+    it("allocates the lowest free number when capacity remains", () => {
+      const occupied = collectRaProPilotCohortOccupiedNumbers([
+        { pilot_slot_number: 1 },
+        { pilot_slot_number: 2 },
+        { pilot_slot_number: 4 },
+      ]);
+      expect(allocateNextRaProPilotSlotNumber(occupied)).toBe(3);
+    });
+  });
+
   describe("lib/entitlements.ts TIER_META path", () => {
     beforeEach(() => {
       fromMock.mockReset();
@@ -76,7 +169,6 @@ describe("RA Pro Phase B — canonical limits", () => {
           return thenableQuery({ id: firmId });
         }
         if (table === "firm_clients") {
-          // count path: select("*", { count: "exact", head: true })
           const chain: Record<string, unknown> = {};
           const self = () => chain;
           chain.select = self;

@@ -7,7 +7,9 @@ Scope: company-owned RA Pro subscription → linked firm workspace → `/reviewe
 
 **Cutover decision:** Operator ceremony bound **NO_CUTOVER × 4** (internal smoke/demo). **No backfill.** See `docs/security/ra-pro-cutover-operator-decision.json` and `docs/security/ra-pro-cutover-runbook.md`. Commerce gate: `RA_PRO_CUTOVER_COMMERCE_GATE`.
 
-**Seal authority:** Only the committed Git **LF** blob is authoritative for apply ceremonies. See `docs/security/ra-pro-migration-seal.md`. CRLF worktree digests are superseded and non-authoritative.
+**Seal authority:** Only committed Git **LF** blobs are authoritative — migration (`docs/security/ra-pro-migration-seal.md`) and operator decision record (`docs/security/ra-pro-decision-record-seal.md`). CRLF worktree digests are superseded and non-authoritative.
+
+**Pilot cohort occupancy:** Every `pilot_slots` row with `pilot_slot_number` in **1..10** occupies capacity regardless of `pilot_status`. Cancelled / failed / expired / otherwise non-active numbered slots are **not** recycled until a separately reviewed reclamation policy exists. Checkout and activation must use the same rule (`lib/review-assist-pro/limits.ts` + activation RPC).
 
 ## Identity → entitlement chain
 
@@ -29,7 +31,7 @@ Canonical activation writes the company → firm link via `activate_review_assis
 |----------|------:|---------|
 | `RA_PRO_INCLUDED_CLIENT_COMPANIES` | 2 | Included client-company entities under the linked firm |
 | `RA_PRO_FIRM_SEATS` | 5 | Authorized firm-user seats on the linked workspace |
-| `RA_PRO_PILOT_COHORT_CAP` | 10 | Global paid pilot cohort (`pilot_slot_number` 1..N) |
+| `RA_PRO_PILOT_COHORT_CAP` | 10 | Global pilot cohort occupancy (`pilot_slot_number` 1..N; status ignored) |
 
 Keep in sync across:
 

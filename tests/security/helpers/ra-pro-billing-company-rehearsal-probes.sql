@@ -305,6 +305,135 @@ BEGIN
   END;
 END $$;
 
+-- Occupancy ignores pilot_status: replace all active numbers with cancelled;
+-- activation of a new buyer must still hit pilot_cap_reached (no silent reclaim).
+DO $$
+DECLARE
+  cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
+BEGIN
+  UPDATE public.pilot_slots
+  SET pilot_status = 'cancelled'
+  WHERE tier_key = 'review_assist_pro'
+    AND pilot_slot_number BETWEEN 1 AND 10;
+
+  INSERT INTO public.companies (id, name) VALUES (cid, 'PilotCancelledFull');
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid,
+      uid,
+      'Firm Cancelled Full',
+      'sub_pilot_cancelled_full',
+      'cus_pilot_cancelled_full',
+      'flat',
+      'monthly',
+      'pilot'
+    );
+    RAISE EXCEPTION 'cancelled_full_should_fail';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM = 'cancelled_full_should_fail' THEN RAISE; END IF;
+      IF SQLERRM NOT LIKE '%pilot_cap_reached%' THEN
+        RAISE EXCEPTION 'unexpected_cancelled_full_error: %', SQLERRM;
+      END IF;
+  END;
+END $$;
+
+-- Malformed / out-of-range numbers and NULL do not occupy; free a real slot then
+-- confirm allocation prefers a valid 1..10 number (restore cancelled 10, keep 1..9).
+DO $$
+DECLARE
+  cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
+  v jsonb;
+BEGIN
+  DELETE FROM public.pilot_slots
+  WHERE tier_key = 'review_assist_pro' AND pilot_slot_number = 10;
+
+  INSERT INTO public.pilot_slots (
+    company_id, tier_key, pilot_status, pilot_slot_number, pricing_structure, pricing_cadence
+  )
+  VALUES
+    (gen_random_uuid(), 'review_assist_pro', 'active', NULL, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'active', 0, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'cancelled', 11, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'cancelled', -1, 'flat', 'monthly');
+
+  INSERT INTO public.companies (id, name) VALUES (cid, 'PilotSlot10Again');
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
+  v := public.activate_review_assist_pro_subscription(
+    cid,
+    uid,
+    'Firm Slot10 Again',
+    'sub_pilot_slot10_again',
+    'cus_pilot_slot10_again',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  IF (v->>'pilot_slot_number')::int IS DISTINCT FROM 10 THEN
+    RAISE EXCEPTION 'expected_slot_10_got_%', v->>'pilot_slot_number';
+  END IF;
+END $$;
+
+-- Concurrent activation at the final available slot: only one succeeds.
+DO $$
+DECLARE
+  cid_a uuid := gen_random_uuid();
+  uid_a uuid := gen_random_uuid();
+  cid_b uuid := gen_random_uuid();
+  uid_b uuid := gen_random_uuid();
+  ok_count int := 0;
+  fail_count int := 0;
+BEGIN
+  -- Free slot 10 again for the race (leave 1..9 occupied).
+  DELETE FROM public.pilot_slots
+  WHERE tier_key = 'review_assist_pro' AND pilot_slot_number = 10;
+
+  INSERT INTO public.companies (id, name) VALUES
+    (cid_a, 'RaceA'), (cid_b, 'RaceB');
+  INSERT INTO public.company_users (company_id, user_id, role, status) VALUES
+    (cid_a, uid_a, 'admin', 'active'),
+    (cid_b, uid_b, 'admin', 'active');
+
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid_a, uid_a, 'Firm Race A', 'sub_race_a', 'cus_race_a',
+      'flat', 'monthly', 'pilot'
+    );
+    ok_count := ok_count + 1;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM LIKE '%pilot_cap_reached%' THEN
+        fail_count := fail_count + 1;
+      ELSE
+        RAISE;
+      END IF;
+  END;
+
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid_b, uid_b, 'Firm Race B', 'sub_race_b', 'cus_race_b',
+      'flat', 'monthly', 'pilot'
+    );
+    ok_count := ok_count + 1;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM LIKE '%pilot_cap_reached%' THEN
+        fail_count := fail_count + 1;
+      ELSE
+        RAISE;
+      END IF;
+  END;
+
+  IF ok_count <> 1 OR fail_count <> 1 THEN
+    RAISE EXCEPTION 'race_expected_one_ok_one_fail got_ok=%_fail=%', ok_count, fail_count;
+  END IF;
+END $$;
+
 -- ON DELETE RESTRICT
 DO $$
 BEGIN
