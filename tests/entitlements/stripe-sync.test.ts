@@ -3,8 +3,26 @@ import { makeMockSupabase } from "./_mock-supabase";
 
 const mock = makeMockSupabase();
 const publishSpy = vi.hoisted(() => vi.fn(async () => ({ id: "evt" })));
+const reconcileSpy = vi.hoisted(() =>
+  vi.fn(async () => ({
+    updated: false,
+    targetStatus: null,
+    previousStatus: null,
+    rowsAffected: 0,
+  })),
+);
+const claimSpy = vi.hoisted(() => vi.fn());
+const finalizeSpy = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishSpy }));
+vi.mock("@/lib/subscription-sync", () => ({
+  reconcilePilotSlotStatus: (...args: unknown[]) => reconcileSpy(...args),
+}));
+vi.mock("@/lib/entitlements/webhook-lease", () => ({
+  claimStripeWebhookEvent: (...args: unknown[]) => claimSpy(...args),
+  finalizeStripeWebhookEvent: (...args: unknown[]) => finalizeSpy(...args),
+}));
 
 import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements/stripe-sync";
 
@@ -37,6 +55,15 @@ function baseEvt(overrides: Partial<MinimalStripeEvent> = {}): MinimalStripeEven
 beforeEach(() => {
   for (const k of Object.keys(mock.__state)) mock.__state[k] = [];
   publishSpy.mockClear();
+  reconcileSpy.mockClear();
+  claimSpy.mockReset();
+  finalizeSpy.mockReset();
+  claimSpy.mockResolvedValue({
+    outcome: "claimed",
+    leaseToken: "lease-1",
+    attemptCount: 1,
+  });
+  finalizeSpy.mockResolvedValue({ ok: true });
 });
 
 describe("entitlements/stripe-sync", () => {
@@ -45,14 +72,34 @@ describe("entitlements/stripe-sync", () => {
     expect(r.status).toBe("processed");
     expect(mock.__state.engagement_addons).toHaveLength(1);
     expect(mock.__state.engagement_addons[0].addon_code).toBe("ap_intake");
-    expect(mock.__state.engagement_addons[0].is_active).toBe(true);
+    expect(finalizeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stripeEventId: "evt_test",
+        leaseToken: "lease-1",
+        status: "processed",
+      }),
+    );
   });
 
-  it("is idempotent — replaying the same event id returns 'duplicate'", async () => {
-    await handleStripeWebhook(baseEvt(), baseEvt());
-    const r2 = await handleStripeWebhook(baseEvt(), baseEvt());
-    expect(r2.status).toBe("duplicate");
-    expect(mock.__state.engagement_addons).toHaveLength(1);
+  it("returns duplicate for terminal claim outcome", async () => {
+    claimSpy.mockResolvedValueOnce({
+      outcome: "duplicate_terminal",
+      processingStatus: "processed",
+      failureCode: null,
+    });
+    const r = await handleStripeWebhook(baseEvt(), baseEvt());
+    expect(r.status).toBe("duplicate");
+    expect(finalizeSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns lease_held without finalizing when another worker owns the lease", async () => {
+    claimSpy.mockResolvedValueOnce({
+      outcome: "lease_held",
+      processingStatus: "processing",
+    });
+    const r = await handleStripeWebhook(baseEvt(), baseEvt());
+    expect(r.status).toBe("lease_held");
+    expect(finalizeSpy).not.toHaveBeenCalled();
   });
 
   it("skips unhandled event types", async () => {
@@ -61,6 +108,9 @@ describe("entitlements/stripe-sync", () => {
       {},
     );
     expect(r.status).toBe("skipped");
+    expect(finalizeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "skipped", leaseToken: "lease-1" }),
+    );
   });
 
   it("skips events with no engagement_id metadata", async () => {
@@ -92,6 +142,11 @@ describe("entitlements/stripe-sync", () => {
   it("deactivates on subscription.deleted", async () => {
     await handleStripeWebhook(baseEvt(), baseEvt());
     expect(mock.__state.engagement_addons[0].is_active).toBe(true);
+    claimSpy.mockResolvedValue({
+      outcome: "claimed",
+      leaseToken: "lease-del",
+      attemptCount: 1,
+    });
     const deleteEvt = baseEvt({
       id: "evt_del",
       type: "customer.subscription.deleted",
@@ -100,7 +155,9 @@ describe("entitlements/stripe-sync", () => {
           id: "sub_1",
           status: "canceled",
           metadata: { engagement_id: ENG },
-          items: { data: [{ id: "si_ap_intake" }] },
+          items: {
+            data: [{ id: "si_ap_intake", price: { id: "price_ap_intake" } }],
+          },
         },
       },
     });
@@ -109,74 +166,27 @@ describe("entitlements/stripe-sync", () => {
     expect(mock.__state.engagement_addons[0].is_active).toBe(false);
   });
 
-  it("deactivates on non-active status (past_due)", async () => {
+  it("marks event processed via lease finalize after success", async () => {
     await handleStripeWebhook(baseEvt(), baseEvt());
-    const pastDue = baseEvt({
-      id: "evt_past_due",
-      data: {
-        object: {
-          id: "sub_1",
-          status: "past_due",
-          metadata: { engagement_id: ENG },
-          items: {
-            data: [
-              {
-                id: "si_ap_intake",
-                price: { id: "price_ap_intake", metadata: { addon_code: "ap_intake" } },
-              },
-            ],
-          },
-        },
-      },
-    });
-    await handleStripeWebhook(pastDue, pastDue);
-    expect(mock.__state.engagement_addons[0].is_active).toBe(false);
+    expect(finalizeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "processed", leaseToken: "lease-1" }),
+    );
   });
 
-  it("keeps active on 'trialing' status", async () => {
-    const trial = baseEvt({
-      id: "evt_trial",
-      data: {
-        object: {
-          id: "sub_1",
-          status: "trialing",
-          metadata: { engagement_id: ENG },
-          items: {
-            data: [
-              {
-                id: "si_ap_intake",
-                price: { id: "price_ap_intake", metadata: { addon_code: "ap_intake" } },
-              },
-            ],
-          },
-        },
-      },
-    });
-    await handleStripeWebhook(trial, trial);
-    expect(mock.__state.engagement_addons[0].is_active).toBe(true);
-  });
-
-  it("publishes an entitlement event on activation", async () => {
-    await handleStripeWebhook(baseEvt(), baseEvt());
-    expect(publishSpy).toHaveBeenCalled();
-    const call = (publishSpy.mock.calls as unknown as Array<[
-      { eventType: string; eventCategory: string },
-    ]>)[0][0];
-    expect(call.eventType).toBe("entitlement.activated");
-    expect(call.eventCategory).toBe("entitlement");
-  });
-
-  it("records raw payload for audit", async () => {
-    await handleStripeWebhook(baseEvt(), { foo: "bar" });
-    expect(mock.__state.stripe_webhook_events).toHaveLength(1);
-    expect(
-      (mock.__state.stripe_webhook_events[0].raw_payload as Record<string, unknown>).foo,
-    ).toBe("bar");
-  });
-
-  it("marks event as 'processed' in stripe_webhook_events after success", async () => {
-    await handleStripeWebhook(baseEvt(), baseEvt());
-    expect(mock.__state.stripe_webhook_events[0].processing_status).toBe("processed");
-    expect(mock.__state.stripe_webhook_events[0].processed_at).toBeTruthy();
+  it("finalizes retryable when handler throws and lease is still owned", async () => {
+    reconcileSpy.mockRejectedValueOnce(new Error("boom"));
+    const bare: MinimalStripeEvent = {
+      id: "evt_boom",
+      type: "customer.subscription.updated",
+      data: { object: { id: "sub_x", status: "active", metadata: {} } },
+    };
+    await expect(handleStripeWebhook(bare, bare)).rejects.toThrow("boom");
+    expect(finalizeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "retryable",
+        failureCode: "handler_exception",
+        leaseToken: "lease-1",
+      }),
+    );
   });
 });

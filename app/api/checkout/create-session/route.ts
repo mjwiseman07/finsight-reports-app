@@ -16,6 +16,11 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
 import { bootstrapCompanyForUser } from "@/lib/tcp1/create-session-company";
 import {
+  RA_PRO_TIER_KEY,
+  allocateNextRaProPilotSlotNumber,
+  collectRaProPilotCohortOccupiedNumbers,
+} from "@/lib/review-assist-pro/limits";
+import {
   isSoloBkGated,
   isSoloBkBypassAllowed,
   isReviewAssistGated,
@@ -23,6 +28,10 @@ import {
   isReviewAssistProGated,
   isReviewAssistProBypassAllowed,
 } from "@/lib/tcp1/launch-gates";
+import {
+  isRaProCutoverCommerceClosed,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -177,6 +186,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { error: "tier_not_supported", tier_key: tierKey },
       { status: 400 },
+    );
+  }
+  // Temporary cutover commerce gate (server env only; no cookie/token bypass).
+  // Must run before Stripe session creation. Fail-closed when unset/malformed.
+  if (tierKey === "review_assist_pro" && isRaProCutoverCommerceClosed()) {
+    return NextResponse.json(
+      {
+        error: "temporarily_unavailable",
+        code: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+      },
+      { status: 503 },
     );
   }
   // Launch gates — parity with middleware.ts via shared launch-gates helper.
@@ -352,17 +372,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (tierKey === "review_assist_pro" && track === "pilot") {
-    const cap = parseInt(process.env.PILOT_CAP_REVIEW_ASSIST_PRO ?? "25", 10);
-    const { count, error: capError } = await admin
+    // Canonical cohort occupancy (decision 3A) — must match activation RPC:
+    // every valid pilot_slot_number in 1..CAP occupies capacity regardless of
+    // pilot_status. No silent reclaim of cancelled/non-active numbered slots.
+    const { data: cohortRows, error: capError } = await admin
       .from("pilot_slots")
-      .select("id", { count: "exact", head: true })
-      .eq("tier_key", "review_assist_pro")
-      .eq("pilot_status", "active");
+      .select("pilot_slot_number")
+      .eq("tier_key", RA_PRO_TIER_KEY)
+      .not("pilot_slot_number", "is", null);
     if (capError) {
       console.error("[create-session] RA Pro pilot-cap query failed", capError);
       return NextResponse.json({ error: "pilot_cap_query_failed" }, { status: 500 });
     }
-    if ((count ?? 0) >= cap) {
+    const occupied = collectRaProPilotCohortOccupiedNumbers(cohortRows ?? []);
+    if (allocateNextRaProPilotSlotNumber(occupied) === null) {
       return NextResponse.json({ error: "pilot_cap_reached" }, { status: 409 });
     }
   }
@@ -388,6 +411,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     pricing_structure: pricingStructure,
     pricing_cadence: pricingCadence,
     track,
+    buyer_user_id: user.id,
+    business_name: businessName,
   };
   if (firmId) metadata.firm_id = firmId;
   if (companyId) metadata.company_id = companyId;

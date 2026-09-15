@@ -68,7 +68,7 @@ export const DEMO_FIRMS: readonly DemoFirmSpec[] = [
     companyName: "Advisacor Demo Client (RA Pro)",
     clientName: "Advisacor Demo Client (RA Pro)",
     holders: RA_PRO_SANDBOX_HOLDERS,
-    complimentaryCap: 10,
+    complimentaryCap: 2,
   },
 ] as const;
 

@@ -103,38 +103,51 @@ async function ensureSandboxHolder(holder: SandboxHolderSpec): Promise<string> {
 // -------- Firms / pilot_slots / memberships --------
 
 async function upsertFirm(spec: DemoFirmSpec) {
-  const { error } = await supabase.from("firms").upsert(
-    {
-      id: spec.firmId,
-      name: spec.firmName,
-      advisor_name:
-        spec.tierKey === "review_assist_pro"
-          ? "Demo RA Pro Controller"
-          : "Demo RA Reviewer",
-      reply_to_email:
-        spec.tierKey === "review_assist_pro"
-          ? "demo-rapro@advisacor.com"
-          : "demo-ra@advisacor.com",
-      is_demo: true,
-    },
-    { onConflict: "id" },
-  );
+  const payload: Record<string, unknown> = {
+    id: spec.firmId,
+    name: spec.firmName,
+    advisor_name:
+      spec.tierKey === "review_assist_pro"
+        ? "Demo RA Pro Controller"
+        : "Demo RA Reviewer",
+    reply_to_email:
+      spec.tierKey === "review_assist_pro"
+        ? "demo-rapro@advisacor.com"
+        : "demo-ra@advisacor.com",
+    is_demo: true,
+  };
+  // RA Pro 1A: canonical billing link (server-controlled; service role).
+  if (spec.tierKey === "review_assist_pro") {
+    payload.billing_company_id = spec.companyId;
+  }
+
+  const { error } = await supabase.from("firms").upsert(payload, { onConflict: "id" });
   if (error) bail(`upsert firms(${spec.firmId})`, error);
   console.log(`✓ firm ${spec.firmName}`);
 }
 
 async function upsertPilotSlot(spec: DemoFirmSpec) {
-  const { data: existing, error: readErr } = await supabase
-    .from("pilot_slots")
-    .select("id")
-    .eq("firm_id", spec.firmId)
-    .eq("tier_key", spec.tierKey)
-    .maybeSingle();
+  const isRaPro = spec.tierKey === "review_assist_pro";
+  const lookup = isRaPro
+    ? supabase
+        .from("pilot_slots")
+        .select("id")
+        .eq("company_id", spec.companyId)
+        .eq("tier_key", spec.tierKey)
+        .maybeSingle()
+    : supabase
+        .from("pilot_slots")
+        .select("id")
+        .eq("firm_id", spec.firmId)
+        .eq("tier_key", spec.tierKey)
+        .maybeSingle();
+
+  const { data: existing, error: readErr } = await lookup;
   if (readErr) bail(`read pilot_slots(${spec.firmId})`, readErr);
 
   const payload = {
-    firm_id: spec.firmId,
-    company_id: null,
+    firm_id: isRaPro ? null : spec.firmId,
+    company_id: isRaPro ? spec.companyId : null,
     tier_key: spec.tierKey,
     pilot_status: "complimentary" as const,
     pricing_structure: "complimentary" as const,
@@ -333,14 +346,14 @@ async function main() {
     const defaultOwner = holderIds[0];
     if (!defaultOwner) bail("no holder id for default owner", null);
 
-    // 2. Firm + pilot slot + super-admin membership
+    // 2. Company first (RA Pro billing FK), then firm + pilot + membership
+    await upsertCompany(spec);
     await upsertFirm(spec);
     await upsertPilotSlot(spec);
     await upsertMembership(spec.firmId, SUPER_ADMIN_USER_ID);
 
-    // 3. Company + firm_client (owner defaults to Slot 1 on first insert
+    // 3. firm_client (owner defaults to Slot 1 on first insert
     //    only; existing owner is preserved on re-runs).
-    await upsertCompany(spec);
     await upsertFirmClient(spec, defaultOwner);
 
     console.log("");

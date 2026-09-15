@@ -1,0 +1,26 @@
+{
+  "decision_protocol": "ra-pro-cutover-operator-decision/v1",
+  "mapping_ceremony_version": "ra-pro-cutover-mapping-ceremony/v1",
+  "mapping_artifact_sha256": "93f6fe31360222ccd282e814a3764ccf07929e7cb91c25c70e10b750ec0ec953",
+  "product_owner_confirmed_at": "2026-09-15T03:41:39.4307783Z",
+  "confirmation_class": "operator_visible_ceremony",
+  "classification": "internal_smoke_demo_excluded",
+  "notes": "All four authorizing RA Pro entitlements observed at mapping time were intentionally classified as internal smoke/demo records. No legacy production customer cutover mapping was authorized. This release performs no company-firm backfill.",
+  "source_aggregate_counts": {
+    "authorizing_ra_pro_slots": 4,
+    "company_owned_slots": 3,
+    "firm_owned_slots": 1,
+    "firms_total": 6,
+    "active_firm_members_distinct": 7
+  },
+  "actions": {
+    "NO_CUTOVER": 4,
+    "LINK_EXISTING_FIRM": 0,
+    "CREATE_NEW_FIRM": 0
+  },
+  "handle_collision_count": 0,
+  "company_uniqueness_collision": false,
+  "firm_uniqueness_collision": false,
+  "backfill_authorized": false,
+  "expected_linked_firms_after_migration": 0
+}

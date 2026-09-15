@@ -39,14 +39,30 @@ describe("requireFirmAuth", () => {
     await expect(requireFirmAuth(req("t"))).rejects.toMatchObject({ message: "no_firm_membership", status: 403 });
   });
 
-  it("returns only active memberships", async () => {
+  it("returns only active memberships that are RA Pro entitled", async () => {
     mock.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
     mock.__seed("firm_memberships", [
       { firm_id: "f1", user_id: "u1", role: "firm_admin", status: "active" },
       { firm_id: "f2", user_id: "u1", role: "bookkeeper", status: "revoked" },
     ]);
+    mock.__seed("firms", [
+      { id: "f1", billing_company_id: "billing-f1", name: "Firm f1" },
+      { id: "f2", billing_company_id: "billing-f2", name: "Firm f2" },
+    ]);
+    mock.__seed("pilot_slots", [
+      { company_id: "billing-f1", tier_key: "review_assist_pro", pilot_status: "active" },
+    ]);
     const ctx = await requireFirmAuth(req("t"));
     expect(ctx.firmIds).toEqual(["f1"]);
+  });
+
+  it("denies unlinked firm membership alone", async () => {
+    const { seedUnlinkedFirmUser } = await import("./_mock-service");
+    seedUnlinkedFirmUser(mock, "u1", "f-unlinked");
+    await expect(requireFirmAuth(req("t"))).rejects.toMatchObject({
+      message: "forbidden",
+      status: 403,
+    });
   });
 
   it("firm_admin is writer", async () => {
