@@ -1,149 +1,136 @@
+/**
+ * RA Pro cutover gate — PRE-CLAIM hold in stripe-sync.
+ * Closed/missing/malformed must not call claimStripeWebhookEvent.
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const fromMock = vi.hoisted(() => vi.fn());
-const activateMock = vi.hoisted(() => vi.fn());
-const upsertMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/lib/supabase/service", () => ({
-  createServiceClient: () => ({ from: fromMock }),
-}));
-
-vi.mock("@/lib/review-assist-pro/activation", () => {
-  class RaProActivationError extends Error {
-    constructor(
-      message: string,
-      public readonly code: string,
-    ) {
-      super(message);
-      this.name = "RaProActivationError";
-    }
-  }
-  return {
-    activateReviewAssistProSubscription: (...args: unknown[]) =>
-      activateMock(...args),
-    RaProActivationError,
-  };
-});
-
-import { handleTcp1CheckoutCompleted } from "@/lib/tcp1/stripe-pilot-checkout";
 import { RA_PRO_CUTOVER_COMMERCE_GATED_CODE } from "@/lib/review-assist-pro/cutover-commerce-gate";
 
-const BUYER_USER_ID = "11111111-1111-1111-1111-111111111111";
-const COMPANY_ID = "22222222-2222-2222-2222-222222222222";
+const claimSpy = vi.hoisted(() => vi.fn());
+const finalizeSpy = vi.hoisted(() => vi.fn());
+const checkoutMock = vi.hoisted(() => vi.fn());
 
-function thenableQuery(data: unknown, error: null | object = null) {
-  const result = Promise.resolve({ data, error });
-  const chain: Record<string, unknown> = {};
-  const self = () => chain;
-  chain.select = self;
-  chain.eq = self;
-  chain.in = self;
-  chain.gt = self;
-  chain.order = self;
-  chain.upsert = (...args: unknown[]) => upsertMock(...args);
-  chain.maybeSingle = () =>
-    result.then((r) => ({
-      data: Array.isArray(r.data) ? (r.data[0] ?? null) : r.data,
-      error: r.error,
-    }));
-  chain.then = (
-    onFulfilled: (v: unknown) => unknown,
-    onRejected?: (e: unknown) => unknown,
-  ) => result.then(onFulfilled, onRejected);
-  return chain;
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceClient: () => ({ from: vi.fn() }),
+}));
+vi.mock("@/lib/tcp1/stripe-pilot-checkout", () => ({
+  handleTcp1CheckoutCompleted: (...args: unknown[]) => checkoutMock(...args),
+  handleTcp1SubscriptionDeleted: vi.fn(),
+}));
+vi.mock("@/lib/subscription-sync", () => ({
+  reconcilePilotSlotStatus: vi.fn(async () => ({ updated: false })),
+}));
+vi.mock("@/lib/entitlements/webhook-lease", () => ({
+  claimStripeWebhookEvent: (...args: unknown[]) => claimSpy(...args),
+  finalizeStripeWebhookEvent: (...args: unknown[]) => finalizeSpy(...args),
+}));
+
+import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements/stripe-sync";
+
+function checkoutEvt(
+  id: string,
+  tierKey: string,
+  extraMeta?: Record<string, string>,
+): MinimalStripeEvent {
+  return {
+    id,
+    type: "checkout.session.completed",
+    livemode: false,
+    data: {
+      object: {
+        id: `cs_${id}`,
+        metadata: {
+          tier_key: tierKey,
+          company_id: "co-1",
+          ...extraMeta,
+        },
+      },
+    },
+  };
 }
 
-describe("RA Pro cutover gate — checkout webhook hold", () => {
+describe("RA Pro cutover gate — pre-claim webhook hold", () => {
   beforeEach(() => {
-    activateMock.mockReset();
-    upsertMock.mockReset();
-    fromMock.mockReset();
-    fromMock.mockImplementation(() =>
-      thenableQuery([{ id: BUYER_USER_ID, stripe_customer_id: "cus_x" }]),
-    );
+    claimSpy.mockReset();
+    finalizeSpy.mockReset();
+    checkoutMock.mockReset();
+    claimSpy.mockResolvedValue({
+      outcome: "claimed",
+      leaseToken: "lease-1",
+      attemptCount: 1,
+    });
+    finalizeSpy.mockResolvedValue({ ok: true });
   });
 
-  it("holds RA Pro activation as retryable when gate closed", async () => {
+  it("holds RA Pro checkout before lease claim when gate closed", async () => {
     process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "closed";
-    const outcome = await handleTcp1CheckoutCompleted({
-      id: "cs_gated",
-      subscription: "sub_1",
-      customer: "cus_x",
-      metadata: {
-        tier_key: "review_assist_pro",
-        company_id: COMPANY_ID,
-        track: "pilot",
-        buyer_user_id: BUYER_USER_ID,
-      },
+    const r = await handleStripeWebhook(
+      checkoutEvt("evt_ra_closed", "review_assist_pro"),
+      {},
+    );
+    expect(r).toEqual({
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
     });
-    expect(outcome).toEqual({
-      outcome: "retryable_failure",
-      reason: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
-    });
-    expect(activateMock).not.toHaveBeenCalled();
+    expect(claimSpy).not.toHaveBeenCalled();
+    expect(finalizeSpy).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
-  it("missing gate env fails closed for RA Pro", async () => {
+  it("missing gate env fails closed before lease claim for RA Pro", async () => {
     delete process.env.RA_PRO_CUTOVER_COMMERCE_GATE;
-    const outcome = await handleTcp1CheckoutCompleted({
-      id: "cs_missing_gate",
-      subscription: "sub_1",
-      customer: "cus_x",
-      metadata: {
-        tier_key: "review_assist_pro",
-        company_id: COMPANY_ID,
-        track: "pilot",
-        buyer_user_id: BUYER_USER_ID,
-      },
+    const r = await handleStripeWebhook(
+      checkoutEvt("evt_ra_missing", "review_assist_pro"),
+      {},
+    );
+    expect(r).toEqual({
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
     });
-    expect(outcome).toEqual({
-      outcome: "retryable_failure",
-      reason: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
-    });
-    expect(activateMock).not.toHaveBeenCalled();
+    expect(claimSpy).not.toHaveBeenCalled();
+    expect(checkoutMock).not.toHaveBeenCalled();
   });
 
   it("does not gate unrelated solo_bookkeeper checkout", async () => {
     process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "closed";
-    upsertMock.mockResolvedValue({ data: null, error: null });
-    fromMock.mockImplementation((table: string) => {
-      if (table === "pilot_slots") {
-        return thenableQuery([]);
-      }
-      return thenableQuery(null);
-    });
-    const outcome = await handleTcp1CheckoutCompleted({
-      id: "cs_solo",
-      subscription: "sub_solo",
-      customer: "cus_x",
-      metadata: {
-        tier_key: "solo_bookkeeper",
-        firm_id: "33333333-3333-3333-3333-333333333333",
-        track: "standard",
-        pricing_structure: "flat",
-        pricing_cadence: "monthly",
-      },
-    });
-    expect(outcome).toEqual({ outcome: "handled" });
-    expect(activateMock).not.toHaveBeenCalled();
-    expect(upsertMock).toHaveBeenCalled();
+    checkoutMock.mockResolvedValue({ outcome: "handled" });
+    const r = await handleStripeWebhook(
+      checkoutEvt("evt_solo", "solo_bookkeeper"),
+      {},
+    );
+    expect(r).toEqual({ status: "processed" });
+    expect(claimSpy).toHaveBeenCalledTimes(1);
+    expect(checkoutMock).toHaveBeenCalledTimes(1);
   });
 
-  it("reopens RA Pro activation when gate is open", async () => {
+  it("admits RA Pro checkout when gate is open (claim then activate)", async () => {
     process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "open";
-    activateMock.mockResolvedValue({ firmId: "f1", slotId: "s1" });
-    const outcome = await handleTcp1CheckoutCompleted({
-      id: "cs_open",
-      subscription: "sub_1",
-      customer: "cus_x",
-      metadata: {
-        tier_key: "review_assist_pro",
-        company_id: COMPANY_ID,
-        track: "pilot",
-        buyer_user_id: BUYER_USER_ID,
-      },
+    checkoutMock.mockResolvedValue({ outcome: "handled" });
+    const r = await handleStripeWebhook(
+      checkoutEvt("evt_ra_open", "review_assist_pro"),
+      {},
+    );
+    expect(r).toEqual({ status: "processed" });
+    expect(claimSpy).toHaveBeenCalledTimes(1);
+    expect(checkoutMock).toHaveBeenCalledTimes(1);
+    expect(finalizeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "processed", leaseToken: "lease-1" }),
+    );
+  });
+
+  it("Stripe metadata cannot bypass closed admission", async () => {
+    process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "closed";
+    const r = await handleStripeWebhook(
+      checkoutEvt("evt_meta_bypass", "review_assist_pro", {
+        already_admitted: "true",
+        ra_pro_cutover_admitted: "1",
+        gate: "open",
+      }),
+      {},
+    );
+    expect(r).toEqual({
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
     });
-    expect(outcome).toEqual({ outcome: "handled" });
-    expect(activateMock).toHaveBeenCalledTimes(1);
+    expect(claimSpy).not.toHaveBeenCalled();
   });
 });

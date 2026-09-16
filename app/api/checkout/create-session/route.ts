@@ -189,7 +189,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
   // Temporary cutover commerce gate (server env only; no cookie/token bypass).
-  // Must run before Stripe session creation. Fail-closed when unset/malformed.
+  // Must run before Stripe customer/session creation. Fail-closed when unset/malformed.
   if (tierKey === "review_assist_pro" && isRaProCutoverCommerceClosed()) {
     return NextResponse.json(
       {

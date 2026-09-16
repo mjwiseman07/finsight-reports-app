@@ -1,6 +1,12 @@
 /**
  * Stripe webhook → entitlement sync.
  * Idempotent via stripe_webhook_events PK + durable lease ownership.
+ *
+ * Cutover note: the RA Pro commerce gate is an *admission* check only.
+ * Closed/missing/malformed blocks RA Pro checkout.session.completed
+ * *before* lease claim (retryable HTTP 500, no claim). Once admitted under an
+ * open gate and claimed, the row is never deleted for gate reasons — closure
+ * does not cancel in-flight work; main processing/failure semantics apply.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
@@ -15,6 +21,10 @@ import {
   claimStripeWebhookEvent,
   finalizeStripeWebhookEvent,
 } from "@/lib/entitlements/webhook-lease";
+import {
+  isRaProCutoverCommerceClosed,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface MinimalStripeEvent {
   id: string;
@@ -53,10 +63,25 @@ function sanitizeFailureCode(code: string | undefined): string {
   return raw.slice(0, 64) || "unknown";
 }
 
+function isRaProCheckoutCompletedEvent(event: MinimalStripeEvent): boolean {
+  if (event.type !== "checkout.session.completed") return false;
+  return event.data.object.metadata?.tier_key === "review_assist_pro";
+}
+
 export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
 ): Promise<StripeWebhookResult> {
+  // Admission check only: hold before lease claim so HTTP 500 stays retryable.
+  // Never erase an admitted (claimed) row to make a gate hold retryable.
+  // Never re-check the gate after claim.
+  if (isRaProCheckoutCompletedEvent(event) && isRaProCutoverCommerceClosed()) {
+    return {
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+    };
+  }
+
   void rawPayload;
   const claim = await claimStripeWebhookEvent({
     stripeEventId: event.id,

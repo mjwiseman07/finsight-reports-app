@@ -1,6 +1,10 @@
 /**
  * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots upsert.
  * Review Assist Pro (1A) activates via transactional RPC (company + linked firm).
+ *
+ * RA Pro cutover commerce gate is an admission check in stripe-sync only
+ * (pre-lease-claim). Do not re-check the gate here: admitted events must
+ * finish under main processing semantics even if the gate later closes.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";
@@ -12,10 +16,6 @@ import {
   RA_PRO_PILOT_COHORT_CAP,
   RA_PRO_TIER_KEY,
 } from "@/lib/review-assist-pro/limits";
-import {
-  isRaProCutoverCommerceClosed,
-  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
-} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface CheckoutSessionPayload {
   id: string;
@@ -106,15 +106,7 @@ function mapActivationError(err: RaProActivationError): CheckoutCompletionOutcom
 async function handleRaProCheckoutCompleted(
   session: CheckoutSessionPayload,
 ): Promise<CheckoutCompletionOutcome> {
-  // Cutover commerce gate: hold activation as retryable (never terminal).
-  // Server env only — ignore Stripe metadata / client hints.
-  if (isRaProCutoverCommerceClosed()) {
-    return {
-      outcome: "retryable_failure",
-      reason: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
-    };
-  }
-
+  // Gate is admission-only in stripe-sync (pre-claim). Do not re-check here.
   const companyId = session.metadata?.company_id;
   const firmId = session.metadata?.firm_id;
   const track = session.metadata?.track;
