@@ -1,6 +1,6 @@
 {
   "package": "ra-pro-cutover-apply-tooling",
-  "authorized_pr_head": "PENDING_AFTER_COMMIT",
+  "authorized_pr_head": "a74d5108752d93e1ca4baa78f4dc7425120658b7",
   "artifact_commit": "b4f06a1ca889bdfb477397b990860b21e788a877",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql",
@@ -102,9 +102,9 @@
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs",
-    "oid": "d5eac3ddb8682aa602e3830eb91398ee5af70717",
-    "sha256": "8b7f9eea4b22b0a23537cd13a99ede4f5b269cef3f8ae297d483ebe3d9cd9b3f",
-    "bytes": 287471,
+    "oid": "7d6fda19b42c0ac12dfdc6f12e81acfcf6108592",
+    "sha256": "959286d36bdb8e28535d7c4e1daad8c5fc470208e1e1e467c282a461ba62faf6",
+    "bytes": 287453,
     "pg_version": "8.21.0",
     "lockfile_path": "package-lock.json",
     "lockfile_oid": "580545d135c534c79f9e27e5f2b93fda5fedb5c2",
@@ -126,9 +126,9 @@
     },
     {
       "path": "scripts/security/ra-pro-cutover-apply-constants.js",
-      "oid": "fba050a7e09f76af201f8469b2645f0185635256",
-      "sha256": "b252b2d8967ab356b4cfe7521748f5eb46eecfa909297434f41b29745fb0e7f3",
-      "bytes": 5114
+      "oid": "1cfb194bdfc4f856bd65d274b6637e933e3c368a",
+      "sha256": "85dc30906ba727514ff5951592ed868e86e1105708c6fe187f4c75fd802f6db2",
+      "bytes": 5096
     },
     {
       "path": "scripts/security/git-blob-authority.js",
@@ -157,15 +157,13 @@
   ],
   "notes": [
     "Dedicated RA Pro cutover applicator package — does not retarget FRLS or containment.",
-    "Three-commit chain: freeze (this staging) → bundle-source (bake AUTHORIZED_TOOLING_FREEZE) → tip (set bundle_source_commit).",
-    "required_prior_dry_run_* pins are null / published_prior_dry_run.status=UNPUBLISHED; apply fails closed with PRIOR_DRY_RUN_PINS_UNPUBLISHED before production contact.",
-    "required_precondition_* pins are null / published_precondition_evidence.status=UNPUBLISHED; production dry-run refuses before SecureString/Node/DB.",
+    "Executable freeze AUTHORIZED_TOOLING_FREEZE / authorized_pr_head = a74d5108752d93e1ca4baa78f4dc7425120658b7.",
+    "bundle_source_commit remains null until the tip-pin commit (non-circular two-authority model).",
+    "required_prior_dry_run_* pins null / UNPUBLISHED; apply fails closed before production contact.",
+    "required_precondition_* pins null / UNPUBLISHED; production dry-run refuses before SecureString/Node/DB.",
     "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
     "Decision LF seals: OID 0dd39de5…, SHA-256 f00039cb…, bytes 1122; mapping SHA 93f6fe31…; NO_CUTOVER×4.",
-    "Native Windows Job Object containment uses RaProCutoverVisible.JobApi (not FrlsVisible).",
-    "Forbidden credential channels: DATABASE_URL, CONTAINMENT_APPLY_DATABASE_URL, FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL, RA_PRO_CUTOVER_APPLY_SSL_ROOTCERT.",
-    "Synthetic harness channel: RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL (loopback only).",
-    "auth_seals_digest covers artifact/project/migration/DB env/token/advisory/pg/lockfile only; bundle/decision/native/freeze relation are independent blob checks."
+    "auth_seals_digest covers artifact/project/migration/DB env/token/advisory/pg/lockfile only."
   ],
   "prior_dry_run_gates": {
     "path": "scripts/security/ra-pro-cutover-prior-dry-run-gates.ps1",

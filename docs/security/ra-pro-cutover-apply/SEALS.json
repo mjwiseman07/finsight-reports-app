@@ -20,7 +20,7 @@
   "authorized_tooling_freeze": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
   "bundle_source_commit": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
   "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
-  "standalone_bundle_sha256": "8b7f9eea4b22b0a23537cd13a99ede4f5b269cef3f8ae297d483ebe3d9cd9b3f",
+  "standalone_bundle_sha256": "959286d36bdb8e28535d7c4e1daad8c5fc470208e1e1e467c282a461ba62faf6",
   "required_prior_dry_run_evidence_sha256": null,
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
