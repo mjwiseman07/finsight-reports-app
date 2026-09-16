@@ -37,6 +37,7 @@ function checkoutEvt(id = "evt_checkout_1"): MinimalStripeEvent {
 }
 
 beforeEach(() => {
+  process.env.RA_PRO_CUTOVER_COMMERCE_GATE = "open";
   for (const k of Object.keys(mock.__state)) mock.__state[k] = [];
   checkoutMock.mockReset();
   claimSpy.mockReset();
