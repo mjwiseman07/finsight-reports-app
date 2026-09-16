@@ -1,6 +1,6 @@
 {
   "package": "ra-pro-cutover-apply-tooling",
-  "authorized_pr_head": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
+  "authorized_pr_head": "8d49fb3d1738136b3c91f49d39d99f7ca20c0dd0",
   "artifact_commit": "b4f06a1ca889bdfb477397b990860b21e788a877",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "migration_path": "supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql",
@@ -27,41 +27,41 @@
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
   "required_prior_dry_run_bundle_source": null,
-  "bundle_source_commit": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
+  "bundle_source_commit": "8d49fb3d1738136b3c91f49d39d99f7ca20c0dd0",
   "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
   "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
   "native_bootstrap": {
     "path": "scripts/security/bootstrap-ra-pro-cutover-apply.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null,
+    "oid": "8e5309e7f4771d1f71aa127ea09fbf1d4f9fc668",
+    "sha256": "323f4dc4fb9369ff0a5c353882f5b9229880f9d03ad2e622036d33396ab73a10",
+    "bytes": 33892,
     "invoke": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <materialized>"
   },
   "native_entry": {
     "path": "scripts/security/enter-ra-pro-cutover-apply.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "95f99ccc76a00dcb066d20513730a5b4fe9a9030",
+    "sha256": "296dcc62cb2d14efcd90678c04448a0c2489ad0fd8cf5ec8012edc857551d717",
+    "bytes": 11896
   },
   "evidence_protocol": {
     "id": "RA_PRO_CUTOVER_EVIDENCE_V1",
     "frame": "RA_PRO_CUTOVER_EVIDENCE_V1:<base64url-utf8-json>",
     "schema_version": 1,
     "path": "scripts/security/ra-pro-cutover-evidence.js",
-    "oid": null,
-    "sha256": null,
-    "bytes": null,
+    "oid": "78e7a93653e3b709657e21a847e07ddf54e107d6",
+    "sha256": "3975997239f2842a86cb384b2a89582a139836890f0f721d01384847202c56db",
+    "bytes": 8424,
     "frame_tool": {
       "path": "scripts/security/ra-pro-cutover-evidence-frame-tool.js",
-      "oid": null,
-      "sha256": null,
-      "bytes": null
+      "oid": "cd2c0ad13e9a93e2d628ef411c449f407ee81d86",
+      "sha256": "9b4702826f1fbd11890d947c48d65d55a64866aa55530704da014b32dc9661e0",
+      "bytes": 2325
     },
     "decode_frame": {
       "path": "scripts/security/ra-pro-cutover-evidence-decode-frame.js",
-      "oid": null,
-      "sha256": null,
-      "bytes": null
+      "oid": "81388369ddedf3d8f672e535059ecaf47d8c8b07",
+      "sha256": "6c4e292bc9242648c6cbf881084b8293b8c24b6b58d85bab4cf549fd71207436",
+      "bytes": 1184
     },
     "shared_framing_module": {
       "path": "scripts/security/containment-evidence-protocol.js",
@@ -72,33 +72,33 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "02fcb5627229dbfa38d65f394287d2797fdfbf7f",
+    "sha256": "267e01402c3aac42010dc7c4f4e847d1cbd6d88693c3547e768da3a0db2242df",
+    "bytes": 20998
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-apply-ceremony.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "e70ff9c6ec08e21b65b9ec169f3c77b839051892",
+    "sha256": "32d92a1d11d49a45cd722b3f88a6867f7c8330825ea5ead3f851e89c7e1be163",
+    "bytes": 30231
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "69fa2fc179f6d7d15707d71882e18a5f72a0c281",
+    "sha256": "10d924c920b14534f4def2d85fed62e02ceae711700964618e80ecdaf91a86a8",
+    "bytes": 35556
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "572b4f76d0f51a650c204b3b2737e8eb0fa80809",
+    "sha256": "1b66c78188c6751dd074c723c222c3f4d312113175dd1c89bbaa01e1a95cc7e1",
+    "bytes": 24802
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null
+    "oid": "556e06c9e666625b38636cbb170d959bcdfcf429",
+    "sha256": "2f91e7ff7d4862337d1c079f40052b9e31125bb89701ab9be223d06821eb8f71",
+    "bytes": 16722
   },
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs",
@@ -156,44 +156,26 @@
     }
   ],
   "notes": [
-    "Dedicated RA Pro cutover applicator package — does not retarget FRLS or containment.",
+    "Dedicated RA Pro cutover applicator package \u2014 does not retarget FRLS or containment.",
     "authorized_pr_head / AUTHORIZED_TOOLING_FREEZE / bundle_source_commit remain PLACEHOLDER until freeze commits.",
     "required_prior_dry_run_* pins are null / published_prior_dry_run.status=UNPUBLISHED; apply fails closed with PRIOR_DRY_RUN_PINS_UNPUBLISHED before production contact.",
-    "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
-    "Decision LF seals: OID 0dd39de5…, SHA-256 f00039cb…, bytes 1122; mapping SHA 93f6fe31…; NO_CUTOVER×4.",
+    "Migration LF seals at artifact_commit b4f06a1c\u2026: OID d36f5e2c\u2026, SHA-256 c756651f\u2026, bytes 40289.",
+    "Decision LF seals: OID 0dd39de5\u2026, SHA-256 f00039cb\u2026, bytes 1122; mapping SHA 93f6fe31\u2026; NO_CUTOVER\u00d74.",
     "Native Windows Job Object containment uses RaProCutoverVisible.JobApi (not FrlsVisible).",
     "Forbidden credential channels: DATABASE_URL, CONTAINMENT_APPLY_DATABASE_URL, FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL, RA_PRO_CUTOVER_APPLY_SSL_ROOTCERT.",
     "Synthetic harness channel: RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL (loopback only)."
   ],
   "prior_dry_run_gates": {
     "path": "scripts/security/ra-pro-cutover-prior-dry-run-gates.ps1",
-    "oid": null,
-    "sha256": null,
-    "bytes": null,
+    "oid": "7c470609874d8cb9dca93f7995e8e0e4f780d5f7",
+    "sha256": "87b43e73d79a1a40e3f161073d539961de3b80edcd494da451404be308a57819",
+    "bytes": 18886,
     "allowlist": [
       "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
       "DRY_RUN_READY"
     ]
   },
   "published_prior_dry_run": {
-    "status": "UNPUBLISHED",
-    "verdict": null,
-    "evidence_sha256": null,
-    "evidence_bytes": null,
-    "evidence_source": null,
-    "evidence_fixture_path": null,
-    "dry_run_tip": null,
-    "dry_run_bundle_source": null,
-    "dry_run_executable_freeze": null,
-    "dry_run_standalone_bundle": null,
-    "project_ref": "jzmdgwwiestcmmeuhhkr",
-    "migration_version": "20260915004500",
-    "migration_name": "ra_pro_firm_billing_company_id",
-    "migration_path": "supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql",
-    "migration_blob_oid": "d36f5e2c50f7bab956c3191723c0e8a223279df5",
-    "migration_sha256": "c756651f267aaa2ebe5f1331e96d62bfa882507917b4201397f77e25a45f5ff9",
-    "migration_bytes": 40289,
-    "prior_history_count": 187,
-    "notes": "Pins unpublished until authorized production dry-run evidence is published. Apply must fail closed before DB contact."
+    "status": "UNPUBLISHED"
   }
 }

@@ -3,8 +3,8 @@
   "protocol": "freeze-source-tip-seal-chain/v1",
   "notes": [
     "Two-authority model: bundle_source_commit holds the standalone .cjs blob; authorized_pr_head / tooling freeze is the executable pin tip (or freeze commit) that seals module OIDs and points at bundle_source_commit.",
-    "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c… and must not change with tooling commits.",
-    "required_prior_dry_run_* remain null / published_prior_dry_run.status=UNPUBLISHED in this delivery — apply fails closed before production contact.",
+    "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c\u2026 and must not change with tooling commits.",
+    "required_prior_dry_run_* remain null / published_prior_dry_run.status=UNPUBLISHED in this delivery \u2014 apply fails closed before production contact.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING in constants; bootstrap verifies materialized bundle against TOOLING_AUTHORIZATION.standalone_bundle seals."
   ],
   "artifact_commit_migration_decision": "b4f06a1ca889bdfb477397b990860b21e788a877",
@@ -37,13 +37,14 @@
   "prior_history_count": 187,
   "post_history_count": 188,
   "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
-  "bundle_source_commit": "PENDING_AFTER_BUNDLE_SOURCE_COMMIT",
-  "authorized_pr_head": "PENDING_AFTER_TIP_PIN_COMMIT",
+  "bundle_source_commit": "8d49fb3d1738136b3c91f49d39d99f7ca20c0dd0",
+  "authorized_pr_head": "8d49fb3d1738136b3c91f49d39d99f7ca20c0dd0",
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs",
     "sha256": "4000fcaf6cb9f07594c6300cfefbb0b655600497d5e5befab0fae2c4efbcb16c",
     "bytes": 287213,
-    "oid_hash_object_precommit": "44ebd5e8a7df9044edc399687d5421926b982ef2"
+    "oid_hash_object_precommit": "44ebd5e8a7df9044edc399687d5421926b982ef2",
+    "oid": "44ebd5e8a7df9044edc399687d5421926b982ef2"
   },
   "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
   "prior_dry_run_pins": {
