@@ -187,9 +187,10 @@ function Classify-CeremonyFailure([string]$Message) {
 }
 
 function Get-HarnessContaminationEnvNames {
-  # RA Pro cutover has no fixture Target#2 world; the synthetic-URL gate is the only harness channel.
+  # RA Pro cutover has no fixture Target#2 world; synthetic-URL gate (+ optional harness URL) are the only harness channels.
   return @(
-    "RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL"
+    "RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL",
+    "RA_PRO_CUTOVER_CEREMONY_TEST_SYNTHETIC_DATABASE_URL"
   )
 }
 
@@ -421,16 +422,21 @@ try {
 
   Write-Host "[1/3] Hidden credential input..."
   $allowSyntheticGate = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1"
+  $envSyntheticUrl = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_TEST_SYNTHETIC_DATABASE_URL", "Process")
   $hasExplicitSyntheticUrl = -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)
-  if ($hasExplicitSyntheticUrl) {
+  $hasEnvSyntheticUrl = -not [string]::IsNullOrWhiteSpace($envSyntheticUrl)
+  if ($hasExplicitSyntheticUrl -or $hasEnvSyntheticUrl) {
     if (-not $allowSyntheticGate) {
       throw "SYNTHETIC_URL_NOT_ALLOWED: set RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL=1 for harness only"
     }
     $interactiveClose = $false
-    if ($TestSyntheticDatabaseUrl -notmatch '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/') {
+    $syntheticUrl = $(if ($hasExplicitSyntheticUrl) { $TestSyntheticDatabaseUrl } else { $envSyntheticUrl })
+    if ($syntheticUrl -notmatch '^postgres(?:ql)?://.+@127\.0\.0\.1(?::\d+)?/') {
       throw "TEST_URL_NOT_LOOPBACK: synthetic ceremony URL must target 127.0.0.1"
     }
-    $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
+    # Visible-path WaitForPromptReady observes this marker; synthetic harness never blocks on Read-Host.
+    [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "synthetic_harness_ready")
+    $secure = ConvertTo-SecureString -String $syntheticUrl -AsPlainText -Force
   } else {
     Assert-InteractivePathFreeOfHarnessContamination
     [System.IO.File]::WriteAllText((Join-Path $EvidenceOutDir "PROMPT_READY.txt"), "awaiting_securestring_input")

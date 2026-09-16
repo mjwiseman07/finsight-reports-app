@@ -72,9 +72,9 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1",
-    "oid": "a6c487a0bd07f463c288fce999c03a19dafaed1b",
-    "sha256": "8ce1f31251768e921c1676070d65cc85df58c90ed61103d35c0037276fdcc984",
-    "bytes": 27722
+    "oid": "a848ba1031ee1152eef842950591099aa3d0aed5",
+    "sha256": "52bf326e6762405f54aad2ed8d91a207bf8c6dae4a54b6009cc600d486a3c7ed",
+    "bytes": 28329
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-apply-ceremony.ps1",
@@ -90,9 +90,9 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": "572b4f76d0f51a650c204b3b2737e8eb0fa80809",
-    "sha256": "1b66c78188c6751dd074c723c222c3f4d312113175dd1c89bbaa01e1a95cc7e1",
-    "bytes": 24802
+    "oid": "68846987572f0253eb8f024dfc3f4d3c49a0e077",
+    "sha256": "39bed39bb6c137c9647116a504992b08602d61f6a6a49f40e8ecb9c9da62ec08",
+    "bytes": 32720
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1",
@@ -161,6 +161,7 @@
     "bundle_source_commit = 90af07d27e122d80d5fb5072f7a66da818f245a5 (descendant of freeze; holds sealed standalone .cjs).",
     "required_prior_dry_run_* pins null / UNPUBLISHED; apply fails closed before production contact.",
     "required_precondition_* PUBLISHED on tip: evidence fixture SHA-256 fb3625f9… / 1407 bytes; freeze a74d5108…; tip 52fbbfcf…; bundle source 90af07d2…; expires 2026-09-17T05:25:11Z. Ceremony materializes tip git blob only — env/argv/worktree path overrides forbidden.",
+    "Visible dry-run mixed authority: tip materializes visible_ceremony_entry + operator_ceremony from the exact publication tip; freeze materializes launcher/apply/native/gates; no freeze ceremony fallback when precondition PUBLISHED.",
     "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
     "Decision LF seals: OID 0dd39de5…, SHA-256 f00039cb…, bytes 1122; mapping SHA 93f6fe31…; NO_CUTOVER×4.",
     "auth_seals_digest covers artifact/project/migration/DB env/token/advisory/pg/lockfile only; bundle/decision/native/freeze relation are independent blob checks.",

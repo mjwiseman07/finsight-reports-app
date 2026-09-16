@@ -4,6 +4,8 @@
   "notes": [
     "Three-authority publication: freeze → bundle_source → tip. Bootstrap materializes standalone bundle from bundle_source_commit only.",
     "freeze ≠ bundle_source; bundle_source descends from freeze; tip descends from bundle_source.",
+    "Mixed visible dry-run authority: tip owns TOOLING_AUTHORIZATION + visible_ceremony_entry + operator_ceremony; freeze owns launcher/apply/native/gates; bundle_source owns standalone .cjs.",
+    "When precondition evidence is PUBLISHED, dry-run operator_ceremony must tip-materialize; freeze ceremony fallback is forbidden.",
     "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c….",
     "required_prior_dry_run_* remain null / UNPUBLISHED in this delivery; required_precondition_* are PUBLISHED on the tip that pins the LF evidence fixture.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING; bootstrap verifies against TOOLING_AUTHORIZATION.standalone_bundle seals.",

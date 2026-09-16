@@ -43,6 +43,20 @@ Required tip relations:
 
 Bootstrap materializes the standalone bundle from `${bundle_source_commit}:scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs` and verifies OID/SHA/bytes/non-reparse plus exact embedded 40-hex freeze. Other executable authority follows freeze seals.
 
+### Mixed authority map (visible dry-run path)
+
+| Artifact | Authority commit | Notes |
+| --- | --- | --- |
+| `TOOLING_AUTHORIZATION.json` | publication tip (`HEAD`, exact 40-hex) | Loaded only via `git cat-file ${tip}:…` |
+| `visible_ceremony_entry` | publication tip | Supervisor tip-materializes; entry self-verifies tip seals |
+| `operator_ceremony` (dry-run) | publication tip | Entry materializes `${PublicationTip}:${operator_ceremony.path}` and verifies tip seal OID/SHA/bytes/non-reparse. **No freeze fallback when precondition evidence is PUBLISHED.** |
+| `visible_ceremony_launcher` | executable freeze | Entry materializes from freeze seals |
+| `operator_apply_ceremony` | executable freeze | Apply path only |
+| `native_entry` / `native_bootstrap` / precondition gates / evidence modules | executable freeze | Ceremony materializes freeze-owned companions |
+| standalone applicator `.cjs` | `bundle_source_commit` | Bootstrap only |
+
+Publication tip must be an exact resolved 40-hex commit with freeze ← bundle_source ← tip ancestry. Argv/env/ref-name/abbrev-SHA/mutable-worktree substitutions for tip or ceremony path are rejected before prompt/Node/DB.
+
 ### `auth_seals_digest` coverage
 
 SHA-256 of `JSON.stringify` over exactly:

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  External trust-root entry for the visible FRLS lead-session ceremony (dry-run or apply).
+  External trust-root entry for the visible RA Pro cutover ceremony (dry-run or apply).
 
 .DESCRIPTION
   Preferred operator path:
@@ -11,14 +11,24 @@
        -PrHead <freeze> -CeremonyKind <dry-run|apply>.
 
   This entry:
-    - loads tip TOOLING_AUTHORIZATION
+    - loads tip TOOLING_AUTHORIZATION from the exact resolved publication tip (HEAD)
     - requires -PrHead == authorized_pr_head (executable freeze)
+    - requires exact 40-hex publication tip and freeze←bundle_source←tip ancestry
     - requires explicit -CeremonyKind (missing/unknown fails before PROMPT_READY)
-    - materializes visible launcher + the seal-selected ceremony from freeze blobs
-    - verifies OID/SHA-256/bytes against tip authorization
+    - Mixed authority map (explicit):
+        * publication tip: TOOLING_AUTHORIZATION, visible_ceremony_entry (self),
+          operator_ceremony (dry-run) when tip-published
+        * executable freeze: visible_ceremony_launcher, operator_apply_ceremony,
+          native_entry/bootstrap (via ceremony), precondition_gates (via dry-run ceremony)
+        * bundle source: standalone applicator .cjs (via bootstrap)
+    - materializes dry-run operator_ceremony from ${PublicationTip}:path only
+    - materializes launcher + apply ceremony from freeze blobs
+    - when precondition evidence is PUBLISHED, never falls back to freeze ceremony
+    - verifies OID/SHA-256/bytes/non-reparse against tip/freeze seals before execution
     - starts absolute trusted PowerShell executing only the verified launcher
     - never executes mutable worktree launcher/ceremony
     - never sets RA_PRO_CUTOVER_APPLY_DATABASE_URL / never completes credential input
+    - rejects argv/env/ref-name/abbrev-SHA ceremony or publication-tip substitutions
 
   Synthetic harness: -TestStubScript replaces ceremony materialization only AFTER
   tip/freeze/launcher seals pass (defense-in-depth still verifies launcher).
@@ -316,21 +326,102 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   return $true
 }
 
-function Assert-BlobSeal([string]$Freeze, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
+function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
+  if (-not ($Commit -match '^[0-9a-fA-F]{40}$')) {
+    throw "commit identity must be exact 40-hex for $Rel"
+  }
   if (-not $Seal -or -not $Seal.oid -or -not $Seal.sha256 -or -not $Seal.bytes -or -not $Seal.path) {
     throw "missing seal metadata for $Rel"
   }
   if ([string]$Seal.path -ne $Rel) { throw "seal path mismatch for $Rel" }
-  $oid = Invoke-GitText -GitArgs @("rev-parse", "${Freeze}:${Rel}") -WorkDir $WorkDir
+  $resolved = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($Commit + "^{commit}")) -WorkDir $WorkDir
+  if ($resolved.ToLowerInvariant() -ne $Commit.ToLowerInvariant()) {
+    throw ("commit not fully resolved for " + $Rel + ": " + $Commit)
+  }
+  $oid = Invoke-GitText -GitArgs @("rev-parse", "${Commit}:${Rel}") -WorkDir $WorkDir
   if ($oid -ne [string]$Seal.oid) { throw "OID mismatch for $Rel" }
-  $bytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Freeze}:${Rel}") -WorkDir $WorkDir
+  $bytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Commit}:${Rel}") -WorkDir $WorkDir
   if ($bytes.Length -ne [int]$Seal.bytes) { throw "bytes mismatch for $Rel" }
   $sha = Get-Sha256Hex -Bytes $bytes
   if ($sha -ne ([string]$Seal.sha256).ToLowerInvariant()) { throw "SHA-256 mismatch for $Rel" }
   [IO.File]::WriteAllBytes($Dest, $bytes)
   $item = Get-Item -LiteralPath $Dest -Force
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "materialized file is reparse point" }
-  return @{ oid = $oid; sha256 = $sha; bytes = $bytes.Length }
+  return @{ oid = $oid; sha256 = $sha; bytes = $bytes.Length; commit = $Commit.ToLowerInvariant() }
+}
+
+function Test-PreconditionEvidencePublished([object]$Auth) {
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_precondition_evidence"] -and $null -ne $Auth.published_precondition_evidence) {
+    if ($null -ne $Auth.published_precondition_evidence.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_precondition_evidence.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
+  foreach ($v in @(
+      [string]$Auth.required_precondition_evidence_sha256,
+      [string]$Auth.required_precondition_freeze,
+      [string]$Auth.required_precondition_evidence_tip,
+      [string]$Auth.required_precondition_bundle_source
+    )) {
+    if ([string]::IsNullOrWhiteSpace($v)) { return $false }
+  }
+  return $true
+}
+
+function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze, [string]$BundleSource, [string]$WorkDir) {
+  if (-not ($PublicationTip -match '^[0-9a-fA-F]{40}$')) {
+    throw "BLOCKED_PUBLICATION_TIP: publication tip must be exact 40-hex"
+  }
+  if (-not ($Freeze -match '^[0-9a-fA-F]{40}$')) {
+    throw "BLOCKED_PUBLICATION_TIP: freeze must be exact 40-hex"
+  }
+  if (-not ($BundleSource -match '^[0-9a-fA-F]{40}$')) {
+    throw "BLOCKED_PUBLICATION_TIP: bundle_source must be exact 40-hex"
+  }
+  $tipResolved = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($PublicationTip + "^{commit}")) -WorkDir $WorkDir
+  if ($tipResolved.ToLowerInvariant() -ne $PublicationTip.ToLowerInvariant()) {
+    throw "BLOCKED_PUBLICATION_TIP: tip did not resolve to itself (abbrev/ref substitution rejected)"
+  }
+  if ($PublicationTip.ToLowerInvariant() -eq $Freeze.ToLowerInvariant()) {
+    throw "BLOCKED_PUBLICATION_TIP: publication tip must not equal executable freeze"
+  }
+  if ($PublicationTip.ToLowerInvariant() -eq $BundleSource.ToLowerInvariant()) {
+    throw "BLOCKED_PUBLICATION_TIP: publication tip must not equal bundle_source"
+  }
+  if ($Freeze.ToLowerInvariant() -eq $BundleSource.ToLowerInvariant()) {
+    throw "BLOCKED_PUBLICATION_TIP: freeze must not equal bundle_source"
+  }
+  $psi1 = New-Object Diagnostics.ProcessStartInfo
+  $psi1.FileName = "git"
+  $psi1.Arguments = "merge-base --is-ancestor $Freeze $BundleSource"
+  $psi1.WorkingDirectory = $WorkDir
+  $psi1.RedirectStandardOutput = $true
+  $psi1.RedirectStandardError = $true
+  $psi1.UseShellExecute = $false
+  $psi1.CreateNoWindow = $true
+  $p1 = [Diagnostics.Process]::Start($psi1)
+  [void]$p1.StandardOutput.ReadToEnd()
+  [void]$p1.StandardError.ReadToEnd()
+  $p1.WaitForExit()
+  if ($p1.ExitCode -ne 0) {
+    throw "BLOCKED_PUBLICATION_TIP: bundle_source is not a descendant of freeze"
+  }
+  $psi2 = New-Object Diagnostics.ProcessStartInfo
+  $psi2.FileName = "git"
+  $psi2.Arguments = "merge-base --is-ancestor $BundleSource $PublicationTip"
+  $psi2.WorkingDirectory = $WorkDir
+  $psi2.RedirectStandardOutput = $true
+  $psi2.RedirectStandardError = $true
+  $psi2.UseShellExecute = $false
+  $psi2.CreateNoWindow = $true
+  $p2 = [Diagnostics.Process]::Start($psi2)
+  [void]$p2.StandardOutput.ReadToEnd()
+  [void]$p2.StandardError.ReadToEnd()
+  $p2.WaitForExit()
+  if ($p2.ExitCode -ne 0) {
+    throw "BLOCKED_PUBLICATION_TIP: publication tip is not a descendant of bundle_source"
+  }
 }
 
 # --- main ---
@@ -351,7 +442,35 @@ try {
   # Stage-1 containment channel is not an FRLS channel.
   Remove-Item Env:CONTAINMENT_APPLY_DATABASE_URL -ErrorAction SilentlyContinue
 
-  $tip = Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot
+  # Reject mutable publication-tip / ceremony substitutions (argv/env/ref/abbrev).
+  foreach ($forbiddenEnv in @(
+      "RA_PRO_CUTOVER_PUBLICATION_TIP",
+      "RA_PRO_CUTOVER_CEREMONY_PATH",
+      "RA_PRO_CUTOVER_OPERATOR_CEREMONY_PATH",
+      "RA_PRO_CUTOVER_CEREMONY_COMMIT",
+      "RA_PRO_CUTOVER_CEREMONY_REF"
+    )) {
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($forbiddenEnv, "Process"))) {
+      Stop-Entry "BLOCKED_INPUT_INVALID" "input_validate" ("forbidden env substitution: " + $forbiddenEnv)
+    }
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($forbiddenEnv, "User"))) {
+      Stop-Entry "BLOCKED_INPUT_INVALID" "input_validate" ("forbidden env substitution: " + $forbiddenEnv)
+    }
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($forbiddenEnv, "Machine"))) {
+      Stop-Entry "BLOCKED_INPUT_INVALID" "input_validate" ("forbidden env substitution: " + $forbiddenEnv)
+    }
+  }
+
+  $tipRaw = Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot
+  if (-not ($tipRaw -match '^[0-9a-fA-F]{40}$')) {
+    Stop-Entry "BLOCKED_PUBLICATION_TIP" "resolve_publication_tip" "HEAD did not resolve to exact 40-hex"
+  }
+  $tip = $tipRaw.ToLowerInvariant()
+  $tipVerify = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($tip + "^{commit}")) -WorkDir $RepoRoot
+  if ($tipVerify.ToLowerInvariant() -ne $tip) {
+    Stop-Entry "BLOCKED_PUBLICATION_TIP" "resolve_publication_tip" "publication tip failed exact commit verify"
+  }
+
   $authPath = "docs/security/ra-pro-cutover-apply/TOOLING_AUTHORIZATION.json"
   $authJson = [Text.Encoding]::UTF8.GetString((Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${authPath}") -WorkDir $RepoRoot))
   $auth = $authJson | ConvertFrom-Json
@@ -363,7 +482,23 @@ try {
     Stop-Entry "BLOCKED_PIN_MISMATCH" "tip_freeze_relation" "authorization still PENDING_AFTER_COMMIT"
   }
 
-  $freeze = [string]$auth.authorized_pr_head
+  $freeze = ([string]$auth.authorized_pr_head).ToLowerInvariant()
+  $bundleSource = $null
+  if ($null -ne $auth.PSObject.Properties["bundle_source_commit"] -and -not [string]::IsNullOrWhiteSpace([string]$auth.bundle_source_commit)) {
+    $bundleSource = ([string]$auth.bundle_source_commit).ToLowerInvariant()
+  } elseif ($null -ne $auth.PSObject.Properties["required_precondition_bundle_source"] -and -not [string]::IsNullOrWhiteSpace([string]$auth.required_precondition_bundle_source)) {
+    $bundleSource = ([string]$auth.required_precondition_bundle_source).ToLowerInvariant()
+  }
+  if ([string]::IsNullOrWhiteSpace($bundleSource) -or $bundleSource -notmatch '^[0-9a-f]{40}$') {
+    Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "bundle_source_commit (exact 40-hex) required for publication-tip ancestry"
+  }
+  try {
+    Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze -BundleSource $bundleSource -WorkDir $RepoRoot
+  } catch {
+    Stop-Entry "BLOCKED_PUBLICATION_TIP" "tip_ancestry" ([string]$_.Exception.Message)
+  }
+
+  $preconditionPublished = Test-PreconditionEvidencePublished -Auth $auth
   $ve = $auth.visible_ceremony_entry
   $vl = $auth.visible_ceremony_launcher
   $ocDry = $auth.operator_ceremony
@@ -402,6 +537,13 @@ try {
     Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "ceremony seal missing path"
   }
 
+  # Dry-run ceremony authority: tip seal + tip blob only. Apply remains freeze-owned.
+  # When precondition evidence is PUBLISHED, freeze ceremony fallback is forbidden.
+  $ceremonyAuthorityCommit = $freeze
+  if ($CeremonyKind -eq "dry-run") {
+    $ceremonyAuthorityCommit = $tip
+  }
+
   # Defense-in-depth: when tip publishes visible_ceremony_entry, verify this entry script.
   if ($ve -and $ve.sha256 -and $ve.bytes) {
     $entryPath = $PSCommandPath
@@ -431,13 +573,14 @@ try {
 
   $launcherSeal = $null
   try {
-    $launcherSeal = Assert-BlobSeal -Freeze $freeze -Rel "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1" -Seal $vl -Dest $launcherDest -WorkDir $RepoRoot
+    $launcherSeal = Assert-BlobSeal -Commit $freeze -Rel "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1" -Seal $vl -Dest $launcherDest -WorkDir $RepoRoot
   } catch {
     Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_launcher" ([string]$_.Exception.Message)
   }
 
   $ceremonySha = [string]$oc.sha256
   $ceremonyBytes = [int]$oc.bytes
+  $ceremonyMaterialCommit = $null
   if (-not [string]::IsNullOrWhiteSpace($TestStubScript)) {
     Assert-SafePath "TestStubScript" $TestStubScript
     if (-not (Test-Path -LiteralPath $TestStubScript)) {
@@ -448,11 +591,19 @@ try {
     [IO.File]::WriteAllBytes($ceremonyDest, [IO.File]::ReadAllBytes($TestStubScript))
     $ceremonySha = Get-Sha256Hex -Bytes ([IO.File]::ReadAllBytes($ceremonyDest))
     $ceremonyBytes = ([IO.File]::ReadAllBytes($ceremonyDest)).Length
+    $ceremonyMaterialCommit = "synthetic_stub"
   } else {
+    if ($CeremonyKind -eq "dry-run" -and $preconditionPublished -and $ceremonyAuthorityCommit -eq $freeze) {
+      Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" "freeze ceremony fallback forbidden when precondition evidence is PUBLISHED"
+    }
     try {
-      [void](Assert-BlobSeal -Freeze $freeze -Rel $ceremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
+      $mat = Assert-BlobSeal -Commit $ceremonyAuthorityCommit -Rel $ceremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot
+      $ceremonyMaterialCommit = [string]$mat.commit
     } catch {
       Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" ([string]$_.Exception.Message)
+    }
+    if ($CeremonyKind -eq "dry-run" -and $ceremonyMaterialCommit -ne $tip) {
+      Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" "dry-run operator_ceremony must materialize from publication tip"
     }
   }
 
