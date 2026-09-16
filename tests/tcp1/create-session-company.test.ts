@@ -22,10 +22,15 @@ describe("bootstrapCompanyForUser", () => {
       userId: "user-1",
       businessName: "Acme Books",
     });
-    expect(result).toEqual({ companyId: "company-existing", created: false });
+    expect(result).toEqual({
+      companyId: "company-existing",
+      created: false,
+      createdMembership: false,
+    });
     expect(admin.rpc).toHaveBeenCalledWith("bootstrap_checkout_company_workspace", {
       p_buyer_user_id: "user-1",
       p_company_name: "Acme Books",
+      p_canonical_role: "owner_executive",
     });
   });
 

@@ -24,14 +24,15 @@ git cat-file blob <oid> | wc -c
 | Tip `63483ef` LF blob | `1e05e987107f3d0b191c8480a62621b99ba16494798cd76e9288d91614bf9598` | 24943 | Pre–concurrent firm-capacity advisory locks |
 | Tip `db7a2d15` LF blob | `9243e7bd163e67ebad54f2a395c5d6b83c3658847640b17169704cc8bda578f1` | 27246 | Blocking xact advisory locks (RR bypass / multi-statement deadlock class) |
 | Tip `ad25a283` LF blob | `217bee361a2cabff6a23c032b2b0ca1dc7791c172334c3834f4f993e2a305aa4` | 28337 | Try-lock + RC-only capacity (pre–atomic checkout bootstrap) |
+| Tip `adebc6db` LF blob | `72a167a5370df518c92c9ff0107f2ce8b89afe75f3de14e166a84a6b7dafd589` | 35883 | Atomic bootstrap without exhaustive ownership reconciliation |
 
-## Current tip seal (atomic checkout bootstrap + try-lock capacity; NO_CUTOVER × 4; no backfill)
+## Current tip seal (atomic checkout bootstrap + ownership reconciliation; try-lock capacity; NO_CUTOVER × 4; no backfill)
 
 | Field | Value |
 |-------|-------|
-| Blob OID | `646a6ed5e8582f4ebb9e7064457888f7752a3062` |
-| SHA-256 | `72a167a5370df518c92c9ff0107f2ce8b89afe75f3de14e166a84a6b7dafd589` |
-| Bytes | `35883` |
+| Blob OID | `1aa8d512f1c26263815bfe6b9cf226134bfbde11` |
+| SHA-256 | `6c5c00a91c0234064949c435acf0f26174d6863137dab30bbd49e5e375577718` |
+| Bytes | `40234` |
 
 `.gitattributes` forces `text eol=lf` for this migration path. Production apply remains separately authorized and is **not** performed by this PR. **No company↔firm backfill** — operator decision `NO_CUTOVER × 4` (see `ra-pro-cutover-operator-decision.json` / `ra-pro-decision-record-seal.md`).
 
@@ -43,4 +44,11 @@ git cat-file blob <oid> | wc -c
 - Contention raises `ra_pro_capacity_lock_busy` (no wait → no cross-statement deadlock). Callers must **ROLLBACK and retry** the full transaction; the database does not auto-retry.
 - Per-call ascending uuid try-order orders one acquisition set only; it does **not** claim transaction-wide ordering across statements.
 
-**Checkout bootstrap (this tip):** `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` (service_role, SECURITY INVOKER) atomically create firm+membership or company+owner. Optional `billing_company_id` enforces the unique linked firm. Failures roll back inside the RPC — no app DELETE compensation.
+**Checkout / onboarding bootstrap (this tip):**
+- `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` (service_role, SECURITY INVOKER).
+- **Unlinked firm identity:** exact set of firm ids from `firms.owner_user_id = buyer` ∪ active `firm_memberships` for buyer. 0 → create; 1 → reuse + repair canonical active `firm_admin`; >1 or contradictory ownership → `bootstrap_checkout_ownership_conflict` (no writes). Inactive/revoked memberships are **not** candidates.
+- **Linked firm identity:** `firms.billing_company_id` UNIQUE under buyer + billing-company advisory xact locks.
+- **Company identity:** exact set of company ids with ownership-class `company_users` (`owner_executive`|`company_admin`). Active set first; if empty, exactly one inactive ownership-class company may be repaired; multiple → conflict. `companies` has no `owner_user_id`.
+- **Why no extra UNIQUE(user):** production allows multi-firm / multi-company memberships outside checkout; a partial unique index would not safely apply to existing data. Buyer (and billing-company) advisory locks + exhaustive set equality are the enforced bootstrap invariant.
+- `/api/company/onboarding` creates company+membership only via the company bootstrap RPC (no competing multi-step insert path).
+- Failures roll back inside the RPC — no app DELETE compensation.

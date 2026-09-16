@@ -22,6 +22,7 @@ CREATE TABLE company_users (
   user_id uuid NOT NULL,
   role text NOT NULL DEFAULT 'admin',
   status text NOT NULL DEFAULT 'active',
+  updated_at timestamptz DEFAULT now(),
   UNIQUE(company_id, user_id)
 );
 CREATE TABLE firms (

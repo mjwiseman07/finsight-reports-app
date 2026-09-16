@@ -23,6 +23,10 @@ import { getAuthenticatedCompanyUser } from "../../../../lib/company-security";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { auditSecurityEvent } from "../../../../lib/security-audit";
+import {
+  bootstrapCompanyForUser,
+  CheckoutCompanyBootstrapError,
+} from "../../../../lib/tcp1/create-session-company";
 
 function normalizeEmailList(value) {
   if (Array.isArray(value)) return value.map((email) => String(email).trim().toLowerCase()).filter(Boolean);
@@ -166,9 +170,30 @@ export async function POST(request) {
     practiceId = insertedPractice.id;
   }
 
+  // Atomic company + ownership-class membership (shared with checkout bootstrap).
+  // Prevents multi-step orphan companies racing checkout create-session.
+  let companyId;
+  try {
+    const boot = await bootstrapCompanyForUser({
+      admin: supabaseAdmin,
+      userId: access.user.id,
+      businessName: String(company.name).trim(),
+      canonicalRole: "company_admin",
+    });
+    companyId = boot.companyId;
+  } catch (err) {
+    if (err instanceof CheckoutCompanyBootstrapError) {
+      if (err.code === "bootstrap_checkout_ownership_conflict") {
+        return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
+      }
+      return NextResponse.json({ error: "Unable to create company account." }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Unable to create company account." }, { status: 500 });
+  }
+
   const { data: insertedCompany, error: companyError } = await supabaseAdmin
     .from("companies")
-    .insert({
+    .update({
       account_type: accountType,
       practice_id: practiceId,
       name: String(company.name).trim(),
@@ -184,6 +209,7 @@ export async function POST(request) {
       onboarding_status: getNextOnboardingStatus(5),
       is_demo: Boolean(body.is_demo),
     })
+    .eq("id", companyId)
     .select("*")
     .single();
 
@@ -191,17 +217,9 @@ export async function POST(request) {
     return NextResponse.json({ error: "Run the latest company account onboarding migrations before submitting onboarding." }, { status: 501 });
   }
 
-  if (companyError) {
+  if (companyError || !insertedCompany) {
     return NextResponse.json({ error: "Unable to create company account." }, { status: 500 });
   }
-
-  await supabaseAdmin.from("company_users").insert({
-    company_id: insertedCompany.id,
-    user_id: access.user.id,
-    role: "company_admin",
-    status: "active",
-    invited_by: access.user.id,
-  });
 
   await supabaseAdmin.from("delivery_settings").upsert({
     company_id: insertedCompany.id,

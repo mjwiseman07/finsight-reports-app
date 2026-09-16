@@ -35,7 +35,7 @@ Canonical activation writes the company → firm link via `activate_review_assis
 
 **Capacity locking (DB):** Linked-firm client/seat mutations require **READ COMMITTED**. Higher isolation raises `ra_pro_capacity_isolation_unsupported` before mutation. Guards take per-firm **nonblocking** transaction advisory locks (`ra_pro_capacity_lock_busy` on contention). Callers must ROLLBACK and retry the full transaction — no DB auto-retry. See `docs/security/ra-pro-migration-seal.md`.
 
-**Checkout bootstrap (DB):** `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` create firm+membership or company+owner atomically (service_role only). No app-side DELETE compensation. Capacity lock/isolation failures map to sanitized HTTP 503 `workspace_bootstrap_retryable` before Stripe customer/session create.
+**Checkout bootstrap (DB):** `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` create firm/company + canonical relationship atomically (service_role only). Unlinked firm identity = exact `owner_user_id` ∪ active-membership firm set (conflict if >1). Company identity = exact ownership-class `company_users` set (`owner_executive`|`company_admin`; inactive-only singleton may repair). No `ORDER BY … LIMIT 1`. `/api/company/onboarding` uses the same company RPC. No app-side DELETE compensation. Capacity lock/isolation → sanitized HTTP 503 `workspace_bootstrap_retryable`; ownership conflict → 409 `workspace_ownership_conflict` before Stripe customer/session create.
 
 Keep in sync across:
 

@@ -328,6 +328,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (err.code === "ra_pro_seat_cap_reached") {
           return NextResponse.json({ error: "seat_cap_reached" }, { status: 409 });
         }
+        if (err.code === "bootstrap_checkout_ownership_conflict") {
+          return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
+        }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
       return NextResponse.json({ error: "workspace_bootstrap_failed" }, { status: 500 });
@@ -366,9 +369,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (err.code === "bootstrap_checkout_buyer_not_company_member") {
           return NextResponse.json({ error: "buyer_not_company_member" }, { status: 403 });
         }
+        if (err.code === "bootstrap_checkout_ownership_conflict") {
+          return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
+        }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
       if (err instanceof CheckoutCompanyBootstrapError) {
+        if (err.code === "bootstrap_checkout_ownership_conflict") {
+          return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
+        }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
       const msg = err instanceof Error ? err.message : String(err);

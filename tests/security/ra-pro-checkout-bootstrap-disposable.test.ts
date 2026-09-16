@@ -346,5 +346,425 @@ describe.skipIf(!dockerOk)(
         await c.end().catch(() => {});
       }
     });
+
+    it("owner-only orphan firm reuses one firm and repairs active membership", async () => {
+      const buyer = randomUUID();
+      const orphan = await asService(async (c) => {
+        const r = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('Orphan', $1) RETURNING id`,
+          [buyer],
+        );
+        return r.rows[0].id as string;
+      });
+      const out = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'Orphan', NULL) AS j`,
+          [buyer],
+        );
+        return r.rows[0].j as {
+          firm_id: string;
+          created_firm: boolean;
+          created_membership: boolean;
+        };
+      });
+      expect(out.firm_id).toBe(orphan);
+      expect(out.created_firm).toBe(false);
+      expect(out.created_membership).toBe(true);
+      const counts = await asService(async (c) => {
+        const f = await c.query(
+          `SELECT count(*)::int n FROM public.firms WHERE owner_user_id = $1`,
+          [buyer],
+        );
+        const m = await c.query(
+          `SELECT count(*)::int n FROM public.firm_memberships
+           WHERE user_id = $1 AND status = 'active' AND role = 'firm_admin'`,
+          [buyer],
+        );
+        return { f: f.rows[0].n as number, m: m.rows[0].n as number };
+      });
+      expect(counts.f).toBe(1);
+      expect(counts.m).toBe(1);
+    });
+
+    it("owner-only orphan company (inactive ownership) reuses and reactivates", async () => {
+      const buyer = randomUUID();
+      const orphanCo = await asService(async (c) => {
+        const co = await c.query(
+          `INSERT INTO public.companies (name) VALUES ('OrphanCo') RETURNING id`,
+        );
+        const id = co.rows[0].id as string;
+        await c.query(
+          `INSERT INTO public.company_users (company_id, user_id, role, status)
+           VALUES ($1, $2, 'owner_executive', 'revoked')`,
+          [id, buyer],
+        );
+        return id;
+      });
+      const out = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'OrphanCo', 'owner_executive') AS j`,
+          [buyer],
+        );
+        return r.rows[0].j as { company_id: string; created: boolean };
+      });
+      expect(out.company_id).toBe(orphanCo);
+      expect(out.created).toBe(false);
+      const counts = await asService(async (c) => {
+        const cos = await c.query(
+          `SELECT count(*)::int n FROM public.company_users
+           WHERE user_id = $1 AND role IN ('owner_executive','company_admin')`,
+          [buyer],
+        );
+        const active = await c.query(
+          `SELECT count(*)::int n FROM public.company_users
+           WHERE user_id = $1 AND status = 'active'
+             AND role IN ('owner_executive','company_admin')`,
+          [buyer],
+        );
+        const companies = await c.query(`SELECT count(*)::int n FROM public.companies`);
+        return {
+          rel: cos.rows[0].n as number,
+          active: active.rows[0].n as number,
+        };
+      });
+      expect(counts.rel).toBe(1);
+      expect(counts.active).toBe(1);
+    });
+
+    it("two active memberships fail closed with zero changes", async () => {
+      const buyer = randomUUID();
+      const before = await asService(async (c) => {
+        const a = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('A', $1) RETURNING id`,
+          [buyer],
+        );
+        const b = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('B', $1) RETURNING id`,
+          [buyer],
+        );
+        await c.query(
+          `INSERT INTO public.firm_memberships (firm_id, user_id, role, status) VALUES
+           ($1, $3, 'firm_admin', 'active'), ($2, $3, 'firm_admin', 'active')`,
+          [a.rows[0].id, b.rows[0].id, buyer],
+        );
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        const m = await c.query(`SELECT count(*)::int n FROM public.firm_memberships`);
+        return { f: f.rows[0].n as number, m: m.rows[0].n as number };
+      });
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'X', NULL)`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_conflict/);
+      });
+      const after = await asService(async (c) => {
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        const m = await c.query(`SELECT count(*)::int n FROM public.firm_memberships`);
+        return { f: f.rows[0].n as number, m: m.rows[0].n as number };
+      });
+      expect(after.f).toBe(before.f);
+      expect(after.m).toBe(before.m);
+    });
+
+    it("two active company ownership relationships fail closed", async () => {
+      const buyer = randomUUID();
+      await asService(async (c) => {
+        const a = await c.query(`INSERT INTO public.companies (name) VALUES ('A') RETURNING id`);
+        const b = await c.query(`INSERT INTO public.companies (name) VALUES ('B') RETURNING id`);
+        await c.query(
+          `INSERT INTO public.company_users (company_id, user_id, role, status) VALUES
+           ($1, $3, 'owner_executive', 'active'),
+           ($2, $3, 'company_admin', 'active')`,
+          [a.rows[0].id, b.rows[0].id, buyer],
+        );
+      });
+      const before = await asService(async (c) => {
+        const n = await c.query(`SELECT count(*)::int n FROM public.companies`);
+        return n.rows[0].n as number;
+      });
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'X', 'owner_executive')`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_conflict/);
+      });
+      const after = await asService(async (c) => {
+        const n = await c.query(`SELECT count(*)::int n FROM public.companies`);
+        const active = await c.query(
+          `SELECT count(*)::int n FROM public.company_users
+           WHERE user_id = $1 AND status = 'active'`,
+          [buyer],
+        );
+        return { n: n.rows[0].n as number, active: active.rows[0].n as number };
+      });
+      expect(after.n).toBe(before);
+      expect(after.active).toBe(2);
+    });
+
+    it("owner firm and active membership on different firm conflict with zero changes", async () => {
+      const buyer = randomUUID();
+      await asService(async (c) => {
+        const owned = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('Owned', $1) RETURNING id`,
+          [buyer],
+        );
+        const other = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('Other', $1) RETURNING id`,
+          [randomUUID()],
+        );
+        await c.query(
+          `INSERT INTO public.firm_memberships (firm_id, user_id, role, status)
+           VALUES ($1, $2, 'firm_admin', 'active')`,
+          [other.rows[0].id, buyer],
+        );
+        void owned;
+      });
+      const snap = await asService(async (c) => {
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        const m = await c.query(
+          `SELECT firm_id::text, status FROM public.firm_memberships WHERE user_id = $1 ORDER BY firm_id`,
+          [buyer],
+        );
+        return { f: f.rows[0].n as number, m: m.rows };
+      });
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'X', NULL)`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_conflict/);
+      });
+      const after = await asService(async (c) => {
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        const m = await c.query(
+          `SELECT firm_id::text, status FROM public.firm_memberships WHERE user_id = $1 ORDER BY firm_id`,
+          [buyer],
+        );
+        return { f: f.rows[0].n as number, m: m.rows };
+      });
+      expect(after.f).toBe(snap.f);
+      expect(after.m).toEqual(snap.m);
+    });
+
+    it("inactive membership alone does not block create; remains non-candidate", async () => {
+      const buyer = randomUUID();
+      const otherFirm = await asService(async (c) => {
+        const f = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('Old', $1) RETURNING id`,
+          [randomUUID()],
+        );
+        await c.query(
+          `INSERT INTO public.firm_memberships (firm_id, user_id, role, status)
+           VALUES ($1, $2, 'member', 'revoked')`,
+          [f.rows[0].id, buyer],
+        );
+        return f.rows[0].id as string;
+      });
+      const out = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'Fresh', NULL) AS j`,
+          [buyer],
+        );
+        return r.rows[0].j as { firm_id: string; created_firm: boolean };
+      });
+      expect(out.created_firm).toBe(true);
+      expect(out.firm_id).not.toBe(otherFirm);
+    });
+
+    it("concurrent retries against orphan firm stay single-workspace", async () => {
+      const buyer = randomUUID();
+      const orphan = await asService(async (c) => {
+        const r = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('ConcOrphan', $1) RETURNING id`,
+          [buyer],
+        );
+        return r.rows[0].id as string;
+      });
+      const clients: Client[] = [];
+      for (let i = 0; i < 8; i++) {
+        const c = new Client({ connectionString: url });
+        await c.connect();
+        await c.query("SET ROLE service_role");
+        clients.push(c);
+      }
+      try {
+        const settled = await Promise.allSettled(
+          clients.map((c) =>
+            c.query(
+              `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'ConcOrphan', NULL) AS j`,
+              [buyer],
+            ),
+          ),
+        );
+        expect(settled.every((s) => s.status === "fulfilled")).toBe(true);
+        const ids = new Set(
+          settled
+            .filter((s): s is PromiseFulfilledResult<{ rows: { j: { firm_id: string } }[] }> =>
+              s.status === "fulfilled",
+            )
+            .map((s) => s.value.rows[0].j.firm_id),
+        );
+        expect(ids.size).toBe(1);
+        expect([...ids][0]).toBe(orphan);
+        const n = await asService(async (c) => {
+          const f = await c.query(
+            `SELECT count(*)::int n FROM public.firms WHERE owner_user_id = $1`,
+            [buyer],
+          );
+          const m = await c.query(
+            `SELECT count(*)::int n FROM public.firm_memberships WHERE user_id = $1 AND status = 'active'`,
+            [buyer],
+          );
+          return { f: f.rows[0].n as number, m: m.rows[0].n as number };
+        });
+        expect(n.f).toBe(1);
+        expect(n.m).toBe(1);
+      } finally {
+        await Promise.all(clients.map((c) => c.end().catch(() => {})));
+      }
+    });
+
+    it("forced membership repair failure rolls back with orphan firm unchanged", async () => {
+      const buyer = randomUUID();
+      const orphan = await asService(async (c) => {
+        const r = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('RepairFail', $1) RETURNING id`,
+          [buyer],
+        );
+        return r.rows[0].id as string;
+      });
+      await asService(async (c) => {
+        await c.query("BEGIN");
+        await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+        let failed = false;
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'RepairFail', NULL)`,
+            [buyer],
+          );
+          await c.query("COMMIT");
+        } catch (e) {
+          failed = /ra_pro_capacity_isolation_unsupported/.test(
+            String((e as Error).message || e),
+          );
+          await c.query("ROLLBACK");
+        }
+        expect(failed).toBe(true);
+      });
+      const after = await asService(async (c) => {
+        const f = await c.query(`SELECT id::text FROM public.firms WHERE id = $1`, [orphan]);
+        const m = await c.query(
+          `SELECT count(*)::int n FROM public.firm_memberships WHERE firm_id = $1`,
+          [orphan],
+        );
+        return { exists: f.rows.length === 1, m: m.rows[0].n as number };
+      });
+      expect(after.exists).toBe(true);
+      expect(after.m).toBe(0);
+    });
+
+    it("unauthorized buyer cannot adopt another user orphan firm", async () => {
+      const owner = randomUUID();
+      const stranger = randomUUID();
+      const orphan = await asService(async (c) => {
+        const r = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('NotYours', $1) RETURNING id`,
+          [owner],
+        );
+        return r.rows[0].id as string;
+      });
+      const out = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'Mine', NULL) AS j`,
+          [stranger],
+        );
+        return r.rows[0].j as { firm_id: string };
+      });
+      expect(out.firm_id).not.toBe(orphan);
+      const check = await asService(async (c) => {
+        const o = await c.query(
+          `SELECT owner_user_id::text FROM public.firms WHERE id = $1`,
+          [orphan],
+        );
+        const strangerFirms = await c.query(
+          `SELECT count(*)::int n FROM public.firms WHERE owner_user_id = $1`,
+          [stranger],
+        );
+        return {
+          ownerStill: o.rows[0].owner_user_id as string,
+          strangerN: strangerFirms.rows[0].n as number,
+        };
+      });
+      expect(check.ownerStill).toBe(owner);
+      expect(check.strangerN).toBe(1);
+    });
+
+    it("onboarding-role and checkout-role company bootstrap race to one company", async () => {
+      const buyer = randomUUID();
+      const clients: Client[] = [];
+      for (let i = 0; i < 8; i++) {
+        const c = new Client({ connectionString: url });
+        await c.connect();
+        await c.query("SET ROLE service_role");
+        clients.push(c);
+      }
+      try {
+        const settled = await Promise.allSettled(
+          clients.map((c, i) =>
+            c.query(
+              `SELECT public.bootstrap_checkout_company_workspace($1::uuid, $2, $3) AS j`,
+              [
+                buyer,
+                "Shared Co",
+                i % 2 === 0 ? "company_admin" : "owner_executive",
+              ],
+            ),
+          ),
+        );
+        expect(settled.every((s) => s.status === "fulfilled")).toBe(true);
+        const ids = new Set(
+          settled
+            .filter((s): s is PromiseFulfilledResult<{ rows: { j: { company_id: string } }[] }> =>
+              s.status === "fulfilled",
+            )
+            .map((s) => s.value.rows[0].j.company_id),
+        );
+        expect(ids.size).toBe(1);
+        const n = await asService(async (c) => {
+          const cos = await c.query(
+            `SELECT count(DISTINCT company_id)::int n FROM public.company_users WHERE user_id = $1`,
+            [buyer],
+          );
+          const active = await c.query(
+            `SELECT count(*)::int n FROM public.company_users
+             WHERE user_id = $1 AND status = 'active'
+               AND role IN ('owner_executive','company_admin')`,
+            [buyer],
+          );
+          return { cos: cos.rows[0].n as number, active: active.rows[0].n as number };
+        });
+        expect(n.cos).toBe(1);
+        expect(n.active).toBe(1);
+      } finally {
+        await Promise.all(clients.map((c) => c.end().catch(() => {})));
+      }
+    });
   },
 );

@@ -56,6 +56,12 @@ function mapRpcError(err: { message?: string; code?: string }): CheckoutFirmBoot
       "bootstrap_checkout_firm_forbidden",
     );
   }
+  if (msg.includes("bootstrap_checkout_ownership_conflict")) {
+    return new CheckoutFirmBootstrapError(
+      "workspace_ownership_conflict",
+      "bootstrap_checkout_ownership_conflict",
+    );
+  }
   return new CheckoutFirmBootstrapError(msg, err.code || "workspace_bootstrap_failed");
 }
 
