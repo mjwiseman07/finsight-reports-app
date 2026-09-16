@@ -61,5 +61,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     event as unknown as MinimalStripeEvent,
     JSON.parse(rawBody),
   );
+  if (result.status === "retryable_error") {
+    return NextResponse.json(
+      { received: false, status: result.status, error: result.error },
+      { status: 500 },
+    );
+  }
   return NextResponse.json({ received: true, status: result.status });
 }

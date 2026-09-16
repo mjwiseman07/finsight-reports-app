@@ -1,5 +1,9 @@
 /**
  * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots upsert.
+ *
+ * RA Pro cutover commerce gate is an admission check in stripe-sync only
+ * (pre-ledger-insert). Do not re-check the gate here: admitted events must
+ * finish under main processing semantics even if the gate later closes.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";

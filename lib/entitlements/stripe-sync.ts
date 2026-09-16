@@ -1,5 +1,11 @@
 /**
  * Stripe webhook → entitlement sync. Idempotent via stripe_webhook_events PK.
+ *
+ * Cutover note (gate-only prep): the RA Pro commerce gate is an *admission*
+ * check only. Closed/missing/malformed blocks RA Pro checkout.session.completed
+ * *before* ledger insert (retryable HTTP 500, no row). Once admitted under an
+ * open gate and inserted, the row is never deleted for gate reasons — closure
+ * does not cancel in-flight work; main processing/failure semantics apply.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
@@ -9,6 +15,10 @@ import {
   handleTcp1SubscriptionDeleted,
 } from "@/lib/tcp1/stripe-pilot-checkout";
 import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
+import {
+  isRaProCutoverCommerceClosed,
+  RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+} from "@/lib/review-assist-pro/cutover-commerce-gate";
 
 export interface MinimalStripeEvent {
   id: string;
@@ -30,6 +40,10 @@ export interface MinimalStripeEvent {
   };
 }
 
+export type StripeWebhookResult =
+  | { status: "processed" | "skipped" | "duplicate" }
+  | { status: "retryable_error"; error: string };
+
 const HANDLED_TYPES = new Set<string>([
   "customer.subscription.created",
   "customer.subscription.updated",
@@ -37,10 +51,24 @@ const HANDLED_TYPES = new Set<string>([
   "checkout.session.completed",
 ]);
 
+function isRaProCheckoutCompletedEvent(event: MinimalStripeEvent): boolean {
+  if (event.type !== "checkout.session.completed") return false;
+  return event.data.object.metadata?.tier_key === "review_assist_pro";
+}
+
 export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
-): Promise<{ status: "processed" | "skipped" | "duplicate" }> {
+): Promise<StripeWebhookResult> {
+  // Admission check only: hold before insert so HTTP 500 stays retryable.
+  // Never erase an admitted (inserted) row to make a gate hold retryable.
+  if (isRaProCheckoutCompletedEvent(event) && isRaProCutoverCommerceClosed()) {
+    return {
+      status: "retryable_error",
+      error: RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
+    };
+  }
+
   const supabase = createServiceClient();
 
   const { error: insertError } = await supabase.from("stripe_webhook_events").insert({
