@@ -27,7 +27,7 @@
   "required_prior_dry_run_freeze": null,
   "required_prior_dry_run_evidence_tip": null,
   "required_prior_dry_run_bundle_source": null,
-  "bundle_source_commit": null,
+  "bundle_source_commit": "90af07d27e122d80d5fb5072f7a66da818f245a5",
   "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
   "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
   "native_bootstrap": {
@@ -157,13 +157,14 @@
   ],
   "notes": [
     "Dedicated RA Pro cutover applicator package — does not retarget FRLS or containment.",
-    "Executable freeze AUTHORIZED_TOOLING_FREEZE / authorized_pr_head = a74d5108752d93e1ca4baa78f4dc7425120658b7.",
-    "bundle_source_commit remains null until the tip-pin commit (non-circular two-authority model).",
+    "Executable freeze authorized_pr_head / AUTHORIZED_TOOLING_FREEZE = a74d5108752d93e1ca4baa78f4dc7425120658b7.",
+    "bundle_source_commit = 90af07d27e122d80d5fb5072f7a66da818f245a5 (descendant of freeze; holds sealed standalone .cjs).",
     "required_prior_dry_run_* pins null / UNPUBLISHED; apply fails closed before production contact.",
     "required_precondition_* pins null / UNPUBLISHED; production dry-run refuses before SecureString/Node/DB.",
     "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
     "Decision LF seals: OID 0dd39de5…, SHA-256 f00039cb…, bytes 1122; mapping SHA 93f6fe31…; NO_CUTOVER×4.",
-    "auth_seals_digest covers artifact/project/migration/DB env/token/advisory/pg/lockfile only."
+    "auth_seals_digest covers artifact/project/migration/DB env/token/advisory/pg/lockfile only; bundle/decision/native/freeze relation are independent blob checks.",
+    "EXPECTED_STANDALONE_BUNDLE_SHA256 remains PENDING and is inert unless requireStandaloneBundleSelfHash."
   ],
   "prior_dry_run_gates": {
     "path": "scripts/security/ra-pro-cutover-prior-dry-run-gates.ps1",
