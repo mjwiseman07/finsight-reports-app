@@ -1,0 +1,64 @@
+{
+  "contract_id": "ra-pro-billing-company-cutover-prechange-v1",
+  "captured_at_utc": "2026-09-15T00:45:00Z",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_mode": "read_only_catalog_metadata_plus_fresh_pre_apply_evidence",
+  "base_git_sha": "b4f06a1ca889bdfb477397b990860b21e788a877",
+  "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+  "severity": "HIGH",
+  "notes": [
+    "Fresh pre-apply evidence is required under separate authorization; historical PASS is not permanently fresh.",
+    "Gate-aware build must be independently verified as serving checkout/webhook routes before apply.",
+    "Commerce gate RA_PRO_CUTOVER_COMMERCE_GATE must be closed or unset (fail closed) on the serving gate-aware build — not inferred from configuration alone.",
+    "Unique old/pre-gate deployment URLs must remain protected / not treated as gate-aware authority.",
+    "Ledger and Stripe quiescence evidence is time-bounded within a stated window.",
+    "Ceremony inventory: NO_CUTOVER × 4 via active + complimentary authorizing slots; LINK_CREATE 0; expected_linked_firms_after_migration 0.",
+    "No new slots, events, links, or migration drift after the sealed mapping snapshot.",
+    "Target objects (firms.billing_company_id column, bootstrap/activate/capacity RPCs) must be absent before apply.",
+    "Apply inserts exactly one sealed migration version 20260915004500; no unrelated tip migrations.",
+    "Operator decision blob must seal-match docs/security/ra-pro-cutover-operator-decision.json (NO_CUTOVER×4)."
+  ],
+  "fresh_pre_apply_evidence_requirements": {
+    "gate_aware_build_serving": true,
+    "commerce_gate_closed_or_unset_on_serving_build": true,
+    "unique_old_deployment_urls_protected": true,
+    "ledger_stripe_quiescence_bounded_window": true,
+    "ceremony_inventory_no_cutover_x4_active_and_complimentary": true,
+    "no_new_slots_events_links_or_migration_drift": true,
+    "historical_pass_not_permanently_fresh": true
+  },
+  "parent_object": {
+    "public.firms": {
+      "kind": "table",
+      "required_columns": ["id", "name"],
+      "billing_company_id_absent_before_apply": true
+    },
+    "public.companies": {
+      "kind": "table",
+      "required_columns": ["id", "name"]
+    }
+  },
+  "absent_before_apply": [
+    "public.firms.billing_company_id",
+    "public.bootstrap_checkout_firm_workspace(uuid, text, uuid)",
+    "public.bootstrap_checkout_company_workspace(uuid, text, text)",
+    "public.activate_review_assist_pro_subscription(uuid, uuid, text, text, text, text, text, text)",
+    "public.ra_pro_lock_firm_capacity(uuid[])",
+    "public.firms_protect_billing_company_id()"
+  ],
+  "decision_binding": {
+    "path": "docs/security/ra-pro-cutover-operator-decision.json",
+    "mapping_artifact_sha256": "93f6fe31360222ccd282e814a3764ccf07929e7cb91c25c70e10b750ec0ec953",
+    "actions": {
+      "NO_CUTOVER": 4,
+      "LINK_EXISTING_FIRM": 0,
+      "CREATE_NEW_FIRM": 0
+    },
+    "expected_linked_firms_after_migration": 0,
+    "backfill_authorized": false
+  },
+  "history": {
+    "prior_count": 187,
+    "target_version_absent": "20260915004500"
+  }
+}

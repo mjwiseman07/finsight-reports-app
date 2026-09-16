@@ -1,0 +1,14 @@
+{
+  "name": "RA_PRO_BILLING_COMPANY_CUTOVER_APPLY",
+  "key1": 1380012114,
+  "key1_hex": "0x52415052",
+  "key1_ascii": "RAPR",
+  "key2": 539363605,
+  "key2_hex": "0x20260915",
+  "mechanism": "pg_advisory_xact_lock",
+  "scope": "transaction",
+  "notes": [
+    "Named lock unique to ra_pro_firm_billing_company_id single-version apply.",
+    "Acquired only on apply path inside BEGIN/COMMIT; dry-run never acquires."
+  ]
+}
