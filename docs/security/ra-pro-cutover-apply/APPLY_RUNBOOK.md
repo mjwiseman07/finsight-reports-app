@@ -1,6 +1,6 @@
 # RA Pro billing-company cutover apply runbook (tooling only)
 
-**Tooling rehearsal only. Do not apply to production without a published tooling freeze, published prior dry-run pins, and separate apply authorization.**
+**Tooling rehearsal only. Do not apply to production without a published freeze→bundle-source→tip chain, published fresh-precondition pins, published prior dry-run pins (apply), and separate apply authorization.**
 
 ## Package
 
@@ -27,15 +27,49 @@ Forbidden:
 - `--database-url` / argv DSN
 - `RA_PRO_CUTOVER_APPLY_SSL_ROOTCERT` (embedded CA only)
 
-## Pre-apply (fresh evidence)
+## Three-commit authority chain (non-circular)
 
-See `PRE_CHANGE_CONTRACT.json`. Historical PASS is not permanently fresh. Independently confirm:
+1. **Executable freeze** — final scripts/modules; constants may still hold `PLACEHOLDER_40HEX_…`; tip auth may still say `PENDING_AFTER_COMMIT` / `bundle_source_commit=null`; staged bundle is not selected at tip.
+2. **Bundle source** (direct descendant of freeze) — bake `AUTHORIZED_TOOLING_FREEZE` to the exact freeze SHA, rebuild standalone `.cjs`, set `authorized_pr_head` to freeze, leave `bundle_source_commit` null until tip pin.
+3. **Final tip** (descendant of bundle source) — set `bundle_source_commit` to the bundle-source SHA only (no tip-only executable constant edits).
 
-- Gate-aware build serving checkout/webhook
-- Commerce gate closed/unset on that serving build
-- Old deployment URLs protected
+Required tip relations:
+
+- `authorized_pr_head` = executable freeze
+- `bundle_source_commit` = bundle source
+- freeze ≠ bundle source
+- bundle source descends from freeze
+- tip descends from bundle source
+
+Bootstrap materializes the standalone bundle from `${bundle_source_commit}:scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs` and verifies OID/SHA/bytes/non-reparse plus exact embedded 40-hex freeze. Other executable authority follows freeze seals.
+
+### `auth_seals_digest` coverage
+
+SHA-256 of `JSON.stringify` over exactly:
+
+`artifact_commit`, `project_ref`, `migration_path`, `migration_blob_oid`, `migration_sha256`, `migration_bytes`, `migration_version`, `migration_name`, `database_url_env`, `apply_authorization_token`, `advisory_lock`, `pg_version`, `lockfile_path`
+
+Independent blob checks (not in digest): standalone bundle, decision, native/ceremony/evidence/gate modules, `AUTHORIZED_TOOLING_FREEZE`, freeze/source ancestry.
+
+`EXPECTED_STANDALONE_BUNDLE_SHA256` may remain `PENDING_*` and is **inert** unless `requireStandaloneBundleSelfHash` is set; bootstrap never treats it as tip authority.
+
+## Fresh precondition evidence (dry-run gate)
+
+Protocol: `RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1` — see `PRECONDITION_EVIDENCE_CONTRACT.json`.
+
+Tip pins `required_precondition_*` + `published_precondition_evidence`. When **UNPUBLISHED/null**, the production dry-run ceremony refuses **before** SecureString prompt, Node, or DB (`PRECONDITION_PINS_UNPUBLISHED`).
+
+Distinct from prior-dry-run pins (apply-only).
+
+## Pre-apply inventory (when pins published)
+
+See `PRE_CHANGE_CONTRACT.json` / precondition contract. Independently confirm via sealed evidence:
+
+- Gate-aware build serving checkout/webhook (merge `19e8bd071bae5f8afed85340f50168d4ca8e5586`)
+- Commerce gate closed/absent (never open)
+- Old deployment URLs protected; custom domains public
 - Ledger/Stripe quiescence within bounded window
-- Ceremony inventory NO_CUTOVER × 4; no drift
+- Ceremony inventory NO_CUTOVER × 4 (company 3 / firm 1); no drift
 - History count 187; version/objects absent
 
 ## Dry-run verdict
@@ -53,8 +87,4 @@ Post-apply: history 188; version exactly once; `billing_company_id` present; lin
 ## Local disposable rehearsal
 
 1. Docker available
-2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts`
-
-## Freeze placeholders
-
-`authorized_pr_head`, `AUTHORIZED_TOOLING_FREEZE`, and `bundle_source_commit` remain `PLACEHOLDER_40HEX_…` until freeze commits.
+2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts tests/security/ra-pro-cutover-bootstrap-e2e.test.ts tests/security/ra-pro-cutover-ceremony-launch.test.ts tests/security/ra-pro-cutover-precondition-gates.test.ts`

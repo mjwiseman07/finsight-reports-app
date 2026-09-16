@@ -403,6 +403,25 @@ describe.skipIf(!dockerOk)("RA Pro cutover applicator (local simulation)", () =>
     expect(evidence.databaseConnectionAttempts).toBe(0);
     expect(String(evidence.error_code || evidence.error)).toMatch(/BLOCKED_PIN_MISMATCH/);
   });
+
+  it("EXPECTED_STANDALONE_BUNDLE_SHA256 PENDING is inert unless requireStandaloneBundleSelfHash", async () => {
+    await resetWorld();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {
+      EXPECTED_STANDALONE_BUNDLE_SHA256: pendingSha,
+    } = require("../../scripts/security/ra-pro-cutover-apply-constants.js");
+    expect(String(pendingSha)).toMatch(/^PENDING_/);
+    const evidence = await runApplicator(applyInputs(pg.url, { mode: "dry-run" }));
+    expect(evidence.verdict).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
+    const blocked = await runApplicator(
+      applyInputs(pg.url, {
+        mode: "dry-run",
+        requireStandaloneBundleSelfHash: true,
+      }),
+    );
+    expect(blocked.verdict).toBe("DRY_RUN_BLOCKED");
+    expect(String(blocked.error_code || blocked.error)).toMatch(/BLOCKED_PIN_MISMATCH/);
+  });
 });
 
 void PRIOR_HISTORY_COUNT;

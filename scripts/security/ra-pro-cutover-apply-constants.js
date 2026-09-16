@@ -79,9 +79,9 @@ const EXPECTED_AUTH_SEALS_DIGEST =
 const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
 
-/** Exact executable tooling freeze (40-hex). Set after freeze commit. */
+/** Exact executable tooling freeze (40-hex). Baked at bundle-source commit. */
 const AUTHORIZED_TOOLING_FREEZE =
-  "8d49fb3d1738136b3c91f49d39d99f7ca20c0dd0";
+  "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000";
 
 const STANDALONE_BUNDLE_PATH =
   "scripts/security/bundles/ra-pro-cutover-applicator.standalone.cjs";

@@ -419,24 +419,31 @@ try {
     Stop-Bootstrap -Code "BUNDLE_CR_FORBIDDEN" -Phase "verify_bundle" -Message "CR bytes in sealed bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
 
-  # Embedded FRLS AUTHORIZED_TOOLING_FREEZE must equal the executable freeze (not tip, not PENDING).
+  # Embedded AUTHORIZED_TOOLING_FREEZE (RA Pro constants module only) must be exact 40-hex equal to freeze.
+  # Do not scan sibling packages (e.g. containment) that also define AUTHORIZED_TOOLING_FREEZE in the mega-bundle.
   $bundleText = [System.Text.Encoding]::UTF8.GetString($bundleBytes)
-  $frlsFreezeMatch = [regex]::Match(
+  $raProFreezeMatches = [regex]::Matches(
     $bundleText,
-    'ra-pro-cutover-apply-constants\.js[\s\S]{0,4000}?AUTHORIZED_TOOLING_FREEZE = "([0-9a-fA-F]{40}|PENDING_AFTER_COMMIT)"'
+    'ra-pro-cutover-apply-constants\.js[\s\S]{0,4000}?AUTHORIZED_TOOLING_FREEZE = "([^"]+)"'
   )
-  if (-not $frlsFreezeMatch.Success) {
+  if ($raProFreezeMatches.Count -lt 1) {
     $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISSING" -Phase "verify_bundle" -Message "FRLS AUTHORIZED_TOOLING_FREEZE constant missing from bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
+    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISSING" -Phase "verify_bundle" -Message "AUTHORIZED_TOOLING_FREEZE constant missing from RA Pro constants module in bundle" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
   }
-  $embeddedFreeze = [string]$frlsFreezeMatch.Groups[1].Value
-  if ($embeddedFreeze -eq "PENDING_AFTER_COMMIT") {
-    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_PENDING" -Phase "verify_bundle" -Message "FRLS AUTHORIZED_TOOLING_FREEZE still PENDING_AFTER_COMMIT" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; cleanup = $script:cleanupResult }
-  }
-  if ($embeddedFreeze.ToLowerInvariant() -ne $freeze.ToLowerInvariant()) {
-    $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
-    Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISMATCH" -Phase "verify_bundle" -Message "embedded AUTHORIZED_TOOLING_FREEZE does not equal executable freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; embeddedFreeze = $embeddedFreeze; cleanup = $script:cleanupResult }
+  foreach ($m in $raProFreezeMatches) {
+    $embeddedFreeze = [string]$m.Groups[1].Value
+    if ($embeddedFreeze -eq "PENDING_AFTER_COMMIT" -or $embeddedFreeze.StartsWith("PLACEHOLDER_") -or $embeddedFreeze.StartsWith("PENDING_")) {
+      $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+      Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_PENDING" -Phase "verify_bundle" -Message "RA Pro AUTHORIZED_TOOLING_FREEZE is PLACEHOLDER/PENDING (not executable)" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; embeddedFreeze = $embeddedFreeze; cleanup = $script:cleanupResult }
+    }
+    if (-not ($embeddedFreeze -match '^[0-9a-fA-F]{40}$')) {
+      $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+      Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_INVALID" -Phase "verify_bundle" -Message "RA Pro AUTHORIZED_TOOLING_FREEZE must be exact 40-hex" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; embeddedFreeze = $embeddedFreeze; cleanup = $script:cleanupResult }
+    }
+    if ($embeddedFreeze.ToLowerInvariant() -ne $freeze.ToLowerInvariant()) {
+      $script:cleanupResult = Clear-TempPath -Path $script:tempRoot
+      Stop-Bootstrap -Code "BUNDLE_EMBEDDED_FREEZE_MISMATCH" -Phase "verify_bundle" -Message "embedded RA Pro AUTHORIZED_TOOLING_FREEZE does not equal executable freeze" -Extra @{ tipHead = $tipHead; freeze = $freeze; bundleSource = $bundleSource; embeddedFreeze = $embeddedFreeze; cleanup = $script:cleanupResult }
+    }
   }
 
   [System.IO.File]::WriteAllBytes($bundleDest, $bundleBytes)

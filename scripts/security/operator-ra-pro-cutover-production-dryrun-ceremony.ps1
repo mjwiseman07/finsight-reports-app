@@ -162,6 +162,9 @@ function Classify-CeremonyFailure([string]$Message) {
   if ($msg -match "PIN_MISMATCH") {
     return @{ code = "BLOCKED_PIN_MISMATCH"; phase = "ceremony_pin" }
   }
+  if ($msg -match "PRECONDITION_PINS_UNPUBLISHED|PRECONDITION_EVIDENCE_|BLOCKED_PRECONDITION_GATE") {
+    return @{ code = "PRECONDITION_PINS_UNPUBLISHED"; phase = "precondition_gate" }
+  }
   if ($msg -match "BLOCKED_HARNESS_ENV_CONTAMINATION") {
     return @{ code = "BLOCKED_HARNESS_ENV_CONTAMINATION"; phase = "harness_contamination_gate" }
   }
@@ -254,6 +257,78 @@ Write-Host "Mode: dry-run (no apply token)"
 Write-Host "Paste an already-known URL at the hidden prompt. Do not paste into chat."
 Write-Host "Verified TLS uses the freeze-sealed embedded official Supabase CA (no CA path)."
 
+$script:RaProPreconditionGatesTempDir = $null
+$script:RaProPreconditionGatesLoaded = $false
+
+function Clear-RaProPreconditionGates {
+  $script:RaProPreconditionGatesLoaded = $false
+  if ($script:RaProPreconditionGatesTempDir -and (Test-Path -LiteralPath $script:RaProPreconditionGatesTempDir)) {
+    Remove-Item -LiteralPath $script:RaProPreconditionGatesTempDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  $script:RaProPreconditionGatesTempDir = $null
+}
+
+function Import-RaProPreconditionGatesFromFreeze {
+  param([object]$Auth)
+
+  if ($script:RaProPreconditionGatesLoaded) { return }
+
+  $seal = $Auth.precondition_gates
+  if (-not $seal -or -not $seal.path -or -not $seal.oid -or -not $seal.sha256 -or -not $seal.bytes) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_SEAL: TOOLING_AUTHORIZATION.precondition_gates incomplete"
+  }
+  $rel = [string]$seal.path
+  if ($rel -ne "scripts/security/ra-pro-cutover-precondition-gates.ps1") {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_SEAL: unexpected precondition_gates.path"
+  }
+  if ([string]::IsNullOrWhiteSpace($Freeze) -or $Freeze -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_SEAL: freeze identity required before gate materialization"
+  }
+
+  $oid = Invoke-GitTextLocal @("rev-parse", "${Freeze}:${rel}")
+  if ($oid -ne [string]$seal.oid) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_OID: freeze gate module OID mismatch"
+  }
+
+  $script:RaProPreconditionGatesTempDir = Join-Path $EvidenceOutDir ("precond-gates-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $script:RaProPreconditionGatesTempDir | Out-Null
+  $dest = Join-Path $script:RaProPreconditionGatesTempDir "ra-pro-cutover-precondition-gates.ps1"
+  $blobBytes = Materialize-GitBlob -Rel $rel -Dest $dest
+  $sha = Get-Sha256Bytes -Bytes $blobBytes
+  if ($sha -ne ([string]$seal.sha256).ToLowerInvariant()) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_SHA: freeze gate module SHA-256 mismatch"
+  }
+  if ($blobBytes.Length -ne [int]$seal.bytes) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_BYTES: freeze gate module byte count mismatch"
+  }
+  $item = Get-Item -LiteralPath $dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_REPARSE: materialized gate module is a reparse point"
+  }
+  if ($item.PSIsContainer -or $item.Extension -ne ".ps1") {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_TYPE: materialized gate module must be a .ps1 file"
+  }
+  $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
+  if ($hashOid -ne [string]$seal.oid) {
+    throw "BLOCKED_PRECONDITION_GATE_MODULE_OID: materialized content OID mismatch"
+  }
+
+  $gateText = [IO.File]::ReadAllText($dest)
+  $gateScript = $ExecutionContext.InvokeCommand.NewScriptBlock($gateText)
+  . $gateScript
+  foreach ($name in @(
+      "Assert-RaProPreconditionEvidencePublished",
+      "Assert-RaProPreconditionEvidence"
+    )) {
+    $cmd = Get-Command -Name $name -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $cmd) {
+      throw ("BLOCKED_PRECONDITION_GATE_MODULE_LOAD: " + $name + " missing after sealed dotsource")
+    }
+    Set-Item -Path ("function:script:" + $name) -Value $cmd.ScriptBlock
+  }
+  $script:RaProPreconditionGatesLoaded = $true
+}
+
 try {
   # Stage-1 containment credential channel must never drive an FRLS ceremony.
   Assert-NoRetiredContainmentCredentialChannel
@@ -265,6 +340,17 @@ try {
   if ([string]$auth.authorized_pr_head -ne $Freeze) {
     throw "PIN_MISMATCH: -PrHead must equal tip authorized_pr_head (tooling freeze)"
   }
+
+  # Fresh precondition pins: refuse before SecureString / Node / DB when unpublished.
+  # Distinct from prior-dry-run pins (apply-only). Materialize gate module from freeze seals.
+  Import-RaProPreconditionGatesFromFreeze -Auth $auth
+  Assert-RaProPreconditionEvidencePublished -Auth $auth
+  $precondPath = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH", "Process")
+  if ([string]::IsNullOrWhiteSpace($precondPath)) {
+    throw "PRECONDITION_EVIDENCE_INVALID: RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH required when precondition pins are published"
+  }
+  Assert-RaProPreconditionEvidence -Path $precondPath -Auth $auth
+
   $ne = $auth.native_entry
   if (-not $ne -or -not $ne.path -or -not $ne.oid -or -not $ne.sha256 -or -not $ne.bytes) {
     throw "AUTH_METADATA_INVALID: missing native_entry seals"
@@ -397,6 +483,7 @@ catch {
 finally {
   Clear-FrlsCredential
   Clear-HarnessContaminationEnv
+  Clear-RaProPreconditionGates
   $plain = $null
   if ($null -ne $secure) { try { $secure.Dispose() } catch {}; $secure = $null }
   if ($bstr -ne [IntPtr]::Zero) {

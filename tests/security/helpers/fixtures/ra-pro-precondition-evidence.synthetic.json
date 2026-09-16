@@ -1,0 +1,45 @@
+{
+  "protocol_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "LOCAL_SYNTHETIC_FIXTURE_ONLY",
+  "collected_at_utc": "2099-01-02T00:00:00Z",
+  "valid_from_utc": "2099-01-01T00:00:00Z",
+  "valid_until_utc": "2099-12-31T23:59:59Z",
+  "gate_aware_production_deployment": {
+    "deployment_id_or_url_identity": "synthetic-gate-aware-deploy-0001",
+    "merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "observed_at_utc": "2099-01-01T12:00:00Z"
+  },
+  "commerce_gate": {
+    "observed": "closed",
+    "never_open": true,
+    "observed_at_utc": "2099-01-01T12:30:00Z"
+  },
+  "old_generated_deployment_urls_protected": true,
+  "custom_domains_public": true,
+  "ledger": {
+    "non_terminal_count": 0,
+    "observed_at_utc": "2099-01-01T13:00:00Z"
+  },
+  "stripe_tcp1": {
+    "failed_visible_count": 0,
+    "pending_visible_count": 0,
+    "visibility_window_start_utc": "2099-01-01T00:00:00Z",
+    "visibility_window_end_utc": "2099-01-01T23:59:59Z"
+  },
+  "ceremony_inventory": {
+    "total": 4,
+    "company_owned": 3,
+    "firm_owned": 1,
+    "classification": "active_and_complimentary"
+  },
+  "migration_state": {
+    "history_count_expected": 187,
+    "target_version_absent": "20260915004500",
+    "objects_absent": true
+  },
+  "delta_since_decision": {
+    "unexpected_links": 0,
+    "new_authorizing_slots": 0
+  }
+}

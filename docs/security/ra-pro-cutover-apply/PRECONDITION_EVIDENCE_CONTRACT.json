@@ -1,0 +1,156 @@
+{
+  "contract_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_CONTRACT_V1",
+  "protocol_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+  "schema_version": 1,
+  "purpose": "Sanitized fresh-precondition evidence schema for RA Pro billing-company cutover. Exact retained file bytes are SHA-pinned by tip authorization before production dry-run may prompt or connect.",
+  "authority_pins_in_tooling_authorization": {
+    "required_precondition_evidence_sha256": "64-hex lowercase SHA-256 of retained evidence file bytes (null while UNPUBLISHED)",
+    "required_precondition_freeze": "40-hex executable freeze that sealed the intake tooling (null while UNPUBLISHED)",
+    "required_precondition_evidence_tip": "40-hex tip that published the pin (null while UNPUBLISHED)",
+    "required_precondition_bundle_source": "40-hex bundle-source companion identity when published (null while UNPUBLISHED)",
+    "published_precondition_evidence.status": "PUBLISHED | UNPUBLISHED (missing treated as UNPUBLISHED)"
+  },
+  "required_fields": [
+    "protocol_id",
+    "schema_version",
+    "source_channel_classification",
+    "collected_at_utc",
+    "valid_from_utc",
+    "valid_until_utc",
+    "gate_aware_production_deployment",
+    "commerce_gate",
+    "old_generated_deployment_urls_protected",
+    "custom_domains_public",
+    "ledger",
+    "stripe_tcp1",
+    "ceremony_inventory",
+    "migration_state",
+    "delta_since_decision"
+  ],
+  "field_types": {
+    "protocol_id": "string exact RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+    "schema_version": "integer exact 1",
+    "source_channel_classification": "string (sanitized channel label only; no secrets)",
+    "collected_at_utc": "ISO-8601 UTC timestamp string",
+    "valid_from_utc": "ISO-8601 UTC timestamp string",
+    "valid_until_utc": "ISO-8601 UTC timestamp string (must be strictly after UtcNow at gate time)",
+    "gate_aware_production_deployment": {
+      "deployment_id_or_url_identity": "opaque non-secret string identity (never a live credentialed URL)",
+      "merge_base_ref": "exact 40-hex 19e8bd071bae5f8afed85340f50168d4ca8e5586",
+      "observed_at_utc": "ISO-8601 UTC timestamp string"
+    },
+    "commerce_gate": {
+      "observed": "enum absent|closed",
+      "never_open": "boolean exact true",
+      "observed_at_utc": "ISO-8601 UTC timestamp string"
+    },
+    "old_generated_deployment_urls_protected": "boolean exact true",
+    "custom_domains_public": "boolean exact true",
+    "ledger": {
+      "non_terminal_count": "non-negative integer count",
+      "observed_at_utc": "ISO-8601 UTC timestamp string"
+    },
+    "stripe_tcp1": {
+      "failed_visible_count": "non-negative integer count",
+      "pending_visible_count": "non-negative integer count",
+      "visibility_window_start_utc": "ISO-8601 UTC timestamp string",
+      "visibility_window_end_utc": "ISO-8601 UTC timestamp string"
+    },
+    "ceremony_inventory": {
+      "total": "integer exact 4",
+      "company_owned": "integer exact 3",
+      "firm_owned": "integer exact 1",
+      "classification": "string exact active_and_complimentary"
+    },
+    "migration_state": {
+      "history_count_expected": "integer exact 187",
+      "target_version_absent": "string exact 20260915004500",
+      "objects_absent": "boolean exact true"
+    },
+    "delta_since_decision": {
+      "unexpected_links": "integer exact 0",
+      "new_authorizing_slots": "integer exact 0"
+    }
+  },
+  "optional_agreement_fields": {
+    "wrapper": "optional object; when present, overlapping sanitized fields must agree with applicator",
+    "applicator": "optional object; when present, overlapping sanitized fields must agree with wrapper"
+  },
+  "forbidden_content": [
+    "Customer, firm, user, or tenant identifiers (including UUID/GUID shapes)",
+    "Stripe object ids (cus_*, sub_*, evt_*, in_*, pi_*, price_*, prod_*)",
+    "Credentialed database URLs (postgres:// or postgresql:// with user:password@)",
+    "Session secrets, API keys, tokens, PEM material, or connection strings",
+    "Raw SQL, request/response payloads, or unsanitized log excerpts",
+    "Live production deployment URLs used as authority beyond opaque deployment_id_or_url_identity",
+    "Any open commerce-gate observation (observed must never be open)"
+  ],
+  "fail_closed_conditions": [
+    "PRECONDITION_PINS_UNPUBLISHED: required_precondition_evidence_sha256 / freeze / tip / bundle_source are null OR published_precondition_evidence.status is UNPUBLISHED/missing",
+    "PRECONDITION_EVIDENCE_SHA_MISMATCH: SHA-256 of retained evidence bytes does not match required_precondition_evidence_sha256",
+    "PRECONDITION_EVIDENCE_INVALID: malformed JSON, missing required fields, or wrong types",
+    "PRECONDITION_EVIDENCE_PROTOCOL: protocol_id is not RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+    "PRECONDITION_EVIDENCE_EXPIRED: valid_until_utc is not strictly after UtcNow",
+    "PRECONDITION_EVIDENCE_COLLECTION_WINDOW: collected_at_utc is after valid_until_utc or before valid_from_utc",
+    "PRECONDITION_EVIDENCE_DEPLOYMENT_BOUNDARY: collected_at_utc predates gate_aware_production_deployment.observed_at_utc",
+    "PRECONDITION_EVIDENCE_MERGE_BASE: gate_aware_production_deployment.merge_base_ref is not exactly 19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "PRECONDITION_EVIDENCE_COMMERCE_GATE: commerce_gate.observed not absent|closed OR never_open is not true",
+    "PRECONDITION_EVIDENCE_INVENTORY: ceremony_inventory is not total=4 / company_owned=3 / firm_owned=1 / classification=active_and_complimentary",
+    "PRECONDITION_EVIDENCE_MIGRATION: history_count_expected!=187 OR target_version_absent!=20260915004500 OR objects_absent!=true",
+    "PRECONDITION_EVIDENCE_DELTA: unexpected_links!=0 OR new_authorizing_slots!=0",
+    "PRECONDITION_EVIDENCE_PROTECTION: old_generated_deployment_urls_protected!=true OR custom_domains_public!=true",
+    "PRECONDITION_EVIDENCE_FORBIDDEN_CONTENT: retained JSON contains UUID / Stripe id / credentialed postgres URL / secret-like material",
+    "PRECONDITION_EVIDENCE_WRAPPER_APPLICATOR: wrapper/applicator present and disagree on overlapping sanitized fields",
+    "PRECONDITION_EVIDENCE_CONTRADICTION: contradictory counts or mutually exclusive boolean observations"
+  ],
+  "example_shape": {
+    "protocol_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+    "schema_version": 1,
+    "source_channel_classification": "SYNTHETIC_CONTRACT_EXAMPLE_ONLY",
+    "collected_at_utc": null,
+    "valid_from_utc": null,
+    "valid_until_utc": null,
+    "gate_aware_production_deployment": {
+      "deployment_id_or_url_identity": "OPAQUE_DEPLOYMENT_IDENTITY_PLACEHOLDER",
+      "merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+      "observed_at_utc": null
+    },
+    "commerce_gate": {
+      "observed": "closed",
+      "never_open": true,
+      "observed_at_utc": null
+    },
+    "old_generated_deployment_urls_protected": true,
+    "custom_domains_public": true,
+    "ledger": {
+      "non_terminal_count": null,
+      "observed_at_utc": null
+    },
+    "stripe_tcp1": {
+      "failed_visible_count": null,
+      "pending_visible_count": null,
+      "visibility_window_start_utc": null,
+      "visibility_window_end_utc": null
+    },
+    "ceremony_inventory": {
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "classification": "active_and_complimentary"
+    },
+    "migration_state": {
+      "history_count_expected": 187,
+      "target_version_absent": "20260915004500",
+      "objects_absent": true
+    },
+    "delta_since_decision": {
+      "unexpected_links": 0,
+      "new_authorizing_slots": 0
+    }
+  },
+  "notes": [
+    "This file is a contract/schema document only. Do not treat example_shape nulls as production evidence.",
+    "No fresh production precondition collection is authorized under unpublished pins; ceremonies must fail closed with PRECONDITION_PINS_UNPUBLISHED before SecureString prompt, Node, or DB.",
+    "Fresh cutover-precondition evidence is distinct from prior production dry-run evidence (required_prior_dry_run_*)."
+  ]
+}

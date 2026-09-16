@@ -6771,7 +6771,14 @@ var require_ra_pro_cutover_apply_core = __commonJS({
         e.code = "BLOCKED_PIN_MISMATCH";
         throw e;
       }
-      if (AUTHORIZED_TOOLING_FREEZE && !String(AUTHORIZED_TOOLING_FREEZE).startsWith("PLACEHOLDER_") && AUTHORIZED_TOOLING_FREEZE !== "PENDING_AFTER_COMMIT" && inputs.authorizedPrHead !== AUTHORIZED_TOOLING_FREEZE) {
+      if (!/^[0-9a-f]{40}$/i.test(String(AUTHORIZED_TOOLING_FREEZE || ""))) {
+        const e = new Error(
+          "BLOCKED_PIN_MISMATCH: AUTHORIZED_TOOLING_FREEZE must be exact 40-hex (PLACEHOLDER/PENDING not executable)"
+        );
+        e.code = "BLOCKED_PIN_MISMATCH";
+        throw e;
+      }
+      if (inputs.authorizedPrHead.toLowerCase() !== String(AUTHORIZED_TOOLING_FREEZE).toLowerCase()) {
         const e = new Error("BLOCKED_PIN_MISMATCH: authorizedPrHead != sealed AUTHORIZED_TOOLING_FREEZE");
         e.code = "BLOCKED_PIN_MISMATCH";
         throw e;
@@ -6782,7 +6789,7 @@ var require_ra_pro_cutover_apply_core = __commonJS({
         throw e;
       }
       if (inputs.requireStandaloneBundleSelfHash) {
-        if (!EXPECTED_STANDALONE_BUNDLE_SHA256 || EXPECTED_STANDALONE_BUNDLE_SHA256.startsWith("PENDING_")) {
+        if (!EXPECTED_STANDALONE_BUNDLE_SHA256 || EXPECTED_STANDALONE_BUNDLE_SHA256.startsWith("PENDING_") || !/^[0-9a-f]{64}$/i.test(String(EXPECTED_STANDALONE_BUNDLE_SHA256))) {
           const e = new Error("BLOCKED_PIN_MISMATCH: standalone bundle sha pin not published");
           e.code = "BLOCKED_PIN_MISMATCH";
           throw e;
