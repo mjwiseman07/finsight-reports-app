@@ -61,8 +61,8 @@ Before migration apply:
 - Independently verify that a **gate-aware** build (this PR’s checkout + webhook
   gate) is serving the relevant checkout and webhook routes.
 - Independently verify that commerce is actually blocked (checkout 503
-  `ra_pro_cutover_commerce_gated` before Stripe; activation held **retryable**,
-  not processed/skipped).
+  `ra_pro_cutover_commerce_gated` before Stripe; RA Pro webhook held
+  **before lease claim** as retryable HTTP 500 — no claim, not processed/skipped).
 - If this cannot be established safely, **stop**. Do not infer closure from
   configuration alone.
 - Any prerequisite deployment or configuration change requires **separate
@@ -103,6 +103,10 @@ collect production facts and does **not** independently authenticate them.
   and **sanitized results** for each observation.
 - **Missing, stale, contradictory, or self-attested** observations **block**
   cutover.
+- Closure and quiescence evidence is **time-bounded and historical**. Passing
+  within a stated window does **not** keep that evidence fresh indefinitely.
+- Before migration apply, require a **fresh pre-apply check** under separate
+  authorization — do not reuse prior closure/quiescence snapshots as current.
 - Do **not** fabricate values. Do **not** treat unit-test fixtures as production
   evidence.
 
