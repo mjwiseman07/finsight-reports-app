@@ -142,7 +142,44 @@ REVOKE UPDATE (billing_company_id) ON public.firms FROM anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Capacity guards for RA Pro–linked firms (2 clients, 5 seats)
+-- Serialize capacity-changing ops per firm via firms row FOR UPDATE.
+-- Multi-firm moves lock both firm ids in ascending uuid order (no global lock).
 -- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.ra_pro_lock_firm_capacity(p_firm_ids uuid[])
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF p_firm_ids IS NULL OR array_length(p_firm_ids, 1) IS NULL THEN
+    RETURN;
+  END IF;
+  -- Deterministic order avoids deadlocks when two sessions move opposite ways.
+  -- Transaction advisory locks (not firms FOR UPDATE): capacity triggers run as
+  -- authenticated under RLS, where SELECT ... FOR UPDATE would otherwise no-op
+  -- without an UPDATE policy — and we must not grant firms UPDATE to browsers.
+  FOR v_id IN
+    SELECT DISTINCT x
+    FROM unnest(p_firm_ids) AS u(x)
+    WHERE x IS NOT NULL
+    ORDER BY x
+  LOOP
+    PERFORM pg_advisory_xact_lock(
+      hashtextextended('ra_pro_firm_capacity:' || v_id::text, 0)
+    );
+  END LOOP;
+END;
+$$;
+
+-- Invoker-safe helper used by capacity triggers: callers need EXECUTE, not DEFINER.
+REVOKE ALL ON FUNCTION public.ra_pro_lock_firm_capacity(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ra_pro_lock_firm_capacity(uuid[]) TO authenticated, service_role;
+-- anon has table DML in rehearsal boot but must not acquire capacity locks directly.
+REVOKE ALL ON FUNCTION public.ra_pro_lock_firm_capacity(uuid[]) FROM anon;
+
 CREATE OR REPLACE FUNCTION public.firms_enforce_ra_pro_client_cap()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -156,21 +193,30 @@ DECLARE
   v_comp_cap int;
   v_status text;
 BEGIN
+  -- Only constrain rows that are (or become) active clients.
+  IF TG_OP = 'UPDATE'
+     AND OLD.subscription_status = 'active'
+     AND NEW.subscription_status IS DISTINCT FROM 'active'
+     AND NEW.firm_id IS NOT DISTINCT FROM OLD.firm_id THEN
+    -- Pure same-firm deactivation: releases capacity; no lock needed.
+    RETURN NEW;
+  END IF;
+  IF NEW.subscription_status IS DISTINCT FROM 'active' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Serialize capacity admission for the destination firm; lock source too on moves.
+  IF TG_OP = 'UPDATE' AND OLD.firm_id IS DISTINCT FROM NEW.firm_id THEN
+    PERFORM public.ra_pro_lock_firm_capacity(ARRAY[OLD.firm_id, NEW.firm_id]);
+  ELSE
+    PERFORM public.ra_pro_lock_firm_capacity(ARRAY[NEW.firm_id]);
+  END IF;
+
   SELECT f.billing_company_id INTO v_billing
   FROM public.firms f
   WHERE f.id = NEW.firm_id;
 
   IF v_billing IS NULL THEN
-    RETURN NEW;
-  END IF;
-
-  -- Only constrain rows that are (or become) active clients.
-  IF TG_OP = 'UPDATE'
-     AND OLD.subscription_status = 'active'
-     AND NEW.subscription_status IS DISTINCT FROM 'active' THEN
-    RETURN NEW;
-  END IF;
-  IF NEW.subscription_status IS DISTINCT FROM 'active' THEN
     RETURN NEW;
   END IF;
 
@@ -227,20 +273,27 @@ DECLARE
   v_billing uuid;
   v_count int;
 BEGIN
+  IF TG_OP = 'UPDATE'
+     AND OLD.status = 'active'
+     AND NEW.status IS DISTINCT FROM 'active'
+     AND NEW.firm_id IS NOT DISTINCT FROM OLD.firm_id THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.status IS DISTINCT FROM 'active' THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND OLD.firm_id IS DISTINCT FROM NEW.firm_id THEN
+    PERFORM public.ra_pro_lock_firm_capacity(ARRAY[OLD.firm_id, NEW.firm_id]);
+  ELSE
+    PERFORM public.ra_pro_lock_firm_capacity(ARRAY[NEW.firm_id]);
+  END IF;
+
   SELECT f.billing_company_id INTO v_billing
   FROM public.firms f
   WHERE f.id = NEW.firm_id;
 
   IF v_billing IS NULL THEN
-    RETURN NEW;
-  END IF;
-
-  IF TG_OP = 'UPDATE'
-     AND OLD.status = 'active'
-     AND NEW.status IS DISTINCT FROM 'active' THEN
-    RETURN NEW;
-  END IF;
-  IF NEW.status IS DISTINCT FROM 'active' THEN
     RETURN NEW;
   END IF;
 
@@ -378,6 +431,9 @@ BEGIN
     RETURNING id INTO v_firm_id;
     v_created_firm := true;
   END IF;
+
+  -- Serialize with concurrent seat/client capacity triggers on this firm.
+  PERFORM public.ra_pro_lock_firm_capacity(ARRAY[v_firm_id]);
 
   -- Buyer membership (idempotent); seat cap enforced by trigger.
   SELECT fm.id INTO v_membership_id

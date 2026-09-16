@@ -37,7 +37,7 @@ canonical activation path after commerce reopening.
 |------|-------|
 | Env var | `RA_PRO_CUTOVER_COMMERCE_GATE` |
 | `open` | RA Pro checkout + webhook activation allowed |
-| `closed` | Checkout returns **503** `ra_pro_cutover_commerce_gated` before Stripe session create; RA Pro webhook activation finalizes **retryable** (not processed/skipped) |
+| `closed` | Checkout returns **503** `ra_pro_cutover_commerce_gated` before Stripe session create; RA Pro `checkout.session.completed` is held **before lease claim** as retryable HTTP 500 (no claim / no finalize / not processed/skipped) |
 | missing / malformed | **closed** (fail closed) |
 | Authority | Server process env only |
 | Forbidden inputs | client body, query, cookies, Stripe metadata, `NEXT_PUBLIC_*` |

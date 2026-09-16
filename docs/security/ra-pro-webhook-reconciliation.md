@@ -1,7 +1,9 @@
 # Review Assist Pro webhook conflict reconciliation
 
-Operator workflow for `failed_conflict` / held `retryable` ledger rows
-(including `ra_pro_cutover_commerce_gated` during cutover).
+Operator workflow for `failed_conflict` / reclaimable `retryable` ledger rows.
+Cutover gate holds (`ra_pro_cutover_commerce_gated`) never claim a ledger row —
+they are admission denials only (HTTP 500, Stripe redelivery), not post-claim
+finalizations.
 
 ## Bounded steps
 
