@@ -52,6 +52,28 @@ describe("bootstrapCompanyForUser", () => {
     ).rejects.toBeInstanceOf(CheckoutCompanyBootstrapError);
     expect(admin.from).not.toHaveBeenCalled();
   });
+
+  it("maps ownership_revoked without DELETE compensation", async () => {
+    const admin = {
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: { message: "bootstrap_checkout_ownership_revoked", code: "P0001" },
+      })),
+      from: vi.fn(),
+    };
+    await expect(
+      bootstrapCompanyForUser({
+        // @ts-expect-error — minimal mock
+        admin,
+        userId: "user-1",
+        businessName: "Acme Books",
+      }),
+    ).rejects.toMatchObject({
+      code: "bootstrap_checkout_ownership_revoked",
+      message: "workspace_ownership_revoked",
+    });
+    expect(admin.from).not.toHaveBeenCalled();
+  });
 });
 
 describe("bootstrapCheckoutFirmWorkspace", () => {

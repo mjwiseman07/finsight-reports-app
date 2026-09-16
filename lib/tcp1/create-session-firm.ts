@@ -62,6 +62,12 @@ function mapRpcError(err: { message?: string; code?: string }): CheckoutFirmBoot
       "bootstrap_checkout_ownership_conflict",
     );
   }
+  if (msg.includes("bootstrap_checkout_ownership_revoked")) {
+    return new CheckoutFirmBootstrapError(
+      "workspace_ownership_revoked",
+      "bootstrap_checkout_ownership_revoked",
+    );
+  }
   return new CheckoutFirmBootstrapError(msg, err.code || "workspace_bootstrap_failed");
 }
 

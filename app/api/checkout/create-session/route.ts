@@ -331,6 +331,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (err.code === "bootstrap_checkout_ownership_conflict") {
           return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
         }
+        if (err.code === "bootstrap_checkout_ownership_revoked") {
+          return NextResponse.json({ error: "workspace_ownership_revoked" }, { status: 409 });
+        }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
       return NextResponse.json({ error: "workspace_bootstrap_failed" }, { status: 500 });
@@ -372,11 +375,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (err.code === "bootstrap_checkout_ownership_conflict") {
           return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
         }
+        if (err.code === "bootstrap_checkout_ownership_revoked") {
+          return NextResponse.json({ error: "workspace_ownership_revoked" }, { status: 409 });
+        }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
       if (err instanceof CheckoutCompanyBootstrapError) {
         if (err.code === "bootstrap_checkout_ownership_conflict") {
           return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
+        }
+        if (err.code === "bootstrap_checkout_ownership_revoked") {
+          return NextResponse.json({ error: "workspace_ownership_revoked" }, { status: 409 });
         }
         return NextResponse.json({ error: err.message }, { status: 500 });
       }

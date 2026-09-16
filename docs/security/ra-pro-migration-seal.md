@@ -25,14 +25,15 @@ git cat-file blob <oid> | wc -c
 | Tip `db7a2d15` LF blob | `9243e7bd163e67ebad54f2a395c5d6b83c3658847640b17169704cc8bda578f1` | 27246 | Blocking xact advisory locks (RR bypass / multi-statement deadlock class) |
 | Tip `ad25a283` LF blob | `217bee361a2cabff6a23c032b2b0ca1dc7791c172334c3834f4f993e2a305aa4` | 28337 | Try-lock + RC-only capacity (pre–atomic checkout bootstrap) |
 | Tip `adebc6db` LF blob | `72a167a5370df518c92c9ff0107f2ce8b89afe75f3de14e166a84a6b7dafd589` | 35883 | Atomic bootstrap without exhaustive ownership reconciliation |
+| Tip `f8067648` LF blob | `6c5c00a91c0234064949c435acf0f26174d6863137dab30bbd49e5e375577718` | 40234 | Inactive ownership-class treated as repairable orphan |
 
 ## Current tip seal (atomic checkout bootstrap + ownership reconciliation; try-lock capacity; NO_CUTOVER × 4; no backfill)
 
 | Field | Value |
 |-------|-------|
-| Blob OID | `1aa8d512f1c26263815bfe6b9cf226134bfbde11` |
-| SHA-256 | `6c5c00a91c0234064949c435acf0f26174d6863137dab30bbd49e5e375577718` |
-| Bytes | `40234` |
+| Blob OID | `d36f5e2c50f7bab956c3191723c0e8a223279df5` |
+| SHA-256 | `c756651f267aaa2ebe5f1331e96d62bfa882507917b4201397f77e25a45f5ff9` |
+| Bytes | `40289` |
 
 `.gitattributes` forces `text eol=lf` for this migration path. Production apply remains separately authorized and is **not** performed by this PR. **No company↔firm backfill** — operator decision `NO_CUTOVER × 4` (see `ra-pro-cutover-operator-decision.json` / `ra-pro-decision-record-seal.md`).
 
@@ -46,9 +47,11 @@ git cat-file blob <oid> | wc -c
 
 **Checkout / onboarding bootstrap (this tip):**
 - `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` (service_role, SECURITY INVOKER).
-- **Unlinked firm identity:** exact set of firm ids from `firms.owner_user_id = buyer` ∪ active `firm_memberships` for buyer. 0 → create; 1 → reuse + repair canonical active `firm_admin`; >1 or contradictory ownership → `bootstrap_checkout_ownership_conflict` (no writes). Inactive/revoked memberships are **not** candidates.
-- **Linked firm identity:** `firms.billing_company_id` UNIQUE under buyer + billing-company advisory xact locks.
-- **Company identity:** exact set of company ids with ownership-class `company_users` (`owner_executive`|`company_admin`). Active set first; if empty, exactly one inactive ownership-class company may be repaired; multiple → conflict. `companies` has no `owner_user_id`.
-- **Why no extra UNIQUE(user):** production allows multi-firm / multi-company memberships outside checkout; a partial unique index would not safely apply to existing data. Buyer (and billing-company) advisory locks + exhaustive set equality are the enforced bootstrap invariant.
-- `/api/company/onboarding` creates company+membership only via the company bootstrap RPC (no competing multi-step insert path).
-- Failures roll back inside the RPC — no app DELETE compensation.
+- **Unlinked firm identity:** exact set of firm ids from `firms.owner_user_id = buyer` ∪ **active** `firm_memberships` for buyer. 0 → create; 1 → reuse (+ insert membership only if absent); >1 → `bootstrap_checkout_ownership_conflict`.
+- **Non-active relationships (firm + company, aligned):** any ownership-class / firm_membership row with `status IS DISTINCT FROM 'active'` (revoked, inactive, suspended, null, unknown, …) is an **explicit denial** → `bootstrap_checkout_ownership_revoked`. No reactivate, no replacement workspace, no row mutation.
+- **Owner-column-only orphan (firm):** `owner_user_id = buyer` with **no** membership row may insert one active `firm_admin` **only when** no non-active membership exists for the buyer. Owner-only + revoked membership → revoked fail-closed.
+- **Linked firm identity:** `firms.billing_company_id` UNIQUE under buyer + billing-company advisory xact locks (same non-active denial).
+- **Company identity:** exact set of company ids with **active** ownership-class `company_users` (`owner_executive`|`company_admin`). `companies` has no `owner_user_id`. Zero active + zero non-active ownership-class → create; any non-active ownership-class → revoked.
+- **Why no extra UNIQUE(user):** production allows multi-firm / multi-company memberships outside checkout; buyer (and billing-company) advisory locks + exhaustive set equality enforce bootstrap. Never `ORDER BY … LIMIT 1`.
+- `/api/company/onboarding` creates company+membership only via the company bootstrap RPC.
+- Failures roll back inside the RPC — no app DELETE compensation. HTTP: revoked/conflict → 409 before Stripe customer/session.

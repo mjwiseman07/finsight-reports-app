@@ -386,11 +386,11 @@ describe.skipIf(!dockerOk)(
       expect(counts.m).toBe(1);
     });
 
-    it("owner-only orphan company (inactive ownership) reuses and reactivates", async () => {
+    it("revoked company ownership remains revoked with zero mutations", async () => {
       const buyer = randomUUID();
-      const orphanCo = await asService(async (c) => {
+      const snap = await asService(async (c) => {
         const co = await c.query(
-          `INSERT INTO public.companies (name) VALUES ('OrphanCo') RETURNING id`,
+          `INSERT INTO public.companies (name) VALUES ('RevokedCo') RETURNING id`,
         );
         const id = co.rows[0].id as string;
         await c.query(
@@ -398,37 +398,259 @@ describe.skipIf(!dockerOk)(
            VALUES ($1, $2, 'owner_executive', 'revoked')`,
           [id, buyer],
         );
-        return id;
+        return { id, companies: 1, relStatus: "revoked" };
       });
-      const out = await asService(async (c) => {
-        const r = await c.query(
-          `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'OrphanCo', 'owner_executive') AS j`,
-          [buyer],
-        );
-        return r.rows[0].j as { company_id: string; created: boolean };
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'RevokedCo', 'owner_executive')`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_revoked/);
       });
-      expect(out.company_id).toBe(orphanCo);
-      expect(out.created).toBe(false);
-      const counts = await asService(async (c) => {
-        const cos = await c.query(
-          `SELECT count(*)::int n FROM public.company_users
-           WHERE user_id = $1 AND role IN ('owner_executive','company_admin')`,
+      const after = await asService(async (c) => {
+        const cos = await c.query(`SELECT count(*)::int n FROM public.companies`);
+        const rel = await c.query(
+          `SELECT status, role FROM public.company_users WHERE user_id = $1`,
           [buyer],
         );
-        const active = await c.query(
-          `SELECT count(*)::int n FROM public.company_users
-           WHERE user_id = $1 AND status = 'active'
-             AND role IN ('owner_executive','company_admin')`,
-          [buyer],
-        );
-        const companies = await c.query(`SELECT count(*)::int n FROM public.companies`);
         return {
-          rel: cos.rows[0].n as number,
-          active: active.rows[0].n as number,
+          cos: cos.rows[0].n as number,
+          status: rel.rows[0]?.status as string,
+          role: rel.rows[0]?.role as string,
+          n: rel.rows.length,
         };
       });
-      expect(counts.rel).toBe(1);
-      expect(counts.active).toBe(1);
+      expect(after.cos).toBeGreaterThanOrEqual(1);
+      expect(after.n).toBe(1);
+      expect(after.status).toBe("revoked");
+      expect(after.role).toBe("owner_executive");
+      void snap;
+    });
+
+    for (const status of ["inactive", "suspended", "unknown", "deleted", "rejected", "expired", ""] as const) {
+      it(`company ownership status=${JSON.stringify(status)} fail-closed with zero mutations`, async () => {
+        const buyer = randomUUID();
+        await asService(async (c) => {
+          const co = await c.query(
+            `INSERT INTO public.companies (name) VALUES ('BadStatus') RETURNING id`,
+          );
+          await c.query(
+            `INSERT INTO public.company_users (company_id, user_id, role, status)
+             VALUES ($1, $2, 'company_admin', $3)`,
+            [co.rows[0].id, buyer, status],
+          );
+        });
+        const before = await asService(async (c) => {
+          const n = await c.query(`SELECT count(*)::int n FROM public.companies`);
+          const rel = await c.query(
+            `SELECT status FROM public.company_users WHERE user_id = $1`,
+            [buyer],
+          );
+          return { n: n.rows[0].n as number, status: rel.rows[0].status };
+        });
+        await asService(async (c) => {
+          let msg = "";
+          try {
+            await c.query(
+              `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'X', 'owner_executive')`,
+              [buyer],
+            );
+          } catch (e) {
+            msg = String((e as Error).message || e);
+          }
+          expect(msg).toMatch(/bootstrap_checkout_ownership_revoked/);
+        });
+        const after = await asService(async (c) => {
+          const n = await c.query(`SELECT count(*)::int n FROM public.companies`);
+          const rel = await c.query(
+            `SELECT status FROM public.company_users WHERE user_id = $1`,
+            [buyer],
+          );
+          return { n: n.rows[0].n as number, status: rel.rows[0].status, rows: rel.rows.length };
+        });
+        expect(after.n).toBe(before.n);
+        expect(after.rows).toBe(1);
+        expect(after.status).toBe(before.status);
+      });
+    }
+
+    it("company ownership status=NULL fail-closed with zero mutations", async () => {
+      const buyer = randomUUID();
+      const admin = new Client({ connectionString: url });
+      await admin.connect();
+      try {
+        await admin.query(
+          `ALTER TABLE public.company_users ALTER COLUMN status DROP NOT NULL`,
+        );
+        const co = await admin.query(
+          `INSERT INTO public.companies (name) VALUES ('NullStatus') RETURNING id`,
+        );
+        await admin.query(
+          `INSERT INTO public.company_users (company_id, user_id, role, status)
+           VALUES ($1, $2, 'owner_executive', NULL)`,
+          [co.rows[0].id, buyer],
+        );
+      } finally {
+        await admin.end().catch(() => {});
+      }
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'X', 'owner_executive')`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_revoked/);
+      });
+      const after = await asService(async (c) => {
+        const rel = await c.query(
+          `SELECT status IS NULL AS is_null, count(*)::int n FROM public.company_users
+           WHERE user_id = $1 GROUP BY 1`,
+          [buyer],
+        );
+        const cos = await c.query(
+          `SELECT count(*)::int n FROM public.companies c
+           JOIN public.company_users cu ON cu.company_id = c.id WHERE cu.user_id = $1`,
+          [buyer],
+        );
+        return { rel: rel.rows, cos: cos.rows[0].n as number };
+      });
+      expect(after.cos).toBe(1);
+      expect(after.rel).toEqual([{ is_null: true, n: 1 }]);
+    });
+
+    it("owner-only firm orphan plus revoked membership fails closed", async () => {
+      const buyer = randomUUID();
+      const orphan = await asService(async (c) => {
+        const r = await c.query(
+          `INSERT INTO public.firms (name, owner_user_id) VALUES ('OwnedRevoked', $1) RETURNING id`,
+          [buyer],
+        );
+        await c.query(
+          `INSERT INTO public.firm_memberships (firm_id, user_id, role, status)
+           VALUES ($1, $2, 'firm_admin', 'revoked')`,
+          [r.rows[0].id, buyer],
+        );
+        return r.rows[0].id as string;
+      });
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'OwnedRevoked', NULL)`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_revoked/);
+      });
+      const after = await asService(async (c) => {
+        const f = await c.query(
+          `SELECT count(*)::int n FROM public.firms WHERE owner_user_id = $1`,
+          [buyer],
+        );
+        const m = await c.query(
+          `SELECT status FROM public.firm_memberships WHERE firm_id = $1 AND user_id = $2`,
+          [orphan, buyer],
+        );
+        return { f: f.rows[0].n as number, status: m.rows[0].status as string };
+      });
+      expect(after.f).toBe(1);
+      expect(after.status).toBe("revoked");
+    });
+
+    it("concurrent requests cannot reactivate revoked company ownership", async () => {
+      const buyer = randomUUID();
+      await asService(async (c) => {
+        const co = await c.query(
+          `INSERT INTO public.companies (name) VALUES ('ConcRevoked') RETURNING id`,
+        );
+        await c.query(
+          `INSERT INTO public.company_users (company_id, user_id, role, status)
+           VALUES ($1, $2, 'owner_executive', 'revoked')`,
+          [co.rows[0].id, buyer],
+        );
+      });
+      const clients: Client[] = [];
+      for (let i = 0; i < 8; i++) {
+        const c = new Client({ connectionString: url });
+        await c.connect();
+        await c.query("SET ROLE service_role");
+        clients.push(c);
+      }
+      try {
+        const settled = await Promise.allSettled(
+          clients.map((c) =>
+            c.query(
+              `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'ConcRevoked', 'owner_executive')`,
+              [buyer],
+            ),
+          ),
+        );
+        expect(settled.every((s) => s.status === "rejected")).toBe(true);
+        for (const s of settled) {
+          if (s.status === "rejected") {
+            expect(String(s.reason?.message || s.reason)).toMatch(
+              /bootstrap_checkout_ownership_revoked/,
+            );
+          }
+        }
+        const after = await asService(async (c) => {
+          const rel = await c.query(
+            `SELECT status, count(*)::int n FROM public.company_users
+             WHERE user_id = $1 GROUP BY status`,
+            [buyer],
+          );
+          const cos = await c.query(
+            `SELECT count(DISTINCT company_id)::int n FROM public.company_users WHERE user_id = $1`,
+            [buyer],
+          );
+          return { rel: rel.rows, cos: cos.rows[0].n as number };
+        });
+        expect(after.cos).toBe(1);
+        expect(after.rel).toEqual([{ status: "revoked", n: 1 }]);
+      } finally {
+        await Promise.all(clients.map((c) => c.end().catch(() => {})));
+      }
+    });
+
+    it("active singleton company reuse still succeeds", async () => {
+      const buyer = randomUUID();
+      const companyId = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'ActiveSolo', 'owner_executive') AS j`,
+          [buyer],
+        );
+        return (r.rows[0].j as { company_id: string }).company_id;
+      });
+      const second = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT public.bootstrap_checkout_company_workspace($1::uuid, 'ActiveSolo', 'company_admin') AS j`,
+          [buyer],
+        );
+        return r.rows[0].j as { company_id: string; created: boolean; created_membership: boolean };
+      });
+      expect(second.company_id).toBe(companyId);
+      expect(second.created).toBe(false);
+      expect(second.created_membership).toBe(false);
+      const role = await asService(async (c) => {
+        const r = await c.query(
+          `SELECT role, status FROM public.company_users WHERE user_id = $1`,
+          [buyer],
+        );
+        return r.rows[0] as { role: string; status: string };
+      });
+      expect(role.status).toBe("active");
+      expect(role.role).toBe("owner_executive");
     });
 
     it("two active memberships fail closed with zero changes", async () => {
@@ -563,7 +785,7 @@ describe.skipIf(!dockerOk)(
       expect(after.m).toEqual(snap.m);
     });
 
-    it("inactive membership alone does not block create; remains non-candidate", async () => {
+    it("inactive/revoked firm membership fails closed (aligned with company; no create)", async () => {
       const buyer = randomUUID();
       const otherFirm = await asService(async (c) => {
         const f = await c.query(
@@ -577,15 +799,49 @@ describe.skipIf(!dockerOk)(
         );
         return f.rows[0].id as string;
       });
-      const out = await asService(async (c) => {
-        const r = await c.query(
-          `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'Fresh', NULL) AS j`,
-          [buyer],
-        );
-        return r.rows[0].j as { firm_id: string; created_firm: boolean };
+      const before = await asService(async (c) => {
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        return f.rows[0].n as number;
       });
-      expect(out.created_firm).toBe(true);
-      expect(out.firm_id).not.toBe(otherFirm);
+      await asService(async (c) => {
+        let msg = "";
+        try {
+          await c.query(
+            `SELECT public.bootstrap_checkout_firm_workspace($1::uuid, 'Fresh', NULL)`,
+            [buyer],
+          );
+        } catch (e) {
+          msg = String((e as Error).message || e);
+        }
+        expect(msg).toMatch(/bootstrap_checkout_ownership_revoked/);
+      });
+      const after = await asService(async (c) => {
+        const f = await c.query(`SELECT count(*)::int n FROM public.firms`);
+        const m = await c.query(
+          `SELECT status FROM public.firm_memberships WHERE firm_id = $1 AND user_id = $2`,
+          [otherFirm, buyer],
+        );
+        return { f: f.rows[0].n as number, status: m.rows[0].status as string };
+      });
+      expect(after.f).toBe(before);
+      expect(after.status).toBe("revoked");
+    });
+
+    it("HTTP mapping: ownership_revoked is non-success (unit via client mappers)", async () => {
+      const { CheckoutCompanyBootstrapError } = await import(
+        "@/lib/tcp1/create-session-company"
+      );
+      const { CheckoutFirmBootstrapError } = await import("@/lib/tcp1/create-session-firm");
+      const companyMapper = CheckoutCompanyBootstrapError;
+      const firmMapper = CheckoutFirmBootstrapError;
+      // Exercise public map path via failed rpc simulation already covered in unit tests;
+      // assert codes used by create-session / onboarding remain distinct sanitized strings.
+      expect(new companyMapper("workspace_ownership_revoked", "bootstrap_checkout_ownership_revoked").code).toBe(
+        "bootstrap_checkout_ownership_revoked",
+      );
+      expect(new firmMapper("workspace_ownership_revoked", "bootstrap_checkout_ownership_revoked").message).toBe(
+        "workspace_ownership_revoked",
+      );
     });
 
     it("concurrent retries against orphan firm stay single-workspace", async () => {

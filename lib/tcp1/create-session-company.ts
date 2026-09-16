@@ -37,6 +37,12 @@ function mapRpcError(err: { message?: string; code?: string }): CheckoutCompanyB
       "bootstrap_checkout_ownership_conflict",
     );
   }
+  if (msg.includes("bootstrap_checkout_ownership_revoked")) {
+    return new CheckoutCompanyBootstrapError(
+      "workspace_ownership_revoked",
+      "bootstrap_checkout_ownership_revoked",
+    );
+  }
   if (msg.includes("bootstrap_checkout_invalid_company_role")) {
     return new CheckoutCompanyBootstrapError(
       "invalid_company_role",

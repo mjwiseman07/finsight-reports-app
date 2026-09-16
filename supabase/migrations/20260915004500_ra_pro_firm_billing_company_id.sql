@@ -823,12 +823,15 @@ COMMENT ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text)
 --   * Linked: firms.billing_company_id (UNIQUE) under buyer+company xact locks.
 --   * Unlinked: exact set of buyer ownership evidence firm ids:
 --       firms.owner_user_id = buyer  UNION  active firm_memberships for buyer.
---     Zero → create; one → reuse+repair membership; many/disagreement → conflict.
--- Inactive/revoked firm_memberships are NOT ownership candidates (documented).
--- No unique(user_id) on active memberships: buyers may legitimately belong to
--- multiple firms outside checkout; lock + exhaustive set equality is the
--- bootstrap invariant (cannot safely constrain existing multi-firm data).
--- Never ORDER BY ... LIMIT 1 to pick among candidates. Never merge by name.
+--     Zero → create; one → reuse (+ insert membership only if absent);
+--     many/disagreement → conflict.
+-- Non-authorizing statuses: any firm_membership for the buyer with status IS
+-- DISTINCT FROM 'active' (revoked/inactive/suspended/null/unknown/…) is an
+-- explicit denial — fail closed (bootstrap_checkout_ownership_revoked). Do not
+-- reactivate, do not create a replacement workspace, do not mutate rows.
+-- Owner-column-only orphan repair (owner_user_id set, no membership row) is
+-- allowed only when no non-active membership exists for the buyer.
+-- Never ORDER BY ... LIMIT 1. Never merge by name/email/timestamps.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.bootstrap_checkout_firm_workspace(
   p_buyer_user_id uuid,
@@ -843,12 +846,14 @@ AS $$
 DECLARE
   v_firm_id uuid;
   v_membership_id uuid;
+  v_membership_status text;
   v_created_firm boolean := false;
   v_created_membership boolean := false;
   v_name text := nullif(trim(coalesce(p_firm_name, '')), '');
   v_buyer_ok boolean := false;
   v_candidates uuid[];
   v_candidate_count int;
+  v_denied boolean := false;
 BEGIN
   IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
     RAISE EXCEPTION 'bootstrap_checkout_firm_forbidden' USING ERRCODE = '42501';
@@ -862,7 +867,6 @@ BEGIN
     RAISE EXCEPTION 'bootstrap_checkout_missing_firm_name' USING ERRCODE = '22023';
   END IF;
 
-  -- Serialize same-buyer (and same-company) bootstrap; capacity still uses try_lock.
   PERFORM pg_advisory_xact_lock(
     hashtextextended('checkout_firm_bootstrap:buyer:' || p_buyer_user_id::text, 0)
   );
@@ -870,6 +874,23 @@ BEGIN
     PERFORM pg_advisory_xact_lock(
       hashtextextended('checkout_firm_bootstrap:co:' || p_billing_company_id::text, 0)
     );
+  END IF;
+
+  -- Explicit denial: any non-active membership for this buyer (aligned with company).
+  PERFORM 1
+  FROM public.firm_memberships fm
+  WHERE fm.user_id = p_buyer_user_id
+  FOR UPDATE;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.firm_memberships fm
+    WHERE fm.user_id = p_buyer_user_id
+      AND fm.status IS DISTINCT FROM 'active'
+  ) INTO v_denied;
+
+  IF v_denied THEN
+    RAISE EXCEPTION 'bootstrap_checkout_ownership_revoked' USING ERRCODE = 'P0001';
   END IF;
 
   IF p_billing_company_id IS NOT NULL THEN
@@ -892,7 +913,6 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
 
-    -- Linked identity = billing_company_id (UNIQUE). Do not invent from names.
     SELECT f.id INTO v_firm_id
     FROM public.firms f
     WHERE f.billing_company_id = p_billing_company_id
@@ -905,16 +925,9 @@ BEGIN
       v_created_firm := true;
     END IF;
   ELSE
-    -- Lock all ownership-evidence rows before set inspection.
     PERFORM 1
     FROM public.firms f
     WHERE f.owner_user_id = p_buyer_user_id
-    FOR UPDATE;
-
-    PERFORM 1
-    FROM public.firm_memberships fm
-    WHERE fm.user_id = p_buyer_user_id
-      AND fm.status = 'active'
     FOR UPDATE;
 
     SELECT coalesce(array_agg(DISTINCT fid), ARRAY[]::uuid[])
@@ -939,8 +952,6 @@ BEGIN
 
     IF v_candidate_count = 1 THEN
       v_firm_id := v_candidates[1];
-      -- Claim owner only when unset (orphan). Never steal another user's owner_user_id;
-      -- owner∪membership set disagreement already fail-closed via candidate_count > 1.
       UPDATE public.firms
       SET owner_user_id = p_buyer_user_id
       WHERE id = v_firm_id
@@ -953,8 +964,8 @@ BEGIN
     END IF;
   END IF;
 
-  -- Canonical active firm_admin membership (seat/capacity triggers apply).
-  SELECT fm.id INTO v_membership_id
+  -- Only insert missing membership; never reactivate (non-active already denied).
+  SELECT fm.id, fm.status INTO v_membership_id, v_membership_status
   FROM public.firm_memberships fm
   WHERE fm.firm_id = v_firm_id
     AND fm.user_id = p_buyer_user_id
@@ -965,12 +976,14 @@ BEGIN
     VALUES (v_firm_id, p_buyer_user_id, 'firm_admin', 'active')
     RETURNING id INTO v_membership_id;
     v_created_membership := true;
+  ELSIF v_membership_status IS DISTINCT FROM 'active' THEN
+    RAISE EXCEPTION 'bootstrap_checkout_ownership_revoked' USING ERRCODE = 'P0001';
   ELSE
     UPDATE public.firm_memberships
     SET role = 'firm_admin',
-        status = 'active',
         updated_at = now()
-    WHERE id = v_membership_id;
+    WHERE id = v_membership_id
+      AND role IS DISTINCT FROM 'firm_admin';
   END IF;
 
   RETURN jsonb_build_object(
@@ -989,20 +1002,21 @@ REVOKE ALL ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid
 GRANT EXECUTE ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) TO service_role;
 
 COMMENT ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) IS
-  'Atomic firm+membership bootstrap. Unlinked identity = exact owner_user_id∪active-membership firm set (0 create / 1 reuse+repair / >1 conflict). Linked identity = billing_company_id UNIQUE. Buyer(+company) advisory xact locks. Inactive memberships ignored. service_role INVOKER only.';
+  'Atomic firm+membership bootstrap. Unlinked identity = owner_user_id∪active-membership set. Non-active memberships deny (ownership_revoked)—no reactivate/replace. Owner-only orphan inserts membership only when no non-active row exists. Linked = billing_company_id UNIQUE. service_role INVOKER only.';
 
 -- ---------------------------------------------------------------------------
 -- 7. Atomic company workspace bootstrap (service_role only)
 -- Shared by checkout create-session and /api/company/onboarding.
--- Idempotency identity: exact set of company ids where buyer has ownership-class
--- company_users rows (roles owner_executive|company_admin).
---   * Active rows are primary candidates.
---   * If zero active: inactive/revoked ownership-class rows may yield exactly one
---     repair candidate; multiple distinct inactive companies → conflict.
---   * companies has no owner_user_id column; relationship rows are the evidence.
--- No unique(user_id) on ownership roles: multi-company memberships exist in
--- production data; buyer advisory lock + exhaustive conflict detection enforce
--- checkout/onboarding single-workspace bootstrap. Never ORDER BY LIMIT 1.
+-- Idempotency identity: exact set of company ids with *active* ownership-class
+-- company_users (owner_executive|company_admin).
+--   * Only status = 'active' authorizes reuse.
+--   * Any ownership-class row with status IS DISTINCT FROM 'active'
+--     (revoked/inactive/suspended/null/unknown/…) → ownership_revoked fail-closed;
+--     no reactivate, no replacement company, no mutation.
+--   * companies has no owner_user_id; relationship rows are the only evidence.
+--   * Zero active + zero non-active ownership-class → create.
+-- Aligned with firm: non-active relationship = explicit denial, never orphan repair.
+-- Never ORDER BY LIMIT 1. Never infer from name/email/timestamps.
 -- ---------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.bootstrap_checkout_company_workspace(uuid, text);
 
@@ -1023,11 +1037,11 @@ DECLARE
   v_name text := nullif(trim(coalesce(p_company_name, '')), '');
   v_role text := nullif(trim(coalesce(p_canonical_role, '')), '');
   v_active uuid[];
-  v_inactive uuid[];
   v_active_n int;
-  v_inactive_n int;
+  v_denied boolean := false;
   v_cu_id uuid;
   v_cu_role text;
+  v_cu_status text;
 BEGIN
   IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
     RAISE EXCEPTION 'bootstrap_checkout_company_forbidden' USING ERRCODE = '42501';
@@ -1055,6 +1069,18 @@ BEGIN
     AND cu.role IN ('owner_executive', 'company_admin')
   FOR UPDATE;
 
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.company_users cu
+    WHERE cu.user_id = p_buyer_user_id
+      AND cu.role IN ('owner_executive', 'company_admin')
+      AND cu.status IS DISTINCT FROM 'active'
+  ) INTO v_denied;
+
+  IF v_denied THEN
+    RAISE EXCEPTION 'bootstrap_checkout_ownership_revoked' USING ERRCODE = 'P0001';
+  END IF;
+
   SELECT coalesce(array_agg(DISTINCT company_id), ARRAY[]::uuid[])
     INTO v_active
   FROM public.company_users cu
@@ -1062,15 +1088,7 @@ BEGIN
     AND cu.role IN ('owner_executive', 'company_admin')
     AND cu.status = 'active';
 
-  SELECT coalesce(array_agg(DISTINCT company_id), ARRAY[]::uuid[])
-    INTO v_inactive
-  FROM public.company_users cu
-  WHERE cu.user_id = p_buyer_user_id
-    AND cu.role IN ('owner_executive', 'company_admin')
-    AND cu.status IS DISTINCT FROM 'active';
-
   v_active_n := coalesce(cardinality(v_active), 0);
-  v_inactive_n := coalesce(cardinality(v_inactive), 0);
 
   IF v_active_n > 1 THEN
     RAISE EXCEPTION 'bootstrap_checkout_ownership_conflict' USING ERRCODE = 'P0001';
@@ -1078,11 +1096,6 @@ BEGIN
 
   IF v_active_n = 1 THEN
     v_company_id := v_active[1];
-  ELSIF v_inactive_n > 1 THEN
-    RAISE EXCEPTION 'bootstrap_checkout_ownership_conflict' USING ERRCODE = 'P0001';
-  ELSIF v_inactive_n = 1 THEN
-    -- Owner-only / revoked orphan: exactly one inactive ownership-class company.
-    v_company_id := v_inactive[1];
   ELSE
     INSERT INTO public.companies (
       name,
@@ -1105,7 +1118,7 @@ BEGIN
     v_created := true;
   END IF;
 
-  SELECT cu.id, cu.role INTO v_cu_id, v_cu_role
+  SELECT cu.id, cu.role, cu.status INTO v_cu_id, v_cu_role, v_cu_status
   FROM public.company_users cu
   WHERE cu.company_id = v_company_id
     AND cu.user_id = p_buyer_user_id
@@ -1116,16 +1129,11 @@ BEGIN
     VALUES (v_company_id, p_buyer_user_id, v_role, 'active')
     RETURNING id INTO v_cu_id;
     v_created_membership := true;
+  ELSIF v_cu_status IS DISTINCT FROM 'active' THEN
+    RAISE EXCEPTION 'bootstrap_checkout_ownership_revoked' USING ERRCODE = 'P0001';
   ELSE
-    UPDATE public.company_users
-    SET status = 'active',
-        -- Preserve existing ownership-class role; never demote via LIMIT/guess.
-        role = CASE
-          WHEN v_cu_role IN ('owner_executive', 'company_admin') THEN v_cu_role
-          ELSE v_role
-        END,
-        updated_at = now()
-    WHERE id = v_cu_id;
+    -- Active reuse: preserve ownership-class role; no status mutation.
+    NULL;
   END IF;
 
   RETURN jsonb_build_object(
@@ -1143,7 +1151,7 @@ REVOKE ALL ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text, t
 GRANT EXECUTE ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text, text) TO service_role;
 
 COMMENT ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text, text) IS
-  'Atomic company+ownership-class membership. Identity = exact active (else single inactive) owner_executive|company_admin company set. Buyer advisory xact lock. Conflict fail-closed. Used by checkout and company onboarding. service_role INVOKER only.';
+  'Atomic company+ownership-class membership. Only status=active authorizes reuse. Any non-active ownership-class row → ownership_revoked (no reactivate/replace/mutate). Aligned with firm. service_role INVOKER only.';
 
 -- Final no-backfill seal (still inside the migration transaction).
 DO $$

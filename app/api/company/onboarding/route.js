@@ -186,6 +186,9 @@ export async function POST(request) {
       if (err.code === "bootstrap_checkout_ownership_conflict") {
         return NextResponse.json({ error: "workspace_ownership_conflict" }, { status: 409 });
       }
+      if (err.code === "bootstrap_checkout_ownership_revoked") {
+        return NextResponse.json({ error: "workspace_ownership_revoked" }, { status: 409 });
+      }
       return NextResponse.json({ error: "Unable to create company account." }, { status: 500 });
     }
     return NextResponse.json({ error: "Unable to create company account." }, { status: 500 });
