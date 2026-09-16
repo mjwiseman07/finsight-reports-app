@@ -23,14 +23,15 @@ git cat-file blob <oid> | wc -c
 | Tip `79729bfb` LF blob | `2efa0cd40036ae7d5f9b85452dbd0cf7642a509c0516381ee5feadf14c4120b9` | 24765 | Pre–occupancy BETWEEN 1 AND 10 alignment |
 | Tip `63483ef` LF blob | `1e05e987107f3d0b191c8480a62621b99ba16494798cd76e9288d91614bf9598` | 24943 | Pre–concurrent firm-capacity advisory locks |
 | Tip `db7a2d15` LF blob | `9243e7bd163e67ebad54f2a395c5d6b83c3658847640b17169704cc8bda578f1` | 27246 | Blocking xact advisory locks (RR bypass / multi-statement deadlock class) |
+| Tip `ad25a283` LF blob | `217bee361a2cabff6a23c032b2b0ca1dc7791c172334c3834f4f993e2a305aa4` | 28337 | Try-lock + RC-only capacity (pre–atomic checkout bootstrap) |
 
-## Current tip seal (try-lock + READ COMMITTED-only capacity; NO_CUTOVER × 4; no backfill)
+## Current tip seal (atomic checkout bootstrap + try-lock capacity; NO_CUTOVER × 4; no backfill)
 
 | Field | Value |
 |-------|-------|
-| Blob OID | `8feb7b04f04e6b5b08656e3b60dbc71d3da8f8d2` |
-| SHA-256 | `217bee361a2cabff6a23c032b2b0ca1dc7791c172334c3834f4f993e2a305aa4` |
-| Bytes | `28337` |
+| Blob OID | `646a6ed5e8582f4ebb9e7064457888f7752a3062` |
+| SHA-256 | `72a167a5370df518c92c9ff0107f2ce8b89afe75f3de14e166a84a6b7dafd589` |
+| Bytes | `35883` |
 
 `.gitattributes` forces `text eol=lf` for this migration path. Production apply remains separately authorized and is **not** performed by this PR. **No company↔firm backfill** — operator decision `NO_CUTOVER × 4` (see `ra-pro-cutover-operator-decision.json` / `ra-pro-decision-record-seal.md`).
 
@@ -41,3 +42,5 @@ git cat-file blob <oid> | wc -c
 - Per-firm keys use `pg_try_advisory_xact_lock(hashtextextended('ra_pro_firm_capacity:' || firm_id, 0))`.
 - Contention raises `ra_pro_capacity_lock_busy` (no wait → no cross-statement deadlock). Callers must **ROLLBACK and retry** the full transaction; the database does not auto-retry.
 - Per-call ascending uuid try-order orders one acquisition set only; it does **not** claim transaction-wide ordering across statements.
+
+**Checkout bootstrap (this tip):** `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` (service_role, SECURITY INVOKER) atomically create firm+membership or company+owner. Optional `billing_company_id` enforces the unique linked firm. Failures roll back inside the RPC — no app DELETE compensation.

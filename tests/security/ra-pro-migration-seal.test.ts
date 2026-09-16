@@ -13,11 +13,11 @@ const SUPERSEDED_CRLF_SHA =
   "c54ff8f915d24a90de810b95882899fa8e3560fc810b18341f66d0736cfdfdcf";
 const SUPERSEDED_CRLF_BYTES = 15822;
 
-/** Try-lock + READ COMMITTED-only capacity tip seal (Git LF blob). */
-const EXPECTED_OID = "8feb7b04f04e6b5b08656e3b60dbc71d3da8f8d2";
+/** Atomic checkout bootstrap tip seal (Git LF blob). */
+const EXPECTED_OID = "646a6ed5e8582f4ebb9e7064457888f7752a3062";
 const EXPECTED_SHA256 =
-  "217bee361a2cabff6a23c032b2b0ca1dc7791c172334c3834f4f993e2a305aa4";
-const EXPECTED_BYTES = 28337;
+  "72a167a5370df518c92c9ff0107f2ce8b89afe75f3de14e166a84a6b7dafd589";
+const EXPECTED_BYTES = 35883;
 
 function blobAtHead(): { oid: string; bytes: Buffer; sha256: string } {
   const oid = execFileSync("git", ["rev-parse", `HEAD:${MIGRATION_PATH}`], {

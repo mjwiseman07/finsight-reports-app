@@ -817,6 +817,236 @@ COMMENT ON FUNCTION public.claim_stripe_webhook_event(text, text, boolean, integ
 COMMENT ON FUNCTION public.finalize_stripe_webhook_event(text, uuid, text, text) IS
   'Finalize a webhook event only when stripe_event_id + lease_token match an active processing lease.';
 
+-- ---------------------------------------------------------------------------
+-- 6. Atomic checkout firm workspace bootstrap (service_role only)
+-- Replaces app-side firms INSERT + firm_memberships INSERT.
+-- Optional p_billing_company_id links the unique firm for that company (RA Pro).
+-- NULL company_id = unlinked solo/firm-tier workspace.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.bootstrap_checkout_firm_workspace(
+  p_buyer_user_id uuid,
+  p_firm_name text,
+  p_billing_company_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_firm_id uuid;
+  v_membership_id uuid;
+  v_created_firm boolean := false;
+  v_created_membership boolean := false;
+  v_name text := nullif(trim(coalesce(p_firm_name, '')), '');
+  v_buyer_ok boolean := false;
+BEGIN
+  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RAISE EXCEPTION 'bootstrap_checkout_firm_forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_buyer_user_id IS NULL THEN
+    RAISE EXCEPTION 'bootstrap_checkout_missing_buyer' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_name IS NULL THEN
+    RAISE EXCEPTION 'bootstrap_checkout_missing_firm_name' USING ERRCODE = '22023';
+  END IF;
+
+  -- Serialize same-buyer (and same-company) bootstrap; capacity still uses try_lock.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('checkout_firm_bootstrap:buyer:' || p_buyer_user_id::text, 0)
+  );
+  IF p_billing_company_id IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(
+      hashtextextended('checkout_firm_bootstrap:co:' || p_billing_company_id::text, 0)
+    );
+  END IF;
+
+  IF p_billing_company_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.companies c WHERE c.id = p_billing_company_id
+    ) THEN
+      RAISE EXCEPTION 'bootstrap_checkout_company_not_found' USING ERRCODE = 'P0002';
+    END IF;
+
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.company_users cu
+      WHERE cu.company_id = p_billing_company_id
+        AND cu.user_id = p_buyer_user_id
+        AND cu.status = 'active'
+    ) INTO v_buyer_ok;
+
+    IF NOT v_buyer_ok THEN
+      RAISE EXCEPTION 'bootstrap_checkout_buyer_not_company_member'
+        USING ERRCODE = '42501';
+    END IF;
+
+    SELECT f.id INTO v_firm_id
+    FROM public.firms f
+    WHERE f.billing_company_id = p_billing_company_id
+    FOR UPDATE;
+
+    IF v_firm_id IS NULL THEN
+      INSERT INTO public.firms (name, owner_user_id, billing_company_id)
+      VALUES (v_name, p_buyer_user_id, p_billing_company_id)
+      RETURNING id INTO v_firm_id;
+      v_created_firm := true;
+    END IF;
+  ELSE
+    -- Unlinked firm-tier path: reuse any active membership for this buyer.
+    SELECT fm.firm_id, fm.id
+      INTO v_firm_id, v_membership_id
+    FROM public.firm_memberships fm
+    WHERE fm.user_id = p_buyer_user_id
+      AND fm.status = 'active'
+    ORDER BY fm.updated_at DESC NULLS LAST, fm.id
+    LIMIT 1
+    FOR UPDATE;
+
+    IF v_firm_id IS NULL THEN
+      INSERT INTO public.firms (name, owner_user_id)
+      VALUES (v_name, p_buyer_user_id)
+      RETURNING id INTO v_firm_id;
+      v_created_firm := true;
+    END IF;
+  END IF;
+
+  -- Membership upsert (seat/capacity triggers enforce lock + READ COMMITTED).
+  IF v_membership_id IS NULL THEN
+    SELECT fm.id INTO v_membership_id
+    FROM public.firm_memberships fm
+    WHERE fm.firm_id = v_firm_id
+      AND fm.user_id = p_buyer_user_id
+    FOR UPDATE;
+  END IF;
+
+  IF v_membership_id IS NULL THEN
+    INSERT INTO public.firm_memberships (firm_id, user_id, role, status)
+    VALUES (v_firm_id, p_buyer_user_id, 'firm_admin', 'active')
+    RETURNING id INTO v_membership_id;
+    v_created_membership := true;
+  ELSE
+    UPDATE public.firm_memberships
+    SET role = 'firm_admin',
+        status = 'active',
+        updated_at = now()
+    WHERE id = v_membership_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'firm_id', v_firm_id,
+    'membership_id', v_membership_id,
+    'billing_company_id', p_billing_company_id,
+    'created_firm', v_created_firm,
+    'created_membership', v_created_membership
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) TO service_role;
+
+COMMENT ON FUNCTION public.bootstrap_checkout_firm_workspace(uuid, text, uuid) IS
+  'Atomic checkout firm+membership bootstrap. Optional billing_company_id for unique linked firm. service_role only. On error the whole transaction rolls back (no app DELETE compensation).';
+
+-- ---------------------------------------------------------------------------
+-- 7. Atomic checkout company bootstrap (service_role only)
+-- Replaces companies INSERT + company_users INSERT (+ DELETE compensation).
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.bootstrap_checkout_company_workspace(
+  p_buyer_user_id uuid,
+  p_company_name text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_company_id uuid;
+  v_created boolean := false;
+  v_name text := nullif(trim(coalesce(p_company_name, '')), '');
+BEGIN
+  IF current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RAISE EXCEPTION 'bootstrap_checkout_company_forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_buyer_user_id IS NULL THEN
+    RAISE EXCEPTION 'bootstrap_checkout_missing_buyer' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_name IS NULL THEN
+    RAISE EXCEPTION 'bootstrap_checkout_missing_company_name' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('checkout_company_bootstrap:buyer:' || p_buyer_user_id::text, 0)
+  );
+
+  SELECT cu.company_id INTO v_company_id
+  FROM public.company_users cu
+  WHERE cu.user_id = p_buyer_user_id
+    AND cu.role = 'owner_executive'
+    AND cu.status = 'active'
+  ORDER BY cu.id
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_company_id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'ok', true,
+      'company_id', v_company_id,
+      'created', false
+    );
+  END IF;
+
+  -- Production companies row shape (extra columns ignored when absent via
+  -- explicit list matching create-session company bootstrap).
+  INSERT INTO public.companies (
+    name,
+    primary_persona,
+    package_level,
+    billing_status,
+    onboarding_status,
+    account_type,
+    industry_type
+  ) VALUES (
+    v_name,
+    'business-owner',
+    'essential',
+    'trial',
+    'not_started',
+    'my-own-company',
+    'Other'
+  )
+  RETURNING id INTO v_company_id;
+  v_created := true;
+
+  INSERT INTO public.company_users (
+    company_id, user_id, role, status
+  ) VALUES (
+    v_company_id, p_buyer_user_id, 'owner_executive', 'active'
+  );
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'company_id', v_company_id,
+    'created', v_created
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text) TO service_role;
+
+COMMENT ON FUNCTION public.bootstrap_checkout_company_workspace(uuid, text) IS
+  'Atomic checkout company+owner_executive membership. service_role only. No DELETE compensation.';
+
 -- Final no-backfill seal (still inside the migration transaction).
 DO $$
 DECLARE

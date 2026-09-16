@@ -14,7 +14,14 @@ import { stripe } from "@/lib/stripe";
 import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
-import { bootstrapCompanyForUser } from "@/lib/tcp1/create-session-company";
+import {
+  bootstrapCompanyForUser,
+  CheckoutCompanyBootstrapError,
+} from "@/lib/tcp1/create-session-company";
+import {
+  bootstrapCheckoutFirmWorkspace,
+  CheckoutFirmBootstrapError,
+} from "@/lib/tcp1/create-session-firm";
 import {
   RA_PRO_TIER_KEY,
   allocateNextRaProPilotSlotNumber,
@@ -298,48 +305,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let companyId: string | null = null;
 
   if (entityType === "firm") {
-    // Existing firm bootstrap — keep verbatim.
-    const { data: existingMembership, error: membershipLookupError } = await admin
-      .from("firm_memberships")
-      .select("firm_id")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    if (membershipLookupError) {
-      console.error("[create-session] firm_memberships lookup failed", membershipLookupError);
-      return NextResponse.json({ error: "membership_lookup_failed" }, { status: 500 });
-    }
-
-    if (existingMembership?.firm_id) {
-      firmId = existingMembership.firm_id as string;
-    } else {
-      const { data: newFirm, error: firmInsertError } = await admin
-        .from("firms")
-        .insert({ name: businessName, owner_user_id: user.id })
-        .select("id")
-        .single();
-      if (firmInsertError || !newFirm) {
-        console.error("[create-session] firms insert failed", firmInsertError);
-        return NextResponse.json({ error: "firm_create_failed" }, { status: 500 });
+    try {
+      const workspace = await bootstrapCheckoutFirmWorkspace({
+        admin,
+        buyerUserId: user.id,
+        firmName: businessName,
+        billingCompanyId: null,
+      });
+      firmId = workspace.firmId;
+    } catch (err) {
+      console.error("[create-session] firm workspace bootstrap failed", err);
+      if (err instanceof CheckoutFirmBootstrapError) {
+        if (
+          err.code === "ra_pro_capacity_lock_busy" ||
+          err.code === "ra_pro_capacity_isolation_unsupported"
+        ) {
+          return NextResponse.json(
+            { error: "workspace_bootstrap_retryable", code: err.code },
+            { status: 503 },
+          );
+        }
+        if (err.code === "ra_pro_seat_cap_reached") {
+          return NextResponse.json({ error: "seat_cap_reached" }, { status: 409 });
+        }
+        return NextResponse.json({ error: err.message }, { status: 500 });
       }
-      firmId = newFirm.id as string;
-
-      const { error: membershipInsertError } = await admin
-        .from("firm_memberships")
-        .insert({
-          firm_id: firmId,
-          user_id: user.id,
-          role: "firm_admin",
-          status: "active",
-        });
-      if (membershipInsertError) {
-        console.error("[create-session] firm_memberships insert failed", membershipInsertError);
-        return NextResponse.json({ error: "membership_create_failed" }, { status: 500 });
-      }
+      return NextResponse.json({ error: "workspace_bootstrap_failed" }, { status: 500 });
     }
   } else {
-    // entityType === "company" — RA Pro path.
+    // entityType === "company" — RA Pro: atomic company then linked firm workspace.
     try {
       const bootstrap = await bootstrapCompanyForUser({
         admin,
@@ -347,8 +341,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         businessName,
       });
       companyId = bootstrap.companyId;
+      const workspace = await bootstrapCheckoutFirmWorkspace({
+        admin,
+        buyerUserId: user.id,
+        firmName: businessName,
+        billingCompanyId: companyId,
+      });
+      firmId = workspace.firmId;
     } catch (err) {
-      console.error("[create-session] company bootstrap failed", err);
+      console.error("[create-session] company/firm workspace bootstrap failed", err);
+      if (err instanceof CheckoutFirmBootstrapError) {
+        if (
+          err.code === "ra_pro_capacity_lock_busy" ||
+          err.code === "ra_pro_capacity_isolation_unsupported"
+        ) {
+          return NextResponse.json(
+            { error: "workspace_bootstrap_retryable", code: err.code },
+            { status: 503 },
+          );
+        }
+        if (err.code === "ra_pro_seat_cap_reached") {
+          return NextResponse.json({ error: "seat_cap_reached" }, { status: 409 });
+        }
+        if (err.code === "bootstrap_checkout_buyer_not_company_member") {
+          return NextResponse.json({ error: "buyer_not_company_member" }, { status: 403 });
+        }
+        return NextResponse.json({ error: err.message }, { status: 500 });
+      }
+      if (err instanceof CheckoutCompanyBootstrapError) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+      }
       const msg = err instanceof Error ? err.message : String(err);
       return NextResponse.json({ error: msg }, { status: 500 });
     }
@@ -414,7 +436,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     buyer_user_id: user.id,
     business_name: businessName,
   };
-  if (firmId) metadata.firm_id = firmId;
+  if (firmId && entityType === "firm") metadata.firm_id = firmId;
   if (companyId) metadata.company_id = companyId;
 
   // 10. Link this user to a Stripe Customer before checkout.

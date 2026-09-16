@@ -35,6 +35,8 @@ Canonical activation writes the company → firm link via `activate_review_assis
 
 **Capacity locking (DB):** Linked-firm client/seat mutations require **READ COMMITTED**. Higher isolation raises `ra_pro_capacity_isolation_unsupported` before mutation. Guards take per-firm **nonblocking** transaction advisory locks (`ra_pro_capacity_lock_busy` on contention). Callers must ROLLBACK and retry the full transaction — no DB auto-retry. See `docs/security/ra-pro-migration-seal.md`.
 
+**Checkout bootstrap (DB):** `bootstrap_checkout_firm_workspace` / `bootstrap_checkout_company_workspace` create firm+membership or company+owner atomically (service_role only). No app-side DELETE compensation. Capacity lock/isolation failures map to sanitized HTTP 503 `workspace_bootstrap_retryable` before Stripe customer/session create.
+
 Keep in sync across:
 
 - `lib/review-assist-pro/limits.ts` (source of truth)

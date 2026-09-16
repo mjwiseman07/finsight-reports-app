@@ -21,6 +21,23 @@ vi.mock("@/lib/stripe-customer", () => ({
 }));
 vi.mock("@/lib/tcp1/create-session-company", () => ({
   bootstrapCompanyForUser: vi.fn(async () => ({ companyId: "co-1" })),
+  CheckoutCompanyBootstrapError: class extends Error {},
+}));
+vi.mock("@/lib/tcp1/create-session-firm", () => ({
+  bootstrapCheckoutFirmWorkspace: vi.fn(async () => ({
+    firmId: "firm-1",
+    membershipId: "mem-1",
+    billingCompanyId: "co-1",
+    createdFirm: true,
+    createdMembership: true,
+  })),
+  CheckoutFirmBootstrapError: class extends Error {
+    code: string;
+    constructor(message: string, code: string) {
+      super(message);
+      this.code = code;
+    }
+  },
 }));
 vi.mock("@/lib/product-tiers", async () => {
   const actual = await vi.importActual<typeof import("@/lib/product-tiers")>(

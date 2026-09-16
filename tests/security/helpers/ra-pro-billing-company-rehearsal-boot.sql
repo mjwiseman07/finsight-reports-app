@@ -6,7 +6,16 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-CREATE TABLE companies (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL);
+CREATE TABLE companies (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  primary_persona text,
+  package_level text,
+  billing_status text,
+  onboarding_status text,
+  account_type text,
+  industry_type text
+);
 CREATE TABLE company_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id uuid NOT NULL REFERENCES companies(id),
