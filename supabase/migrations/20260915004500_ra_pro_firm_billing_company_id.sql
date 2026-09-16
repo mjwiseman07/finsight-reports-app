@@ -142,8 +142,19 @@ REVOKE UPDATE (billing_company_id) ON public.firms FROM anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Capacity guards for RA Pro–linked firms (2 clients, 5 seats)
--- Serialize capacity-changing ops per firm via firms row FOR UPDATE.
--- Multi-firm moves lock both firm ids in ascending uuid order (no global lock).
+-- Locking strategy (this tip):
+--   * Capacity mutations are allowed only under READ COMMITTED.
+--     REPEATABLE READ / SERIALIZABLE are rejected before mutation
+--     (snapshot COUNT would otherwise miss committed competitors).
+--   * Per-firm transaction advisory locks via pg_try_advisory_xact_lock
+--     on key hashtextextended('ra_pro_firm_capacity:' || firm_id, 0).
+--   * Nonblocking acquisition: contention raises ra_pro_capacity_lock_busy
+--     (no wait → no cross-statement deadlock). Callers must ROLLBACK and
+--     retry the whole transaction; the database does not auto-retry.
+--   * Multi-firm moves try keys in ascending uuid order within one call.
+--     That orders a single acquisition set only — it does NOT establish
+--     transaction-wide ordering across statements (try_lock handles that
+--     by aborting instead of waiting on an inverted order).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.ra_pro_lock_firm_capacity(p_firm_ids uuid[])
 RETURNS void
@@ -153,23 +164,36 @@ SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_id uuid;
+  v_iso text;
+  v_ok boolean;
 BEGIN
+  -- Fail closed before any capacity mutation under unsupported isolation.
+  v_iso := lower(current_setting('transaction_isolation'));
+  IF v_iso IS DISTINCT FROM 'read committed' THEN
+    RAISE EXCEPTION 'ra_pro_capacity_isolation_unsupported'
+      USING ERRCODE = '0A000',
+            HINT = 'RA Pro capacity guards require READ COMMITTED';
+  END IF;
+
   IF p_firm_ids IS NULL OR array_length(p_firm_ids, 1) IS NULL THEN
     RETURN;
   END IF;
-  -- Deterministic order avoids deadlocks when two sessions move opposite ways.
-  -- Transaction advisory locks (not firms FOR UPDATE): capacity triggers run as
-  -- authenticated under RLS, where SELECT ... FOR UPDATE would otherwise no-op
-  -- without an UPDATE policy — and we must not grant firms UPDATE to browsers.
+
+  -- Nonblocking per-firm locks. Sorted try order is for this call only.
   FOR v_id IN
     SELECT DISTINCT x
     FROM unnest(p_firm_ids) AS u(x)
     WHERE x IS NOT NULL
     ORDER BY x
   LOOP
-    PERFORM pg_advisory_xact_lock(
+    v_ok := pg_try_advisory_xact_lock(
       hashtextextended('ra_pro_firm_capacity:' || v_id::text, 0)
     );
+    IF NOT v_ok THEN
+      RAISE EXCEPTION 'ra_pro_capacity_lock_busy'
+        USING ERRCODE = '55P03', -- lock_not_available
+              HINT = 'Rollback and retry the full capacity-changing transaction';
+    END IF;
   END LOOP;
 END;
 $$;

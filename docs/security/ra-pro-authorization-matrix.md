@@ -33,6 +33,8 @@ Canonical activation writes the company → firm link via `activate_review_assis
 | `RA_PRO_FIRM_SEATS` | 5 | Authorized firm-user seats on the linked workspace |
 | `RA_PRO_PILOT_COHORT_CAP` | 10 | Global pilot cohort occupancy (`pilot_slot_number` 1..N; status ignored) |
 
+**Capacity locking (DB):** Linked-firm client/seat mutations require **READ COMMITTED**. Higher isolation raises `ra_pro_capacity_isolation_unsupported` before mutation. Guards take per-firm **nonblocking** transaction advisory locks (`ra_pro_capacity_lock_busy` on contention). Callers must ROLLBACK and retry the full transaction — no DB auto-retry. See `docs/security/ra-pro-migration-seal.md`.
+
 Keep in sync across:
 
 - `lib/review-assist-pro/limits.ts` (source of truth)

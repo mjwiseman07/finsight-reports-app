@@ -1,6 +1,9 @@
 /**
- * Disposable Postgres: concurrent RA Pro client/seat cap serialization.
+ * Disposable Postgres: RA Pro client/seat capacity locking.
  * Synthetic only — never production. Requires local Docker.
+ *
+ * Caller contract: on `ra_pro_capacity_lock_busy`, ROLLBACK and retry the
+ * full transaction. The database does not auto-retry.
  */
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -25,9 +28,11 @@ const BOOT_REL =
   "tests/security/helpers/ra-pro-billing-company-rehearsal-boot.sql";
 
 function repoFile(rel: string): Buffer {
-  // Worktree path matches HEAD after commit; use file bytes so local
-  // remediation can be exercised before the seal tip advances.
   return fs.readFileSync(path.join(process.cwd(), rel));
+}
+
+function sleepMs(ms: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 describe.skipIf(!dockerOk)(
@@ -52,16 +57,24 @@ describe.skipIf(!dockerOk)(
       return r;
     }
 
-    function waitReady(seconds = 45) {
+    function waitReady(seconds = 60) {
       const deadline = Date.now() + seconds * 1000;
       while (Date.now() < deadline) {
         const r = sh(
           "docker",
-          ["exec", container, "pg_isready", "-U", "postgres"],
+          [
+            "exec",
+            container,
+            "pg_isready",
+            "-U",
+            "postgres",
+            "-h",
+            "127.0.0.1",
+          ],
           { allowFail: true },
         );
         if (r.status === 0) return;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400);
+        sleepMs(400);
       }
       throw new Error("postgres not ready");
     }
@@ -69,7 +82,18 @@ describe.skipIf(!dockerOk)(
     function psql(sql: string | Buffer) {
       const r = spawnSync(
         "docker",
-        ["exec", "-i", container, "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1"],
+        [
+          "exec",
+          "-i",
+          container,
+          "psql",
+          "-U",
+          "postgres",
+          "-h",
+          "127.0.0.1",
+          "-v",
+          "ON_ERROR_STOP=1",
+        ],
         {
           input: sql,
           encoding: "utf8",
@@ -103,10 +127,10 @@ describe.skipIf(!dockerOk)(
       const companyId = randomUUID();
       const firmId = randomUUID();
       await withClient(async (c) => {
-        await c.query(
-          `INSERT INTO public.companies (id, name) VALUES ($1, $2)`,
-          [companyId, label],
-        );
+        await c.query(`INSERT INTO public.companies (id, name) VALUES ($1, $2)`, [
+          companyId,
+          label,
+        ]);
         await c.query(
           `INSERT INTO public.firms (id, name, billing_company_id)
            VALUES ($1, $2, $3)`,
@@ -123,6 +147,31 @@ describe.skipIf(!dockerOk)(
       return { companyId, firmId };
     }
 
+    /** Caller-side retry required by ra_pro_capacity_lock_busy (no DB auto-retry). */
+    async function runWithLockBusyRetry(
+      c: Client,
+      work: () => Promise<void>,
+      maxAttempts = 50,
+    ): Promise<"ok"> {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await c.query("BEGIN");
+        try {
+          await work();
+          await c.query("COMMIT");
+          return "ok";
+        } catch (e) {
+          await c.query("ROLLBACK").catch(() => {});
+          const msg = String((e as Error).message || e);
+          if (/ra_pro_capacity_lock_busy/.test(msg)) {
+            sleepMs(5 + (attempt % 10));
+            continue;
+          }
+          throw e;
+        }
+      }
+      throw new Error("ra_pro_capacity_lock_busy_retry_exhausted");
+    }
+
     beforeAll(async () => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-cap-"));
       container = `ra-pro-cap-${randomBytes(4).toString("hex")}`;
@@ -132,7 +181,10 @@ describe.skipIf(!dockerOk)(
       const boot = repoFile(BOOT_REL);
       const mig = repoFile(MIGRATION_REL);
       expect(mig.includes(0x0d)).toBe(false);
-      expect(mig.toString("utf8")).toMatch(/ra_pro_lock_firm_capacity/);
+      expect(mig.toString("utf8")).toMatch(/pg_try_advisory_xact_lock/);
+      expect(mig.toString("utf8")).toMatch(
+        /ra_pro_capacity_isolation_unsupported/,
+      );
 
       sh("docker", [
         "run",
@@ -149,7 +201,6 @@ describe.skipIf(!dockerOk)(
       waitReady();
       psql(boot);
       psql(mig);
-      // Browser-role SELECT for firms FOR UPDATE under RLS.
       psql(`
         DROP POLICY IF EXISTS firms_auth_select_cap ON public.firms;
         CREATE POLICY firms_auth_select_cap ON public.firms
@@ -173,7 +224,7 @@ describe.skipIf(!dockerOk)(
       }
     });
 
-    async function raceInserts(opts: {
+    async function raceInsertsWithCallerRetry(opts: {
       kind: "client" | "seat";
       firmId: string;
       companyId: string;
@@ -202,12 +253,9 @@ describe.skipIf(!dockerOk)(
       }
 
       try {
-        // Each session runs its own short transaction. Holding BEGIN across
-        // all sessions before any COMMIT deadlocks on xact advisory locks.
         const settled = await Promise.allSettled(
-          clients.map(async (c, i) => {
-            await c.query("BEGIN");
-            try {
+          clients.map((c, i) =>
+            runWithLockBusyRetry(c, async () => {
               if (opts.kind === "client") {
                 await c.query(
                   `INSERT INTO public.firm_clients
@@ -227,13 +275,8 @@ describe.skipIf(!dockerOk)(
                   [opts.firmId, randomUUID()],
                 );
               }
-              await c.query("COMMIT");
-              return "ok";
-            } catch (e) {
-              await c.query("ROLLBACK").catch(() => {});
-              throw e;
-            }
-          }),
+            }),
+          ),
         );
 
         const count = await withClient(async (c) => {
@@ -266,9 +309,9 @@ describe.skipIf(!dockerOk)(
       }
     }
 
-    it("10 concurrent client inserts never leave more than 2 counted clients", async () => {
+    it("RC: 10 concurrent client inserts never leave more than 2 counted clients", async () => {
       const { firmId, companyId } = await seedLinkedFirm("client-race");
-      const r = await raceInserts({
+      const r = await raceInsertsWithCallerRetry({
         kind: "client",
         firmId,
         companyId,
@@ -279,14 +322,14 @@ describe.skipIf(!dockerOk)(
       expect(r.count).toBe(2);
       expect(r.ok).toBe(2);
       expect(r.fail).toBe(8);
-      expect(r.errors.every((e) => /ra_pro_client_cap_reached/.test(e))).toBe(
-        true,
-      );
+      expect(
+        r.errors.every((e) => /ra_pro_client_cap_reached/.test(e)),
+      ).toBe(true);
     });
 
-    it("8 concurrent seat inserts with 4 prefilled never leave more than 5 seats", async () => {
+    it("RC: 8 concurrent seat inserts with 4 prefilled never leave more than 5 seats", async () => {
       const { firmId, companyId } = await seedLinkedFirm("seat-race");
-      const r = await raceInserts({
+      const r = await raceInsertsWithCallerRetry({
         kind: "seat",
         firmId,
         companyId,
@@ -298,15 +341,125 @@ describe.skipIf(!dockerOk)(
       expect(r.count).toBe(5);
       expect(r.ok).toBe(1);
       expect(r.fail).toBe(7);
-      expect(r.errors.every((e) => /ra_pro_seat_cap_reached/.test(e))).toBe(true);
+      expect(r.errors.every((e) => /ra_pro_seat_cap_reached/.test(e))).toBe(
+        true,
+      );
     });
+
+    it.each(["REPEATABLE READ", "SERIALIZABLE"] as const)(
+      "%s fail-closes before client/seat/move/reactivate mutation",
+      async (level) => {
+        const firm = await seedLinkedFirm(`iso-${level}`);
+        const other = await seedLinkedFirm(`iso-other-${level}`);
+
+        await withClient(async (c) => {
+          await c.query(
+            `INSERT INTO public.firm_clients
+               (firm_id, company_id, name, subscription_status)
+             VALUES ($1, $2, 'seed', 'inactive')`,
+            [firm.firmId, firm.companyId],
+          );
+          await c.query(
+            `INSERT INTO public.firm_memberships
+               (firm_id, user_id, role, status)
+             VALUES ($1, $2, 'member', 'inactive')`,
+            [firm.firmId, randomUUID()],
+          );
+          await c.query(
+            `INSERT INTO public.firm_clients
+               (firm_id, company_id, name, subscription_status)
+             VALUES ($1, $2, 'movable', 'active')`,
+            [other.firmId, other.companyId],
+          );
+        });
+
+        const beforeClients = await withClient(async (c) => {
+          const r = await c.query(
+            `SELECT count(*)::int AS n FROM public.firm_clients
+             WHERE firm_id = $1 AND subscription_status = 'active'`,
+            [firm.firmId],
+          );
+          return r.rows[0].n as number;
+        });
+        expect(beforeClients).toBe(0);
+
+        await withClient(async (c) => {
+          await c.query("SET ROLE authenticated");
+
+          for (const work of [
+            async () => {
+              await c.query(
+                `INSERT INTO public.firm_clients
+                   (firm_id, company_id, name, subscription_status)
+                 VALUES ($1, $2, 'rr-ins', 'active')`,
+                [firm.firmId, firm.companyId],
+              );
+            },
+            async () => {
+              await c.query(
+                `INSERT INTO public.firm_memberships
+                   (firm_id, user_id, role, status)
+                 VALUES ($1, $2, 'member', 'active')`,
+                [firm.firmId, randomUUID()],
+              );
+            },
+            async () => {
+              await c.query(
+                `UPDATE public.firm_clients SET firm_id = $1
+                 WHERE firm_id = $2 AND name = 'movable'`,
+                [firm.firmId, other.firmId],
+              );
+            },
+            async () => {
+              await c.query(
+                `UPDATE public.firm_memberships SET status = 'active'
+                 WHERE firm_id = $1 AND status = 'inactive'`,
+                [firm.firmId],
+              );
+            },
+          ]) {
+            await c.query("BEGIN");
+            await c.query(`SET TRANSACTION ISOLATION LEVEL ${level}`);
+            let msg = "";
+            try {
+              await work();
+              await c.query("COMMIT");
+              throw new Error("expected_isolation_reject");
+            } catch (e) {
+              msg = String((e as Error).message || e);
+              await c.query("ROLLBACK").catch(() => {});
+            }
+            expect(msg).toMatch(/ra_pro_capacity_isolation_unsupported/);
+            expect(msg).not.toMatch(/expected_isolation_reject/);
+          }
+        });
+
+        const afterClients = await withClient(async (c) => {
+          const r = await c.query(
+            `SELECT count(*)::int AS n FROM public.firm_clients
+             WHERE firm_id = $1 AND subscription_status = 'active'`,
+            [firm.firmId],
+          );
+          return r.rows[0].n as number;
+        });
+        const afterSeats = await withClient(async (c) => {
+          const r = await c.query(
+            `SELECT count(*)::int AS n FROM public.firm_memberships
+             WHERE firm_id = $1 AND status = 'active'`,
+            [firm.firmId],
+          );
+          return r.rows[0].n as number;
+        });
+        expect(afterClients).toBe(0);
+        expect(afterSeats).toBe(0);
+      },
+    );
 
     it("concurrent firm moves cannot bypass client cap", async () => {
       const dest = await seedLinkedFirm("move-dest");
       const srcA = await seedLinkedFirm("move-src-a");
       const srcB = await seedLinkedFirm("move-src-b");
 
-      // Fill dest to 1; leave room for exactly one more.
       await withClient(async (c) => {
         await c.query(
           `INSERT INTO public.firm_clients
@@ -332,12 +485,12 @@ describe.skipIf(!dockerOk)(
 
       const movers = await withClient(async (c) => {
         const r = await c.query(
-          `SELECT id, firm_id FROM public.firm_clients
+          `SELECT id FROM public.firm_clients
            WHERE firm_id IN ($1, $2) AND name LIKE 'mover-%'
            ORDER BY name`,
           [srcA.firmId, srcB.firmId],
         );
-        return r.rows as { id: string; firm_id: string }[];
+        return r.rows as { id: string }[];
       });
       expect(movers).toHaveLength(2);
 
@@ -350,22 +503,14 @@ describe.skipIf(!dockerOk)(
       }
       try {
         const settled = await Promise.allSettled(
-          clients.map(async (c, i) => {
-            await c.query("BEGIN");
-            try {
+          clients.map((c, i) =>
+            runWithLockBusyRetry(c, async () => {
               await c.query(
-                `UPDATE public.firm_clients
-                 SET firm_id = $1
-                 WHERE id = $2`,
+                `UPDATE public.firm_clients SET firm_id = $1 WHERE id = $2`,
                 [dest.firmId, movers[i].id],
               );
-              await c.query("COMMIT");
-              return "ok";
-            } catch (e) {
-              await c.query("ROLLBACK").catch(() => {});
-              throw e;
-            }
-          }),
+            }),
+          ),
         );
 
         const destCount = await withClient(async (c) => {
@@ -376,6 +521,7 @@ describe.skipIf(!dockerOk)(
           );
           return r.rows[0].n as number;
         });
+        expect(destCount).toBeLessThanOrEqual(2);
         expect(destCount).toBe(2);
         expect(settled.filter((s) => s.status === "fulfilled")).toHaveLength(1);
         expect(settled.filter((s) => s.status === "rejected")).toHaveLength(1);
@@ -384,16 +530,105 @@ describe.skipIf(!dockerOk)(
       }
     });
 
+    it("opposing multi-statement moves: no deadlock wait, no cap bypass", async () => {
+      const sA = await seedLinkedFirm("swap-a");
+      const sB = await seedLinkedFirm("swap-b");
+      const r1 = randomUUID();
+      const r2 = randomUUID();
+      await withClient(async (c) => {
+        await c.query(
+          `INSERT INTO public.firm_clients
+             (id, firm_id, company_id, name, subscription_status)
+           VALUES ($1, $2, $3, '1', 'active'), ($4, $5, $6, '2', 'active')`,
+          [r1, sA.firmId, sA.companyId, r2, sB.firmId, sB.companyId],
+        );
+      });
+
+      const u1 = new Client({ connectionString: url });
+      const u2 = new Client({ connectionString: url });
+      await u1.connect();
+      await u2.connect();
+      await u1.query("SET ROLE authenticated");
+      await u2.query("SET ROLE authenticated");
+
+      const started = Date.now();
+      const settled = await Promise.allSettled([
+        (async () => {
+          await u1.query("BEGIN");
+          try {
+            await u1.query(`UPDATE public.firm_clients SET firm_id=$1 WHERE id=$2`, [
+              sB.firmId,
+              r1,
+            ]);
+            await u1.query(`UPDATE public.firm_clients SET firm_id=$1 WHERE id=$2`, [
+              sA.firmId,
+              r2,
+            ]);
+            await u1.query("COMMIT");
+          } catch (e) {
+            await u1.query("ROLLBACK").catch(() => {});
+            throw e;
+          }
+        })(),
+        (async () => {
+          await u2.query("BEGIN");
+          try {
+            await u2.query(`UPDATE public.firm_clients SET firm_id=$1 WHERE id=$2`, [
+              sA.firmId,
+              r2,
+            ]);
+            await u2.query(`UPDATE public.firm_clients SET firm_id=$1 WHERE id=$2`, [
+              sB.firmId,
+              r1,
+            ]);
+            await u2.query("COMMIT");
+          } catch (e) {
+            await u2.query("ROLLBACK").catch(() => {});
+            throw e;
+          }
+        })(),
+      ]);
+      const elapsed = Date.now() - started;
+      await u1.end().catch(() => {});
+      await u2.end().catch(() => {});
+
+      expect(elapsed).toBeLessThan(3000);
+      const errs = settled
+        .filter((s): s is PromiseRejectedResult => s.status === "rejected")
+        .map((s) => String(s.reason?.message || s.reason));
+      expect(errs.some((e) => /deadlock detected/i.test(e))).toBe(false);
+      expect(
+        errs.every((e) =>
+          /ra_pro_capacity_lock_busy|ra_pro_client_cap_reached/.test(e),
+        ) || settled.every((s) => s.status === "fulfilled"),
+      ).toBe(true);
+
+      const counts = await withClient(async (c) => {
+        const a = await c.query(
+          `SELECT count(*)::int AS n FROM public.firm_clients
+           WHERE firm_id=$1 AND subscription_status='active'`,
+          [sA.firmId],
+        );
+        const b = await c.query(
+          `SELECT count(*)::int AS n FROM public.firm_clients
+           WHERE firm_id=$1 AND subscription_status='active'`,
+          [sB.firmId],
+        );
+        return { a: a.rows[0].n as number, b: b.rows[0].n as number };
+      });
+      expect(counts.a).toBeLessThanOrEqual(2);
+      expect(counts.b).toBeLessThanOrEqual(2);
+    });
+
     it("concurrent reactivation cannot bypass seat cap", async () => {
       const { firmId } = await seedLinkedFirm("reactivate");
       const inactiveIds: string[] = [];
       await withClient(async (c) => {
         for (let i = 0; i < 5; i++) {
-          const id = randomUUID();
           await c.query(
-            `INSERT INTO public.firm_memberships (id, firm_id, user_id, role, status)
-             VALUES ($1, $2, $3, 'member', 'active')`,
-            [id, firmId, randomUUID()],
+            `INSERT INTO public.firm_memberships (firm_id, user_id, role, status)
+             VALUES ($1, $2, 'member', 'active')`,
+            [firmId, randomUUID()],
           );
         }
         for (let i = 0; i < 4; i++) {
@@ -416,20 +651,14 @@ describe.skipIf(!dockerOk)(
       }
       try {
         const settled = await Promise.allSettled(
-          clients.map(async (c, i) => {
-            await c.query("BEGIN");
-            try {
+          clients.map((c, i) =>
+            runWithLockBusyRetry(c, async () => {
               await c.query(
                 `UPDATE public.firm_memberships SET status = 'active' WHERE id = $1`,
                 [inactiveIds[i]],
               );
-              await c.query("COMMIT");
-              return "ok";
-            } catch (e) {
-              await c.query("ROLLBACK").catch(() => {});
-              throw e;
-            }
-          }),
+            }),
+          ),
         );
         const count = await withClient(async (c) => {
           const r = await c.query(
@@ -441,6 +670,15 @@ describe.skipIf(!dockerOk)(
         });
         expect(count).toBe(5);
         expect(settled.filter((s) => s.status === "fulfilled")).toHaveLength(0);
+        expect(
+          settled
+            .filter((s): s is PromiseRejectedResult => s.status === "rejected")
+            .every((s) =>
+              /ra_pro_seat_cap_reached/.test(
+                String(s.reason?.message || s.reason),
+              ),
+            ),
+        ).toBe(true);
       } finally {
         await Promise.all(clients.map((c) => c.end().catch(() => {})));
       }
@@ -504,9 +742,10 @@ describe.skipIf(!dockerOk)(
       const blocker = new Client({ connectionString: url });
       await blocker.connect();
       await blocker.query("BEGIN");
-      await blocker.query(`SELECT public.ra_pro_lock_firm_capacity(ARRAY[$1::uuid])`, [
-        a.firmId,
-      ]);
+      await blocker.query(
+        `SELECT public.ra_pro_lock_firm_capacity(ARRAY[$1::uuid])`,
+        [a.firmId],
+      );
 
       const started = Date.now();
       const other = new Client({ connectionString: url });
@@ -521,22 +760,27 @@ describe.skipIf(!dockerOk)(
           [b.firmId, b.companyId],
         );
         await other.query("COMMIT");
-        const elapsed = Date.now() - started;
-        expect(elapsed).toBeLessThan(2000);
+        expect(Date.now() - started).toBeLessThan(2000);
 
-        const keys = await withClient(async (c) => {
-          const r = await c.query(
-            `SELECT classid, objid, granted
-             FROM pg_locks
-             WHERE locktype = 'advisory'
-               AND pid = $1`,
-            [blocker.processID],
+        // Same firm is busy (nonblocking)
+        await other.query("BEGIN");
+        let busy = false;
+        try {
+          await other.query(
+            `INSERT INTO public.firm_clients
+               (firm_id, company_id, name, subscription_status)
+             VALUES ($1, $2, 'same-busy', 'active')`,
+            [a.firmId, a.companyId],
           );
-          return r.rows as { classid: string; objid: string; granted: boolean }[];
-        });
-        expect(keys.some((row) => row.granted === true)).toBe(true);
+          await other.query("COMMIT");
+        } catch (e) {
+          busy = /ra_pro_capacity_lock_busy/.test(
+            String((e as Error).message || e),
+          );
+          await other.query("ROLLBACK").catch(() => {});
+        }
+        expect(busy).toBe(true);
 
-        // Firm B insert must use a different advisory key than firm A's held lock.
         const aKey = await withClient(async (c) => {
           const r = await c.query(
             `SELECT hashtextextended('ra_pro_firm_capacity:' || $1::text, 0) AS k`,
@@ -559,20 +803,29 @@ describe.skipIf(!dockerOk)(
       }
     });
 
-    it("lock helper remains invoker-scoped (not SECURITY DEFINER)", async () => {
+    it("lock helper remains invoker-scoped; anon cannot execute", async () => {
       const r = await withClient(async (c) => {
         const q = await c.query(
-          `SELECT p.prosecdef
+          `SELECT p.prosecdef,
+                  has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_exec,
+                  has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_exec
            FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname = 'public'
              AND p.proname = 'ra_pro_lock_firm_capacity'`,
         );
         expect(q.rows.length).toBe(1);
-        return q.rows[0].prosecdef as boolean;
+        return q.rows[0] as {
+          prosecdef: boolean;
+          anon_exec: boolean;
+          auth_exec: boolean;
+        };
       });
-      expect(r).toBe(false);
+      expect(r.prosecdef).toBe(false);
+      expect(r.anon_exec).toBe(false);
+      expect(r.auth_exec).toBe(true);
       const text = repoFile(MIGRATION_REL).toString("utf8");
+      expect(text).toMatch(/pg_try_advisory_xact_lock/);
       expect(text).not.toMatch(
         /CREATE OR REPLACE FUNCTION public\.ra_pro_lock_firm_capacity[\s\S]*SECURITY DEFINER/i,
       );
