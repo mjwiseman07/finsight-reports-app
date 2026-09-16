@@ -343,12 +343,66 @@ try {
 
   # Fresh precondition pins: refuse before SecureString / Node / DB when unpublished.
   # Distinct from prior-dry-run pins (apply-only). Materialize gate module from freeze seals.
+  # Evidence bytes come only from tip-sealed fixture path (git cat-file), never env/argv/worktree authority.
   Import-RaProPreconditionGatesFromFreeze -Auth $auth
   Assert-RaProPreconditionEvidencePublished -Auth $auth
-  $precondPath = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH", "Process")
-  if ([string]::IsNullOrWhiteSpace($precondPath)) {
-    throw "PRECONDITION_EVIDENCE_INVALID: RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH required when precondition pins are published"
+
+  $hostilePrecondPath = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($hostilePrecondPath)) {
+    throw "PRECONDITION_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH must not be set; tip-sealed fixture only"
   }
+
+  $pubPre = $auth.published_precondition_evidence
+  if ($null -eq $pubPre) {
+    throw "PRECONDITION_EVIDENCE_INVALID: published_precondition_evidence missing"
+  }
+  $precondRel = [string]$pubPre.evidence_fixture_path
+  if ([string]::IsNullOrWhiteSpace($precondRel)) {
+    throw "PRECONDITION_EVIDENCE_INVALID: published_precondition_evidence.evidence_fixture_path required"
+  }
+  if ($precondRel -ne "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json") {
+    throw "PRECONDITION_EVIDENCE_INVALID: unexpected evidence_fixture_path"
+  }
+  $expectedPrecondSha = ([string]$auth.required_precondition_evidence_sha256).ToLowerInvariant()
+  $expectedPrecondBytes = [int]$pubPre.evidence_bytes
+  if ($expectedPrecondBytes -le 0) {
+    throw "PRECONDITION_EVIDENCE_INVALID: published_precondition_evidence.evidence_bytes required"
+  }
+
+  $precondTempDir = Join-Path $EvidenceOutDir ("precond-ev-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $precondTempDir | Out-Null
+  $precondPath = Join-Path $precondTempDir "ra-pro-cutover-precondition-evidence.json"
+
+  $psiPre = New-Object Diagnostics.ProcessStartInfo
+  $psiPre.FileName = "git"
+  $psiPre.Arguments = "cat-file blob ${tip}:$precondRel"
+  $psiPre.WorkingDirectory = $RepoRoot
+  $psiPre.RedirectStandardOutput = $true
+  $psiPre.RedirectStandardError = $true
+  $psiPre.UseShellExecute = $false
+  $psiPre.CreateNoWindow = $true
+  $pPre = [Diagnostics.Process]::Start($psiPre)
+  $msPre = New-Object IO.MemoryStream
+  $pPre.StandardOutput.BaseStream.CopyTo($msPre)
+  $errPre = $pPre.StandardError.ReadToEnd()
+  $pPre.WaitForExit()
+  if ($pPre.ExitCode -ne 0) {
+    throw ("BLOCKED_PRECONDITION_EVIDENCE_BLOB: git cat-file failed for tip evidence fixture: " + $errPre)
+  }
+  $precondBytes = $msPre.ToArray()
+  if ($precondBytes.Length -ne $expectedPrecondBytes) {
+    throw "PRECONDITION_EVIDENCE_SHA_MISMATCH: tip evidence fixture byte count mismatch"
+  }
+  $precondSha = Get-Sha256Bytes -Bytes $precondBytes
+  if ($precondSha -ne $expectedPrecondSha) {
+    throw "PRECONDITION_EVIDENCE_SHA_MISMATCH: tip evidence fixture SHA-256 mismatch"
+  }
+  [IO.File]::WriteAllBytes($precondPath, $precondBytes)
+  $precondItem = Get-Item -LiteralPath $precondPath -Force
+  if ($precondItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "PRECONDITION_EVIDENCE_INVALID: materialized evidence path is a reparse point"
+  }
+
   Assert-RaProPreconditionEvidence -Path $precondPath -Auth $auth
 
   $ne = $auth.native_entry

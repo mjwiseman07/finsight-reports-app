@@ -5,7 +5,7 @@
     "Three-authority publication: freeze → bundle_source → tip. Bootstrap materializes standalone bundle from bundle_source_commit only.",
     "freeze ≠ bundle_source; bundle_source descends from freeze; tip descends from bundle_source.",
     "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c….",
-    "required_prior_dry_run_* and required_precondition_* remain null / UNPUBLISHED in this delivery.",
+    "required_prior_dry_run_* remain null / UNPUBLISHED in this delivery; required_precondition_* are PUBLISHED on the tip that pins the LF evidence fixture.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING; bootstrap verifies against TOOLING_AUTHORIZATION.standalone_bundle seals.",
     "auth_seals_digest covers artifact_commit, project_ref, migration_*, database_url_env, apply_authorization_token, advisory_lock, pg_version, lockfile_path."
   ],
@@ -58,10 +58,13 @@
     "required_prior_dry_run_bundle_source": null
   },
   "precondition_pins": {
-    "status": "UNPUBLISHED",
-    "required_precondition_evidence_sha256": null,
-    "required_precondition_freeze": null,
-    "required_precondition_evidence_tip": null,
-    "required_precondition_bundle_source": null
+    "status": "PUBLISHED",
+    "required_precondition_evidence_sha256": "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",
+    "required_precondition_freeze": "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    "required_precondition_evidence_tip": "52fbbfcfc16e88a5862df6cd363823f40ac06ff4",
+    "required_precondition_bundle_source": "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json",
+    "evidence_bytes": 1407,
+    "valid_until_utc": "2026-09-17T05:25:11Z"
   }
 }

@@ -57,7 +57,7 @@ Independent blob checks (not in digest): standalone bundle, decision, native/cer
 
 Protocol: `RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1` — see `PRECONDITION_EVIDENCE_CONTRACT.json`.
 
-Tip pins `required_precondition_*` + `published_precondition_evidence`. When **UNPUBLISHED/null**, the production dry-run ceremony refuses **before** SecureString prompt, Node, or DB (`PRECONDITION_PINS_UNPUBLISHED`).
+Tip pins `required_precondition_*` + `published_precondition_evidence`. When **UNPUBLISHED/null**, the production dry-run ceremony refuses **before** SecureString prompt, Node, or DB (`PRECONDITION_PINS_UNPUBLISHED`). When **PUBLISHED**, the dry-run ceremony materializes the tip-sealed evidence fixture via `git cat-file` only (env/argv/worktree path overrides are forbidden) and asserts SHA/bytes/content before prompting.
 
 Distinct from prior-dry-run pins (apply-only).
 

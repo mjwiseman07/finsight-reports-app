@@ -1,0 +1,45 @@
+{
+  "protocol_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "PRODUCTION_READ_ONLY_VERCEL_STRIPE_SUPABASE_V1",
+  "collected_at_utc": "2026-09-16T05:27:20Z",
+  "valid_from_utc": "2026-09-16T05:25:11Z",
+  "valid_until_utc": "2026-09-17T05:25:11Z",
+  "gate_aware_production_deployment": {
+    "deployment_id_or_url_identity": "dpl_4HHWH5WDeL7Y5SFDvwTf5g3srcqk",
+    "merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "observed_at_utc": "2026-09-16T05:26:05Z"
+  },
+  "commerce_gate": {
+    "observed": "absent",
+    "never_open": true,
+    "observed_at_utc": "2026-09-16T05:27:17Z"
+  },
+  "old_generated_deployment_urls_protected": true,
+  "custom_domains_public": true,
+  "ledger": {
+    "non_terminal_count": 0,
+    "observed_at_utc": "2026-09-16T05:25:45Z"
+  },
+  "stripe_tcp1": {
+    "failed_visible_count": 0,
+    "pending_visible_count": 0,
+    "visibility_window_start_utc": "2026-09-15T05:26:50Z",
+    "visibility_window_end_utc": "2026-09-16T05:26:50Z"
+  },
+  "ceremony_inventory": {
+    "total": 4,
+    "company_owned": 3,
+    "firm_owned": 1,
+    "classification": "active_and_complimentary"
+  },
+  "migration_state": {
+    "history_count_expected": 187,
+    "target_version_absent": "20260915004500",
+    "objects_absent": true
+  },
+  "delta_since_decision": {
+    "unexpected_links": 0,
+    "new_authorizing_slots": 0
+  }
+}

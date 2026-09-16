@@ -141,37 +141,167 @@ describe("RA Pro precondition evidence contract + synthetic fixture", () => {
     expect(fs.readFileSync(FIXTURE).includes(0x0d)).toBe(false);
   });
 
-  it("tip authorization still leaves precondition pins unpublished", () => {
+  it("tip authorization publishes precondition pins against reviewed tip 52fbbfcf", () => {
     const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
-    expect(auth.required_precondition_evidence_sha256 ?? null).toBeNull();
-    expect(auth.required_precondition_freeze ?? null).toBeNull();
-    expect(auth.required_precondition_evidence_tip ?? null).toBeNull();
-    expect(auth.required_precondition_bundle_source ?? null).toBeNull();
-    const status = auth.published_precondition_evidence?.status ?? "UNPUBLISHED";
-    expect(status).toBe("UNPUBLISHED");
+    expect(auth.required_precondition_evidence_sha256).toBe(
+      "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",
+    );
+    expect(auth.required_precondition_freeze).toBe(
+      "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    );
+    expect(auth.required_precondition_evidence_tip).toBe(
+      "52fbbfcfc16e88a5862df6cd363823f40ac06ff4",
+    );
+    expect(auth.required_precondition_bundle_source).toBe(
+      "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    );
+    expect(auth.published_precondition_evidence?.status).toBe("PUBLISHED");
+    expect(auth.published_prior_dry_run?.status).toBe("UNPUBLISHED");
+    expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
+  });
+
+  it("committed precondition evidence fixture matches pinned SHA/bytes/LF", () => {
+    const rel =
+      "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json";
+    const buf = fs.readFileSync(path.join(ROOT, rel));
+    expect(buf.includes(0x0d)).toBe(false);
+    expect(buf[buf.length - 1]).toBe(0x0a);
+    expect(buf.length).toBe(1407);
+    expect(sha256Bytes(buf)).toBe(
+      "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",
+    );
+    const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+    expect(auth.published_precondition_evidence.evidence_fixture_path).toBe(rel);
+    expect(auth.published_precondition_evidence.evidence_bytes).toBe(1407);
+    expect(auth.required_precondition_evidence_sha256).toBe(sha256Bytes(buf));
+    const text = buf.toString("utf8");
+    expect(text).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
+    expect(text).not.toMatch(/\b(cus_|sub_|evt_|sk_live_|whsec_)/i);
+    expect(text).not.toMatch(/postgres(ql)?:\/\/[^:]+:[^@]+@/i);
   });
 });
 
 describe.skipIf(!isWin)("RA Pro Assert-RaProPreconditionEvidence* (Windows)", () => {
-  it("unpublished tip pins fail Assert-RaProPreconditionEvidencePublished", () => {
-    const authEsc = psLiteral(AUTH_PATH);
-    const gatesEsc = psLiteral(GATES);
+  it("unpublished disposable auth fails Assert-RaProPreconditionEvidencePublished", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pre-unpub-"));
+    try {
+      const tipAuth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+      const unpublished = {
+        ...tipAuth,
+        required_precondition_evidence_sha256: null,
+        required_precondition_freeze: null,
+        required_precondition_evidence_tip: null,
+        required_precondition_bundle_source: null,
+        published_precondition_evidence: { status: "UNPUBLISHED" },
+      };
+      const authPath = path.join(dir, "auth-unpublished.json");
+      fs.writeFileSync(authPath, `${JSON.stringify(unpublished, null, 2)}\n`, "utf8");
+      const gatesEsc = psLiteral(GATES);
+      const r = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${gatesEsc}
+        $auth = Get-Content -LiteralPath ${psLiteral(authPath)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        try {
+          Assert-RaProPreconditionEvidencePublished -Auth $auth
+          Write-Output 'UNEXPECTED_ACCEPT'
+          exit 0
+        } catch {
+          Write-Output ([string]\$_.Exception.Message)
+          exit 1
+        }
+      `);
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(/PRECONDITION_PINS_UNPUBLISHED/);
+      expect(r.out).not.toMatch(/UNEXPECTED_ACCEPT/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("published tip auth accepts committed precondition evidence before expiry", () => {
+    const evidencePath = path.join(
+      ROOT,
+      "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json",
+    );
     const r = runPs(`
       $ErrorActionPreference = 'Stop'
-      . ${gatesEsc}
-      $auth = Get-Content -LiteralPath ${authEsc} -Raw -Encoding UTF8 | ConvertFrom-Json
-      try {
-        Assert-RaProPreconditionEvidencePublished -Auth $auth
-        Write-Output 'UNEXPECTED_ACCEPT'
-        exit 0
-      } catch {
-        Write-Output ([string]\$_.Exception.Message)
-        exit 1
-      }
+      . ${psLiteral(GATES)}
+      $auth = Get-Content -LiteralPath ${psLiteral(AUTH_PATH)} -Raw -Encoding UTF8 | ConvertFrom-Json
+      $meta = Assert-RaProPreconditionEvidence -Path ${psLiteral(evidencePath)} -Auth $auth
+      Write-Output ('ACCEPTED:' + [string]$meta.sha256)
     `);
-    expect(r.status).toBe(1);
-    expect(r.out).toMatch(/PRECONDITION_PINS_UNPUBLISHED/);
-    expect(r.out).not.toMatch(/UNEXPECTED_ACCEPT/);
+    expect(r.status).toBe(0);
+    expect(r.out).toContain(
+      "ACCEPTED:fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",
+    );
+  });
+
+  it("rejects CRLF rewrite and external substitute against tip pins", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pre-sub-"));
+    try {
+      const original = fs.readFileSync(
+        path.join(
+          ROOT,
+          "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json",
+        ),
+      );
+      const crlfPath = path.join(dir, "crlf.json");
+      fs.writeFileSync(crlfPath, original.toString("utf8").replace(/\n/g, "\r\n"));
+      const r1 = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${psLiteral(GATES)}
+        $auth = Get-Content -LiteralPath ${psLiteral(AUTH_PATH)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        try {
+          Assert-RaProPreconditionEvidence -Path ${psLiteral(crlfPath)} -Auth $auth
+          Write-Output 'UNEXPECTED_ACCEPT'
+          exit 0
+        } catch {
+          Write-Output ([string]\$_.Exception.Message)
+          exit 1
+        }
+      `);
+      expect(r1.status).toBe(1);
+      expect(r1.out).toMatch(/PRECONDITION_EVIDENCE_SHA_MISMATCH/);
+
+      const subst = JSON.parse(original.toString("utf8"));
+      subst.source_channel_classification = "EXTERNAL_SUBSTITUTE_SHOULD_FAIL";
+      const substPath = path.join(dir, "subst.json");
+      fs.writeFileSync(substPath, `${JSON.stringify(subst, null, 2)}\n`);
+      const r2 = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${psLiteral(GATES)}
+        $auth = Get-Content -LiteralPath ${psLiteral(AUTH_PATH)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        try {
+          Assert-RaProPreconditionEvidence -Path ${psLiteral(substPath)} -Auth $auth
+          Write-Output 'UNEXPECTED_ACCEPT'
+          exit 0
+        } catch {
+          Write-Output ([string]\$_.Exception.Message)
+          exit 1
+        }
+      `);
+      expect(r2.status).toBe(1);
+      expect(r2.out).toMatch(/PRECONDITION_EVIDENCE_SHA_MISMATCH/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("dry-run ceremony source forbids env evidence path override when published", () => {
+    const ceremony = fs.readFileSync(
+      path.join(
+        ROOT,
+        "scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1",
+      ),
+      "utf8",
+    );
+    expect(ceremony).toMatch(/PRECONDITION_EVIDENCE_PATH_OVERRIDE_FORBIDDEN/);
+    expect(ceremony).toMatch(/cat-file blob \$\{tip\}:\$precondRel/);
+    expect(ceremony).not.toMatch(
+      /RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_PATH required when precondition pins are published/,
+    );
   });
 
   it("synthetic fixture passes when disposable pins are published", () => {

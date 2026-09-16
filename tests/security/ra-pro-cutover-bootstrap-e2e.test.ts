@@ -181,15 +181,30 @@ describe("RA Pro cutover bootstrap auth surface", () => {
     expect(enter).toMatch(/RA_PRO_CUTOVER/);
   });
 
-  it("TOOLING_AUTHORIZATION keeps prior dry-run and precondition pins unpublished", () => {
+  it("TOOLING_AUTHORIZATION publishes precondition pins; prior dry-run remains unpublished", () => {
     const auth = readAuth();
     expect(auth.published_prior_dry_run.status).toBe("UNPUBLISHED");
     expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
     expect(auth.required_prior_dry_run_freeze).toBeNull();
     expect(auth.migration_blob_oid).toBe("d36f5e2c50f7bab956c3191723c0e8a223279df5");
-    expect(auth.required_precondition_evidence_sha256 ?? null).toBeNull();
-    expect(auth.published_precondition_evidence?.status ?? "UNPUBLISHED").toBe(
-      "UNPUBLISHED",
+    expect(auth.required_precondition_evidence_sha256).toBe(
+      "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",
+    );
+    expect(auth.required_precondition_freeze).toBe(
+      "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    );
+    expect(auth.required_precondition_evidence_tip).toBe(
+      "52fbbfcfc16e88a5862df6cd363823f40ac06ff4",
+    );
+    expect(auth.required_precondition_bundle_source).toBe(
+      "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    );
+    expect(auth.published_precondition_evidence?.status).toBe("PUBLISHED");
+    expect(auth.published_precondition_evidence?.evidence_fixture_path).toBe(
+      "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json",
+    );
+    expect(auth.published_precondition_evidence?.valid_until_utc).toBe(
+      "2026-09-17T05:25:11Z",
     );
     expect(auth.gate_aware_merge_base_ref).toBe(
       "19e8bd071bae5f8afed85340f50168d4ca8e5586",
