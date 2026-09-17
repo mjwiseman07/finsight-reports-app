@@ -42,7 +42,18 @@ async function loadFromQbo(firmClientId: string): Promise<ResolvedAccountCandida
   if (!token?.accessToken || !token.realmId) {
     throw new Error(`no_active_qbo_connection_for_firm_client:${firmClientId}`);
   }
+  return fetchCoaAccountsFromQboToken({
+    accessToken: token.accessToken,
+    realmId: token.realmId,
+    ownerUserId: token.ownerUserId,
+  });
+}
 
+export async function fetchCoaAccountsFromQboToken(token: {
+  accessToken: string;
+  realmId: string;
+  ownerUserId: string;
+}): Promise<ResolvedAccountCandidate[]> {
   const query =
     "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, CurrencyRef, Active " +
     "FROM Account WHERE Active IN (true, false) MAXRESULTS 1000";
