@@ -62,3 +62,7 @@ scripts/security/ra-pro-cutover-precondition-gates.ps1 text eol=lf
 # RA Pro prior-dry-run evidence fixture — intentionally CRLF, byte-authoritative pin
 tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json -text
 
+
+# RA Pro pre-apply live evidence — LF-authoritative Git blob (SHA-256 98e8824b… / 2309 bytes)
+tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json text eol=lf
+

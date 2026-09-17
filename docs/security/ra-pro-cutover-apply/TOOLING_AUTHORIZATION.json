@@ -161,7 +161,7 @@
     "bundle_source_commit = 90af07d27e122d80d5fb5072f7a66da818f245a5 (descendant of freeze; holds sealed standalone .cjs).",
     "required_prior_dry_run_* PUBLISHED: evidence fixture SHA-256 96796784… / 112020 CRLF bytes / OID fcf25851…; dry-run tip c4c414f8…; freeze a74d5108…; bundle source 90af07d2…; accepted precondition SHA fb3625f9…. Apply ceremony tip-materializes git blob only — path/env/SHA overrides forbidden. Two failed sandbox supervisor evidence SHAs rejected and unreferenced.",
     "required_precondition_* PUBLISHED on tip: evidence fixture SHA-256 fb3625f9… / 1407 bytes; freeze a74d5108…; tip 52fbbfcf…; bundle source 90af07d2…; expires 2026-09-17T05:25:11Z. Ceremony materializes tip git blob only — env/argv/worktree path overrides forbidden.",
-    "required_pre_apply_live_* remain UNPUBLISHED (null pins / published_pre_apply_live_evidence.status=UNPUBLISHED). Apply fails closed with PRE_APPLY_LIVE_PINS_UNPUBLISHED before SecureString credentials, Node, or DB. Distinct from precondition and prior dry-run; pin publication of prior dry-run does NOT satisfy this gate. When later PUBLISHED, tip git cat-file materialization only — argv/env/worktree overrides forbidden.",
+    "required_pre_apply_live_* PUBLISHED: evidence fixture SHA-256 98e8824b… / 2309 LF bytes / OID 460f4e68…; tip a34ebaa5…; freeze a74d5108…; bundle source 90af07d2…; valid_until 2026-09-18T00:55:00Z. Apply ceremony tip-materializes git blob only — path/env/SHA overrides forbidden. Pin publication is NOT production apply authorization.",
     "Visible apply mixed authority: tip materializes visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates + pre_apply_live_gates from the exact publication tip; freeze materializes launcher/native/bootstrap; no freeze apply-ceremony fallback when prior pins PUBLISHED.",
     "Pin publication is NOT production apply authorization. Fresh pre-apply live checks (gate/protection/quiescence/inventory) remain required under separate authorization; historical dry-run/precondition PASS is not permanently fresh.",
     "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
@@ -185,12 +185,76 @@
     "sha256": "51342218317d64382504fbefa9d0a735c65fa6117dc56d3b0f0ccddbe16cd7ce",
     "bytes": 22013
   },
-  "required_pre_apply_live_evidence_sha256": null,
-  "required_pre_apply_live_freeze": null,
-  "required_pre_apply_live_evidence_tip": null,
-  "required_pre_apply_live_bundle_source": null,
+  "required_pre_apply_live_evidence_sha256": "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+  "required_pre_apply_live_freeze": "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+  "required_pre_apply_live_evidence_tip": "a34ebaa58bd18352468967a9cbdda9177c63c36f",
+  "required_pre_apply_live_bundle_source": "90af07d27e122d80d5fb5072f7a66da818f245a5",
   "published_pre_apply_live_evidence": {
-    "status": "UNPUBLISHED"
+    "status": "PUBLISHED",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json",
+    "evidence_sha256": "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    "evidence_bytes": 2309,
+    "evidence_blob_oid": "460f4e68b2e59d136115ba0ebcfa58f051a96b01",
+    "evidence_line_endings": "LF",
+    "evidence_git_attributes": "text eol=lf",
+    "evidence_blob_authority": "Tip git cat-file blob must SHA-256 to 98e8824b… / 2309 LF bytes. Materialize via git cat-file only; OID/SHA/bytes/non-reparse verified before parse. Operator/env/path/SHA substitutions forbidden.",
+    "protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "schema_version": 1,
+    "contract_path": "docs/security/ra-pro-cutover-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "contract_oid": "cb0a50d745e78c36505244d4068967eba1f9bf33",
+    "contract_sha256": "3afdb627a886f34742bb31bcd57290e18c2bae8f2b3f5850b97787553eb2b23f",
+    "contract_bytes": 11077,
+    "collection_started_at_utc": "2026-09-17T00:55:00Z",
+    "collection_ended_at_utc": "2026-09-17T01:17:28Z",
+    "valid_from_utc": "2026-09-17T00:55:00Z",
+    "valid_until_utc": "2026-09-18T00:55:00Z",
+    "source_channel_classification": "PRODUCTION_READ_ONLY_VERCEL_STRIPE_SUPABASE_PLUS_OPERATOR_WORKBENCH_V1",
+    "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "required_state": {
+      "commerce_gate_observed_any_of": [
+        "absent",
+        "closed"
+      ],
+      "never_open": true,
+      "generated_production_preview_urls_protected": true,
+      "old_pre_gate_url_protected": true,
+      "custom_domains_public": true,
+      "ceremony_inventory": {
+        "total": 4,
+        "company_owned": 3,
+        "firm_owned": 1,
+        "classification": "active_and_complimentary"
+      },
+      "migration_state": {
+        "history_count_expected": 187,
+        "target_version_absent": "20260915004500",
+        "objects_absent": true,
+        "billing_company_id_absent": true,
+        "linked_firms_count": 0
+      },
+      "delta_since_decision": {
+        "unexpected_new_links": 0,
+        "unexpected_new_authorizing_slots": 0
+      },
+      "ledger_non_terminal_count": 0,
+      "stripe_tcp1_enabled": true,
+      "stripe_tcp1_events_allowlist": [
+        "checkout.session.completed"
+      ],
+      "stripe_tcp1_failed_visible_count": 0,
+      "stripe_tcp1_pending_or_retry_scheduled_visible_count": 0
+    },
+    "reviewed_gate_tip": "a34ebaa58bd18352468967a9cbdda9177c63c36f",
+    "reviewed_gates": {
+      "path": "scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1",
+      "oid": "e4f5f67188f572654ad51fff14e1e949aaba58fb",
+      "sha256": "51342218317d64382504fbefa9d0a735c65fa6117dc56d3b0f0ccddbe16cd7ce",
+      "bytes": 22013
+    },
+    "materialization": "git_cat_file_tip_blob_only",
+    "operator_path_override_forbidden": true,
+    "apply_authorization_embedded": false,
+    "notes": "Pin publication only. Does not authorize production apply. Evidence expires 2026-09-18T00:55:00Z. Distinct from precondition and prior dry-run."
   },
   "pre_apply_live_evidence_protocol": {
     "id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",

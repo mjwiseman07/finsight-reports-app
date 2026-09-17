@@ -8,7 +8,7 @@
     "When prior dry-run pins are PUBLISHED, apply operator_apply_ceremony must tip-materialize; freeze ceremony fallback is forbidden.",
     "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c….",
     "required_prior_dry_run_* are PUBLISHED (CRLF fixture OID fcf25851… / SHA 96796784… / 112020); required_precondition_* remain PUBLISHED.",
-    "required_pre_apply_live_* remain UNPUBLISHED. Apply fails closed with PRE_APPLY_LIVE_PINS_UNPUBLISHED before SecureString prompt. Distinct from precondition/prior dry-run; those must never satisfy this gate. When later PUBLISHED, tip git cat-file materialization only.",
+    "required_pre_apply_live_* are PUBLISHED (LF fixture OID 460f4e68… / SHA 98e8824b… / 2309); expires 2026-09-18T00:55:00Z. Tip git cat-file materialization only.",
     "Pin publication does not authorize production apply; fresh pre-apply live checks remain separately required.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING; bootstrap verifies against TOOLING_AUTHORIZATION.standalone_bundle seals.",
     "auth_seals_digest covers artifact_commit, project_ref, migration_*, database_url_env, apply_authorization_token, advisory_lock, pg_version, lockfile_path."
@@ -78,12 +78,18 @@
     "valid_until_utc": "2026-09-17T05:25:11Z"
   },
   "pre_apply_live_pins": {
-    "status": "UNPUBLISHED",
-    "required_pre_apply_live_evidence_sha256": null,
-    "required_pre_apply_live_freeze": null,
-    "required_pre_apply_live_evidence_tip": null,
-    "required_pre_apply_live_bundle_source": null,
+    "status": "PUBLISHED",
+    "required_pre_apply_live_evidence_sha256": "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    "required_pre_apply_live_freeze": "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    "required_pre_apply_live_evidence_tip": "a34ebaa58bd18352468967a9cbdda9177c63c36f",
+    "required_pre_apply_live_bundle_source": "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json",
+    "evidence_bytes": 2309,
+    "evidence_blob_oid": "460f4e68b2e59d136115ba0ebcfa58f051a96b01",
+    "evidence_line_endings": "LF",
     "protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
-    "notes": "Fresh pre-apply live evidence pins stay UNPUBLISHED until separately authorized collection. Fail closed before credential prompt. Prior dry-run / precondition publication does not satisfy this gate."
+    "valid_from_utc": "2026-09-17T00:55:00Z",
+    "valid_until_utc": "2026-09-18T00:55:00Z",
+    "notes": "Published under AUTHORIZED_RA_PRO_PRE_APPLY_LIVE_EVIDENCE_PIN_PUBLICATION only. Does not authorize production apply."
   }
 }

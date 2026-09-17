@@ -185,8 +185,11 @@ describe("RA Pro visible tip ceremony authority (contract)", () => {
     );
     expect(auth.published_prior_dry_run.status).toBe("PUBLISHED");
     expect(auth.published_prior_dry_run.evidence_bytes).toBe(112020);
-    expect(auth.required_pre_apply_live_evidence_sha256).toBeNull();
-    expect(auth.published_pre_apply_live_evidence?.status).toBe("UNPUBLISHED");
+    expect(auth.required_pre_apply_live_evidence_sha256).toBe(
+      "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    );
+    expect(auth.published_pre_apply_live_evidence?.status).toBe("PUBLISHED");
+    expect(auth.published_pre_apply_live_evidence?.evidence_bytes).toBe(2309);
   });
 
   it("freeze/source/tip identities preserved; no unresolved self-tip placeholder", () => {

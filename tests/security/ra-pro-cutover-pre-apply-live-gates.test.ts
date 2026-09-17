@@ -95,19 +95,38 @@ function psLiteral(p: string): string {
 }
 
 describe("RA Pro pre-apply live evidence contract + tip auth + synthetic fixture", () => {
-  it("tip auth pins are null/UNPUBLISHED", () => {
+  it("tip auth publishes exact pre-apply live pins", () => {
     const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
-    expect(auth.required_pre_apply_live_evidence_sha256).toBeNull();
-    expect(auth.required_pre_apply_live_freeze).toBeNull();
-    expect(auth.required_pre_apply_live_evidence_tip).toBeNull();
-    expect(auth.required_pre_apply_live_bundle_source).toBeNull();
-    expect(auth.published_pre_apply_live_evidence?.status).toBe("UNPUBLISHED");
+    expect(auth.required_pre_apply_live_evidence_sha256).toBe(
+      "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    );
+    expect(auth.required_pre_apply_live_freeze).toBe(FREEZE);
+    expect(auth.required_pre_apply_live_evidence_tip).toBe(
+      "a34ebaa58bd18352468967a9cbdda9177c63c36f",
+    );
+    expect(auth.required_pre_apply_live_bundle_source).toBe(
+      "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    );
+    expect(auth.published_pre_apply_live_evidence?.status).toBe("PUBLISHED");
+    expect(auth.published_pre_apply_live_evidence?.evidence_fixture_path).toBe(
+      "tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json",
+    );
+    expect(auth.published_pre_apply_live_evidence?.evidence_bytes).toBe(2309);
+    expect(auth.published_pre_apply_live_evidence?.evidence_blob_oid).toBe(
+      "460f4e68b2e59d136115ba0ebcfa58f051a96b01",
+    );
+    expect(auth.published_pre_apply_live_evidence?.valid_until_utc).toBe(
+      "2026-09-18T00:55:00Z",
+    );
     expect(auth.published_prior_dry_run?.status).toBe("PUBLISHED");
     expect(auth.pre_apply_live_evidence_protocol?.id).toBe(
       "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
     );
     expect(auth.pre_apply_live_gates?.path).toBe(
       "scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1",
+    );
+    expect(auth.pre_apply_live_gates?.oid).toBe(
+      "e4f5f67188f572654ad51fff14e1e949aaba58fb",
     );
   });
 
@@ -180,23 +199,36 @@ describe("RA Pro pre-apply live evidence contract + tip auth + synthetic fixture
 });
 
 describe.skipIf(!isWin)("RA Pro Assert-RaProPreApplyLiveEvidence* (Windows)", () => {
-  it("unpublished tip Auth fails Assert-RaProPreApplyLiveEvidencePublished", () => {
-    const r = runPs(`
-      $ErrorActionPreference = 'Stop'
-      . ${psLiteral(GATES)}
-      $auth = Get-Content -LiteralPath ${psLiteral(AUTH_PATH)} -Raw -Encoding UTF8 | ConvertFrom-Json
-      try {
-        Assert-RaProPreApplyLiveEvidencePublished -Auth $auth
-        Write-Output 'UNEXPECTED_ACCEPT'
-        exit 0
-      } catch {
-        Write-Output ([string]\$_.Exception.Message)
-        exit 1
-      }
-    `);
-    expect(r.status).toBe(1);
-    expect(r.out).toMatch(/PRE_APPLY_LIVE_PINS_UNPUBLISHED/);
-    expect(r.out).not.toMatch(/UNEXPECTED_ACCEPT/);
+  it("disposable UNPUBLISHED Auth fails Assert-RaProPreApplyLiveEvidencePublished", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pal-unpub-"));
+    try {
+      const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+      auth.required_pre_apply_live_evidence_sha256 = null;
+      auth.required_pre_apply_live_freeze = null;
+      auth.required_pre_apply_live_evidence_tip = null;
+      auth.required_pre_apply_live_bundle_source = null;
+      auth.published_pre_apply_live_evidence = { status: "UNPUBLISHED" };
+      const authPath = path.join(dir, "auth.json");
+      fs.writeFileSync(authPath, `${JSON.stringify(auth, null, 2)}\n`);
+      const r = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${psLiteral(GATES)}
+        $auth = Get-Content -LiteralPath ${psLiteral(authPath)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        try {
+          Assert-RaProPreApplyLiveEvidencePublished -Auth $auth
+          Write-Output 'UNEXPECTED_ACCEPT'
+          exit 0
+        } catch {
+          Write-Output ([string]\$_.Exception.Message)
+          exit 1
+        }
+      `);
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(/PRE_APPLY_LIVE_PINS_UNPUBLISHED/);
+      expect(r.out).not.toMatch(/UNEXPECTED_ACCEPT/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("disposable published pins + synthetic fixture accepts Assert", () => {
@@ -612,8 +644,8 @@ describe.skipIf(!isWin)("RA Pro Assert-RaProPreApplyLiveEvidence* (Windows)", ()
     }
   });
 
-  it("apply ceremony with tip UNPUBLISHED pins fails PRE_APPLY_LIVE_PINS_UNPUBLISHED before credentials", () => {
-    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pal-unpub-cerm-"));
+  it("apply ceremony tip-materializes prior + pre-apply then stops before credentials/DB", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pal-boundary-"));
     try {
       const r = spawnSync(
         systemPowerShell(),
@@ -642,17 +674,22 @@ describe.skipIf(!isWin)("RA Pro Assert-RaProPreApplyLiveEvidence* (Windows)", ()
             TEMP: process.env.TEMP,
             TMP: process.env.TMP,
             USERPROFILE: process.env.USERPROFILE,
-            // Intentionally unset STOP_AFTER_PRIOR so prior passes then pre-apply fails.
+            RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRE_APPLY_LIVE: "1",
           },
         },
       );
       const combined = String(r.stdout || "") + String(r.stderr || "");
-      expect(combined).toMatch(/PRE_APPLY_LIVE_PINS_UNPUBLISHED/);
-      expect(combined).not.toMatch(/TEST_BOUNDARY_PRIOR_EVIDENCE_ACCEPTED/);
+      expect(combined).toMatch(
+        /TEST_BOUNDARY_PRE_APPLY_LIVE_ACCEPTED|TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE/,
+      );
+      expect(combined).not.toMatch(/PROMPT_READY|Read-Host/);
       const summaryPath = path.join(outDir, "PRODUCTION_APPLY_SUMMARY.json");
       expect(fs.existsSync(summaryPath)).toBe(true);
       const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
-      expect(summary.result_code).toBe("PRE_APPLY_LIVE_PINS_UNPUBLISHED");
+      expect(summary.result_code).toBe("TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE");
+      expect(summary.pre_apply_live_evidence_sha256).toBe(
+        "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+      );
       expect(summary.databaseConnectionAttempts ?? 0).toBe(0);
       expect(summary.sqlApplicationAttempts ?? 0).toBe(0);
     } finally {

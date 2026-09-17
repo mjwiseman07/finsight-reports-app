@@ -213,11 +213,23 @@ describe("RA Pro cutover bootstrap auth surface", () => {
     expect(auth.gate_aware_merge_base_ref).toBe(
       "19e8bd071bae5f8afed85340f50168d4ca8e5586",
     );
-    expect(auth.required_pre_apply_live_evidence_sha256).toBeNull();
-    expect(auth.required_pre_apply_live_freeze).toBeNull();
-    expect(auth.required_pre_apply_live_evidence_tip).toBeNull();
-    expect(auth.required_pre_apply_live_bundle_source).toBeNull();
-    expect(auth.published_pre_apply_live_evidence?.status).toBe("UNPUBLISHED");
+    expect(auth.required_pre_apply_live_evidence_sha256).toBe(
+      "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    );
+    expect(auth.required_pre_apply_live_freeze).toBe(
+      "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    );
+    expect(auth.required_pre_apply_live_evidence_tip).toBe(
+      "a34ebaa58bd18352468967a9cbdda9177c63c36f",
+    );
+    expect(auth.required_pre_apply_live_bundle_source).toBe(
+      "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    );
+    expect(auth.published_pre_apply_live_evidence?.status).toBe("PUBLISHED");
+    expect(auth.published_pre_apply_live_evidence?.evidence_bytes).toBe(2309);
+    expect(auth.published_pre_apply_live_evidence?.valid_until_utc).toBe(
+      "2026-09-18T00:55:00Z",
+    );
     expect(auth.pre_apply_live_evidence_protocol?.id).toBe(
       "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
     );
