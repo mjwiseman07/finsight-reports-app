@@ -4,6 +4,7 @@ import type { AdvisacorNormalizedEntity, AdvisacorNormalizedFinancialData } from
 import { RA_PRO_TIER_KEY, isRaProAuthorizingPilotStatus } from "@/lib/review-assist-pro/limits";
 import { createServiceClient } from "@/lib/supabase/service";
 import { reconcileBankCashSnapshot } from "./bank-cash-reconciliation";
+import { reconcileExpenseCutoff, reconcileRevenueCutoff } from "./cutoff-reconciliation";
 
 type Provider = "quickbooks" | "xero";
 type Severity = "review" | "block";
@@ -172,8 +173,8 @@ export function evaluateWeeklyCompleteness(input: {
     }
   }
 
-  const orderEvidence = bankRows.filter((row) => /sales order|shipment|ship date|fulfillment/.test(rowText(row)));
-  if (!orderEvidence.length) {
+  const revenueCutoff = reconcileRevenueCutoff(input.payload);
+  if (revenueCutoff.status === "unavailable") {
     findings.push({
       category: "order_to_invoice",
       code: "order_to_invoice_evidence_unavailable",
@@ -181,6 +182,36 @@ export function evaluateWeeklyCompleteness(input: {
       item_count: 0,
       amount_cents: null,
       evidence: { action: "connect_order_or_shipment_source", invoice_creation: "human_approval_required" },
+    });
+  } else if (revenueCutoff.status === "review_required") {
+    findings.push({
+      category: "order_to_invoice",
+      code: "shipped_orders_require_invoice_review",
+      severity: "review",
+      item_count: revenueCutoff.exception_count,
+      amount_cents: revenueCutoff.exception_amount_cents,
+      evidence: { evidence_codes: revenueCutoff.evidence_codes, invoice_creation: "human_approval_required" },
+    });
+  }
+
+  const expenseCutoff = reconcileExpenseCutoff(input.payload);
+  if (expenseCutoff.status === "unavailable") {
+    findings.push({
+      category: "accounts_payable",
+      code: "expense_cutoff_evidence_unavailable",
+      severity: "review",
+      item_count: 0,
+      amount_cents: null,
+      evidence: { action: "refresh_or_supply_bill_detail", payment_execution: "human_only" },
+    });
+  } else if (expenseCutoff.status === "review_required") {
+    findings.push({
+      category: "accounts_payable",
+      code: "bills_require_posting_or_payment_state_review",
+      severity: "review",
+      item_count: expenseCutoff.exception_count,
+      amount_cents: expenseCutoff.exception_amount_cents,
+      evidence: { evidence_codes: expenseCutoff.evidence_codes, payment_execution: "human_only" },
     });
   }
 

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdvisacorNormalizedFinancialData } from "@/lib/integrations/accounting/types";
 import { evaluateWeeklyCompleteness, runRaProWeeklyCompleteness, utcWeekEnding } from "@/lib/accounting-automation/weekly-completeness";
 
-function row(id: string, name: string, sourceReport: string, amount = 0) {
-  return { id, name, amount, source: { provider: "xero" as const, providerFamily: "xero", providerProduct: "xero", sourceReport } };
+function row(id: string, name: string, sourceReport: string, amount = 0, metadata: Record<string, unknown> = {}) {
+  return { id, name, amount, metadata, source: { provider: "xero" as const, providerFamily: "xero", providerProduct: "xero", sourceReport } };
 }
 
 function payload(overrides: Partial<AdvisacorNormalizedFinancialData> = {}): AdvisacorNormalizedFinancialData {
@@ -26,7 +26,7 @@ function payload(overrides: Partial<AdvisacorNormalizedFinancialData> = {}): Adv
     normalizedBalanceSheet: [{ label: "Operating Checking", amount: 0, section: "Assets", source: { provider: "xero", providerFamily: "xero", providerProduct: "xero", sourceReport: "BalanceSheet" } }],
     normalizedIncomeStatement: [],
     normalizedARAging: [row("ar-1", "Current invoice", "AR Aging", 200)],
-    normalizedAPAging: [row("ap-1", "Current bill", "AP Aging", 50)],
+    normalizedAPAging: [row("ap-1", "Vendor bill posted unpaid", "AP Aging", 50, { postedAt: "2026-09-15" })],
     normalizedBudgets: [],
     normalizedDepartments: [],
     normalizedLocations: [],
