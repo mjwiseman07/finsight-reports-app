@@ -7,7 +7,16 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+// `pg` is a runtime dependency in this repository but its declarations are not.
+// Keep the disposable harness typed without expanding production dependencies.
+// @ts-expect-error pg declarations are intentionally absent
 import { Client } from "pg";
+
+type PgClient = {
+  query: (text: string, values?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
+  connect: () => Promise<void>;
+  end: () => Promise<void>;
+};
 
 const dockerOk = spawnSync("docker", ["info"], {
   encoding: "utf8",
@@ -38,7 +47,7 @@ describe.skipIf(!dockerOk)("weekly completeness persistence (disposable Postgres
   }
 
   async function client(role = "postgres", userId?: string) {
-    const db = new Client({ connectionString: url });
+    const db = new Client({ connectionString: url }) as PgClient;
     await db.connect();
     if (role !== "postgres") await db.query(`SET ROLE ${role}`);
     if (userId) await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [userId]);

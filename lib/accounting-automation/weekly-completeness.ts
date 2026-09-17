@@ -3,6 +3,7 @@ import { hasAvailableScheduleRows } from "@/lib/accounting/supporting-schedules/
 import type { AdvisacorNormalizedEntity, AdvisacorNormalizedFinancialData } from "@/lib/integrations/accounting/types";
 import { RA_PRO_TIER_KEY, isRaProAuthorizingPilotStatus } from "@/lib/review-assist-pro/limits";
 import { createServiceClient } from "@/lib/supabase/service";
+import { reconcileBankCashSnapshot } from "./bank-cash-reconciliation";
 
 type Provider = "quickbooks" | "xero";
 type Severity = "review" | "block";
@@ -97,6 +98,32 @@ export function evaluateWeeklyCompleteness(input: {
         evidence: { source: "normalized_transactions", provider: input.payload.sourceSystem },
       });
     }
+  }
+
+  const bankRecon = reconcileBankCashSnapshot(input.payload);
+  if (bankRecon.status === "review_required") {
+    findings.push({
+      category: "bank_activity",
+      code: "bank_to_gl_reconciliation_variance",
+      severity: "review",
+      item_count: bankRecon.unresolved_item_count,
+      amount_cents: bankRecon.variance_cents === null ? null : Math.abs(bankRecon.variance_cents),
+      evidence: {
+        bank_balance_cents: bankRecon.bank_balance_cents,
+        gl_cash_balance_cents: bankRecon.gl_cash_balance_cents,
+        variance_cents: bankRecon.variance_cents,
+        evidence_codes: bankRecon.evidence_codes,
+      },
+    });
+  } else if (bankRows.length && bankRecon.status === "unavailable") {
+    findings.push({
+      category: "bank_activity",
+      code: "bank_to_gl_reconciliation_evidence_incomplete",
+      severity: "block",
+      item_count: bankRecon.unresolved_item_count,
+      amount_cents: null,
+      evidence: { evidence_codes: bankRecon.evidence_codes },
+    });
   }
 
   const arRows = hasAvailableScheduleRows(input.payload.normalizedARAging) ? input.payload.normalizedARAging : [];
