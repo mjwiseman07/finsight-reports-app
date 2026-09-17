@@ -1,0 +1,48 @@
+{
+  "table": {
+    "productionOnly": [
+      "pilot_lifecycle_coverage_downloads",
+      "pulse_je_submissions",
+      "qbo_accounts_cache",
+      "quickbooks_connections",
+      "stripe_webhook_events_legacy",
+      "xero_accounts_cache"
+    ],
+    "candidateOnly": []
+  },
+  "function": {
+    "productionOnly": [
+      "platform_integrity_chain_status",
+      "sp_write_pilot_slot_and_event"
+    ],
+    "candidateOnly": [
+      "_d651_slugify_name"
+    ]
+  },
+  "view": {
+    "productionOnly": [
+      "qbo_connections_unified",
+      "v_platform_integrity_current"
+    ],
+    "candidateOnly": []
+  },
+  "type": {
+    "productionOnly": [],
+    "candidateOnly": []
+  },
+  "trigger": {
+    "productionOnly": [
+      "firm_intake_handlers_touch_updated_at",
+      "firm_intake_settings_touch_updated_at",
+      "intake_messages_touch_updated_at"
+    ],
+    "candidateOnly": [
+      "on_auth_user_created"
+    ]
+  },
+  "policyCounts": {
+    "productionOnly": 255,
+    "candidateOnly": 3,
+    "intersection": 169
+  }
+}

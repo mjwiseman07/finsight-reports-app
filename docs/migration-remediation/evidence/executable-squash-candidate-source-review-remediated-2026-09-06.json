@@ -1,0 +1,1979 @@
+{
+  "reviewedAt": "2026-09-07T03:00:31.594Z",
+  "reviewedHead": "9b0c3b1a51e5674742c55b2d47aa0a1ecdaa3fc3",
+  "packageSealExpected": "99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf",
+  "packageSealObserved": "99f556ebab0a73e3a58c770776cf3287d5150887ae22de25f80cb6932dd1dacf",
+  "packageBytesExpected": 1130762,
+  "packageBytesObserved": 1130762,
+  "moduleCount": 7,
+  "optionDManifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "priorSealSuperseded": "ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28",
+  "priorSealStillSelected": false,
+  "candidateSqlAndManifestByteIdentical": true,
+  "regenNote": "Seal recomputed solely from git blobs at COMMIT; builder not invoked (would rewrite generatedAt).",
+  "verdict": "CHANGES REQUIRED",
+  "hashResults": [
+    {
+      "order": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010000_esc_platform_prerequisites_contract.sql",
+      "gitBlobId": "8b8f31992e2714fe3ee0ed9ec350138ceb65b926",
+      "sha256": "4b71d1a582fd81098535513af258354735eb9b85827b25c3ea5a7dc2318ebad0",
+      "md5": "b91ececa001dc264f1af6e952f0fa53c",
+      "utf8LfBytes": 1074,
+      "statementCountApprox": 5,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "gitBlobId": "81d9069328d9579bbdd73f234f5510b49d26cda3",
+      "sha256": "5f622b6a244620ad5ee896555c6640a34adf8d5b4212ec7815a06ce6c786cc74",
+      "md5": "60875424b1b85d32bebd2f619d86040c",
+      "utf8LfBytes": 108827,
+      "statementCountApprox": 565,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 1,
+        "commit": 1,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "gitBlobId": "d55a4911d99f85bc51a3d16a40fccc87c4c35ae0",
+      "sha256": "10a46c634df0bfd706244a504851ed58a4b14930094b41a3baab21a14c701bff",
+      "md5": "58e9b513cd4ebd455e67c7fcf66ebc11",
+      "utf8LfBytes": 19918,
+      "statementCountApprox": 63,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 1,
+        "commit": 1,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_and_security_atomic",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_and_security_atomic.sql",
+      "gitBlobId": "98936d35a2c95748aed1582e3bee50ede4ec5f94",
+      "sha256": "6e0e8c53f27531809607b1ab93dc96dd8a07f69d46974f995ea0cb3e3c0b9099",
+      "md5": "f519e5adec6aca7515069ebc72e14f2e",
+      "utf8LfBytes": 979214,
+      "statementCountApprox": 4511,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 50,
+        "commit": 50,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 5,
+      "version": "20260907010040",
+      "name": "esc_reference_seed_allowlist_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_reference_seed_allowlist_contract.sql",
+      "gitBlobId": "06709f26f35893881eec8f6ec5dfea0a5767e7ef",
+      "sha256": "a2ae185ca8e1c0ac6cb5dc8fef979f7c7427ad36603bbc32ce6330b020284d88",
+      "md5": "28658991e6679fbe2371a30f23b75457",
+      "utf8LfBytes": 1021,
+      "statementCountApprox": 3,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 6,
+      "version": "20260907010050",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_guarded_dataless_safe_initialization.sql",
+      "gitBlobId": "6dcc488c070ad5ac57c7bfe43f1d027872d702ea",
+      "sha256": "25c01a3edf4dd6203f6e396b812278305f6e7ebd6c79115c75765d86742feb3b",
+      "md5": "d820e05f0da06658e5d665da45bad1a6",
+      "utf8LfBytes": 15876,
+      "statementCountApprox": 50,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 5,
+        "commit": 5,
+        "rollback": 0
+      }
+    },
+    {
+      "order": 7,
+      "version": "20260907010060",
+      "name": "esc_forward_tail_main_unapplied",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_forward_tail_main_unapplied.sql",
+      "gitBlobId": "ca90b19db66f4fbe0b76bf715e270517463559c1",
+      "sha256": "f46ffb82276aa485ab968312e2d0c6223a83f805e99a2c671d684f7e77714232",
+      "md5": "799aa12957cdb29e8d81a426d712a119",
+      "utf8LfBytes": 4832,
+      "statementCountApprox": 21,
+      "manifestMatch": true,
+      "crlfPresent": false,
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    }
+  ],
+  "sourceAccounting": {
+    "optionDEntries": 151,
+    "counts": {
+      "included_unchanged_baseline": 144,
+      "reviewed_transformation_overlay": 6,
+      "moved_to_forward_tail": 1,
+      "intentionally_excluded": 0,
+      "superseded": 0,
+      "missing": 0,
+      "duplicated": 0
+    },
+    "equation": "144 unchanged + 6 overlays + 1 forward = 151",
+    "expectedEquation": "144 unchanged + 6 overlays + 1 forward_tail = 151 (if markers complete)",
+    "manifestClaimedBaselineBody": 138,
+    "module4BeginMarkerCount": 139,
+    "digestQualifyOccurrences": 1,
+    "digestQualifyLocation": "module_7_forward_tail_only",
+    "classificationSample": [
+      {
+        "file": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701_refund_requests.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043598_public_users_derived_baseline.sql",
+        "category": "included_unchanged_baseline",
+        "module": 2,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043599_foundations_baseline.sql",
+        "category": "included_unchanged_baseline",
+        "module": 2,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043602_phase1_subscriptions_core.sql",
+        "category": "included_unchanged_baseline",
+        "module": 3,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+        "category": "included_unchanged_baseline",
+        "module": 3,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043911_phase1_backward_compat_view.sql",
+        "category": "included_unchanged_baseline",
+        "module": 3,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260701043931_phase1_entitlement_rls_policies.sql",
+        "category": "included_unchanged_baseline",
+        "module": 3,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260702_create_mfg_waitlist.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260702041259_add_received_at_to_stripe_webhook_events.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260703_00_create_close_ledger.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260703_01_create_checklist_system.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260703_2000_d6_2a_test_client_activation.sql",
+        "category": "reviewed_transformation_overlay",
+        "module": 6,
+        "note": "Disposition overlay in guarded init module"
+      },
+      {
+        "file": "20260703_2200_d6_2b_mfg_activation.sql",
+        "category": "reviewed_transformation_overlay",
+        "module": 6,
+        "note": "Disposition overlay in guarded init module"
+      },
+      {
+        "file": "20260703_2300_d6_2c_retail_activation.sql",
+        "category": "reviewed_transformation_overlay",
+        "module": 6,
+        "note": "Disposition overlay in guarded init module"
+      },
+      {
+        "file": "20260703_2400_d6_2d_ps_activation.sql",
+        "category": "reviewed_transformation_overlay",
+        "module": 6,
+        "note": "Disposition overlay in guarded init module"
+      },
+      {
+        "file": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      },
+      {
+        "file": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+        "category": "included_unchanged_baseline",
+        "module": 4,
+        "note": "Assembled marker in baseline module"
+      }
+    ],
+    "classificationFullPath": "docs/migration-remediation/evidence/executable-squash-candidate-source-review-remediated-2026-09-06.json"
+  },
+  "accountingTable": [
+    {
+      "file": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701_refund_requests.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043598_public_users_derived_baseline.sql",
+      "category": "included_unchanged_baseline",
+      "module": 2,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043599_foundations_baseline.sql",
+      "category": "included_unchanged_baseline",
+      "module": 2,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043602_phase1_subscriptions_core.sql",
+      "category": "included_unchanged_baseline",
+      "module": 3,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "category": "included_unchanged_baseline",
+      "module": 3,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043911_phase1_backward_compat_view.sql",
+      "category": "included_unchanged_baseline",
+      "module": 3,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260701043931_phase1_entitlement_rls_policies.sql",
+      "category": "included_unchanged_baseline",
+      "module": 3,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260702_create_mfg_waitlist.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260702041259_add_received_at_to_stripe_webhook_events.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260703_00_create_close_ledger.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260703_01_create_checklist_system.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260703_2000_d6_2a_test_client_activation.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260703_2200_d6_2b_mfg_activation.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260703_2300_d6_2c_retail_activation.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260703_2400_d6_2d_ps_activation.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706_d67_p2_layer2_layer4.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706130000_d_entitlements.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706140000_d_entitlements_followup.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707_01_variance_config_unique.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707_02_section_manual_edit_flag.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707_03_close_packet_share.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707_create_close_packet_system.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707000000_d6_5_part1_universal_intake.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708_00_d0_identity_and_memory_activation.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708_01_d1_qbo_write_readiness.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708_02_d1_1_owner_user_id_backfill.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260708200000_tcp1_w1_seat_idempotency.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260709_00_d2_safe_je_posting.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260710_00_d3_memory_indexes.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260713_00_d4_uncategorized_proposals.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260714_00_d5_recurring_templates.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260715180000_mfa_enrollment.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260716010000_add_qbo_cdc_tables.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718000000_intuit_webhook_events.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718010000_mc1_home_currency.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718020000_mc3_je_posting_audit_currency.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718030000_mc4c_payment_batch_lines_currency.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718040000_q7_qbo_edition.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718180000_q8a_qbo_view_security_invoker.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718190000_q8b_function_search_path_lockdown.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718200000_q8c_security_definer_rpc_revoke.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718200000_support_ticket_intuit_context.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718210000_q8d_vector_schema_move.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260718220000_q8e_rls_service_role_policies.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260719000000_support_auto_file_engine.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260719050000_gap3_je_approval_flow.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720150000_pulse_je_reliability_basis.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260720180000_tieout3_grni_binding.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260723050000_audit_ready_cron_runs.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260724010000_kickout_investigations.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260724020000_kickout_dedupe_rpcs.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260724030000_ar_tieout412a_kind_reconcile.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260724030100_ar_tieout412a_run_artifacts.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260725050000_ar_tieout420a_resolution_code.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260725060000_ar_tieout42_memory_events.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260727000100_users_auth_trigger_single_writer.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804213003_pilot_lifecycle_events.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260804234230_lifecycle_issues.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260805005320_pilot_lifecycle_anchors.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260805054000_schema_drift_issue_policies.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260805211000_sp_list_public_columns_jsonb.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260809083000_companies_tenant_identity_columns.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260810070050_dash_1c_a_widen_provenance.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260813220000_accounting_connection_supersession.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260814060000_accounting_superseded_credential_retirement.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260814221500_accounting_canonical_connected_grant.sql",
+      "category": "reviewed_transformation_overlay",
+      "module": 6,
+      "note": "Disposition overlay in guarded init module"
+    },
+    {
+      "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260815120000_urm3_universal_evidence_spine.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260815130000_urm3_hash_normalization_order.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260815140000_urm3_storage_requires_hash_not_null.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260818020716_accounting_measurement_snapshots.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260819045253_continuous_close_runs.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260820233219_journal_entry_proposals.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821042800_journal_entry_approvals.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821183525_journal_entry_executions.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821212020_journal_entry_provider_attempts.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260822050000_journal_entry_verified_readback.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+      "category": "included_unchanged_baseline",
+      "module": 4,
+      "note": "Assembled marker in baseline module"
+    },
+    {
+      "file": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+      "category": "moved_to_forward_tail",
+      "module": 7,
+      "note": "Excluded from baseline; sole home in forward-tail"
+    }
+  ],
+  "failureBoundaryMatrix": [
+    {
+      "afterModule": 1,
+      "name": "esc_platform_prerequisites_contract",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 2,
+      "name": "esc_public_users_and_foundations_baseline",
+      "tablesCreatedInModule": 43,
+      "rlsEnabledInModule": 43,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 1,
+        "commit": 1,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 3,
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "tablesCreatedInModule": 5,
+      "rlsEnabledInModule": 5,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 1,
+        "commit": 1,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 4,
+      "name": "esc_application_schema_and_security_atomic",
+      "tablesCreatedInModule": 171,
+      "rlsEnabledInModule": 171,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 50,
+        "commit": 50,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 5,
+      "name": "esc_reference_seed_allowlist_contract",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 6,
+      "name": "esc_guarded_dataless_safe_initialization",
+      "tablesCreatedInModule": 2,
+      "rlsEnabledInModule": 2,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 5,
+        "commit": 5,
+        "rollback": 0
+      }
+    },
+    {
+      "afterModule": 7,
+      "name": "esc_forward_tail_main_unapplied",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "txnMarkers": {
+        "begin": 0,
+        "commit": 0,
+        "rollback": 0
+      }
+    }
+  ],
+  "privilegeScan": {
+    "commentStrippedAnonGrantsInModule4": 0,
+    "rawCommentLinesMentioningGrantAnon": 0,
+    "publish_ledger_event_revokes": {
+      "PUBLIC": true,
+      "anon": true,
+      "authenticated": true
+    },
+    "increment_share_token_access_revokes": {
+      "PUBLIC": true,
+      "anon": true,
+      "authenticated": true
+    }
+  },
+  "txnFindings": [
+    {
+      "order": 1,
+      "name": "esc_platform_prerequisites_contract",
+      "bytes": 1074,
+      "begin": 0,
+      "commit": 0,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 5
+    },
+    {
+      "order": 2,
+      "name": "esc_public_users_and_foundations_baseline",
+      "bytes": 108827,
+      "begin": 1,
+      "commit": 1,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 565
+    },
+    {
+      "order": 3,
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "bytes": 19918,
+      "begin": 1,
+      "commit": 1,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 63
+    },
+    {
+      "order": 4,
+      "name": "esc_application_schema_and_security_atomic",
+      "bytes": 979214,
+      "begin": 50,
+      "commit": 50,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 4511
+    },
+    {
+      "order": 5,
+      "name": "esc_reference_seed_allowlist_contract",
+      "bytes": 1021,
+      "begin": 0,
+      "commit": 0,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 3
+    },
+    {
+      "order": 6,
+      "name": "esc_guarded_dataless_safe_initialization",
+      "bytes": 15876,
+      "begin": 5,
+      "commit": 5,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 50
+    },
+    {
+      "order": 7,
+      "name": "esc_forward_tail_main_unapplied",
+      "bytes": 4832,
+      "begin": 0,
+      "commit": 0,
+      "rollback": 0,
+      "concurrentIndex": 0,
+      "clientMeta": 0,
+      "statementCountApprox": 21
+    }
+  ],
+  "dmlSample": [
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "kind": "INSERT",
+      "target": "company_roles",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_templates",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_templates",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_templates",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_templates",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "close_checklist_template_items",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "curated_rules_registry",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "ar_cash_app_config",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "firm_llm_config",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "storage.buckets",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "event_projections",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "stripe_webhook_events",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "entitlement_check_audit",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "firm_intake_settings",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "firm_intake_handlers",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "firm_intake_handlers",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "firm_intake_handlers",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "curated_rules_registry",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "assertions_catalog",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "assertion_relevance_matrix",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "rule_assertion_coverage",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "advisacor_flags",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "assertion_gap_root_causes",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "storage.buckets",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "ap_intake_assertion_registry",
+      "line": null
+    },
+    {
+      "module": "esc_application_schema_and_security_atomic",
+      "kind": "INSERT",
+      "target": "ap_intake_ledger_event_types",
+      "line": null
+    }
+  ],
+  "dmlCount": 107,
+  "schemaGaps": {
+    "productionContractScope": "foundation_and_phase1_only_47_tables",
+    "packageClaimsCompleteProdMatch": false,
+    "mandatoryFullPgDumpBeforeReplay": true,
+    "dumpDependencyNote": "Full live pg_dump --schema-only remains mandatory before local replay / mutation. Option D PASS + 47-table G1 are not a complete production match."
+  },
+  "findingCounts": {
+    "P0": 1,
+    "P1": 19,
+    "P2": 10,
+    "P3": 0
+  },
+  "findings": [
+    {
+      "priority": "P0",
+      "code": "MODULE4_NOT_SINGLE_TRANSACTION",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "Nested txn markers BEGIN=50 COMMIT=50. One proposed version ≠ one PostgreSQL transaction; premature COMMIT possible mid-module.",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "MANIFEST_138_VS_MARKERS",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "unique begin markers in module4=139 (manifest claimed 138)",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "MODULE4_SIZE_OPERATIONAL_RISK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "979KB-class module may hit dashboard/CLI timeout or payload limits; nested COMMITs also break atomicity. Secure atomic split design required if P0 txn finding stands — not applied in this review.",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.gap2_audit_append_only",
+      "line": 9383
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.gap2_schedule_purge",
+      "line": 9499
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.gap2_cancel_purge",
+      "line": 9577
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.increment_pbc_request_count",
+      "line": 10165
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "audit_ready_latest_bs_kickout_lines",
+      "line": 11454
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "audit_ready_latest_pbc_kickout_runs",
+      "line": 11504
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.handle_new_auth_user",
+      "line": 11994
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12278
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12396
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12483
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12559
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12796
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12935
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.sp_write_anchor_batch",
+      "line": 13204
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "public.sp_list_public_columns",
+      "line": 13306
+    },
+    {
+      "priority": "P1",
+      "code": "SENSITIVE_DML_KEYWORD",
+      "module": "esc_public_users_and_foundations_baseline",
+      "detail": "oauth/secret near INSERT",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "SENSITIVE_DML_KEYWORD",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "oauth/secret near INSERT",
+      "line": null
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) TO authenticated",
+      "line": 11502
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) TO authenticated",
+      "line": 11565
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid, text, jsonb)\n  TO authenticated",
+      "line": 11854
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[])\n  TO authenticated",
+      "line": 11918
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.is_active_company_member(uuid)      TO authenticated",
+      "line": 21292
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.has_active_company_role(uuid, text[]) TO authenticated",
+      "line": 21293
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.is_company_admin(uuid)              TO authenticated",
+      "line": 21294
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.is_active_firm_member(uuid)         TO authenticated",
+      "line": 21295
+    },
+    {
+      "priority": "P2",
+      "code": "EXECUTABLE_GRANT_TO_AUTHENTICATED",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "GRANT EXECUTE ON FUNCTION public.has_active_firm_role(uuid, text[])  TO authenticated",
+      "line": 21296
+    },
+    {
+      "priority": "P2",
+      "code": "SETVAL_NON_LITERAL",
+      "module": "esc_application_schema_and_security_atomic",
+      "detail": "1 non-literal setval (e.g. function-local); sample L12721: setval('public.pilot_lifecycle_events_chain_seq_seq', v_next - 1, true)",
+      "line": null
+    }
+  ]
+}

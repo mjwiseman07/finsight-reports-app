@@ -1,0 +1,2241 @@
+{
+  "reviewedAt": "2026-09-07T03:32:57.111Z",
+  "reviewedHead": "4888756224129abcdc1729fc772a1300dc1ba074",
+  "packageSealExpected": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+  "packageSealObserved": "74d3b7498f4f2327b15c4ea8631c1b0c40b1daf795675f0517a5fb7052f3d3ff",
+  "packageBytesExpected": 1139927,
+  "packageBytesObserved": 1139927,
+  "moduleCount": 12,
+  "transactionModel": "OPTION_2_SECURE_MULTI_VERSION_SPLIT",
+  "candidateSqlAndManifestByteIdentical": true,
+  "verdict": "CHANGES REQUIRED",
+  "hashResults": [
+    {
+      "order": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010000_esc_platform_prerequisites_contract.sql",
+      "gitBlobId": "8b8f31992e2714fe3ee0ed9ec350138ceb65b926",
+      "sha256": "4b71d1a582fd81098535513af258354735eb9b85827b25c3ea5a7dc2318ebad0",
+      "md5": "b91ececa001dc264f1af6e952f0fa53c",
+      "utf8LfBytes": 1074,
+      "statementCountApprox": 1,
+      "txn": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "gitBlobId": "81d9069328d9579bbdd73f234f5510b49d26cda3",
+      "sha256": "5f622b6a244620ad5ee896555c6640a34adf8d5b4212ec7815a06ce6c786cc74",
+      "md5": "60875424b1b85d32bebd2f619d86040c",
+      "utf8LfBytes": 108827,
+      "statementCountApprox": 462,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "gitBlobId": "d55a4911d99f85bc51a3d16a40fccc87c4c35ae0",
+      "sha256": "10a46c634df0bfd706244a504851ed58a4b14930094b41a3baab21a14c701bff",
+      "md5": "58e9b513cd4ebd455e67c7fcf66ebc11",
+      "utf8LfBytes": 19918,
+      "statementCountApprox": 60,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_slice_1_of_5",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_slice_1_of_5.sql",
+      "gitBlobId": "f21d4761e1d773bf9077b0c75b8a7533e426df88",
+      "sha256": "e8b81bc2e6c1b5233767a1691018c0b9651384a5a30cbea72eb227f3b5c53a96",
+      "md5": "11add88cba520fc7715ecf1a1a07b9cb",
+      "utf8LfBytes": 199231,
+      "statementCountApprox": 575,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 5,
+      "version": "20260907010031",
+      "name": "esc_application_schema_slice_2_of_5",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010031_esc_application_schema_slice_2_of_5.sql",
+      "gitBlobId": "559f82039c134e8492ff495215465bbd99c577f1",
+      "sha256": "af9138cd22c9ee4db7d527dba5a80fea93a3446f35d643bdf11ffdb4d4987a95",
+      "md5": "6229847aaa9d7c40ea482427dec9c2c9",
+      "utf8LfBytes": 195422,
+      "statementCountApprox": 521,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 6,
+      "version": "20260907010032",
+      "name": "esc_application_schema_slice_3_of_5",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010032_esc_application_schema_slice_3_of_5.sql",
+      "gitBlobId": "7b512436c780ec5287d6970ed9009398075634c5",
+      "sha256": "bfa9bb333c8e9089c7efe339bf9b33ab456264fb83a33eeb09335601bff170da",
+      "md5": "49dd03bf8af4adc2932bd25aebbf20ee",
+      "utf8LfBytes": 202023,
+      "statementCountApprox": 526,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 7,
+      "version": "20260907010033",
+      "name": "esc_application_schema_slice_4_of_5",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010033_esc_application_schema_slice_4_of_5.sql",
+      "gitBlobId": "81e64a0ca77c63549d4ffc1659e30946c2003789",
+      "sha256": "7ac4942124cea7551f2ab9e2972517c1bc1505c4b208e33ec46687767130eda6",
+      "md5": "48d9a8f22c885866fddad0b58a366b46",
+      "utf8LfBytes": 193331,
+      "statementCountApprox": 429,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 8,
+      "version": "20260907010034",
+      "name": "esc_application_schema_slice_5_of_5",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010034_esc_application_schema_slice_5_of_5.sql",
+      "gitBlobId": "5e52dc43f286375dd2641f24bbb56f071ca25465",
+      "sha256": "e9b73f50c68fef18f3f4a1d91f9c2f62e5d1f7e4b05c80329bd9c1504e7202b2",
+      "md5": "1f3aac407199031e28fe0ba1212d072e",
+      "utf8LfBytes": 119994,
+      "statementCountApprox": 130,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 9,
+      "version": "20260907010035",
+      "name": "esc_security_rls_grants_hardening_atomic",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010035_esc_security_rls_grants_hardening_atomic.sql",
+      "gitBlobId": "3f424420fc6b5bf2d6d2a3dd2654c6032c5dddad",
+      "sha256": "5bc2563e5565cb452727f5f34eef6dc12a2f133d1d01e8495bb30d3c8ab4e08e",
+      "md5": "1d889498131dc2e256789c014029f939",
+      "utf8LfBytes": 78378,
+      "statementCountApprox": 202,
+      "txn": {
+        "BEGIN": 1,
+        "COMMIT": 1,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 10,
+      "version": "20260907010040",
+      "name": "esc_reference_seed_allowlist_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_reference_seed_allowlist_contract.sql",
+      "gitBlobId": "06709f26f35893881eec8f6ec5dfea0a5767e7ef",
+      "sha256": "a2ae185ca8e1c0ac6cb5dc8fef979f7c7427ad36603bbc32ce6330b020284d88",
+      "md5": "28658991e6679fbe2371a30f23b75457",
+      "utf8LfBytes": 1021,
+      "statementCountApprox": 1,
+      "txn": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 11,
+      "version": "20260907010050",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_guarded_dataless_safe_initialization.sql",
+      "gitBlobId": "6dcc488c070ad5ac57c7bfe43f1d027872d702ea",
+      "sha256": "25c01a3edf4dd6203f6e396b812278305f6e7ebd6c79115c75765d86742feb3b",
+      "md5": "d820e05f0da06658e5d665da45bad1a6",
+      "utf8LfBytes": 15876,
+      "statementCountApprox": 43,
+      "txn": {
+        "BEGIN": 5,
+        "COMMIT": 5,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 4
+      },
+      "manifestMatch": true
+    },
+    {
+      "order": 12,
+      "version": "20260907010060",
+      "name": "esc_forward_tail_main_unapplied",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_forward_tail_main_unapplied.sql",
+      "gitBlobId": "ca90b19db66f4fbe0b76bf715e270517463559c1",
+      "sha256": "f46ffb82276aa485ab968312e2d0c6223a83f805e99a2c671d684f7e77714232",
+      "md5": "799aa12957cdb29e8d81a426d712a119",
+      "utf8LfBytes": 4832,
+      "statementCountApprox": 3,
+      "txn": {
+        "BEGIN": 0,
+        "COMMIT": 0,
+        "ROLLBACK": 0,
+        "START": 0,
+        "intermediateCommitCount": 0
+      },
+      "manifestMatch": true
+    }
+  ],
+  "sourceAccounting": {
+    "optionDEntries": 151,
+    "counts": {
+      "unchanged": 144,
+      "overlay": 6,
+      "forward_tail": 1,
+      "missing": 0,
+      "duplicated": 0
+    },
+    "equation": "144 unchanged + 6 overlays + 1 forward = 151",
+    "odAssembledBeginMarkersInAppSecuritySplits": 138,
+    "escPatchMarkers": 1,
+    "markerExplanation": "138 OD assembled begin markers in app/security slices; +1 ESC_REMEDIATION patch marker is not an Option D source",
+    "digestQualifyOccurrences": 1
+  },
+  "extensionFindings": [
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 120,
+      "index": 1203,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 156,
+      "index": 2290,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 209,
+      "index": 3804,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 407,
+      "index": 11565,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 577,
+      "index": 18795,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 662,
+      "index": 21854,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 712,
+      "index": 23854,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 771,
+      "index": 26021,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 844,
+      "index": 28858,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 1257,
+      "index": 42947,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 1431,
+      "index": 48395,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_public_users_and_foundations_baseline",
+      "version": "20260907010010",
+      "match": "create extension if not exists pgcrypto;",
+      "line": 1573,
+      "index": 54447,
+      "insideTransactionalSlice": false,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_application_schema_slice_1_of_5",
+      "version": "20260907010030",
+      "match": "CREATE EXTENSION IF NOT EXISTS vector;",
+      "line": 2071,
+      "index": 77567,
+      "insideTransactionalSlice": true,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_application_schema_slice_2_of_5",
+      "version": "20260907010031",
+      "match": "CREATE EXTENSION IF NOT EXISTS pgcrypto;",
+      "line": 2466,
+      "index": 118684,
+      "insideTransactionalSlice": true,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_application_schema_slice_4_of_5",
+      "version": "20260907010033",
+      "match": "CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;",
+      "line": 479,
+      "index": 13205,
+      "insideTransactionalSlice": true,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    },
+    {
+      "module": "esc_security_rls_grants_hardening_atomic",
+      "version": "20260907010035",
+      "match": "ALTER EXTENSION vector SET SCHEMA extensions;",
+      "line": 861,
+      "index": 26387,
+      "insideTransactionalSlice": true,
+      "needsAutocommit": false,
+      "disposition": "OK_INSIDE_TRANSACTION_ON_PG15_SUPABASE"
+    }
+  ],
+  "perCommitMatrix": [
+    {
+      "afterModule": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "tablesCreated": 0,
+      "rlsEnabled": 0,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 0,
+      "functionPublicExecuteUnrevoked": [],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "tablesCreated": 43,
+      "rlsEnabled": 43,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 5,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "prevent_si_snapshot_metadata_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1998
+        },
+        {
+          "name": "prevent_si_snapshot_child_mutation_when_parent_locked",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2038
+        },
+        {
+          "name": "prevent_company_memory_record_unsafe_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2680
+        },
+        {
+          "name": "prevent_company_memory_append_only_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2748
+        },
+        {
+          "name": "prevent_company_memory_version_unsafe_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2781
+        }
+      ],
+      "broadGrants": 2
+    },
+    {
+      "afterModule": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "tablesCreated": 5,
+      "rlsEnabled": 5,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 1,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "tg_set_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 210
+        }
+      ],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_slice_1_of_5",
+      "tablesCreated": 57,
+      "rlsEnabled": 57,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 19,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "set_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 159
+        },
+        {
+          "name": "prevent_je_audit_update",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1886
+        },
+        {
+          "name": "touch_je_post_attempts",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1902
+        },
+        {
+          "name": "ledger_events_prevent_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2158
+        },
+        {
+          "name": "ledger_events_notify",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2191
+        },
+        {
+          "name": "engagement_addons_set_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2533
+        },
+        {
+          "name": "entitlement_check_audit_no_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2577
+        },
+        {
+          "name": "_intake_touch_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2998
+        },
+        {
+          "name": "prevent_company_memory_record_unsafe_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3069
+        },
+        {
+          "name": "prevent_memory_payload_update",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3133
+        },
+        {
+          "name": "touch_uncategorized_proposals_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3206
+        },
+        {
+          "name": "prevent_proposal_decision_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3217
+        },
+        {
+          "name": "touch_recurring_templates_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3453
+        },
+        {
+          "name": "touch_recurring_fires_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3466
+        },
+        {
+          "name": "guard_recurring_fire_immutability",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3484
+        },
+        {
+          "name": "curated_rule_fires_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3658
+        },
+        {
+          "name": "pre_close_review_items_je_draft_check",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3842
+        },
+        {
+          "name": "pre_close_review_items_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3906
+        }
+      ],
+      "broadGrants": 2
+    },
+    {
+      "afterModule": 5,
+      "version": "20260907010031",
+      "name": "esc_application_schema_slice_2_of_5",
+      "tablesCreated": 50,
+      "rlsEnabled": 51,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 7,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "validate_assertions_array",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 999
+        },
+        {
+          "name": "close_gap_review_items_touch_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1161
+        },
+        {
+          "name": "mfa_audit_log_prevent_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1329
+        },
+        {
+          "name": "user_webauthn_credentials_prevent_column_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1402
+        },
+        {
+          "name": "_d651_slugify_name",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1581
+        },
+        {
+          "name": "next_document_number",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2772
+        }
+      ],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 6,
+      "version": "20260907010032",
+      "name": "esc_application_schema_slice_3_of_5",
+      "tablesCreated": 44,
+      "rlsEnabled": 44,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 14,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "preset_pack_registry_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 683
+        },
+        {
+          "name": "observation_events_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 758
+        },
+        {
+          "name": "drafted_amendments_terminal_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 815
+        },
+        {
+          "name": "qbo_webhook_events_enforce_append_only",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1020
+        },
+        {
+          "name": "qbo_webhook_events_block_delete",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1062
+        },
+        {
+          "name": "gap3_materiality_bucket",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1518
+        },
+        {
+          "name": "gap3_pre_close_ri_materiality_before_insert",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1558
+        },
+        {
+          "name": "gap3_pre_close_ri_sod_before_update",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1590
+        },
+        {
+          "name": "gap2_audit_append_only",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1927
+        },
+        {
+          "name": "gap2_audit_append_only",
+          "missing": "sensitive:PUBLIC,anon,authenticated",
+          "securityDefiner": false,
+          "line": 1927
+        },
+        {
+          "name": "gap2_schedule_purge",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2043
+        },
+        {
+          "name": "gap2_schedule_purge",
+          "missing": "sensitive:PUBLIC,anon,authenticated",
+          "securityDefiner": false,
+          "line": 2043
+        },
+        {
+          "name": "gap2_cancel_purge",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2121
+        },
+        {
+          "name": "gap2_cancel_purge",
+          "missing": "sensitive:PUBLIC,anon,authenticated",
+          "securityDefiner": false,
+          "line": 2121
+        },
+        {
+          "name": "increment_pbc_request_count",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2713
+        },
+        {
+          "name": "audit_ready_latest_bs_kickout_lines",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4011
+        },
+        {
+          "name": "audit_ready_latest_pbc_kickout_runs",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4061
+        }
+      ],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 7,
+      "version": "20260907010033",
+      "name": "esc_application_schema_slice_4_of_5",
+      "tablesCreated": 14,
+      "rlsEnabled": 14,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 39,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "get_similar_kickout_resolutions",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 20
+        },
+        {
+          "name": "get_similar_kickout_resolution_counts",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 109
+        },
+        {
+          "name": "handle_new_auth_user",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 245
+        },
+        {
+          "name": "pilot_lifecycle_events_canonical_payload",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 481
+        },
+        {
+          "name": "pilot_lifecycle_events_before_insert",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 529
+        },
+        {
+          "name": "pilot_lifecycle_events_reject_mutations",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 616
+        },
+        {
+          "name": "pilot_lifecycle_events_verify_chain",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 647
+        },
+        {
+          "name": "pilot_lifecycle_events_before_insert",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 734
+        },
+        {
+          "name": "pilot_lifecycle_events_verify_chain",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 810
+        },
+        {
+          "name": "pilot_lifecycle_events_before_insert",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1047
+        },
+        {
+          "name": "pilot_lifecycle_events_verify_chain",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1186
+        },
+        {
+          "name": "sp_write_anchor_batch",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1455
+        },
+        {
+          "name": "sp_list_public_columns",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1557
+        },
+        {
+          "name": "sp_list_public_columns",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1665
+        },
+        {
+          "name": "resolve_assertion_impact_by_table",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1868
+        },
+        {
+          "name": "backfill_schema_drift_assertion_impact",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1951
+        },
+        {
+          "name": "trg_lifecycle_issues_assertion_impact",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2008
+        },
+        {
+          "name": "resolve_assertion_impact_by_table",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2105
+        },
+        {
+          "name": "resolve_assertion_confidence_by_table",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2183
+        },
+        {
+          "name": "resolve_fr_relevance_by_table",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2227
+        },
+        {
+          "name": "resolve_mapping_source_by_table",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2264
+        },
+        {
+          "name": "trg_lifecycle_issues_assertion_impact",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2310
+        },
+        {
+          "name": "backfill_schema_drift_assertion_impact",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2371
+        },
+        {
+          "name": "trg_ar_reconciling_items_stamp_run_identity",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2940
+        },
+        {
+          "name": "persist_audit_ready_recon_bridge",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2982
+        },
+        {
+          "name": "clear_audit_ready_recon_bridge",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3144
+        },
+        {
+          "name": "trg_arte_stamp_run_identity",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3416
+        },
+        {
+          "name": "trg_arte_stamp_run_identity",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3540
+        },
+        {
+          "name": "accounting_measurement_snapshots_deny_update",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3669
+        },
+        {
+          "name": "continuous_close_runs_deny_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3810
+        },
+        {
+          "name": "persist_continuous_close_observe_run",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 3892
+        },
+        {
+          "name": "journal_entry_proposals_deny_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4105
+        },
+        {
+          "name": "persist_journal_entry_proposal",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4183
+        },
+        {
+          "name": "journal_entry_approvals_deny_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4389
+        },
+        {
+          "name": "persist_journal_entry_approval",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4465
+        },
+        {
+          "name": "journal_entry_executions_guard_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4747
+        },
+        {
+          "name": "je_execution_immutable_binding_matches",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4831
+        },
+        {
+          "name": "persist_journal_entry_execution_reservation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 4859
+        },
+        {
+          "name": "transition_journal_entry_execution",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 5070
+        }
+      ],
+      "broadGrants": 6
+    },
+    {
+      "afterModule": 8,
+      "version": "20260907010034",
+      "name": "esc_application_schema_slice_5_of_5",
+      "tablesCreated": 1,
+      "rlsEnabled": 1,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 19,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "journal_entry_provider_attempts_guard_mutation",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 88
+        },
+        {
+          "name": "persist_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 174
+        },
+        {
+          "name": "patch_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 375
+        },
+        {
+          "name": "transition_journal_entry_execution",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 461
+        },
+        {
+          "name": "patch_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 616
+        },
+        {
+          "name": "apply_journal_entry_provider_commit_discovered",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 702
+        },
+        {
+          "name": "apply_journal_entry_provider_not_found_confirmed",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 837
+        },
+        {
+          "name": "patch_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 972
+        },
+        {
+          "name": "persist_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1068
+        },
+        {
+          "name": "patch_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1288
+        },
+        {
+          "name": "apply_journal_entry_provider_dispatch_started",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1378
+        },
+        {
+          "name": "apply_journal_entry_provider_posted",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1507
+        },
+        {
+          "name": "apply_journal_entry_provider_post_unknown",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1660
+        },
+        {
+          "name": "apply_journal_entry_provider_precommit_failed",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 1805
+        },
+        {
+          "name": "patch_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2104
+        },
+        {
+          "name": "apply_journal_entry_verified",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2198
+        },
+        {
+          "name": "apply_journal_entry_verification_mismatch",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2392
+        },
+        {
+          "name": "je_publish_posting_started_from_ready",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2724
+        },
+        {
+          "name": "persist_journal_entry_provider_attempt",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 2808
+        }
+      ],
+      "broadGrants": 1
+    },
+    {
+      "afterModule": 9,
+      "version": "20260907010035",
+      "name": "esc_security_rls_grants_hardening_atomic",
+      "tablesCreated": 5,
+      "rlsEnabled": 8,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 9,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "engagement_posting_policy_preset_consistency",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 96
+        },
+        {
+          "name": "pre_close_review_items_immutable",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 157
+        }
+      ],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 10,
+      "version": "20260907010040",
+      "name": "esc_reference_seed_allowlist_contract",
+      "tablesCreated": 0,
+      "rlsEnabled": 0,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 0,
+      "functionPublicExecuteUnrevoked": [],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 11,
+      "version": "20260907010050",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "tablesCreated": 2,
+      "rlsEnabled": 2,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 2,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "set_pilot_slots_updated_at",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 296
+        },
+        {
+          "name": "public_pilot_slot_count",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 362
+        }
+      ],
+      "broadGrants": 0
+    },
+    {
+      "afterModule": 12,
+      "version": "20260907010060",
+      "name": "esc_forward_tail_main_unapplied",
+      "tablesCreated": 0,
+      "rlsEnabled": 0,
+      "unsafeCreatesWithoutRls": [],
+      "cumulativeWithoutRls": 0,
+      "functionsCreated": 1,
+      "functionPublicExecuteUnrevoked": [
+        {
+          "name": "publish_ledger_event",
+          "missing": "PUBLIC",
+          "securityDefiner": false,
+          "line": 31
+        },
+        {
+          "name": "publish_ledger_event",
+          "missing": "sensitive:PUBLIC,anon,authenticated",
+          "securityDefiner": false,
+          "line": 31
+        }
+      ],
+      "broadGrants": 0
+    }
+  ],
+  "securityTiming": [
+    {
+      "object": "curated_rule_fires",
+      "kind": "table",
+      "create": {
+        "afterModule": 4,
+        "version": "20260907010030",
+        "name": "esc_application_schema_slice_1_of_5",
+        "tablesCreated": 57,
+        "rlsEnabled": 57,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 19,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 159
+          },
+          {
+            "name": "prevent_je_audit_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1886
+          },
+          {
+            "name": "touch_je_post_attempts",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1902
+          },
+          {
+            "name": "ledger_events_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2158
+          },
+          {
+            "name": "ledger_events_notify",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2191
+          },
+          {
+            "name": "engagement_addons_set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2533
+          },
+          {
+            "name": "entitlement_check_audit_no_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2577
+          },
+          {
+            "name": "_intake_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2998
+          },
+          {
+            "name": "prevent_company_memory_record_unsafe_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3069
+          },
+          {
+            "name": "prevent_memory_payload_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3133
+          },
+          {
+            "name": "touch_uncategorized_proposals_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3206
+          },
+          {
+            "name": "prevent_proposal_decision_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3217
+          },
+          {
+            "name": "touch_recurring_templates_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3453
+          },
+          {
+            "name": "touch_recurring_fires_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3466
+          },
+          {
+            "name": "guard_recurring_fire_immutability",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3484
+          },
+          {
+            "name": "curated_rule_fires_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3658
+          },
+          {
+            "name": "pre_close_review_items_je_draft_check",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3842
+          },
+          {
+            "name": "pre_close_review_items_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3906
+          }
+        ],
+        "broadGrants": 2
+      },
+      "rls": {
+        "afterModule": 4,
+        "version": "20260907010030",
+        "name": "esc_application_schema_slice_1_of_5",
+        "tablesCreated": 57,
+        "rlsEnabled": 57,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 19,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 159
+          },
+          {
+            "name": "prevent_je_audit_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1886
+          },
+          {
+            "name": "touch_je_post_attempts",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1902
+          },
+          {
+            "name": "ledger_events_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2158
+          },
+          {
+            "name": "ledger_events_notify",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2191
+          },
+          {
+            "name": "engagement_addons_set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2533
+          },
+          {
+            "name": "entitlement_check_audit_no_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2577
+          },
+          {
+            "name": "_intake_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2998
+          },
+          {
+            "name": "prevent_company_memory_record_unsafe_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3069
+          },
+          {
+            "name": "prevent_memory_payload_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3133
+          },
+          {
+            "name": "touch_uncategorized_proposals_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3206
+          },
+          {
+            "name": "prevent_proposal_decision_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3217
+          },
+          {
+            "name": "touch_recurring_templates_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3453
+          },
+          {
+            "name": "touch_recurring_fires_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3466
+          },
+          {
+            "name": "guard_recurring_fire_immutability",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3484
+          },
+          {
+            "name": "curated_rule_fires_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3658
+          },
+          {
+            "name": "pre_close_review_items_je_draft_check",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3842
+          },
+          {
+            "name": "pre_close_review_items_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3906
+          }
+        ],
+        "broadGrants": 2
+      },
+      "sameModuleClosure": true
+    },
+    {
+      "object": "gap2_purge_table_registry",
+      "kind": "table",
+      "create": {
+        "afterModule": 6,
+        "version": "20260907010032",
+        "name": "esc_application_schema_slice_3_of_5",
+        "tablesCreated": 44,
+        "rlsEnabled": 44,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 14,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "preset_pack_registry_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 683
+          },
+          {
+            "name": "observation_events_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 758
+          },
+          {
+            "name": "drafted_amendments_terminal_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 815
+          },
+          {
+            "name": "qbo_webhook_events_enforce_append_only",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1020
+          },
+          {
+            "name": "qbo_webhook_events_block_delete",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1062
+          },
+          {
+            "name": "gap3_materiality_bucket",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1518
+          },
+          {
+            "name": "gap3_pre_close_ri_materiality_before_insert",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1558
+          },
+          {
+            "name": "gap3_pre_close_ri_sod_before_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1590
+          },
+          {
+            "name": "gap2_audit_append_only",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1927
+          },
+          {
+            "name": "gap2_audit_append_only",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 1927
+          },
+          {
+            "name": "gap2_schedule_purge",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2043
+          },
+          {
+            "name": "gap2_schedule_purge",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 2043
+          },
+          {
+            "name": "gap2_cancel_purge",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2121
+          },
+          {
+            "name": "gap2_cancel_purge",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 2121
+          },
+          {
+            "name": "increment_pbc_request_count",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2713
+          },
+          {
+            "name": "audit_ready_latest_bs_kickout_lines",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 4011
+          },
+          {
+            "name": "audit_ready_latest_pbc_kickout_runs",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 4061
+          }
+        ],
+        "broadGrants": 0
+      },
+      "rls": {
+        "afterModule": 6,
+        "version": "20260907010032",
+        "name": "esc_application_schema_slice_3_of_5",
+        "tablesCreated": 44,
+        "rlsEnabled": 44,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 14,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "preset_pack_registry_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 683
+          },
+          {
+            "name": "observation_events_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 758
+          },
+          {
+            "name": "drafted_amendments_terminal_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 815
+          },
+          {
+            "name": "qbo_webhook_events_enforce_append_only",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1020
+          },
+          {
+            "name": "qbo_webhook_events_block_delete",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1062
+          },
+          {
+            "name": "gap3_materiality_bucket",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1518
+          },
+          {
+            "name": "gap3_pre_close_ri_materiality_before_insert",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1558
+          },
+          {
+            "name": "gap3_pre_close_ri_sod_before_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1590
+          },
+          {
+            "name": "gap2_audit_append_only",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1927
+          },
+          {
+            "name": "gap2_audit_append_only",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 1927
+          },
+          {
+            "name": "gap2_schedule_purge",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2043
+          },
+          {
+            "name": "gap2_schedule_purge",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 2043
+          },
+          {
+            "name": "gap2_cancel_purge",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2121
+          },
+          {
+            "name": "gap2_cancel_purge",
+            "missing": "sensitive:PUBLIC,anon,authenticated",
+            "securityDefiner": false,
+            "line": 2121
+          },
+          {
+            "name": "increment_pbc_request_count",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2713
+          },
+          {
+            "name": "audit_ready_latest_bs_kickout_lines",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 4011
+          },
+          {
+            "name": "audit_ready_latest_pbc_kickout_runs",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 4061
+          }
+        ],
+        "broadGrants": 0
+      },
+      "sameModuleClosure": true
+    },
+    {
+      "object": "engagement_posting_policy",
+      "kind": "table",
+      "create": {
+        "afterModule": 9,
+        "version": "20260907010035",
+        "name": "esc_security_rls_grants_hardening_atomic",
+        "tablesCreated": 5,
+        "rlsEnabled": 8,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 9,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "engagement_posting_policy_preset_consistency",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 96
+          },
+          {
+            "name": "pre_close_review_items_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 157
+          }
+        ],
+        "broadGrants": 0
+      },
+      "rls": {
+        "afterModule": 5,
+        "version": "20260907010031",
+        "name": "esc_application_schema_slice_2_of_5",
+        "tablesCreated": 50,
+        "rlsEnabled": 51,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 7,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "validate_assertions_array",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 999
+          },
+          {
+            "name": "close_gap_review_items_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1161
+          },
+          {
+            "name": "mfa_audit_log_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1329
+          },
+          {
+            "name": "user_webauthn_credentials_prevent_column_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1402
+          },
+          {
+            "name": "_d651_slugify_name",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1581
+          },
+          {
+            "name": "next_document_number",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2772
+          }
+        ],
+        "broadGrants": 0
+      },
+      "sameModuleClosure": false
+    },
+    {
+      "object": "publish_ledger_event",
+      "kind": "function",
+      "create": {
+        "afterModule": 5,
+        "version": "20260907010031",
+        "name": "esc_application_schema_slice_2_of_5",
+        "tablesCreated": 50,
+        "rlsEnabled": 51,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 7,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "validate_assertions_array",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 999
+          },
+          {
+            "name": "close_gap_review_items_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1161
+          },
+          {
+            "name": "mfa_audit_log_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1329
+          },
+          {
+            "name": "user_webauthn_credentials_prevent_column_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1402
+          },
+          {
+            "name": "_d651_slugify_name",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1581
+          },
+          {
+            "name": "next_document_number",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2772
+          }
+        ],
+        "broadGrants": 0
+      },
+      "revokePublic": {
+        "afterModule": 5,
+        "version": "20260907010031",
+        "name": "esc_application_schema_slice_2_of_5",
+        "tablesCreated": 50,
+        "rlsEnabled": 51,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 7,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "validate_assertions_array",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 999
+          },
+          {
+            "name": "close_gap_review_items_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1161
+          },
+          {
+            "name": "mfa_audit_log_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1329
+          },
+          {
+            "name": "user_webauthn_credentials_prevent_column_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1402
+          },
+          {
+            "name": "_d651_slugify_name",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1581
+          },
+          {
+            "name": "next_document_number",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2772
+          }
+        ],
+        "broadGrants": 0
+      },
+      "sameModuleClosure": true
+    },
+    {
+      "object": "increment_share_token_access",
+      "kind": "function",
+      "create": {
+        "afterModule": 4,
+        "version": "20260907010030",
+        "name": "esc_application_schema_slice_1_of_5",
+        "tablesCreated": 57,
+        "rlsEnabled": 57,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 19,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 159
+          },
+          {
+            "name": "prevent_je_audit_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1886
+          },
+          {
+            "name": "touch_je_post_attempts",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1902
+          },
+          {
+            "name": "ledger_events_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2158
+          },
+          {
+            "name": "ledger_events_notify",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2191
+          },
+          {
+            "name": "engagement_addons_set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2533
+          },
+          {
+            "name": "entitlement_check_audit_no_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2577
+          },
+          {
+            "name": "_intake_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2998
+          },
+          {
+            "name": "prevent_company_memory_record_unsafe_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3069
+          },
+          {
+            "name": "prevent_memory_payload_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3133
+          },
+          {
+            "name": "touch_uncategorized_proposals_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3206
+          },
+          {
+            "name": "prevent_proposal_decision_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3217
+          },
+          {
+            "name": "touch_recurring_templates_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3453
+          },
+          {
+            "name": "touch_recurring_fires_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3466
+          },
+          {
+            "name": "guard_recurring_fire_immutability",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3484
+          },
+          {
+            "name": "curated_rule_fires_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3658
+          },
+          {
+            "name": "pre_close_review_items_je_draft_check",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3842
+          },
+          {
+            "name": "pre_close_review_items_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3906
+          }
+        ],
+        "broadGrants": 2
+      },
+      "revokePublic": {
+        "afterModule": 4,
+        "version": "20260907010030",
+        "name": "esc_application_schema_slice_1_of_5",
+        "tablesCreated": 57,
+        "rlsEnabled": 57,
+        "unsafeCreatesWithoutRls": [],
+        "cumulativeWithoutRls": 0,
+        "functionsCreated": 19,
+        "functionPublicExecuteUnrevoked": [
+          {
+            "name": "set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 159
+          },
+          {
+            "name": "prevent_je_audit_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1886
+          },
+          {
+            "name": "touch_je_post_attempts",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 1902
+          },
+          {
+            "name": "ledger_events_prevent_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2158
+          },
+          {
+            "name": "ledger_events_notify",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2191
+          },
+          {
+            "name": "engagement_addons_set_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2533
+          },
+          {
+            "name": "entitlement_check_audit_no_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2577
+          },
+          {
+            "name": "_intake_touch_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 2998
+          },
+          {
+            "name": "prevent_company_memory_record_unsafe_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3069
+          },
+          {
+            "name": "prevent_memory_payload_update",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3133
+          },
+          {
+            "name": "touch_uncategorized_proposals_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3206
+          },
+          {
+            "name": "prevent_proposal_decision_mutation",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3217
+          },
+          {
+            "name": "touch_recurring_templates_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3453
+          },
+          {
+            "name": "touch_recurring_fires_updated_at",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3466
+          },
+          {
+            "name": "guard_recurring_fire_immutability",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3484
+          },
+          {
+            "name": "curated_rule_fires_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3658
+          },
+          {
+            "name": "pre_close_review_items_je_draft_check",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3842
+          },
+          {
+            "name": "pre_close_review_items_immutable",
+            "missing": "PUBLIC",
+            "securityDefiner": false,
+            "line": 3906
+          }
+        ],
+        "broadGrants": 2
+      },
+      "sameModuleClosure": true
+    }
+  ],
+  "frozenAuthority": {
+    "assembleAuthoritySourceCommit": "93363371c2aa6e032e8b1c1cd34f92594d69edb4",
+    "originalSha256Pinned": "3212b9994574d27844cdf3dbde6997a951d0d91f455a40c3b9323eeabab4c4d3",
+    "originalBlobIdPinned": "9a4ca65baf6f47a6d350f5815ed693a026d5e618",
+    "originalBlobShaMatchesPin": true,
+    "assembledSha256Pinned": "3212b9994574d27844cdf3dbde6997a951d0d91f455a40c3b9323eeabab4c4d3",
+    "headOriginalSha256": "63eb55cb64bafa7a6a5bf67932e09040e1c014885e976d52f6274fe15987529e",
+    "headDiffersFromFrozen": true,
+    "disposition": "EXPECTED_SOURCE_EVOLUTION_AFTER_FROZEN_AUTHORITY"
+  },
+  "schemaGaps": {
+    "packageClaimsCompleteProdMatch": false,
+    "mandatoryFullPgDumpBeforeReplay": true,
+    "readyForLocalReplay": false,
+    "dumpDependencyNote": "Full live pg_dump --schema-only remains mandatory before local replay / mutation. Option D + partial G1 are not complete production match."
+  },
+  "findingCounts": {
+    "P0": 8,
+    "P1": 1,
+    "P2": 0,
+    "P3": 0
+  },
+  "findings": [
+    {
+      "priority": "P1",
+      "code": "BROAD_TABLE_GRANT",
+      "module": "esc_public_users_and_foundations_baseline",
+      "detail": "ALL on users TO anon",
+      "line": 53
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_phase1_subscriptions_rls_atomic",
+      "detail": "1 functions created without same-module REVOKE FROM PUBLIC; sample: tg_set_updated_at",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_application_schema_slice_1_of_5",
+      "detail": "18 functions created without same-module REVOKE FROM PUBLIC; sample: set_updated_at, prevent_je_audit_update, touch_je_post_attempts, ledger_events_prevent_mutation, ledger_events_notify, engagement_addons_set_updated_at, entitlement_check_audit_no_mutation, _intake_touch_updated_at",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_application_schema_slice_2_of_5",
+      "detail": "6 functions created without same-module REVOKE FROM PUBLIC; sample: validate_assertions_array, close_gap_review_items_touch_updated_at, mfa_audit_log_prevent_mutation, user_webauthn_credentials_prevent_column_mutation, _d651_slugify_name, next_document_number",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_application_schema_slice_3_of_5",
+      "detail": "17 functions created without same-module REVOKE FROM PUBLIC; sample: preset_pack_registry_immutable, observation_events_immutable, drafted_amendments_terminal_immutable, qbo_webhook_events_enforce_append_only, qbo_webhook_events_block_delete, gap3_materiality_bucket, gap3_pre_close_ri_materiality_before_insert, gap3_pre_close_ri_sod_before_update",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_application_schema_slice_4_of_5",
+      "detail": "39 functions created without same-module REVOKE FROM PUBLIC; sample: get_similar_kickout_resolutions, get_similar_kickout_resolution_counts, handle_new_auth_user, pilot_lifecycle_events_canonical_payload, pilot_lifecycle_events_before_insert, pilot_lifecycle_events_reject_mutations, pilot_lifecycle_events_verify_chain, pilot_lifecycle_events_before_insert",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_application_schema_slice_5_of_5",
+      "detail": "19 functions created without same-module REVOKE FROM PUBLIC; sample: journal_entry_provider_attempts_guard_mutation, persist_journal_entry_provider_attempt, patch_journal_entry_provider_attempt, transition_journal_entry_execution, patch_journal_entry_provider_attempt, apply_journal_entry_provider_commit_discovered, apply_journal_entry_provider_not_found_confirmed, patch_journal_entry_provider_attempt",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "FUNCTION_PUBLIC_EXECUTE_UNREVOKED_AT_COMMIT",
+      "module": "esc_security_rls_grants_hardening_atomic",
+      "detail": "2 functions created without same-module REVOKE FROM PUBLIC; sample: engagement_posting_policy_preset_consistency, pre_close_review_items_immutable",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "NAMED_TABLE_RLS_NOT_AT_CREATE_COMMIT",
+      "module": "engagement_posting_policy",
+      "detail": "create@20260907010035 rls@20260907010031",
+      "line": null
+    }
+  ]
+}
