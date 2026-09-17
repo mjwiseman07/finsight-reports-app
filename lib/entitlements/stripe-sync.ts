@@ -1,10 +1,11 @@
 /**
- * Stripe webhook → entitlement sync. Idempotent via stripe_webhook_events PK.
+ * Stripe webhook → entitlement sync.
+ * Idempotent via stripe_webhook_events PK + durable lease ownership.
  *
- * Cutover note (gate-only prep): the RA Pro commerce gate is an *admission*
- * check only. Closed/missing/malformed blocks RA Pro checkout.session.completed
- * *before* ledger insert (retryable HTTP 500, no row). Once admitted under an
- * open gate and inserted, the row is never deleted for gate reasons — closure
+ * Cutover note: the RA Pro commerce gate is an *admission* check only.
+ * Closed/missing/malformed blocks RA Pro checkout.session.completed
+ * *before* lease claim (retryable HTTP 500, no claim). Once admitted under an
+ * open gate and claimed, the row is never deleted for gate reasons — closure
  * does not cancel in-flight work; main processing/failure semantics apply.
  */
 import { createServiceClient } from "@/lib/supabase/service";
@@ -13,8 +14,13 @@ import { isAddonCode, type AddonCode } from "./registry";
 import {
   handleTcp1CheckoutCompleted,
   handleTcp1SubscriptionDeleted,
+  type CheckoutCompletionOutcome,
 } from "@/lib/tcp1/stripe-pilot-checkout";
 import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
+import {
+  claimStripeWebhookEvent,
+  finalizeStripeWebhookEvent,
+} from "@/lib/entitlements/webhook-lease";
 import {
   isRaProCutoverCommerceClosed,
   RA_PRO_CUTOVER_COMMERCE_GATED_CODE,
@@ -41,8 +47,9 @@ export interface MinimalStripeEvent {
 }
 
 export type StripeWebhookResult =
-  | { status: "processed" | "skipped" | "duplicate" }
-  | { status: "retryable_error"; error: string };
+  | { status: "processed" | "skipped" | "duplicate" | "conflicted" }
+  | { status: "retryable_error"; error: string }
+  | { status: "lease_held" };
 
 const HANDLED_TYPES = new Set<string>([
   "customer.subscription.created",
@@ -50,6 +57,11 @@ const HANDLED_TYPES = new Set<string>([
   "customer.subscription.deleted",
   "checkout.session.completed",
 ]);
+
+function sanitizeFailureCode(code: string | undefined): string {
+  const raw = (code || "unknown").replace(/[^a-zA-Z0-9:_-]/g, "_");
+  return raw.slice(0, 64) || "unknown";
+}
 
 function isRaProCheckoutCompletedEvent(event: MinimalStripeEvent): boolean {
   if (event.type !== "checkout.session.completed") return false;
@@ -60,8 +72,9 @@ export async function handleStripeWebhook(
   event: MinimalStripeEvent,
   rawPayload: unknown,
 ): Promise<StripeWebhookResult> {
-  // Admission check only: hold before insert so HTTP 500 stays retryable.
-  // Never erase an admitted (inserted) row to make a gate hold retryable.
+  // Admission check only: hold before lease claim so HTTP 500 stays retryable.
+  // Never erase an admitted (claimed) row to make a gate hold retryable.
+  // Never re-check the gate after claim.
   if (isRaProCheckoutCompletedEvent(event) && isRaProCutoverCommerceClosed()) {
     return {
       status: "retryable_error",
@@ -69,25 +82,30 @@ export async function handleStripeWebhook(
     };
   }
 
-  const supabase = createServiceClient();
-
-  const { error: insertError } = await supabase.from("stripe_webhook_events").insert({
-    stripe_event_id: event.id,
-    event_type: event.type,
-    processing_status: "processing",
-    raw_payload: rawPayload ?? event,
+  void rawPayload;
+  const claim = await claimStripeWebhookEvent({
+    stripeEventId: event.id,
+    eventType: event.type,
     livemode: Boolean(event.livemode),
   });
 
-  if (insertError) {
-    if ((insertError as { code?: string }).code === "23505") {
-      return { status: "duplicate" };
-    }
-    throw new Error(`stripe_webhook_events insert failed: ${insertError.message}`);
+  if (claim.outcome === "duplicate_terminal") {
+    return { status: "duplicate" };
+  }
+  if (claim.outcome === "lease_held") {
+    return { status: "lease_held" };
   }
 
+  const leaseToken = claim.leaseToken;
+
   if (!HANDLED_TYPES.has(event.type)) {
-    await markProcessed(event.id, "skipped");
+    const fin = await finalizeStripeWebhookEvent({
+      stripeEventId: event.id,
+      leaseToken,
+      status: "skipped",
+      failureCode: "unhandled_event_type",
+    });
+    if (!fin.ok) return { status: "lease_held" };
     return { status: "skipped" };
   }
 
@@ -99,27 +117,27 @@ export async function handleStripeWebhook(
         customer?: string | null;
         metadata?: Record<string, string | undefined>;
       };
-      await handleTcp1CheckoutCompleted(session);
-      await markProcessed(event.id, "processed");
-      return { status: "processed" };
+      const outcome = await handleTcp1CheckoutCompleted(session);
+      return applyCheckoutOutcome(event.id, leaseToken, outcome);
     }
 
     const sub = event.data.object;
     const engagementId = sub.metadata?.engagement_id;
 
     if (!engagementId) {
-      // No engagement metadata = pilot-tier subscription (Solo BK, Review Assist,
-      // Review Assist Pro). D-Entitlements does not own these, but we still
-      // must reconcile pilot_slots on status transitions. This closes the
-      // CRITICAL #1 hole where customer.subscription.updated → canceled/unpaid
-      // never reached the pilot_slots table.
       if (event.type === "customer.subscription.deleted" && sub.id) {
         await reconcilePilotSlotStatus(sub.id, "canceled");
       } else if (event.type === "customer.subscription.updated" && sub.id) {
         const stripeStatus = sub.status ?? "active";
         await reconcilePilotSlotStatus(sub.id, stripeStatus);
       }
-      await markProcessed(event.id, "skipped", "no engagement_id in subscription metadata (pilot_slots reconciled)");
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: event.id,
+        leaseToken,
+        status: "skipped",
+        failureCode: "no_engagement_id",
+      });
+      if (!fin.ok) return { status: "lease_held" };
       return { status: "skipped" };
     }
 
@@ -127,13 +145,14 @@ export async function handleStripeWebhook(
       await deactivateBySubscription(sub.items?.data.map((i) => i.id) ?? []);
       if (sub.id) {
         await handleTcp1SubscriptionDeleted(sub.id);
-        // Belt-and-suspenders: reconcile via the shared mapping in case the
-        // subscription has no engagement metadata but does have a pilot_slots
-        // row (pilot-tier subs go through the create-session flow which sets
-        // tier_key but not engagement_id).
         await reconcilePilotSlotStatus(sub.id, "canceled");
       }
-      await markProcessed(event.id, "processed");
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: event.id,
+        leaseToken,
+        status: "processed",
+      });
+      if (!fin.ok) return { status: "lease_held" };
       return { status: "processed" };
     }
 
@@ -170,11 +189,80 @@ export async function handleStripeWebhook(
       }
     }
 
-    await markProcessed(event.id, "processed");
+    const fin = await finalizeStripeWebhookEvent({
+      stripeEventId: event.id,
+      leaseToken,
+      status: "processed",
+    });
+    if (!fin.ok) return { status: "lease_held" };
     return { status: "processed" };
   } catch (err) {
-    await markProcessed(event.id, "failed", err instanceof Error ? err.message : String(err));
+    const fin = await finalizeStripeWebhookEvent({
+      stripeEventId: event.id,
+      leaseToken,
+      status: "retryable",
+      failureCode: "handler_exception",
+    });
+    if (!fin.ok) {
+      // Stale lease — another worker owns the event; do not throw as success.
+      return { status: "lease_held" };
+    }
     throw err;
+  }
+}
+
+async function applyCheckoutOutcome(
+  eventId: string,
+  leaseToken: string,
+  outcome: CheckoutCompletionOutcome,
+): Promise<StripeWebhookResult> {
+  switch (outcome.outcome) {
+    case "handled": {
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: eventId,
+        leaseToken,
+        status: "processed",
+      });
+      if (!fin.ok) return { status: "lease_held" };
+      return { status: "processed" };
+    }
+    case "not_applicable": {
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: eventId,
+        leaseToken,
+        status: "skipped",
+        failureCode: sanitizeFailureCode(outcome.reason),
+      });
+      if (!fin.ok) return { status: "lease_held" };
+      return { status: "skipped" };
+    }
+    case "permanent_conflict": {
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: eventId,
+        leaseToken,
+        status: "failed_conflict",
+        failureCode: sanitizeFailureCode(outcome.reason),
+      });
+      if (!fin.ok) return { status: "lease_held" };
+      return { status: "conflicted" };
+    }
+    case "retryable_failure": {
+      const fin = await finalizeStripeWebhookEvent({
+        stripeEventId: eventId,
+        leaseToken,
+        status: "retryable",
+        failureCode: sanitizeFailureCode(outcome.reason),
+      });
+      if (!fin.ok) return { status: "lease_held" };
+      return {
+        status: "retryable_error",
+        error: sanitizeFailureCode(outcome.reason),
+      };
+    }
+    default: {
+      const _exhaustive: never = outcome;
+      return _exhaustive;
+    }
   }
 }
 
@@ -202,20 +290,4 @@ async function deactivateBySubscription(itemIds: string[]): Promise<void> {
       reason: "subscription_deleted",
     });
   }
-}
-
-async function markProcessed(
-  eventId: string,
-  status: "processed" | "skipped" | "failed",
-  error?: string,
-): Promise<void> {
-  const supabase = createServiceClient();
-  await supabase
-    .from("stripe_webhook_events")
-    .update({
-      processing_status: status,
-      processed_at: new Date().toISOString(),
-      processing_error: error ?? null,
-    })
-    .eq("stripe_event_id", eventId);
 }

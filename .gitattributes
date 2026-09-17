@@ -12,6 +12,13 @@ supabase/migrations-draft/recovered-production-history/*.sql text eol=lf
 
 # Stage-1 credential browser containment — force LF for seal-critical artifacts
 supabase/migrations/20260908031736_connection_credential_browser_containment.sql text eol=lf
+# RA Pro billing-company migration — LF-authoritative Git blob for seal ceremonies
+supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql text eol=lf
+# RA Pro cutover operator decision — committed LF blob is the only digest authority
+docs/security/ra-pro-cutover-operator-decision.json text eol=lf
+docs/security/ra-pro-*.md text eol=lf
+tests/security/ra-pro-*.test.ts text eol=lf
+tests/security/helpers/ra-pro-*.sql text eol=lf
 docs/security/connection-credential-browser-containment/** text eol=lf
 scripts/security/rehearse-credential-browser-containment.js text eol=lf
 scripts/security/apply-credential-browser-containment.js text eol=lf
@@ -44,3 +51,18 @@ tests/security/containment-evidence-protocol.test.ts text eol=lf
 # FRLS prior-dry-run evidence fixture — intentionally CRLF, byte-authoritative pin
 # (SHA-256 b27e927b… / 110391 bytes). Distinct from LF-authoritative migration blobs.
 tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json -text
+
+# RA Pro fresh precondition evidence — LF-authoritative Git blob (SHA-256 fb3625f9… / 1407 bytes)
+tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json text eol=lf
+tests/security/helpers/fixtures/ra-pro-precondition-evidence.synthetic.json text eol=lf
+docs/security/ra-pro-cutover-apply/** text eol=lf
+scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1 text eol=lf
+scripts/security/ra-pro-cutover-precondition-gates.ps1 text eol=lf
+
+# RA Pro prior-dry-run evidence fixture � intentionally CRLF, byte-authoritative pin
+tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json -text
+
+
+# RA Pro pre-apply live evidence � LF-authoritative Git blob (SHA-256 98e8824b� / 2309 bytes)
+tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json text eol=lf
+

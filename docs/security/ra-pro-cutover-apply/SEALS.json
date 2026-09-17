@@ -1,0 +1,28 @@
+{
+  "package": "ra-pro-cutover-apply",
+  "artifact_commit": "b4f06a1ca889bdfb477397b990860b21e788a877",
+  "migration": {
+    "path": "supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql",
+    "oid": "d36f5e2c50f7bab956c3191723c0e8a223279df5",
+    "sha256": "c756651f267aaa2ebe5f1331e96d62bfa882507917b4201397f77e25a45f5ff9",
+    "bytes": 40289,
+    "version": "20260915004500",
+    "name": "ra_pro_firm_billing_company_id"
+  },
+  "decision": {
+    "path": "docs/security/ra-pro-cutover-operator-decision.json",
+    "oid": "0dd39de5ffbfd2b35d3d73887dd0fa915a061c93",
+    "sha256": "f00039cb536b0ffef09ea41c0613ce83d7f52067b2bffc4ff27980f8e9bd46e1",
+    "bytes": 1122,
+    "mapping_artifact_sha256": "93f6fe31360222ccd282e814a3764ccf07929e7cb91c25c70e10b750ec0ec953"
+  },
+  "prior_history_count": 187,
+  "authorized_tooling_freeze": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
+  "bundle_source_commit": "PLACEHOLDER_40HEX_0000000000000000000000000000000000000000",
+  "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
+  "standalone_bundle_sha256": "959286d36bdb8e28535d7c4e1daad8c5fc470208e1e1e467c282a461ba62faf6",
+  "required_prior_dry_run_evidence_sha256": null,
+  "required_prior_dry_run_freeze": null,
+  "required_prior_dry_run_evidence_tip": null,
+  "required_prior_dry_run_bundle_source": null
+}

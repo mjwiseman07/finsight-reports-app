@@ -1,0 +1,55 @@
+{
+  "protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "PRODUCTION_READ_ONLY_VERCEL_STRIPE_SUPABASE_PLUS_OPERATOR_WORKBENCH_V1",
+  "collection_started_at_utc": "2026-09-17T00:55:00Z",
+  "collection_ended_at_utc": "2026-09-17T01:17:28Z",
+  "valid_from_utc": "2026-09-17T00:55:00Z",
+  "valid_until_utc": "2026-09-18T00:55:00Z",
+  "serving_deployment": {
+    "vercel_deployment_id": "dpl_4HHWH5WDeL7Y5SFDvwTf5g3srcqk",
+    "merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "merge_contained_or_serving": true,
+    "observed_at_utc": "2026-09-17T01:00:12Z"
+  },
+  "commerce_gate": {
+    "observed": "absent",
+    "never_open": true
+  },
+  "protection": {
+    "generated_production_preview_urls_protected": true,
+    "old_pre_gate_url_protected": true,
+    "custom_domains_public": true
+  },
+  "stripe_tcp1": {
+    "destination_classification": "LIVE_CUSTOM_DOMAIN_TCP1_WEBHOOK_CHECKOUT_SESSION_COMPLETED_ONLY",
+    "enabled": true,
+    "events_allowlist": [
+      "checkout.session.completed"
+    ],
+    "failed_visible_count": 0,
+    "pending_or_retry_scheduled_visible_count": 0,
+    "visibility_window_start_utc": "2026-09-16T01:15:00Z",
+    "visibility_window_end_utc": "2026-09-17T01:15:00Z",
+    "visibility_limitations": "WORKBENCH_EVENT_DELIVERIES_OPERATOR_VISIBLE_WINDOW_ONLY; NO_FULL_HISTORICAL_DELIVERY_COVERAGE; UNFILTERED_AND_FAILED_PENDING_FILTERS_NO_DELIVERIES; OVERVIEW_THIS_WEEK_TOTAL_0_FAILED_0; INDEPENDENT_AUTHENTICATED_BROWSER_OBSERVATION_RECONCILED"
+  },
+  "database_readonly": {
+    "history_count_expected": 187,
+    "target_version_absent": "20260915004500",
+    "migration_objects_absent": true,
+    "billing_company_id_absent": true,
+    "linked_firms_count": 0,
+    "ceremony_inventory": {
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "classification": "active_and_complimentary"
+    },
+    "unexpected_new_links": 0,
+    "unexpected_new_authorizing_slots": 0,
+    "webhook_ledger_non_terminal_count": 0,
+    "relevant_activity_class": "GLOBAL_LIVE_WEBHOOK_LEDGER_ALL_TERMINAL_DISTINCT_FROM_CHECKOUT_SESSION_COMPLETED_SUBSET_ALL_TERMINAL",
+    "relevant_activity_window_start_utc": "2026-08-04T02:29:13Z",
+    "relevant_activity_window_end_utc": "2026-09-17T01:17:28Z"
+  }
+}

@@ -175,6 +175,35 @@ export function makeMockSupabase() {
         };
         return chain;
       },
+      delete() {
+        const deleteFilters: Array<[string, unknown]> = [];
+        const applyDelete = () => {
+          let keep = state[name].slice();
+          const removed: Row[] = [];
+          state[name] = keep.filter((r) => {
+            const match = deleteFilters.every(([col, val]) => r[col] === val);
+            if (match) {
+              removed.push(r);
+              return false;
+            }
+            return true;
+          });
+          return Promise.resolve({ data: removed, error: null });
+        };
+        const chain = {
+          eq(col: string, val: unknown) {
+            deleteFilters.push([col, val]);
+            return chain;
+          },
+          then(
+            resolve: (v: { data: Row[]; error: null }) => unknown,
+            reject?: (e: unknown) => unknown,
+          ) {
+            return applyDelete().then(resolve, reject);
+          },
+        };
+        return chain;
+      },
       upsert(payload: Row, opts?: { onConflict?: string }) {
         const conflictCols = (opts?.onConflict ?? "").split(",").map((s) => s.trim());
         let existing: Row | undefined;

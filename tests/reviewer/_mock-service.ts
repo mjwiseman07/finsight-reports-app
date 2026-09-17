@@ -69,6 +69,30 @@ export function seedFirmUser(
   role = "firm_admin",
 ) {
   mock.__seed("firm_memberships", [{ firm_id: firmId, user_id: userId, role, status: "active" }]);
+  // /reviewer requires a linked RA Pro billing company + authorizing pilot slot.
+  const billingCompanyId = `billing-${firmId}`;
+  mock.__seed("firms", [
+    { id: firmId, billing_company_id: billingCompanyId, name: `Firm ${firmId}` },
+  ]);
+  mock.__seed("pilot_slots", [
+    {
+      company_id: billingCompanyId,
+      tier_key: "review_assist_pro",
+      pilot_status: "active",
+    },
+  ]);
+  mock.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+}
+
+/** Active membership on an unlinked firm — must NOT authorize /reviewer. */
+export function seedUnlinkedFirmUser(
+  mock: ReviewerMockDb,
+  userId: string,
+  firmId: string,
+  role = "firm_admin",
+) {
+  mock.__seed("firm_memberships", [{ firm_id: firmId, user_id: userId, role, status: "active" }]);
+  mock.__seed("firms", [{ id: firmId, billing_company_id: null, name: `Firm ${firmId}` }]);
   mock.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
 }
 

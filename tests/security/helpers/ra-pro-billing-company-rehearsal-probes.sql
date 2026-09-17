@@ -1,0 +1,571 @@
+-- Disposable rehearsal probes for 20260915004500_ra_pro_firm_billing_company_id
+-- Applied after bootstrap + migration in local docker only.
+-- Requires company_users table + trusted DB roles (no JWT claim shortcuts).
+
+INSERT INTO public.companies (id, name) VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'BillCo'),
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'OtherCo')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.company_users (company_id, user_id, role, status) VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'admin', 'active')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.firms (id, name) VALUES
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'UnlinkedFirm')
+ON CONFLICT DO NOTHING;
+
+-- After migration: production-shaped zero-backfill expectation for fixture firm.
+DO $$
+DECLARE
+  v_linked int;
+BEGIN
+  SELECT count(*)::int INTO v_linked
+  FROM public.firms
+  WHERE billing_company_id IS NOT NULL;
+  -- Rehearsal may later link via activation RPC; at probe start expect 0
+  -- for the unlinked seed firm inserted above.
+  IF EXISTS (
+    SELECT 1 FROM public.firms
+    WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      AND billing_company_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'no_backfill_seed_firm_must_remain_null';
+  END IF;
+END $$;
+
+-- Authenticated cannot set billing_company_id even with forged JWT service_role claim
+SET ROLE postgres;
+DROP POLICY IF EXISTS firms_auth_update_rehearsal ON public.firms;
+DROP POLICY IF EXISTS firms_auth_select_rehearsal ON public.firms;
+CREATE POLICY firms_auth_select_rehearsal ON public.firms
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY firms_auth_update_rehearsal ON public.firms
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+SET SESSION AUTHORIZATION authenticated;
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
+DO $$
+DECLARE
+  v_who text := current_user;
+  v_n int;
+  v_link uuid;
+BEGIN
+  IF v_who IS DISTINCT FROM 'authenticated' THEN
+    RAISE EXCEPTION 'expected_authenticated_got_%', v_who;
+  END IF;
+  UPDATE public.firms
+  SET billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n > 0 THEN
+    RAISE EXCEPTION 'forged_jwt_update_should_fail';
+  END IF;
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'forged_jwt_update_should_fail' THEN RAISE; END IF;
+    IF SQLERRM LIKE 'expected_authenticated_got_%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%billing_company_id%' THEN
+      RAISE EXCEPTION 'unexpected_auth_deny: %', SQLERRM;
+    END IF;
+END $$;
+
+-- Confirm link still null under authenticated
+DO $$
+DECLARE
+  v_link uuid;
+BEGIN
+  SELECT billing_company_id INTO v_link
+  FROM public.firms
+  WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  IF v_link IS NOT NULL THEN
+    RAISE EXCEPTION 'billing_company_id_mutated_by_authenticated';
+  END IF;
+END $$;
+
+-- Authenticated cannot invoke activation even with forged JWT claim
+DO $$
+BEGIN
+  PERFORM public.activate_review_assist_pro_subscription(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'RA Pro Firm',
+    'sub_forged',
+    'cus_forged',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  RAISE EXCEPTION 'forged_jwt_activate_should_fail';
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'forged_jwt_activate_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%activate_ra_pro_forbidden%'
+       AND SQLERRM NOT LIKE '%permission denied%' THEN
+      RAISE EXCEPTION 'unexpected_activate_deny: %', SQLERRM;
+    END IF;
+END $$;
+
+RESET SESSION AUTHORIZATION;
+SET ROLE postgres;
+DROP POLICY IF EXISTS firms_auth_update_rehearsal ON public.firms;
+DROP POLICY IF EXISTS firms_auth_select_rehearsal ON public.firms;
+
+-- Buyer without company_users membership fails closed (postgres is a trusted role)
+DO $$
+BEGIN
+  PERFORM public.activate_review_assist_pro_subscription(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    'RA Pro Firm',
+    'sub_no_owner',
+    'cus_no_owner',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  RAISE EXCEPTION 'buyer_mismatch_should_fail';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLERRM = 'buyer_mismatch_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%activate_ra_pro_buyer_not_company_member%' THEN
+      RAISE EXCEPTION 'unexpected_buyer_error: %', SQLERRM;
+    END IF;
+END $$;
+
+-- Prove no firm/slot leaked from failed ownership activation
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.firms WHERE billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ) THEN
+    RAISE EXCEPTION 'orphaned_firm_after_buyer_mismatch';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.pilot_slots
+    WHERE company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      AND tier_key = 'review_assist_pro'
+  ) THEN
+    RAISE EXCEPTION 'orphaned_slot_after_buyer_mismatch';
+  END IF;
+END $$;
+
+-- Trusted DB role (postgres) activation + replay — no JWT claim required
+SELECT public.activate_review_assist_pro_subscription(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  'RA Pro Firm',
+  'sub_test_1',
+  'cus_test_1',
+  'flat',
+  'monthly',
+  'pilot'
+) AS first_activation;
+
+SELECT public.activate_review_assist_pro_subscription(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  'RA Pro Firm',
+  'sub_test_1',
+  'cus_test_1',
+  'flat',
+  'monthly',
+  'pilot'
+) AS replay_activation;
+
+-- service_role path also works without JWT claim
+SET ROLE service_role;
+SELECT public.activate_review_assist_pro_subscription(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+  'RA Pro Firm',
+  'sub_test_1',
+  'cus_test_1',
+  'flat',
+  'monthly',
+  'pilot'
+) AS service_role_replay;
+RESET ROLE;
+
+-- Conflicting subscription fails closed
+DO $$
+BEGIN
+  PERFORM public.activate_review_assist_pro_subscription(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'RA Pro Firm',
+    'sub_OTHER',
+    'cus_test_1',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  RAISE EXCEPTION 'conflict_should_fail';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLERRM = 'conflict_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%activate_ra_pro_subscription_conflict%' THEN
+      RAISE EXCEPTION 'unexpected_conflict_error: %', SQLERRM;
+    END IF;
+END $$;
+
+-- Duplicate firm for same billing company fails unique
+DO $$
+BEGIN
+  INSERT INTO public.firms (name, billing_company_id)
+  VALUES ('Dup', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  RAISE EXCEPTION 'unique_should_fail';
+EXCEPTION
+  WHEN unique_violation THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'unique_should_fail' THEN RAISE; END IF;
+END $$;
+
+-- Client cap 2
+INSERT INTO public.firm_clients (firm_id, company_id, name, subscription_status)
+SELECT f.id, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'C1', 'active'
+FROM public.firms f WHERE f.billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+INSERT INTO public.firm_clients (firm_id, company_id, name, subscription_status)
+SELECT f.id, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'C2', 'active'
+FROM public.firms f WHERE f.billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+DO $$
+DECLARE
+  v_firm uuid;
+BEGIN
+  SELECT id INTO v_firm FROM public.firms WHERE billing_company_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  BEGIN
+    INSERT INTO public.firm_clients (firm_id, company_id, name, subscription_status)
+    VALUES (v_firm, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'C3', 'active');
+    RAISE EXCEPTION 'client_cap_should_fail';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM = 'client_cap_should_fail' THEN RAISE; END IF;
+      IF SQLERRM NOT LIKE '%ra_pro_client_cap_reached%' THEN
+        RAISE EXCEPTION 'unexpected_client_cap_error: %', SQLERRM;
+      END IF;
+  END;
+END $$;
+
+-- Fill pilot slots 2-10 then reject 11 (postgres trusted role; buyers are company members)
+DO $$
+DECLARE
+  i int;
+  cid uuid;
+  uid uuid;
+BEGIN
+  FOR i IN 2..10 LOOP
+    cid := gen_random_uuid();
+    uid := gen_random_uuid();
+    INSERT INTO public.companies (id, name) VALUES (cid, 'Pilot' || i);
+    INSERT INTO public.company_users (company_id, user_id, role, status)
+    VALUES (cid, uid, 'admin', 'active');
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid,
+      uid,
+      'Firm ' || i,
+      'sub_pilot_' || i,
+      'cus_pilot_' || i,
+      'flat',
+      'monthly',
+      'pilot'
+    );
+  END LOOP;
+END $$;
+
+DO $$
+DECLARE
+  cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
+BEGIN
+  INSERT INTO public.companies (id, name) VALUES (cid, 'Pilot11');
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid,
+      uid,
+      'Firm 11',
+      'sub_pilot_11',
+      'cus_pilot_11',
+      'flat',
+      'monthly',
+      'pilot'
+    );
+    RAISE EXCEPTION 'pilot11_should_fail';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM = 'pilot11_should_fail' THEN RAISE; END IF;
+      IF SQLERRM NOT LIKE '%pilot_cap_reached%' THEN
+        RAISE EXCEPTION 'unexpected_pilot_cap_error: %', SQLERRM;
+      END IF;
+  END;
+END $$;
+
+-- Occupancy ignores pilot_status: replace all active numbers with cancelled;
+-- activation of a new buyer must still hit pilot_cap_reached (no silent reclaim).
+DO $$
+DECLARE
+  cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
+BEGIN
+  UPDATE public.pilot_slots
+  SET pilot_status = 'cancelled'
+  WHERE tier_key = 'review_assist_pro'
+    AND pilot_slot_number BETWEEN 1 AND 10;
+
+  INSERT INTO public.companies (id, name) VALUES (cid, 'PilotCancelledFull');
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid,
+      uid,
+      'Firm Cancelled Full',
+      'sub_pilot_cancelled_full',
+      'cus_pilot_cancelled_full',
+      'flat',
+      'monthly',
+      'pilot'
+    );
+    RAISE EXCEPTION 'cancelled_full_should_fail';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM = 'cancelled_full_should_fail' THEN RAISE; END IF;
+      IF SQLERRM NOT LIKE '%pilot_cap_reached%' THEN
+        RAISE EXCEPTION 'unexpected_cancelled_full_error: %', SQLERRM;
+      END IF;
+  END;
+END $$;
+
+-- Malformed / out-of-range numbers and NULL do not occupy; free a real slot then
+-- confirm allocation prefers a valid 1..10 number (restore cancelled 10, keep 1..9).
+DO $$
+DECLARE
+  cid uuid := gen_random_uuid();
+  uid uuid := gen_random_uuid();
+  v jsonb;
+BEGIN
+  DELETE FROM public.pilot_slots
+  WHERE tier_key = 'review_assist_pro' AND pilot_slot_number = 10;
+
+  INSERT INTO public.pilot_slots (
+    company_id, tier_key, pilot_status, pilot_slot_number, pricing_structure, pricing_cadence
+  )
+  VALUES
+    (gen_random_uuid(), 'review_assist_pro', 'active', NULL, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'active', 0, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'cancelled', 11, 'flat', 'monthly'),
+    (gen_random_uuid(), 'review_assist_pro', 'cancelled', -1, 'flat', 'monthly');
+
+  INSERT INTO public.companies (id, name) VALUES (cid, 'PilotSlot10Again');
+  INSERT INTO public.company_users (company_id, user_id, role, status)
+  VALUES (cid, uid, 'admin', 'active');
+  v := public.activate_review_assist_pro_subscription(
+    cid,
+    uid,
+    'Firm Slot10 Again',
+    'sub_pilot_slot10_again',
+    'cus_pilot_slot10_again',
+    'flat',
+    'monthly',
+    'pilot'
+  );
+  IF (v->>'pilot_slot_number')::int IS DISTINCT FROM 10 THEN
+    RAISE EXCEPTION 'expected_slot_10_got_%', v->>'pilot_slot_number';
+  END IF;
+END $$;
+
+-- Concurrent activation at the final available slot: only one succeeds.
+DO $$
+DECLARE
+  cid_a uuid := gen_random_uuid();
+  uid_a uuid := gen_random_uuid();
+  cid_b uuid := gen_random_uuid();
+  uid_b uuid := gen_random_uuid();
+  ok_count int := 0;
+  fail_count int := 0;
+BEGIN
+  -- Free slot 10 again for the race (leave 1..9 occupied).
+  DELETE FROM public.pilot_slots
+  WHERE tier_key = 'review_assist_pro' AND pilot_slot_number = 10;
+
+  INSERT INTO public.companies (id, name) VALUES
+    (cid_a, 'RaceA'), (cid_b, 'RaceB');
+  INSERT INTO public.company_users (company_id, user_id, role, status) VALUES
+    (cid_a, uid_a, 'admin', 'active'),
+    (cid_b, uid_b, 'admin', 'active');
+
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid_a, uid_a, 'Firm Race A', 'sub_race_a', 'cus_race_a',
+      'flat', 'monthly', 'pilot'
+    );
+    ok_count := ok_count + 1;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM LIKE '%pilot_cap_reached%' THEN
+        fail_count := fail_count + 1;
+      ELSE
+        RAISE;
+      END IF;
+  END;
+
+  BEGIN
+    PERFORM public.activate_review_assist_pro_subscription(
+      cid_b, uid_b, 'Firm Race B', 'sub_race_b', 'cus_race_b',
+      'flat', 'monthly', 'pilot'
+    );
+    ok_count := ok_count + 1;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLERRM LIKE '%pilot_cap_reached%' THEN
+        fail_count := fail_count + 1;
+      ELSE
+        RAISE;
+      END IF;
+  END;
+
+  IF ok_count <> 1 OR fail_count <> 1 THEN
+    RAISE EXCEPTION 'race_expected_one_ok_one_fail got_ok=%_fail=%', ok_count, fail_count;
+  END IF;
+END $$;
+
+-- ON DELETE RESTRICT
+DO $$
+BEGIN
+  BEGIN
+    DELETE FROM public.companies WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    RAISE EXCEPTION 'delete_should_restrict';
+  EXCEPTION
+    WHEN foreign_key_violation THEN NULL;
+    WHEN OTHERS THEN
+      IF SQLERRM = 'delete_should_restrict' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- Webhook lease probes
+-- ---------------------------------------------------------------------------
+SET ROLE service_role;
+
+SELECT public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120)
+  AS claim1;
+
+-- Concurrent second claim while lease active → lease_held
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'lease_held' THEN
+    RAISE EXCEPTION 'expected_lease_held_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Finalize processed with correct lease
+DO $$
+DECLARE
+  v_token uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_token FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_1';
+  v := public.finalize_stripe_webhook_event('evt_lease_1', v_token, 'processed', NULL);
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'finalize_processed_failed';
+  END IF;
+END $$;
+
+-- Terminal never reclaimed
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_1', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'duplicate_terminal' THEN
+    RAISE EXCEPTION 'expected_duplicate_terminal_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Retryable then reclaim
+SELECT public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120) AS claim2;
+DO $$
+DECLARE
+  v_token uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_token FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_token, 'retryable', 'missing_buyer_user');
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'finalize_retryable_failed';
+  END IF;
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'reclaimed' THEN
+    RAISE EXCEPTION 'expected_reclaimed_got_%', v->>'outcome';
+  END IF;
+END $$;
+
+-- Stale finalize after lease transfer
+DO $$
+DECLARE
+  v_old uuid;
+  v_new uuid;
+  v jsonb;
+BEGIN
+  SELECT lease_token INTO v_old FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  -- Force expiry and reclaim
+  UPDATE public.stripe_webhook_events
+  SET lease_expires_at = now() - interval '1 second'
+  WHERE stripe_event_id = 'evt_lease_2';
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'reclaimed' THEN
+    RAISE EXCEPTION 'expected_expiry_reclaim_got_%', v->>'outcome';
+  END IF;
+  SELECT lease_token INTO v_new FROM public.stripe_webhook_events WHERE stripe_event_id = 'evt_lease_2';
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_old, 'processed', NULL);
+  IF v->>'outcome' IS DISTINCT FROM 'stale_lease' THEN
+    RAISE EXCEPTION 'expected_stale_lease_got_%', v->>'outcome';
+  END IF;
+  v := public.finalize_stripe_webhook_event('evt_lease_2', v_new, 'failed_conflict', 'pilot_cap_reached');
+  IF v->>'ok' IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'conflict_finalize_failed';
+  END IF;
+END $$;
+
+-- Conflict remains visible / not reclaimable
+DO $$
+DECLARE
+  v jsonb;
+BEGIN
+  v := public.claim_stripe_webhook_event('evt_lease_2', 'checkout.session.completed', false, 120);
+  IF v->>'outcome' IS DISTINCT FROM 'duplicate_terminal' THEN
+    RAISE EXCEPTION 'conflict_should_stay_terminal';
+  END IF;
+  IF v->>'processing_status' IS DISTINCT FROM 'failed_conflict' THEN
+    RAISE EXCEPTION 'conflict_status_wrong';
+  END IF;
+END $$;
+
+-- Authenticated cannot claim
+SET SESSION AUTHORIZATION authenticated;
+DO $$
+BEGIN
+  PERFORM public.claim_stripe_webhook_event('evt_auth', 'checkout.session.completed', false, 120);
+  RAISE EXCEPTION 'auth_claim_should_fail';
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN OTHERS THEN
+    IF SQLERRM = 'auth_claim_should_fail' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%claim_stripe_webhook_forbidden%'
+       AND SQLERRM NOT LIKE '%permission denied%' THEN
+      RAISE EXCEPTION 'unexpected_auth_claim_deny: %', SQLERRM;
+    END IF;
+END $$;
+RESET SESSION AUTHORIZATION;
+
+RESET ROLE;
+
+SELECT 'REHEARSAL_OK' AS result;

@@ -5,6 +5,29 @@
 // bag used across the UI and API.
 
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  RA_PRO_INCLUDED_CLIENT_COMPANIES,
+  RA_PRO_TIER_KEY,
+  isRaProAuthorizingPilotStatus,
+} from "@/lib/review-assist-pro/limits";
+
+export interface ResolvedEntitlements {
+  tier_key: string;
+  pricing_track: "standard" | "pilot" | "complimentary";
+  pricing_structure: "flat" | "per_client" | "complimentary";
+  max_entities: number;
+  active_client_count: number;
+  client_capacity_remaining: number;
+  is_complimentary: boolean;
+  complimentary_client_cap: number | null;
+  pilot_slot_number: number | null;
+  pilot_status: string | null;
+  entitlement_flags: Record<string, boolean | number | string | null>;
+  erp_support: {
+    quickbooks: "live" | "coming_soon" | "not_supported";
+    xero: "live" | "coming_soon" | "not_supported";
+  };
+}
 
 /** Tier metadata for W1 — avoids importing product-tiers.js (Stripe side-effect at load). */
 const TIER_META: Record<
@@ -65,7 +88,7 @@ const TIER_META: Record<
   },
   review_assist_pro: {
     entitlements: {
-      max_entities: 10,
+      max_entities: 2,
       max_verticals: 15,
       pulse_intelligence: true,
       organizational_memory: true,
@@ -202,30 +225,20 @@ type PilotSlotRow = {
   pricing_structure: string | null;
 };
 
-export interface ResolvedEntitlements {
-  tier_key: string;
-  pricing_track: "standard" | "pilot" | "complimentary";
-  pricing_structure: "flat" | "per_client" | "complimentary";
-  max_entities: number;
-  active_client_count: number;
-  client_capacity_remaining: number;
-  is_complimentary: boolean;
-  complimentary_client_cap: number | null;
-  pilot_slot_number: number | null;
-  pilot_status: string | null;
-  entitlement_flags: Record<string, boolean | number | string | null>;
-  erp_support: {
-    quickbooks: "live" | "coming_soon" | "not_supported";
-    xero: "live" | "coming_soon" | "not_supported";
-  };
-}
-
 function buildResolvedEntitlements(
   slot: PilotSlotRow,
   clientCount: number,
 ): ResolvedEntitlements | null {
   const tier = TIER_META[slot.tier_key];
   if (!tier) return null;
+
+  // Canceled / unpaid / etc. must not authorize capacity or /reviewer.
+  if (
+    slot.tier_key === RA_PRO_TIER_KEY &&
+    !isRaProAuthorizingPilotStatus(slot.pilot_status)
+  ) {
+    return null;
+  }
 
   const isComp = slot.pilot_status === "complimentary";
   const track: "standard" | "pilot" | "complimentary" = isComp
@@ -239,8 +252,10 @@ function buildResolvedEntitlements(
     : (slot.pricing_structure as "flat" | "per_client" | null) ?? "flat";
 
   const capacity = isComp
-    ? (slot.complimentary_client_cap ?? 3)
-    : (tier.entitlements.max_entities as number | undefined) ?? 10;
+    ? (slot.complimentary_client_cap ?? RA_PRO_INCLUDED_CLIENT_COMPANIES)
+    : slot.tier_key === RA_PRO_TIER_KEY
+      ? RA_PRO_INCLUDED_CLIENT_COMPANIES
+      : (tier.entitlements.max_entities as number | undefined) ?? 10;
 
   return {
     tier_key: slot.tier_key,
@@ -261,6 +276,25 @@ function buildResolvedEntitlements(
 const SLOT_SELECT =
   "tier_key, pilot_slot_number, pilot_status, complimentary_client_cap, pilot_converts_at, pricing_structure";
 
+async function countActiveClientsForRaProCompany(companyId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { data: firm, error: firmErr } = await supabase
+    .from("firms")
+    .select("id")
+    .eq("billing_company_id", companyId)
+    .maybeSingle();
+  if (firmErr) throw firmErr;
+  if (!firm?.id) return 0;
+
+  const { count, error: countErr } = await supabase
+    .from("firm_clients")
+    .select("*", { count: "exact", head: true })
+    .eq("firm_id", firm.id)
+    .eq("subscription_status", "active");
+  if (countErr) throw countErr;
+  return count ?? 0;
+}
+
 /** Owner-tier products — reads pilot_slots by company_id only. */
 export async function resolveEntitlementsForCompany(
   companyId: string,
@@ -275,21 +309,36 @@ export async function resolveEntitlementsForCompany(
   if (slotErr) throw slotErr;
   if (!slot) return null;
 
-  const { count, error: countErr } = await supabase
-    .from("firm_clients")
-    .select("*", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("subscription_status", "active");
-  if (countErr) throw countErr;
+  const clientCount =
+    slot.tier_key === RA_PRO_TIER_KEY
+      ? await countActiveClientsForRaProCompany(companyId)
+      : (
+          await supabase
+            .from("firm_clients")
+            .select("*", { count: "exact", head: true })
+            .eq("company_id", companyId)
+            .eq("subscription_status", "active")
+        ).count ?? 0;
 
-  return buildResolvedEntitlements(slot, count ?? 0);
+  return buildResolvedEntitlements(slot as PilotSlotRow, clientCount);
 }
 
-/** Firm-tier products — reads pilot_slots by firm_id. */
+/** Firm-tier products — reads pilot_slots by firm_id; RA Pro linked firms via billing company. */
 export async function resolveEntitlementsForFirm(
   firmId: string,
 ): Promise<ResolvedEntitlements | null> {
   const supabase = createServiceClient();
+
+  const { data: firm, error: firmErr } = await supabase
+    .from("firms")
+    .select("billing_company_id")
+    .eq("id", firmId)
+    .maybeSingle();
+  if (firmErr) throw firmErr;
+
+  if (firm?.billing_company_id) {
+    return resolveEntitlementsForCompany(firm.billing_company_id as string);
+  }
 
   const { data: slot, error: slotErr } = await supabase
     .from("pilot_slots")
@@ -306,7 +355,7 @@ export async function resolveEntitlementsForFirm(
     .eq("subscription_status", "active");
   if (countErr) throw countErr;
 
-  return buildResolvedEntitlements(slot, count ?? 0);
+  return buildResolvedEntitlements(slot as PilotSlotRow, count ?? 0);
 }
 
 /**

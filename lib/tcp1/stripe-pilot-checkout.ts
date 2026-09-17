@@ -1,12 +1,21 @@
 /**
  * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots upsert.
+ * Review Assist Pro (1A) activates via transactional RPC (company + linked firm).
  *
  * RA Pro cutover commerce gate is an admission check in stripe-sync only
- * (pre-ledger-insert). Do not re-check the gate here: admitted events must
+ * (pre-lease-claim). Do not re-check the gate here: admitted events must
  * finish under main processing semantics even if the gate later closes.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";
+import {
+  activateReviewAssistProSubscription,
+  RaProActivationError,
+} from "@/lib/review-assist-pro/activation";
+import {
+  RA_PRO_PILOT_COHORT_CAP,
+  RA_PRO_TIER_KEY,
+} from "@/lib/review-assist-pro/limits";
 
 export interface CheckoutSessionPayload {
   id: string;
@@ -15,9 +24,152 @@ export interface CheckoutSessionPayload {
   metadata?: Record<string, string | undefined>;
 }
 
+/**
+ * Explicit checkout completion outcomes for webhook ledger / HTTP semantics.
+ * Callers must not treat these as a boolean success bit.
+ */
+export type CheckoutCompletionOutcome =
+  | { outcome: "handled" }
+  | { outcome: "not_applicable"; reason: string }
+  | { outcome: "retryable_failure"; reason: string }
+  | { outcome: "permanent_conflict"; reason: string };
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+const PERMANENT_ACTIVATION_CODES = new Set([
+  "pilot_cap_reached",
+  "subscription_conflict",
+  "customer_conflict",
+  "seat_cap_reached",
+  "company_not_found",
+  "buyer_not_company_member",
+  "activation_forbidden",
+]);
+
+async function resolveUserIdByStripeCustomer(
+  stripeCustomerId: string | null,
+): Promise<string | null> {
+  if (!stripeCustomerId) return null;
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("stripe_customer_id", stripeCustomerId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string) || null;
+}
+
+/**
+ * Prefer Stripe customer → user as canonical; metadata buyer must agree when both present.
+ */
+async function resolveValidatedBuyerUserId(args: {
+  metadataUserId?: string;
+  stripeCustomerId: string | null;
+}): Promise<
+  | { ok: true; buyerUserId: string }
+  | { ok: false; outcome: CheckoutCompletionOutcome }
+> {
+  const fromMeta =
+    args.metadataUserId && UUID_RE.test(args.metadataUserId)
+      ? args.metadataUserId
+      : null;
+  const fromCustomer = await resolveUserIdByStripeCustomer(args.stripeCustomerId);
+
+  if (fromMeta && fromCustomer && fromMeta !== fromCustomer) {
+    return {
+      ok: false,
+      outcome: {
+        outcome: "permanent_conflict",
+        reason: "buyer_customer_mismatch",
+      },
+    };
+  }
+
+  const buyerUserId = fromCustomer ?? fromMeta;
+  if (!buyerUserId) {
+    return {
+      ok: false,
+      outcome: { outcome: "retryable_failure", reason: "missing_buyer_user" },
+    };
+  }
+  return { ok: true, buyerUserId };
+}
+
+function mapActivationError(err: RaProActivationError): CheckoutCompletionOutcome {
+  if (PERMANENT_ACTIVATION_CODES.has(err.code)) {
+    return { outcome: "permanent_conflict", reason: err.code };
+  }
+  return { outcome: "retryable_failure", reason: err.code || "activation_failed" };
+}
+
+async function handleRaProCheckoutCompleted(
+  session: CheckoutSessionPayload,
+): Promise<CheckoutCompletionOutcome> {
+  // Gate is admission-only in stripe-sync (pre-claim). Do not re-check here.
+  const companyId = session.metadata?.company_id;
+  const firmId = session.metadata?.firm_id;
+  const track = session.metadata?.track;
+  const pricingStructure = session.metadata?.pricing_structure ?? "flat";
+  const pricingCadence = session.metadata?.pricing_cadence ?? "monthly";
+  const stripeSubscriptionId =
+    typeof session.subscription === "string" ? session.subscription : null;
+  const stripeCustomerId =
+    typeof session.customer === "string" ? session.customer : null;
+
+  if (!companyId) {
+    console.error("[stripe/webhook] RA Pro checkout missing company_id", {
+      session_id: session.id,
+    });
+    return { outcome: "permanent_conflict", reason: "missing_company_id" };
+  }
+  // Caller-supplied firm_id must never override canonical server linking.
+  if (firmId) {
+    console.error("[stripe/webhook] RA Pro checkout rejected firm_id metadata", {
+      session_id: session.id,
+    });
+    return { outcome: "permanent_conflict", reason: "unexpected_firm_id_on_ra_pro" };
+  }
+  if (track !== "pilot" && track !== "standard") {
+    return { outcome: "permanent_conflict", reason: "invalid_track" };
+  }
+  if (!stripeSubscriptionId) {
+    return { outcome: "retryable_failure", reason: "missing_subscription" };
+  }
+
+  const buyer = await resolveValidatedBuyerUserId({
+    metadataUserId: session.metadata?.buyer_user_id,
+    stripeCustomerId,
+  });
+  if (!buyer.ok) return buyer.outcome;
+
+  try {
+    await activateReviewAssistProSubscription({
+      companyId,
+      buyerUserId: buyer.buyerUserId,
+      firmName: session.metadata?.business_name || "Review Assist Pro Firm",
+      stripeSubscriptionId,
+      stripeCustomerId,
+      pricingStructure,
+      pricingCadence,
+      track,
+    });
+    return { outcome: "handled" };
+  } catch (err) {
+    if (err instanceof RaProActivationError) {
+      console.error("[stripe/webhook] RA Pro activation failed", {
+        session_id: session.id,
+        code: err.code,
+      });
+      return mapActivationError(err);
+    }
+    throw err;
+  }
+}
+
 export async function handleTcp1CheckoutCompleted(
   session: CheckoutSessionPayload,
-): Promise<{ handled: boolean; reason?: string }> {
+): Promise<CheckoutCompletionOutcome> {
   const tierKey = session.metadata?.tier_key;
   const pricingStructure = session.metadata?.pricing_structure;
   const pricingCadence = session.metadata?.pricing_cadence;
@@ -29,7 +181,7 @@ export async function handleTcp1CheckoutCompleted(
     console.error("[stripe/webhook] checkout.session.completed missing tier_key metadata", {
       session_id: session.id,
     });
-    return { handled: false, reason: "missing_tier_key" };
+    return { outcome: "permanent_conflict", reason: "missing_tier_key" };
   }
 
   // W1 + W2.5 scope guard — expand this list as later weeks launch.
@@ -42,7 +194,11 @@ export async function handleTcp1CheckoutCompleted(
   ]);
   if (!TCP1_LAUNCHED_TIERS.has(tierKey)) {
     console.warn("[stripe/webhook] tier not yet launched; ignoring", { tierKey });
-    return { handled: false, reason: "out_of_scope_tier" };
+    return { outcome: "not_applicable", reason: "out_of_scope_tier" };
+  }
+
+  if (tierKey === RA_PRO_TIER_KEY) {
+    return handleRaProCheckoutCompleted(session);
   }
 
   // Add-on tiers (client_seat_alacarte) attach to an existing parent slot and
@@ -51,7 +207,7 @@ export async function handleTcp1CheckoutCompleted(
   const entityType = getSubscriptionEntity(tierKey);
   if (entityType === null) {
     console.log("[stripe/webhook] add-on tier — no pilot_slots row written", { tierKey });
-    return { handled: true, reason: "addon_no_slot_row" };
+    return { outcome: "handled" };
   }
 
   // Firm-tier: require firm_id, reject company_id.
@@ -64,14 +220,14 @@ export async function handleTcp1CheckoutCompleted(
         session_id: session.id,
         tierKey,
       });
-      return { handled: false, reason: "missing_firm_id" };
+      return { outcome: "permanent_conflict", reason: "missing_firm_id" };
     }
     if (companyId) {
       console.error("[stripe/webhook] firm-tier checkout received unexpected company_id metadata", {
         session_id: session.id,
         tierKey,
       });
-      return { handled: false, reason: "unexpected_company_id_on_firm_tier" };
+      return { outcome: "permanent_conflict", reason: "unexpected_company_id_on_firm_tier" };
     }
   } else if (entityType === "company") {
     if (!companyId) {
@@ -79,17 +235,17 @@ export async function handleTcp1CheckoutCompleted(
         session_id: session.id,
         tierKey,
       });
-      return { handled: false, reason: "missing_company_id" };
+      return { outcome: "permanent_conflict", reason: "missing_company_id" };
     }
     if (firmId) {
       console.error("[stripe/webhook] owner-tier checkout received unexpected firm_id metadata", {
         session_id: session.id,
         tierKey,
       });
-      return { handled: false, reason: "unexpected_firm_id_on_owner_tier" };
+      return { outcome: "permanent_conflict", reason: "unexpected_firm_id_on_owner_tier" };
     }
   } else {
-    return { handled: false, reason: "unknown_entity_type" };
+    return { outcome: "permanent_conflict", reason: "unknown_entity_type" };
   }
 
   const supabase = createServiceClient();
@@ -106,7 +262,7 @@ export async function handleTcp1CheckoutCompleted(
       .order("pilot_slot_number", { ascending: true });
 
     const taken = new Set((existingSlots ?? []).map((r) => r.pilot_slot_number as number));
-    for (let n = 1; n <= 10; n++) {
+    for (let n = 1; n <= RA_PRO_PILOT_COHORT_CAP; n++) {
       if (!taken.has(n)) {
         assignedSlot = n;
         break;
@@ -114,7 +270,7 @@ export async function handleTcp1CheckoutCompleted(
     }
     if (assignedSlot === null) {
       console.error("[stripe/webhook] pilot cap reached for", tierKey);
-      return { handled: false, reason: "pilot_cap_reached" };
+      return { outcome: "permanent_conflict", reason: "pilot_cap_reached" };
     }
   }
 
@@ -144,7 +300,7 @@ export async function handleTcp1CheckoutCompleted(
         );
 
   if (error) throw error;
-  return { handled: true };
+  return { outcome: "handled" };
 }
 
 export async function handleTcp1SubscriptionDeleted(subscriptionId: string): Promise<void> {
