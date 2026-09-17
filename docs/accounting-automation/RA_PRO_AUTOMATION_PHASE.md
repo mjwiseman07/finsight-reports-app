@@ -35,6 +35,10 @@
    06:30 UTC. Findings are aggregate, idempotent, server-written, and read-only
    to active firm members. Missing source evidence blocks rather than guessing.
 3. Bank/cash, revenue-cutoff, and expense-cutoff resolvers plus workpapers.
+   Implemented as review-only normalized-data resolvers; unreliable or missing
+   linking evidence fails closed into reviewer actions.
 4. Provider-neutral month-end orchestration and Xero parity.
+   Month-end review composition now combines balance-sheet equation, bank/GL,
+   cutoff, and weekly-open findings using the same contract for QBO and Xero.
 5. Closed production deployment, monitored pilot rehearsal, and separate
    commerce-open authorization.
