@@ -193,6 +193,31 @@ function Stop-Entry([string]$Code, [string]$Phase, [string]$Message, [hashtable]
   exit 2
 }
 
+function Test-HarnessBoundaryStop([string]$OutDir) {
+  $done = Join-Path $OutDir "CEREMONY_DONE.txt"
+  $summary = Join-Path $OutDir "PRODUCTION_APPLY_SUMMARY.json"
+  $codes = @(
+    "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE",
+    "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE"
+  )
+  if (Test-Path -LiteralPath $done) {
+    $t = [string](Get-Content -LiteralPath $done -Raw -ErrorAction SilentlyContinue)
+    foreach ($c in $codes) {
+      if ($t -match [regex]::Escape($c)) { return $c }
+    }
+  }
+  if (Test-Path -LiteralPath $summary) {
+    try {
+      $obj = Get-Content -LiteralPath $summary -Raw -Encoding UTF8 | ConvertFrom-Json
+      $rc = [string]$obj.result_code
+      foreach ($c in $codes) {
+        if ($rc -eq $c) { return $c }
+      }
+    } catch {}
+  }
+  return $null
+}
+
 function Assert-SafePath([string]$Name, [string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value)) { Stop-Entry "BLOCKED_INPUT_INVALID" "input_validate" "$Name empty" }
   foreach ($ch in $Value.ToCharArray()) {
@@ -313,6 +338,13 @@ function Get-TrustedWindowsPowerShell {
 
 function Test-PriorDryRunPinsPublished([object]$Auth) {
   # Pins are published only after the first authorized production dry-run.
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_prior_dry_run"] -and $null -ne $Auth.published_prior_dry_run) {
+    if ($null -ne $Auth.published_prior_dry_run.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_prior_dry_run.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
   foreach ($v in @(
       [string]$Auth.required_prior_dry_run_evidence_sha256,
       [string]$Auth.required_prior_dry_run_freeze,
@@ -750,6 +782,28 @@ try {
       break
     }
     if ($script:childProc.HasExited) {
+      $boundary = Test-HarnessBoundaryStop -OutDir $EvidenceOutDir
+      if (-not [string]::IsNullOrWhiteSpace($boundary)) {
+        $mat = Clear-MaterialRoot
+        Write-EntryEvidence ([ordered]@{
+          protocol_version           = 1
+          schema_version             = 1
+          result_code                = $boundary
+          verdict                    = "OK"
+          reason_code                = $boundary
+          phase                      = "harness_boundary"
+          evidence_source            = "ceremony_test_boundary"
+          sqlApplicationAttempts     = 0
+          databaseConnectionAttempts = 0
+          advisory_lock_acquired     = $false
+          database_connected         = $false
+          nodeProcessStarted         = $false
+          prompt_ready_observed      = $false
+          powershell_identity        = $psIdentitySanitized
+          cleanup                    = @{ completed = $true; child = @{ terminated = $true; exit_code = $script:childProc.ExitCode }; materialization = $mat }
+        })
+        exit 0
+      }
       $child = Stop-ChildTree
       $mat = Clear-MaterialRoot
       Write-EntryEvidence (New-Blocked -Code "BLOCKED_CHILD_EXIT" -Phase "prompt_wait" -Message ("child exited before PROMPT_READY exit=" + $script:childProc.ExitCode) -Extra @{

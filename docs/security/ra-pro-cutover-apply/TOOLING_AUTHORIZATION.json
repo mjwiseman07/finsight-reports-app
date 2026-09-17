@@ -84,15 +84,15 @@
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": "69fa2fc179f6d7d15707d71882e18a5f72a0c281",
-    "sha256": "10d924c920b14534f4def2d85fed62e02ceae711700964618e80ecdaf91a86a8",
-    "bytes": 35556
+    "oid": "b4e7175e76b454e85302d1233ade689707a87270",
+    "sha256": "f51c2c9c08a73337a5f160a3bb4eb3be12936bf1529f978f2925b0bb1c8a61e5",
+    "bytes": 41074
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": "907990538f0e1baacd0505719fcd20d3d3d808e4",
-    "sha256": "7e3a168deba6ba87d70344be229df6039ee450d4fb4cc4b61fa25133af3d3903",
-    "bytes": 35515
+    "oid": "d5f0d00bac1361d7eb2b06ea382ada76c02195d2",
+    "sha256": "e56997d97b93522086735dba6c8c8a7d053734ceb15f50944997516346ad258d",
+    "bytes": 37739
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1",

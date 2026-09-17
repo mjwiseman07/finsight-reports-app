@@ -37,6 +37,9 @@ param(
   [string]$PriorDryRunEvidencePath = "",
 
   [Parameter(Mandatory = $false)]
+  [string]$PreApplyLiveEvidencePath = "",
+
+  [Parameter(Mandatory = $false)]
   [switch]$WaitForPromptReady,
 
   [Parameter(Mandatory = $false)]
@@ -608,6 +611,13 @@ function Complete-Blocked([string]$Code, [string]$Phase, [string]$Message, [hash
 
 function Test-PriorDryRunPinsPublished([object]$Auth) {
   # Pins are published only after the first authorized production dry-run.
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_prior_dry_run"] -and $null -ne $Auth.published_prior_dry_run) {
+    if ($null -ne $Auth.published_prior_dry_run.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_prior_dry_run.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
   foreach ($v in @(
       [string]$Auth.required_prior_dry_run_evidence_sha256,
       [string]$Auth.required_prior_dry_run_freeze,
@@ -622,6 +632,58 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   if ([string]$Auth.required_prior_dry_run_evidence_tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
   if ([string]$Auth.required_prior_dry_run_bundle_source -notmatch '^[0-9a-fA-F]{40}$') { return $false }
   return $true
+}
+
+function Test-PreApplyLivePinsPublished([object]$Auth) {
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_pre_apply_live_evidence"] -and $null -ne $Auth.published_pre_apply_live_evidence) {
+    if ($null -ne $Auth.published_pre_apply_live_evidence.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_pre_apply_live_evidence.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
+  foreach ($name in @(
+      "required_pre_apply_live_evidence_sha256",
+      "required_pre_apply_live_freeze",
+      "required_pre_apply_live_evidence_tip",
+      "required_pre_apply_live_bundle_source"
+    )) {
+    if ($null -eq $Auth.PSObject.Properties[$name]) { return $false }
+    $v = [string]$Auth.$name
+    if ([string]::IsNullOrWhiteSpace($v)) { return $false }
+    if ($v -match '^(?i)pending') { return $false }
+  }
+  if ([string]$Auth.required_pre_apply_live_evidence_sha256 -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_freeze -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_evidence_tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_bundle_source -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  return $true
+}
+
+function Test-HarnessBoundaryStop([string]$OutDir) {
+  # Sealed test-boundary stops before SecureString; treat as successful harness completion.
+  $done = Join-Path $OutDir "CEREMONY_DONE.txt"
+  $summary = Join-Path $OutDir "PRODUCTION_APPLY_SUMMARY.json"
+  $codes = @(
+    "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE",
+    "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE"
+  )
+  if (Test-Path -LiteralPath $done) {
+    $t = [string](Get-Content -LiteralPath $done -Raw -ErrorAction SilentlyContinue)
+    foreach ($c in $codes) {
+      if ($t -match [regex]::Escape($c)) { return $c }
+    }
+  }
+  if (Test-Path -LiteralPath $summary) {
+    try {
+      $obj = Get-Content -LiteralPath $summary -Raw -Encoding UTF8 | ConvertFrom-Json
+      $rc = [string]$obj.result_code
+      foreach ($c in $codes) {
+        if ($rc -eq $c) { return $c }
+      }
+    } catch {}
+  }
+  return $null
 }
 
 function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
@@ -752,11 +814,8 @@ try {
     (Format-Win32Argument "-SupervisorSentinel"),
     (Format-Win32Argument $script:SentinelToken)
   )
-  if ($CeremonyKind -eq "apply" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
-    Assert-SafePath "PriorDryRunEvidencePath" $PriorDryRunEvidencePath
-    $argParts += (Format-Win32Argument "-PriorDryRunEvidencePath")
-    $argParts += (Format-Win32Argument $PriorDryRunEvidencePath)
-  }
+  # When prior/pre-apply pins are PUBLISHED, tip fixtures are sole authority.
+  # Never require, accept, synthesize, or forward operator evidence paths.
   if ($CeremonyKind -eq "dry-run" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
     Complete-Blocked "BLOCKED_MODE_CONFUSION" "ceremony_kind" "PriorDryRunEvidencePath is not valid for dry-run ceremony kind"
   }
@@ -764,8 +823,22 @@ try {
     if (-not (Test-PriorDryRunPinsPublished -Auth $auth)) {
       Complete-Blocked "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED" "prior_dry_run_pin_publication" "required_prior_dry_run_* pins are not published in TOOLING_AUTHORIZATION"
     }
-    if ([string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
-      Complete-Blocked "BLOCKED_PRIOR_DRY_RUN_MISSING" "prior_dry_run_gate" "PriorDryRunEvidencePath required for apply ceremony kind"
+    if (-not (Test-PreApplyLivePinsPublished -Auth $auth)) {
+      Complete-Blocked "PRE_APPLY_LIVE_PINS_UNPUBLISHED" "pre_apply_live_pin_publication" "required_pre_apply_live_* pins are not published in TOOLING_AUTHORIZATION"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+      Complete-Blocked "BLOCKED_INPUT_INVALID" "prior_dry_run_gate" "PriorDryRunEvidencePath operator/path override forbidden; tip-sealed fixture only"
+    }
+    $hostilePrior = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH", "Process")
+    if (-not [string]::IsNullOrWhiteSpace($hostilePrior)) {
+      Complete-Blocked "BLOCKED_INPUT_INVALID" "prior_dry_run_gate" "RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH override forbidden"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PreApplyLiveEvidencePath)) {
+      Complete-Blocked "BLOCKED_INPUT_INVALID" "pre_apply_live_gate" "PreApplyLiveEvidencePath operator/path override forbidden; tip-sealed fixture only"
+    }
+    $hostilePreApply = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH", "Process")
+    if (-not [string]::IsNullOrWhiteSpace($hostilePreApply)) {
+      Complete-Blocked "BLOCKED_INPUT_INVALID" "pre_apply_live_gate" "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH override forbidden"
     }
   }
   if ($WaitForPromptReady) {
@@ -871,6 +944,47 @@ try {
       break
     }
     if ($script:EnterProcess.HasExited) {
+      $boundary = Test-HarnessBoundaryStop -OutDir $EvidenceOutDir
+      if (-not [string]::IsNullOrWhiteSpace($boundary)) {
+        $exitCode = Get-SafeExitCode $script:EnterProcess
+        $job = Close-JobAndConfirm
+        $mat = Clear-AllMaterial
+        Write-OrphanCheck -Job $job -Mat $mat -Extra @{
+          harness_boundary = $boundary
+          enter_exit_code  = $exitCode
+        }
+        Write-SupervisorEvidence ([ordered]@{
+          protocol_version           = 1
+          schema_version             = 1
+          result_code                = $boundary
+          verdict                    = "OK"
+          reason_code                = $boundary
+          phase                      = "harness_boundary"
+          evidence_source            = "ceremony_test_boundary"
+          mode                       = $CeremonyKind
+          read_only                  = ($CeremonyKind -ne "apply")
+          sqlApplicationAttempts     = 0
+          databaseConnectionAttempts = 0
+          advisory_lock_acquired     = $false
+          database_connected         = $false
+          nodeProcessStarted         = $false
+          prompt_ready_observed      = $false
+          powershell_identity        = $psIdentitySanitized
+          job_object                 = @{ kill_on_job_close = $true; breakaway_enabled = $false; handle_closed = $job.job_handle_closed }
+          cleanup                    = @{
+            completed       = [bool]($job.enter_terminated -and -not $job.sentinel_alive -and $mat.cleaned)
+            job             = $job
+            materialization = $mat
+          }
+          supervisor_sentinel        = $script:SentinelToken
+          credential_redaction_confirmation = @{
+            url_in_evidence    = $false
+            url_in_argv        = $false
+            values_undisclosed = $true
+          }
+        })
+        exit 0
+      }
       Complete-Blocked "BLOCKED_ENTER_TERMINATED" "prompt_wait" ("enter exited before PROMPT_READY exit=" + $script:EnterProcess.ExitCode) -Extra @{
         powershell_identity = $psIdentitySanitized
       }
