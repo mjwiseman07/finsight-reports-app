@@ -183,7 +183,10 @@ describe("RA Pro pre-apply live pin publication (static)", () => {
       "1ca9ba1b9ad76d7f8141ce4dc547f984d8a4a558",
     );
     expect(auth.visible_ceremony_entry.oid).toBe(
-      "907990538f0e1baacd0505719fcd20d3d3d808e4",
+      "d5f0d00bac1361d7eb2b06ea382ada76c02195d2",
+    );
+    expect(auth.visible_ceremony_supervisor.oid).toBe(
+      "b4e7175e76b454e85302d1233ade689707a87270",
     );
     expect(auth.pre_apply_live_gates.oid).toBe(GATES_OID);
   });
