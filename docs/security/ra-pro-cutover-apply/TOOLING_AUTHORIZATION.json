@@ -181,9 +181,9 @@
   },
   "pre_apply_live_gates": {
     "path": "scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1",
-    "oid": "af087447b676c6ad86399b00b63d73ac1c6ef080",
-    "sha256": "e72f2ab672d10aafbfbe2b73f79105ee38d97dff3773b0172ba69ba15e936e4c",
-    "bytes": 21896
+    "oid": "e4f5f67188f572654ad51fff14e1e949aaba58fb",
+    "sha256": "51342218317d64382504fbefa9d0a735c65fa6117dc56d3b0f0ccddbe16cd7ce",
+    "bytes": 22013
   },
   "required_pre_apply_live_evidence_sha256": null,
   "required_pre_apply_live_freeze": null,

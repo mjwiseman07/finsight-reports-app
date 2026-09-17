@@ -308,13 +308,16 @@ function Assert-RaProPreApplyLiveEvidence {
   }
 
   $now = [DateTimeOffset]::UtcNow
-  # Apply start requires valid_until strictly after gate UtcNow. Mid-transaction
+  # Apply start requires valid_from <= UtcNow < valid_until. Mid-transaction
   # expiry after a valid start is outside this gate (applicator remains fail-closed).
-  if ($validUntil -le $now) {
-    throw "PRE_APPLY_LIVE_EVIDENCE_EXPIRED: valid_until_utc is not after UtcNow (PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED)"
-  }
   if ($validFrom -ge $validUntil) {
     throw "PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED: valid_from_utc must be strictly before valid_until_utc"
+  }
+  if ($validFrom -gt $now) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED: valid_from_utc is after UtcNow"
+  }
+  if ($validUntil -le $now) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_EXPIRED: valid_until_utc is not after UtcNow (PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED)"
   }
   if ($ended -lt $started) {
     throw "PRE_APPLY_LIVE_EVIDENCE_COLLECTION_WINDOW: collection_ended_at_utc before collection_started_at_utc"

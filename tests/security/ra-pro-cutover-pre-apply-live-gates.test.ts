@@ -128,6 +128,7 @@ describe("RA Pro pre-apply live evidence contract + tip auth + synthetic fixture
     const ev = readFixture();
     expect(ev.protocol_id).toBe("RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1");
     expect(ev.schema_version).toBe(1);
+    expect(String(ev.valid_from_utc)).toMatch(/^2026-01-01/);
     expect(String(ev.valid_until_utc)).toMatch(/^2099-/);
     expect(
       (ev.serving_deployment as { merge_base_ref: string }).merge_base_ref,
@@ -211,6 +212,100 @@ describe.skipIf(!isWin)("RA Pro Assert-RaProPreApplyLiveEvidence* (Windows)", ()
       `);
       expect(r.status).toBe(0);
       expect(r.out).toContain(`ACCEPTED:${sha}`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("retained collected artifact accepts while currently valid (disposable pins)", () => {
+    const retained = path.join(
+      ROOT,
+      ".local/ra-pro-cutover-pre-apply-live-evidence/RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1.json",
+    );
+    expect(fs.existsSync(retained)).toBe(true);
+    const buf = fs.readFileSync(retained);
+    expect(buf.includes(0x0d)).toBe(false);
+    expect(buf[buf.length - 1]).toBe(0x0a);
+    const sha = sha256Bytes(buf);
+    expect(sha).toBe(
+      "98e8824b6a7137a893f3e12719e1fa5a1a39de6d69f3d6c19def821e6c1aea98",
+    );
+    expect(buf.length).toBe(2309);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pal-retained-"));
+    try {
+      const tipAuth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+      const authPath = path.join(dir, "auth.json");
+      fs.writeFileSync(
+        authPath,
+        `${JSON.stringify(
+          {
+            ...tipAuth,
+            required_pre_apply_live_evidence_sha256: sha,
+            required_pre_apply_live_freeze: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            required_pre_apply_live_evidence_tip: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            required_pre_apply_live_bundle_source: "cccccccccccccccccccccccccccccccccccccccc",
+            published_pre_apply_live_evidence: { status: "PUBLISHED" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      const r = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${psLiteral(GATES)}
+        $auth = Get-Content -LiteralPath ${psLiteral(authPath)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        $meta = Assert-RaProPreApplyLiveEvidence -Path ${psLiteral(retained)} -Auth $auth
+        Write-Output ('ACCEPTED:' + [string]$meta.sha256)
+      `);
+      expect(r.status).toBe(0);
+      expect(r.out).toContain(`ACCEPTED:${sha}`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects future valid_from_utc with PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-pal-future-from-"));
+    try {
+      const future = {
+        ...readFixture(),
+        collection_started_at_utc: "2099-06-01T10:00:00Z",
+        collection_ended_at_utc: "2099-06-01T11:00:00Z",
+        valid_from_utc: "2099-01-01T00:00:00Z",
+        valid_until_utc: "2099-12-31T23:59:59Z",
+        serving_deployment: {
+          ...(readFixture().serving_deployment as object),
+          observed_at_utc: "2099-06-01T10:30:00Z",
+        },
+        stripe_tcp1: {
+          ...(readFixture().stripe_tcp1 as object),
+          visibility_window_start_utc: "2099-05-31T10:30:00Z",
+          visibility_window_end_utc: "2099-06-01T10:30:00Z",
+        },
+        database_readonly: {
+          ...(readFixture().database_readonly as object),
+          relevant_activity_window_start_utc: "2099-06-01T00:00:00Z",
+          relevant_activity_window_end_utc: "2099-06-01T11:00:00Z",
+        },
+      };
+      const { evidencePath, authPath } = writePair(dir, future);
+      const r = runPs(`
+        $ErrorActionPreference = 'Stop'
+        . ${psLiteral(GATES)}
+        $auth = Get-Content -LiteralPath ${psLiteral(authPath)} -Raw -Encoding UTF8 | ConvertFrom-Json
+        try {
+          Assert-RaProPreApplyLiveEvidence -Path ${psLiteral(evidencePath)} -Auth $auth
+          Write-Output 'UNEXPECTED_ACCEPT'
+          exit 0
+        } catch {
+          Write-Output ([string]\$_.Exception.Message)
+          exit 1
+        }
+      `);
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(/PRE_APPLY_LIVE_EVIDENCE_START_NOT_UNEXPIRED/);
+      expect(r.out).toMatch(/valid_from_utc is after UtcNow/);
+      expect(r.out).not.toMatch(/UNEXPECTED_ACCEPT/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -575,5 +670,13 @@ describe.skipIf(!isWin)("RA Pro Assert-RaProPreApplyLiveEvidence* (Windows)", ()
     expect(ceremony).toMatch(
       /tests\/security\/helpers\/fixtures\/ra-pro-cutover-pre-apply-live-evidence\.json/,
     );
+    const assertIdx = ceremony.indexOf("Assert-RaProPreApplyLiveEvidence");
+    const publishedIdx = ceremony.indexOf("Assert-RaProPreApplyLiveEvidencePublished");
+    const secureIdx = ceremony.search(/Read-Host -Prompt "RA_PRO_CUTOVER_APPLY_DATABASE_URL"/);
+    expect(publishedIdx).toBeGreaterThan(-1);
+    expect(assertIdx).toBeGreaterThan(-1);
+    expect(secureIdx).toBeGreaterThan(-1);
+    expect(publishedIdx).toBeLessThan(secureIdx);
+    expect(assertIdx).toBeLessThan(secureIdx);
   });
 });
