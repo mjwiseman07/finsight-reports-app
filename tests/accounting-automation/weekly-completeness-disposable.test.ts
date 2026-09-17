@@ -130,7 +130,7 @@ describe.skipIf(!dockerOk)("weekly completeness persistence (disposable Postgres
     const key = "a".repeat(64);
     const db = await client("service_role");
     try {
-      const args = [runPayload(ids, key), [{ category: "bank_activity", code: "bank_activity_requires_review", severity: "review", item_count: 2, amount_cents: 1200, evidence: { source: "normalized_transactions" } }]];
+      const args = [JSON.stringify(runPayload(ids, key)), JSON.stringify([{ category: "bank_activity", code: "bank_activity_requires_review", severity: "review", item_count: 2, amount_cents: 1200, evidence: { source: "normalized_transactions" } }])];
       const first = await db.query("SELECT * FROM persist_ra_pro_weekly_completeness($1::jsonb,$2::jsonb)", args);
       const second = await db.query("SELECT * FROM persist_ra_pro_weekly_completeness($1::jsonb,$2::jsonb)", args);
       expect(first.rows[0].reused).toBe(false);
@@ -145,13 +145,22 @@ describe.skipIf(!dockerOk)("weekly completeness persistence (disposable Postgres
   it("concurrent duplicates produce exactly one run and finding set", async () => {
     const ids = await seed();
     const key = "b".repeat(64);
-    const args = [runPayload(ids, key), [{ category: "source_data", code: "accounting_snapshot_stale", severity: "block", item_count: 1, amount_cents: null, evidence: {} }]];
+    const args = [JSON.stringify(runPayload(ids, key)), JSON.stringify([{ category: "source_data", code: "accounting_snapshot_stale", severity: "block", item_count: 1, amount_cents: null, evidence: {} }])];
     const dbs = await Promise.all(Array.from({ length: 8 }, () => client("service_role")));
     try {
       const settled = await Promise.all(dbs.map((db) => db.query("SELECT * FROM persist_ra_pro_weekly_completeness($1::jsonb,$2::jsonb)", args)));
       expect(new Set(settled.map((result) => result.rows[0].run_id)).size).toBe(1);
-      const counts = await dbs[0].query("SELECT count(*)::int n FROM ra_pro_weekly_completeness_runs WHERE idempotency_key=$1", [key]);
-      expect(counts.rows[0].n).toBe(1);
+      const counts = await dbs[0].query(
+        `SELECT count(*)::int runs,
+                (SELECT count(*)::int
+                   FROM ra_pro_weekly_completeness_findings f
+                   JOIN ra_pro_weekly_completeness_runs r ON r.id = f.run_id
+                  WHERE r.idempotency_key = $1) findings
+           FROM ra_pro_weekly_completeness_runs
+          WHERE idempotency_key = $1`,
+        [key],
+      );
+      expect(counts.rows[0]).toEqual({ runs: 1, findings: 1 });
     } finally {
       await Promise.all(dbs.map((db) => db.end()));
     }
@@ -161,10 +170,15 @@ describe.skipIf(!dockerOk)("weekly completeness persistence (disposable Postgres
     const ids = await seed();
     const memberId = randomUUID();
     const outsiderId = randomUUID();
+    const owner = await client();
+    try {
+      await owner.query("INSERT INTO firm_memberships(firm_id,user_id,status) VALUES ($1,$2,'active')", [ids.firmId, memberId]);
+    } finally {
+      await owner.end();
+    }
     const service = await client("service_role");
     try {
-      await service.query("INSERT INTO firm_memberships(firm_id,user_id,status) VALUES ($1,$2,'active')", [ids.firmId, memberId]);
-      await service.query("SELECT * FROM persist_ra_pro_weekly_completeness($1::jsonb,$2::jsonb)", [runPayload(ids, "c".repeat(64)), []]);
+      await service.query("SELECT * FROM persist_ra_pro_weekly_completeness($1::jsonb,$2::jsonb)", [JSON.stringify(runPayload(ids, "c".repeat(64))), JSON.stringify([])]);
     } finally {
       await service.end();
     }
