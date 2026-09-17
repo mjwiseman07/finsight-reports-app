@@ -229,7 +229,30 @@ function weeklyKey(candidate: WeeklyCandidate, weekEnding: string): string {
     .digest("hex");
 }
 
-export async function loadWeeklyCandidates(): Promise<WeeklyCandidate[]> {
+type AccountingSyncRow = {
+  id: unknown;
+  company_id: unknown;
+  source_system: unknown;
+  normalized_payload: unknown;
+  last_synced_at: unknown;
+  created_at: unknown;
+};
+
+export function selectLatestSyncByCompany(
+  syncs: AccountingSyncRow[],
+  reportPeriodEnd?: string,
+): Map<string, AccountingSyncRow> {
+  const latest = new Map<string, AccountingSyncRow>();
+  for (const sync of syncs) {
+    const payload = sync.normalized_payload as AdvisacorNormalizedFinancialData | null;
+    if (reportPeriodEnd && payload?.reportPeriod?.endDate !== reportPeriodEnd) continue;
+    const companyId = String(sync.company_id ?? "");
+    if (companyId && !latest.has(companyId)) latest.set(companyId, sync);
+  }
+  return latest;
+}
+
+export async function loadWeeklyCandidates(options?: { reportPeriodEnd?: string }): Promise<WeeklyCandidate[]> {
   const db = createServiceClient();
   const { data: firms, error: firmError } = await db.from("firms").select("id, billing_company_id").not("billing_company_id", "is", null);
   if (firmError) throw firmError;
@@ -256,11 +279,7 @@ export async function loadWeeklyCandidates(): Promise<WeeklyCandidate[]> {
     .order("created_at", { ascending: false });
   if (syncError) throw syncError;
 
-  const latestByCompany = new Map<string, (typeof syncs)[number]>();
-  for (const sync of syncs ?? []) {
-    const companyId = sync.company_id as string;
-    if (!latestByCompany.has(companyId)) latestByCompany.set(companyId, sync);
-  }
+  const latestByCompany = selectLatestSyncByCompany(syncs ?? [], options?.reportPeriodEnd);
 
   return (clients ?? []).flatMap((client) => {
     const sync = latestByCompany.get(client.company_id as string);

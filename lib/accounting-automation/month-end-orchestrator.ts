@@ -38,7 +38,7 @@ export async function runRaProMonthEndReview(options?: {
 }) {
   const now = options?.now ?? new Date();
   const periodEnd = priorUtcMonthEnd(now);
-  const candidates = await (options?.loadCandidates ?? loadWeeklyCandidates)();
+  const candidates = await (options?.loadCandidates ?? (() => loadWeeklyCandidates({ reportPeriodEnd: periodEnd })))();
   const loadFindings = options?.loadFindings ?? loadWeeklyFindings;
   const persist = options?.persist ?? (async (record) => {
     const { error } = await createServiceClient().rpc("persist_ra_pro_month_end_review_package", { p_package: record });
