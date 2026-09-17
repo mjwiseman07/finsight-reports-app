@@ -345,7 +345,7 @@ function Import-RaProPriorDryRunGatesFromTip {
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw "BLOCKED_GATE_MODULE_REPARSE: materialized gate module is a reparse point"
   }
-  $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
+  $hashOid = Invoke-GitTextLocal @("hash-object", "--no-filters", $dest)
   if ($hashOid -ne [string]$seal.oid) {
     throw "BLOCKED_GATE_MODULE_OID: materialized content OID mismatch"
   }
@@ -451,7 +451,7 @@ function Materialize-TipPriorDryRunEvidence {
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw "BLOCKED_PRIOR_DRY_RUN_REPARSE: materialized prior evidence is a reparse point"
   }
-  $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
+  $hashOid = Invoke-GitTextLocal @("hash-object", "--no-filters", $dest)
   if ($hashOid.ToLowerInvariant() -ne $expectedOid.ToLowerInvariant()) {
     throw "BLOCKED_PRIOR_DRY_RUN_OID: materialized prior evidence OID mismatch"
   }
@@ -481,6 +481,12 @@ $interactiveClose = $true
 $priorMeta = $null
 $exactToken = $null
 $useSyntheticNonInteractivePath = $false
+if ([Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE", "Process") -eq "1") {
+  $interactiveClose = $false
+}
+if ([Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1") {
+  $interactiveClose = $false
+}
 
 Clear-Host
 Write-Host "============================================================" -ForegroundColor Yellow
