@@ -171,6 +171,9 @@ function Invoke-ProcessCapture {
 
 function Classify-CeremonyFailure([string]$Message) {
   $msg = [string]$Message
+  if ($msg -match "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE") {
+    return @{ code = "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE"; phase = "prior_dry_run_gate" }
+  }
   if ($msg -match "BLOCKED_GATE_MODULE|GATE_MODULE") {
     return @{ code = "BLOCKED_GATE_MODULE"; phase = "gate_module_materialize" }
   }
@@ -205,9 +208,10 @@ function Classify-CeremonyFailure([string]$Message) {
 }
 
 function Get-HarnessContaminationEnvNames {
-  # RA Pro cutover has no fixture Target#2 world; the synthetic-URL gate is the only harness channel.
+  # RA Pro cutover has no fixture Target#2 world; harness channels are synthetic-URL and stop-after-prior only.
   return @(
-    "RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL"
+    "RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL",
+    "RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE"
   )
 }
 
@@ -281,8 +285,11 @@ function Clear-FrlsMaterializedGates {
   $script:FrlsGatesTempDir = $null
 }
 
-function Import-FrlsPriorDryRunGatesFromFreeze {
-  param([object]$Auth)
+function Import-RaProPriorDryRunGatesFromTip {
+  param(
+    [object]$Auth,
+    [string]$PublicationTip
+  )
 
   if ($script:FrlsGatesLoaded) { return }
 
@@ -294,61 +301,70 @@ function Import-FrlsPriorDryRunGatesFromFreeze {
   if ($rel -ne "scripts/security/ra-pro-cutover-prior-dry-run-gates.ps1") {
     throw "BLOCKED_GATE_MODULE_SEAL: unexpected prior_dry_run_gates.path"
   }
-  if ([string]::IsNullOrWhiteSpace($Freeze) -or $Freeze -notmatch '^[0-9a-fA-F]{40}$') {
-    throw "BLOCKED_GATE_MODULE_SEAL: freeze identity required before gate materialization"
+  if ([string]::IsNullOrWhiteSpace($PublicationTip) -or $PublicationTip -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "BLOCKED_GATE_MODULE_SEAL: publication tip identity required before gate materialization"
+  }
+  $tipResolved = Invoke-GitTextLocal @("rev-parse", "--verify", ($PublicationTip + "^{commit}"))
+  if ($tipResolved.ToLowerInvariant() -ne $PublicationTip.ToLowerInvariant()) {
+    throw "BLOCKED_GATE_MODULE_SEAL: publication tip did not resolve to itself"
   }
 
-  $oid = Invoke-GitTextLocal @("rev-parse", "${Freeze}:${rel}")
+  $oid = Invoke-GitTextLocal @("rev-parse", "${PublicationTip}:${rel}")
   if ($oid -ne [string]$seal.oid) {
-    throw "BLOCKED_GATE_MODULE_OID: freeze gate module OID mismatch"
+    throw "BLOCKED_GATE_MODULE_OID: tip gate module OID mismatch"
   }
 
-  $script:FrlsGatesTempDir = Join-Path $EvidenceOutDir ("gates-" + [guid]::NewGuid().ToString("N"))
+  $script:FrlsGatesTempDir = Join-Path $EvidenceOutDir ("prior-gates-" + [guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $script:FrlsGatesTempDir | Out-Null
   $dest = Join-Path $script:FrlsGatesTempDir "ra-pro-cutover-prior-dry-run-gates.ps1"
-  $blobBytes = Materialize-GitBlob -Rel $rel -Dest $dest
+
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "cat-file blob ${PublicationTip}:${rel}"
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $ms = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($ms)
+  $err = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  if ($p.ExitCode -ne 0) { throw ("BLOCKED_GATE_MODULE_BLOB: " + $err) }
+  $blobBytes = $ms.ToArray()
+  if ($blobBytes.Length -ne [int]$seal.bytes) {
+    throw "BLOCKED_GATE_MODULE_BYTES: tip gate module byte count mismatch"
+  }
   $sha = Get-Sha256Bytes -Bytes $blobBytes
   if ($sha -ne ([string]$seal.sha256).ToLowerInvariant()) {
-    throw "BLOCKED_GATE_MODULE_SHA: freeze gate module SHA-256 mismatch"
+    throw "BLOCKED_GATE_MODULE_SHA: tip gate module SHA-256 mismatch"
   }
-  if ($blobBytes.Length -ne [int]$seal.bytes) {
-    throw "BLOCKED_GATE_MODULE_BYTES: freeze gate module byte count mismatch"
-  }
+  [IO.File]::WriteAllBytes($dest, $blobBytes)
   $item = Get-Item -LiteralPath $dest -Force
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw "BLOCKED_GATE_MODULE_REPARSE: materialized gate module is a reparse point"
   }
-  if ($item.PSIsContainer) {
-    throw "BLOCKED_GATE_MODULE_TYPE: materialized gate module must be a file"
-  }
-  if ($item.Extension -ne ".ps1") {
-    throw "BLOCKED_GATE_MODULE_TYPE: materialized gate module must be .ps1"
-  }
-
   $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
   if ($hashOid -ne [string]$seal.oid) {
     throw "BLOCKED_GATE_MODULE_OID: materialized content OID mismatch"
   }
 
-  $script:FrlsGatesMaterializedPath = $dest
-  # Dot-sourcing inside a function only populates the function's local scope.
-  # Promote every gate command into script scope so Assert-* survives Import return.
   $gateText = [IO.File]::ReadAllText($dest)
   $gateScript = $ExecutionContext.InvokeCommand.NewScriptBlock($gateText)
   . $gateScript
-  $gateNames = @(
-    "Get-FrlsDryRunReadyAllowlist",
-    "Test-FrlsDryRunReadyCode",
-    "Assert-FrlsPriorDryRunReadyCodes",
-    "Get-FrlsSha256Bytes",
-    "Get-RaProRequiredString",
-    "Get-RaProRequiredBoolean",
-    "Get-RaProRequiredInt",
-    "Assert-RaProRequiredBooleanEquals",
-    "Get-OptionalRaProBundleSourceString",
-    "Assert-PriorDryRunEvidence"
-  )
-  foreach ($name in $gateNames) {
+  foreach ($name in @(
+      "Get-FrlsDryRunReadyAllowlist",
+      "Test-FrlsDryRunReadyCode",
+      "Assert-FrlsPriorDryRunReadyCodes",
+      "Get-FrlsSha256Bytes",
+      "Get-RaProRequiredString",
+      "Get-RaProRequiredBoolean",
+      "Get-RaProRequiredInt",
+      "Assert-RaProRequiredBooleanEquals",
+      "Get-OptionalRaProBundleSourceString",
+      "Assert-PriorDryRunEvidence"
+    )) {
     $cmd = Get-Command -Name $name -CommandType Function -ErrorAction SilentlyContinue
     if (-not $cmd) {
       throw ("BLOCKED_GATE_MODULE_LOAD: " + $name + " missing after sealed dotsource")
@@ -358,7 +374,88 @@ function Import-FrlsPriorDryRunGatesFromFreeze {
   if (-not (Get-Command -Name Assert-PriorDryRunEvidence -ErrorAction SilentlyContinue)) {
     throw "BLOCKED_GATE_MODULE_LOAD: Assert-PriorDryRunEvidence missing after sealed dotsource"
   }
+  $script:FrlsGatesMaterializedPath = $dest
   $script:FrlsGatesLoaded = $true
+}
+
+function Materialize-TipPriorDryRunEvidence {
+  param(
+    [object]$Auth,
+    [string]$PublicationTip
+  )
+
+  $hostile = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($hostile)) {
+    throw "PRIOR_DRY_RUN_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH must not be set; tip-sealed fixture only"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    throw "PRIOR_DRY_RUN_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: -PriorDryRunEvidencePath is forbidden when tip pins are PUBLISHED; tip Git blob only"
+  }
+
+  $pub = $Auth.published_prior_dry_run
+  if ($null -eq $pub -or [string]$pub.status -ine "PUBLISHED") {
+    throw "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED: published_prior_dry_run.status is not PUBLISHED"
+  }
+  $rel = [string]$pub.evidence_fixture_path
+  if ([string]::IsNullOrWhiteSpace($rel)) {
+    throw "AUTH_METADATA_INVALID: published_prior_dry_run.evidence_fixture_path required"
+  }
+  if ($rel -ne "tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json") {
+    throw "AUTH_METADATA_INVALID: unexpected prior dry-run evidence_fixture_path"
+  }
+  $expectedSha = ([string]$Auth.required_prior_dry_run_evidence_sha256).ToLowerInvariant()
+  $expectedBytes = [int]$pub.evidence_bytes
+  $expectedOid = [string]$pub.evidence_blob_oid
+  if ($expectedBytes -le 0) {
+    throw "AUTH_METADATA_INVALID: published_prior_dry_run.evidence_bytes required"
+  }
+  if ($expectedOid -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "AUTH_METADATA_INVALID: published_prior_dry_run.evidence_blob_oid required"
+  }
+
+  $oid = Invoke-GitTextLocal @("rev-parse", "${PublicationTip}:${rel}")
+  if ($oid.ToLowerInvariant() -ne $expectedOid.ToLowerInvariant()) {
+    throw "BLOCKED_PRIOR_DRY_RUN_OID: tip evidence fixture OID mismatch"
+  }
+
+  $tmp = Join-Path $EvidenceOutDir ("prior-ev-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+  $dest = Join-Path $tmp "ra-pro-cutover-prior-production-dry-run-evidence.json"
+
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "cat-file blob ${PublicationTip}:${rel}"
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $ms = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($ms)
+  $err = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  if ($p.ExitCode -ne 0) {
+    throw ("BLOCKED_PRIOR_DRY_RUN_BLOB: git cat-file failed for tip prior evidence: " + $err)
+  }
+  $bytes = $ms.ToArray()
+  if ($bytes.Length -ne $expectedBytes) {
+    throw "BLOCKED_PRIOR_DRY_RUN_BYTES: tip prior evidence byte count mismatch"
+  }
+  $sha = Get-Sha256Bytes -Bytes $bytes
+  if ($sha -ne $expectedSha) {
+    throw "BLOCKED_PRIOR_DRY_RUN_SHA_MISMATCH: tip prior evidence SHA-256 mismatch"
+  }
+  [IO.File]::WriteAllBytes($dest, $bytes)
+  $item = Get-Item -LiteralPath $dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "BLOCKED_PRIOR_DRY_RUN_REPARSE: materialized prior evidence is a reparse point"
+  }
+  $hashOid = Invoke-GitTextLocal @("hash-object", $dest)
+  if ($hashOid.ToLowerInvariant() -ne $expectedOid.ToLowerInvariant()) {
+    throw "BLOCKED_PRIOR_DRY_RUN_OID: materialized prior evidence OID mismatch"
+  }
+  return $dest
 }
 
 if (-not $RepoRoot) {
@@ -423,13 +520,33 @@ try {
   }
   Write-Host ("Prior dry-run evidence pin: " + [string]$auth.required_prior_dry_run_evidence_sha256)
 
-  # Materialize + seal-verify gate module from executable freeze BEFORE trusting prior evidence
-  # and BEFORE any credential prompt / database connection.
-  Import-FrlsPriorDryRunGatesFromFreeze -Auth $auth
-  Write-Host "Prior-dry-run gate module materialized and verified from freeze."
+  # Tip-owned gate module + tip-sealed prior evidence BEFORE credential prompt / DB.
+  Import-RaProPriorDryRunGatesFromTip -Auth $auth -PublicationTip $tip
+  Write-Host "Prior-dry-run gate module materialized and verified from publication tip."
 
-  $priorMeta = Assert-PriorDryRunEvidence -Path $PriorDryRunEvidencePath -Auth $auth
-  Write-Host ("Prior dry-run evidence SHA verified: " + $priorMeta.sha256)
+  $priorPath = Materialize-TipPriorDryRunEvidence -Auth $auth -PublicationTip $tip
+  $priorMeta = Assert-PriorDryRunEvidence -Path $priorPath -Auth $auth
+  Write-Host ("Prior dry-run evidence SHA verified from tip blob: " + $priorMeta.sha256)
+
+  # Harness-only boundary: accept tip prior evidence then refuse before credentials/DB.
+  $stopAfterPrior = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE", "Process") -eq "1"
+  if ($stopAfterPrior) {
+    Write-Host "TEST_BOUNDARY_PRIOR_EVIDENCE_ACCEPTED"
+    $interactiveClose = $false
+    $resultCode = "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE"
+    $parsed = [pscustomobject]@{
+      evidence_source = "ceremony_test_boundary"
+      result_code = $resultCode
+      reason_code = $resultCode
+      phase = "prior_dry_run_gate"
+      databaseConnectionAttempts = 0
+      sqlApplicationAttempts = 0
+      advisory_lock_acquired = $false
+      wrapper_observed = $true
+      prior_dry_run_evidence_sha256 = [string]$priorMeta.sha256
+    }
+    throw "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE: prior tip evidence accepted; refuse credentials/DB under harness boundary"
+  }
 
   $ne = $auth.native_entry
   if (-not $ne -or -not $ne.path -or -not $ne.oid -or -not $ne.sha256 -or -not $ne.bytes) {
@@ -660,6 +777,7 @@ finally {
     result_code = $resultCode
     evidence_source = $src
     evidence_sha256 = $sha
+    prior_dry_run_evidence_sha256 = $(if ($priorMeta) { [string]$priorMeta.sha256 } else { $null })
     databaseConnectionAttempts = $dbAttempts
     sqlApplicationAttempts = $sqlAttempts
     credential_cleared = (-not [bool]$env:RA_PRO_CUTOVER_APPLY_DATABASE_URL)

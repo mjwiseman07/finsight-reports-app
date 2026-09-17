@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -143,19 +144,43 @@ describe("RA Pro cutover transport + sanitization (no docker)", () => {
   });
 
   it("apply refuses unpublished prior dry-run pins before DB contact", async () => {
-    const evidence = await runApplicator(
-      baseApplyInputs("postgres://postgres:postgres@127.0.0.1:1/postgres", {
-        mode: "apply",
-        applyAuthorizationToken: APPLY_AUTHORIZATION_TOKEN,
-        // no harness bypass
-      }),
-    );
-    expect(evidence.verdict).toBe("APPLY_BLOCKED");
-    expect(evidence.sqlApplicationAttempts).toBe(0);
-    expect(evidence.databaseConnectionAttempts).toBe(0);
-    expect(String(evidence.error_code || evidence.error)).toMatch(
-      /PRIOR_DRY_RUN_PINS_UNPUBLISHED/,
-    );
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-pro-unpub-auth-"));
+    try {
+      const authSrc = path.join(
+        ROOT,
+        "docs/security/ra-pro-cutover-apply/TOOLING_AUTHORIZATION.json",
+      );
+      const destDir = path.join(dir, "docs/security/ra-pro-cutover-apply");
+      fs.mkdirSync(destDir, { recursive: true });
+      const tipAuth = JSON.parse(fs.readFileSync(authSrc, "utf8"));
+      const unpublished = {
+        ...tipAuth,
+        required_prior_dry_run_evidence_sha256: null,
+        required_prior_dry_run_freeze: null,
+        required_prior_dry_run_evidence_tip: null,
+        required_prior_dry_run_bundle_source: null,
+        published_prior_dry_run: { status: "UNPUBLISHED" },
+      };
+      fs.writeFileSync(
+        path.join(destDir, "TOOLING_AUTHORIZATION.json"),
+        `${JSON.stringify(unpublished, null, 2)}\n`,
+      );
+      const evidence = await runApplicator(
+        baseApplyInputs("postgres://postgres:postgres@127.0.0.1:1/postgres", {
+          mode: "apply",
+          applyAuthorizationToken: APPLY_AUTHORIZATION_TOKEN,
+          cwd: dir,
+        }),
+      );
+      expect(evidence.verdict).toBe("APPLY_BLOCKED");
+      expect(evidence.sqlApplicationAttempts).toBe(0);
+      expect(evidence.databaseConnectionAttempts).toBe(0);
+      expect(String(evidence.error_code || evidence.error)).toMatch(
+        /PRIOR_DRY_RUN_PINS_UNPUBLISHED/,
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

@@ -156,8 +156,10 @@ describe("RA Pro precondition evidence contract + synthetic fixture", () => {
       "90af07d27e122d80d5fb5072f7a66da818f245a5",
     );
     expect(auth.published_precondition_evidence?.status).toBe("PUBLISHED");
-    expect(auth.published_prior_dry_run?.status).toBe("UNPUBLISHED");
-    expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
+    expect(auth.published_prior_dry_run?.status).toBe("PUBLISHED");
+    expect(auth.required_prior_dry_run_evidence_sha256).toBe(
+      "9679678436659c64857c47397b5196343e11b8e3cc8277b7af0594a99b4f9a88",
+    );
   });
 
   it("committed precondition evidence fixture matches pinned SHA/bytes/LF", () => {

@@ -524,8 +524,12 @@ try {
       if (-not (Test-PriorDryRunPinsPublished -Auth $auth)) {
         Stop-Entry "BLOCKED_PRIOR_DRY_RUN_PINS_UNPUBLISHED" "prior_dry_run_pin_publication" "required_prior_dry_run_* pins are not published in TOOLING_AUTHORIZATION"
       }
-      if ([string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
-        Stop-Entry "BLOCKED_PRIOR_DRY_RUN_MISSING" "prior_dry_run_gate" "PriorDryRunEvidencePath required for apply ceremony kind"
+      if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+        Stop-Entry "BLOCKED_INPUT_INVALID" "prior_dry_run_gate" "PriorDryRunEvidencePath operator/path override forbidden; tip-sealed fixture only"
+      }
+      $hostilePrior = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH", "Process")
+      if (-not [string]::IsNullOrWhiteSpace($hostilePrior)) {
+        Stop-Entry "BLOCKED_INPUT_INVALID" "prior_dry_run_gate" "RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH override forbidden"
       }
     }
   } else {
@@ -537,10 +541,10 @@ try {
     Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "ceremony seal missing path"
   }
 
-  # Dry-run ceremony authority: tip seal + tip blob only. Apply remains freeze-owned.
-  # When precondition evidence is PUBLISHED, freeze ceremony fallback is forbidden.
+  # Tip-published ceremonies (dry-run and apply) materialize from publication tip.
+  # Freeze remains authority for launcher; native/bootstrap remain freeze-owned inside ceremonies.
   $ceremonyAuthorityCommit = $freeze
-  if ($CeremonyKind -eq "dry-run") {
+  if ($CeremonyKind -eq "dry-run" -or $CeremonyKind -eq "apply") {
     $ceremonyAuthorityCommit = $tip
   }
 
@@ -605,6 +609,9 @@ try {
     if ($CeremonyKind -eq "dry-run" -and $ceremonyMaterialCommit -ne $tip) {
       Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" "dry-run operator_ceremony must materialize from publication tip"
     }
+    if ($CeremonyKind -eq "apply" -and $ceremonyMaterialCommit -ne $tip) {
+      Stop-Entry "BLOCKED_SEAL_MISMATCH" "materialize_ceremony" "apply operator_ceremony must materialize from publication tip"
+    }
   }
 
   try {
@@ -642,11 +649,7 @@ try {
     (Format-Win32Argument "-ExpectedLauncherBytes"),
     (Format-Win32Argument ([string]$launcherSeal.bytes))
   )
-  if ($CeremonyKind -eq "apply" -and -not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
-    Assert-SafePath "PriorDryRunEvidencePath" $PriorDryRunEvidencePath
-    $launchArgs += (Format-Win32Argument "-PriorDryRunEvidencePath")
-    $launchArgs += (Format-Win32Argument $PriorDryRunEvidencePath)
-  }
+  # Apply ceremony tip-materializes prior evidence itself; never forward operator paths.
   if ($WaitForPromptReady) {
     $launchArgs += (Format-Win32Argument "-WaitForPromptReady")
     $launchArgs += (Format-Win32Argument "-PromptReadyTimeoutSec")

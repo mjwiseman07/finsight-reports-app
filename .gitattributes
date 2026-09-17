@@ -58,3 +58,7 @@ tests/security/helpers/fixtures/ra-pro-precondition-evidence.synthetic.json text
 docs/security/ra-pro-cutover-apply/** text eol=lf
 scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1 text eol=lf
 scripts/security/ra-pro-cutover-precondition-gates.ps1 text eol=lf
+
+# RA Pro prior-dry-run evidence fixture — intentionally CRLF, byte-authoritative pin
+tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json -text
+

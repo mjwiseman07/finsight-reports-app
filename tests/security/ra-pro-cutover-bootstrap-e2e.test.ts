@@ -181,11 +181,15 @@ describe("RA Pro cutover bootstrap auth surface", () => {
     expect(enter).toMatch(/RA_PRO_CUTOVER/);
   });
 
-  it("TOOLING_AUTHORIZATION publishes precondition pins; prior dry-run remains unpublished", () => {
+  it("TOOLING_AUTHORIZATION publishes precondition and prior dry-run pins", () => {
     const auth = readAuth();
-    expect(auth.published_prior_dry_run.status).toBe("UNPUBLISHED");
-    expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
-    expect(auth.required_prior_dry_run_freeze).toBeNull();
+    expect(auth.published_prior_dry_run.status).toBe("PUBLISHED");
+    expect(auth.required_prior_dry_run_evidence_sha256).toBe(
+      "9679678436659c64857c47397b5196343e11b8e3cc8277b7af0594a99b4f9a88",
+    );
+    expect(auth.required_prior_dry_run_freeze).toBe(
+      "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    );
     expect(auth.migration_blob_oid).toBe("d36f5e2c50f7bab956c3191723c0e8a223279df5");
     expect(auth.required_precondition_evidence_sha256).toBe(
       "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3",

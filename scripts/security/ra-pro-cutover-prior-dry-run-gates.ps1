@@ -158,14 +158,19 @@ function Assert-PriorDryRunEvidence {
   if (-not ($expectedBundleSource -match '^[0-9a-fA-F]{40}$')) {
     throw "AUTH_METADATA_INVALID: missing required_prior_dry_run_bundle_source"
   }
-  # Never confuse prior dry-run bundle source with the current apply tip's bundle_source_commit.
+  # Never confuse prior dry-run bundle source with an unrelated current apply tip
+  # bundle_source_commit. RA Pro freeze→source→tip may keep the same sealed applicator
+  # across dry-run and apply; that shared identity is allowed when the pin equals the
+  # current tip bundle_source_commit. A differing prior pin must not silently equal
+  # the apply tip's bundle_source (that would be prior/apply confusion).
   $applyBundleSource = $null
   if ($null -ne $Auth.PSObject.Properties["bundle_source_commit"] -and $null -ne $Auth.bundle_source_commit) {
     $applyBundleSource = [string]$Auth.bundle_source_commit
   }
+  $sameSealedApplicatorSource = $false
   if (-not [string]::IsNullOrWhiteSpace($applyBundleSource) -and $applyBundleSource -match '^[0-9a-fA-F]{40}$') {
     if ($applyBundleSource.ToLowerInvariant() -eq $expectedBundleSource.ToLowerInvariant()) {
-      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: required_prior_dry_run_bundle_source must not equal current apply bundle_source_commit"
+      $sameSealedApplicatorSource = $true
     }
   }
 
@@ -300,15 +305,29 @@ function Assert-PriorDryRunEvidence {
   if ($bootBytes -ne $expectedBundleBytes) {
     throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: bootstrap.bundle_bytes does not match sealed dry-run standalone bundle"
   }
-  # Reject prior/apply bundle confusion: evidence must not present the current apply tip bundle.
-  if ($null -ne $Auth.PSObject.Properties["standalone_bundle"] -and $null -ne $Auth.standalone_bundle) {
-    $applyOid = [string]$Auth.standalone_bundle.oid
-    $applySha = [string]$Auth.standalone_bundle.sha256
-    if (-not [string]::IsNullOrWhiteSpace($applyOid) -and $bootOid.ToLowerInvariant() -eq $applyOid.ToLowerInvariant()) {
-      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_oid matches current apply standalone_bundle (prior/apply confusion)"
+  # Reject prior/apply bundle confusion when dry-run used a different bundle source.
+  # When dry-run and apply share the same sealed applicator source (RA Pro tip pin),
+  # bootstrap seals may equal the current tip standalone_bundle by design.
+  if (-not $sameSealedApplicatorSource) {
+    if ($null -ne $Auth.PSObject.Properties["standalone_bundle"] -and $null -ne $Auth.standalone_bundle) {
+      $applyOid = [string]$Auth.standalone_bundle.oid
+      $applySha = [string]$Auth.standalone_bundle.sha256
+      if (-not [string]::IsNullOrWhiteSpace($applyOid) -and $bootOid.ToLowerInvariant() -eq $applyOid.ToLowerInvariant()) {
+        throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_oid matches current apply standalone_bundle (prior/apply confusion)"
+      }
+      if (-not [string]::IsNullOrWhiteSpace($applySha) -and $bootSha.ToLowerInvariant() -eq $applySha.ToLowerInvariant()) {
+        throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_sha256 matches current apply standalone_bundle (prior/apply confusion)"
+      }
     }
-    if (-not [string]::IsNullOrWhiteSpace($applySha) -and $bootSha.ToLowerInvariant() -eq $applySha.ToLowerInvariant()) {
-      throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: evidence bootstrap.bundle_sha256 matches current apply standalone_bundle (prior/apply confusion)"
+  } else {
+    # Shared source: require dry_run_standalone_bundle == current tip standalone_bundle.
+    if ($null -ne $Auth.PSObject.Properties["standalone_bundle"] -and $null -ne $Auth.standalone_bundle) {
+      $applyOid = [string]$Auth.standalone_bundle.oid
+      $applySha = [string]$Auth.standalone_bundle.sha256
+      $applyBytes = [int]$Auth.standalone_bundle.bytes
+      if ($bootOid.ToLowerInvariant() -ne $applyOid.ToLowerInvariant() -or $bootSha.ToLowerInvariant() -ne $applySha.ToLowerInvariant() -or $bootBytes -ne $applyBytes) {
+        throw "BLOCKED_PRIOR_DRY_RUN_BUNDLE_SOURCE: shared applicator source requires dry-run bootstrap seals to equal tip standalone_bundle"
+      }
     }
   }
 

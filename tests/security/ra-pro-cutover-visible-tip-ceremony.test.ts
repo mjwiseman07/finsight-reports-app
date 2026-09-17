@@ -180,8 +180,11 @@ describe("RA Pro visible tip ceremony authority (contract)", () => {
     );
     expect(auth.authorized_pr_head).toBe(FREEZE);
     expect(auth.bundle_source_commit).toBe(BUNDLE_SOURCE);
-    expect(auth.required_prior_dry_run_evidence_sha256).toBeNull();
-    expect(auth.published_prior_dry_run.status).toBe("UNPUBLISHED");
+    expect(auth.required_prior_dry_run_evidence_sha256).toBe(
+      "9679678436659c64857c47397b5196343e11b8e3cc8277b7af0594a99b4f9a88",
+    );
+    expect(auth.published_prior_dry_run.status).toBe("PUBLISHED");
+    expect(auth.published_prior_dry_run.evidence_bytes).toBe(112020);
   });
 
   it("freeze/source/tip identities preserved; no unresolved self-tip placeholder", () => {

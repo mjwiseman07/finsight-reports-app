@@ -4,10 +4,11 @@
   "notes": [
     "Three-authority publication: freeze → bundle_source → tip. Bootstrap materializes standalone bundle from bundle_source_commit only.",
     "freeze ≠ bundle_source; bundle_source descends from freeze; tip descends from bundle_source.",
-    "Mixed visible dry-run authority: tip owns TOOLING_AUTHORIZATION + visible_ceremony_entry + operator_ceremony; freeze owns launcher/apply/native/gates; bundle_source owns standalone .cjs.",
-    "When precondition evidence is PUBLISHED, dry-run operator_ceremony must tip-materialize; freeze ceremony fallback is forbidden.",
+    "Mixed visible apply authority: tip owns TOOLING_AUTHORIZATION + visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates; freeze owns launcher/native/bootstrap; bundle_source owns standalone .cjs.",
+    "When prior dry-run pins are PUBLISHED, apply operator_apply_ceremony must tip-materialize; freeze ceremony fallback is forbidden.",
     "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c….",
-    "required_prior_dry_run_* remain null / UNPUBLISHED in this delivery; required_precondition_* are PUBLISHED on the tip that pins the LF evidence fixture.",
+    "required_prior_dry_run_* are PUBLISHED (CRLF fixture OID fcf25851… / SHA 96796784… / 112020); required_precondition_* remain PUBLISHED.",
+    "Pin publication does not authorize production apply; fresh pre-apply live checks remain separately required.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING; bootstrap verifies against TOOLING_AUTHORIZATION.standalone_bundle seals.",
     "auth_seals_digest covers artifact_commit, project_ref, migration_*, database_url_env, apply_authorization_token, advisory_lock, pg_version, lockfile_path."
   ],
@@ -53,11 +54,16 @@
   },
   "auth_seals_digest": "c3bc387a0d4698b2a7e5c07fd5c18672a8dd4699efcd9f54f47c882173d2eabc",
   "prior_dry_run_pins": {
-    "status": "UNPUBLISHED",
-    "required_prior_dry_run_evidence_sha256": null,
-    "required_prior_dry_run_freeze": null,
-    "required_prior_dry_run_evidence_tip": null,
-    "required_prior_dry_run_bundle_source": null
+    "status": "PUBLISHED",
+    "required_prior_dry_run_evidence_sha256": "9679678436659c64857c47397b5196343e11b8e3cc8277b7af0594a99b4f9a88",
+    "required_prior_dry_run_freeze": "a74d5108752d93e1ca4baa78f4dc7425120658b7",
+    "required_prior_dry_run_evidence_tip": "c4c414f8879d546a53bbd668431db0c5dfadcbb3",
+    "required_prior_dry_run_bundle_source": "90af07d27e122d80d5fb5072f7a66da818f245a5",
+    "evidence_fixture_path": "tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json",
+    "evidence_bytes": 112020,
+    "evidence_blob_oid": "fcf25851787047b4ea8d2b276856dd74e024f5aa",
+    "evidence_line_endings": "CRLF",
+    "accepted_precondition_evidence_sha256": "fb3625f99027c600c1b1280f103df723b4fbff56ee21c60a3c8ed6e2789a7cd3"
   },
   "precondition_pins": {
     "status": "PUBLISHED",

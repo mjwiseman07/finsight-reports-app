@@ -92,13 +92,25 @@ See `PRE_CHANGE_CONTRACT.json` / precondition contract. Independently confirm vi
 
 Dry-run is read-only: `sqlApplicationAttempts=0`, `advisory_lock_acquired=false`, history 187, version absent.
 
-## Apply gate
+## Apply gate — prior dry-run pins (PUBLISHED)
 
-Apply fails closed with `PRIOR_DRY_RUN_PINS_UNPUBLISHED` when `required_prior_dry_run_*` are null or `published_prior_dry_run.status` is `UNPUBLISHED` — **before** prompting or connecting.
+Tip pins `required_prior_dry_run_*` + `published_prior_dry_run`. Apply ceremony materializes the tip-sealed CRLF fixture via `git cat-file` only (OID/SHA/bytes/non-reparse before parse). Operator/env/path/SHA substitutions are forbidden.
+
+| Field | Value |
+|---|---|
+| Fixture | `tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json` (`-text`) |
+| SHA-256 / bytes / OID | `96796784…` / 112020 / `fcf25851…` |
+| Dry-run tip / freeze / source | `c4c414f8…` / `a74d5108…` / `90af07d2…` |
+| Accepted precondition SHA | `fb3625f9…` |
+| Verdict | `DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION` |
+
+Failed sandbox supervisor evidence SHAs (`b6c204f2…`, `6ff61df9…`) are explicitly rejected and unreferenced.
+
+**Pin publication does not authorize production apply.** Fresh pre-apply live checks (gate/protection/quiescence/inventory) remain required under separate authorization; historical dry-run/precondition PASS is not permanently fresh.
 
 Post-apply: history 188; version exactly once; `billing_company_id` present; linked firms = 0; bootstrap/activate RPCs service_role EXECUTE only.
 
 ## Local disposable rehearsal
 
 1. Docker available
-2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts tests/security/ra-pro-cutover-bootstrap-e2e.test.ts tests/security/ra-pro-cutover-ceremony-launch.test.ts tests/security/ra-pro-cutover-precondition-gates.test.ts`
+2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts tests/security/ra-pro-cutover-bootstrap-e2e.test.ts tests/security/ra-pro-cutover-ceremony-launch.test.ts tests/security/ra-pro-cutover-precondition-gates.test.ts tests/security/ra-pro-cutover-prior-dry-run-publication.test.ts`
