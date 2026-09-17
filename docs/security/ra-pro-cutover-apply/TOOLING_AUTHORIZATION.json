@@ -78,9 +78,9 @@
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-apply-ceremony.ps1",
-    "oid": "ce2dff024a764300180983e75ed3293c44b6bcf0",
-    "sha256": "ed0357d8513d2d96429f3cfaac0cc717407813a994a27df34d181799bd774a23",
-    "bytes": 48534
+    "oid": "1ca9ba1b9ad76d7f8141ce4dc547f984d8a4a558",
+    "sha256": "44a2880e58157d9d88f858d3358caaa1b585218bc78b22b558c27c2925ef2465",
+    "bytes": 48649
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-cutover-ceremony.ps1",

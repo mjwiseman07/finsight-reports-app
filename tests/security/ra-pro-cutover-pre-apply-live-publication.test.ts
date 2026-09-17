@@ -180,7 +180,7 @@ describe("RA Pro pre-apply live pin publication (static)", () => {
     );
     expect(auth.published_prior_dry_run.evidence_sha256).toBe(PRIOR_DRY);
     expect(auth.operator_apply_ceremony.oid).toBe(
-      "ce2dff024a764300180983e75ed3293c44b6bcf0",
+      "1ca9ba1b9ad76d7f8141ce4dc547f984d8a4a558",
     );
     expect(auth.visible_ceremony_entry.oid).toBe(
       "907990538f0e1baacd0505719fcd20d3d3d808e4",

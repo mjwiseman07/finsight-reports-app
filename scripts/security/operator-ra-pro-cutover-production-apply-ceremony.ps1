@@ -1049,6 +1049,7 @@ finally {
     evidence_source = $src
     evidence_sha256 = $sha
     prior_dry_run_evidence_sha256 = $(if ($priorMeta) { [string]$priorMeta.sha256 } else { $null })
+    pre_apply_live_evidence_sha256 = $(if ($preApplyLiveMeta) { [string]$preApplyLiveMeta.sha256 } else { $null })
     databaseConnectionAttempts = $dbAttempts
     sqlApplicationAttempts = $sqlAttempts
     credential_cleared = (-not [bool]$env:RA_PRO_CUTOVER_APPLY_DATABASE_URL)
