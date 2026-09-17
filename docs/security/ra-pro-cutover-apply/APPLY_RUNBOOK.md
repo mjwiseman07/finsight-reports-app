@@ -108,9 +108,21 @@ Failed sandbox supervisor evidence SHAs (`b6c204f2…`, `6ff61df9…`) are expli
 
 **Pin publication does not authorize production apply.** Fresh pre-apply live checks (gate/protection/quiescence/inventory) remain required under separate authorization; historical dry-run/precondition PASS is not permanently fresh.
 
+## Apply gate — pre-apply live evidence (UNPUBLISHED)
+
+Tip pins `required_pre_apply_live_*` + `published_pre_apply_live_evidence` remain **UNPUBLISHED** (`null` / `status: UNPUBLISHED`). Protocol `RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1` (contract: `PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json`).
+
+Apply ceremony (after prior dry-run acceptance, before native entry / SecureString) tip-materializes `pre_apply_live_gates` and asserts publication. While unpublished, apply fails closed with `PRE_APPLY_LIVE_PINS_UNPUBLISHED` **before** credentials, Node, or DB. Visible apply entry likewise refuses launch when pins are unpublished (unless TestStub).
+
+Distinct from historical precondition evidence and published prior dry-run evidence — those **MUST NEVER** satisfy this gate (`PRE_APPLY_LIVE_EVIDENCE_SUBSTITUTION_FORBIDDEN`). Pin publication of prior dry-run does not satisfy this gate.
+
+When later **PUBLISHED**, materialize tip git blob only at `tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json` (OID/SHA/bytes/non-reparse); argv/env/worktree path overrides remain forbidden. Apply must begin while `valid_until_utc` is strictly after gate UtcNow.
+
+Harness: `RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRE_APPLY_LIVE=1` stops after a successful pre-apply assert before credentials (mirrors `STOP_AFTER_PRIOR`).
+
 Post-apply: history 188; version exactly once; `billing_company_id` present; linked firms = 0; bootstrap/activate RPCs service_role EXECUTE only.
 
 ## Local disposable rehearsal
 
 1. Docker available
-2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts tests/security/ra-pro-cutover-bootstrap-e2e.test.ts tests/security/ra-pro-cutover-ceremony-launch.test.ts tests/security/ra-pro-cutover-precondition-gates.test.ts tests/security/ra-pro-cutover-prior-dry-run-publication.test.ts`
+2. `npx vitest run tests/security/ra-pro-cutover-applicator.test.ts tests/security/ra-pro-cutover-bootstrap-e2e.test.ts tests/security/ra-pro-cutover-ceremony-launch.test.ts tests/security/ra-pro-cutover-precondition-gates.test.ts tests/security/ra-pro-cutover-prior-dry-run-publication.test.ts tests/security/ra-pro-cutover-pre-apply-live-gates.test.ts`

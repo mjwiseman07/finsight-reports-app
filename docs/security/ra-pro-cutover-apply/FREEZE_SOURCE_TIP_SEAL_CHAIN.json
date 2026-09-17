@@ -4,10 +4,11 @@
   "notes": [
     "Three-authority publication: freeze → bundle_source → tip. Bootstrap materializes standalone bundle from bundle_source_commit only.",
     "freeze ≠ bundle_source; bundle_source descends from freeze; tip descends from bundle_source.",
-    "Mixed visible apply authority: tip owns TOOLING_AUTHORIZATION + visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates; freeze owns launcher/native/bootstrap; bundle_source owns standalone .cjs.",
+    "Mixed visible apply authority: tip owns TOOLING_AUTHORIZATION + visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates + pre_apply_live_gates; freeze owns launcher/native/bootstrap; bundle_source owns standalone .cjs.",
     "When prior dry-run pins are PUBLISHED, apply operator_apply_ceremony must tip-materialize; freeze ceremony fallback is forbidden.",
     "Migration and decision LF blobs are immutable companions sealed at artifact_commit b4f06a1c….",
     "required_prior_dry_run_* are PUBLISHED (CRLF fixture OID fcf25851… / SHA 96796784… / 112020); required_precondition_* remain PUBLISHED.",
+    "required_pre_apply_live_* remain UNPUBLISHED. Apply fails closed with PRE_APPLY_LIVE_PINS_UNPUBLISHED before SecureString prompt. Distinct from precondition/prior dry-run; those must never satisfy this gate. When later PUBLISHED, tip git cat-file materialization only.",
     "Pin publication does not authorize production apply; fresh pre-apply live checks remain separately required.",
     "EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING; bootstrap verifies against TOOLING_AUTHORIZATION.standalone_bundle seals.",
     "auth_seals_digest covers artifact_commit, project_ref, migration_*, database_url_env, apply_authorization_token, advisory_lock, pg_version, lockfile_path."
@@ -43,6 +44,7 @@
   "database_url_env": "RA_PRO_CUTOVER_APPLY_DATABASE_URL",
   "evidence_protocol_id": "RA_PRO_CUTOVER_EVIDENCE_V1",
   "precondition_evidence_protocol_id": "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+  "pre_apply_live_evidence_protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
   "prior_history_count": 187,
   "post_history_count": 188,
   "gate_aware_merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
@@ -74,5 +76,14 @@
     "evidence_fixture_path": "tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json",
     "evidence_bytes": 1407,
     "valid_until_utc": "2026-09-17T05:25:11Z"
+  },
+  "pre_apply_live_pins": {
+    "status": "UNPUBLISHED",
+    "required_pre_apply_live_evidence_sha256": null,
+    "required_pre_apply_live_freeze": null,
+    "required_pre_apply_live_evidence_tip": null,
+    "required_pre_apply_live_bundle_source": null,
+    "protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "notes": "Fresh pre-apply live evidence pins stay UNPUBLISHED until separately authorized collection. Fail closed before credential prompt. Prior dry-run / precondition publication does not satisfy this gate."
   }
 }

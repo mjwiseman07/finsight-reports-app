@@ -56,6 +56,9 @@ param(
   [string]$PriorDryRunEvidencePath = "",
 
   [Parameter(Mandatory = $false)]
+  [string]$PreApplyLiveEvidencePath = "",
+
+  [Parameter(Mandatory = $false)]
   [switch]$WaitForPromptReady,
 
   [Parameter(Mandatory = $false)]
@@ -326,6 +329,32 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   return $true
 }
 
+function Test-PreApplyLivePinsPublished([object]$Auth) {
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_pre_apply_live_evidence"] -and $null -ne $Auth.published_pre_apply_live_evidence) {
+    if ($null -ne $Auth.published_pre_apply_live_evidence.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_pre_apply_live_evidence.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
+  foreach ($name in @(
+      "required_pre_apply_live_evidence_sha256",
+      "required_pre_apply_live_freeze",
+      "required_pre_apply_live_evidence_tip",
+      "required_pre_apply_live_bundle_source"
+    )) {
+    if ($null -eq $Auth.PSObject.Properties[$name]) { return $false }
+    $v = [string]$Auth.$name
+    if ([string]::IsNullOrWhiteSpace($v)) { return $false }
+    if ($v -match '^(?i)pending') { return $false }
+  }
+  if ([string]$Auth.required_pre_apply_live_evidence_sha256 -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_freeze -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_evidence_tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_bundle_source -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  return $true
+}
+
 function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
   if (-not ($Commit -match '^[0-9a-fA-F]{40}$')) {
     throw "commit identity must be exact 40-hex for $Rel"
@@ -516,6 +545,9 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
       Stop-Entry "BLOCKED_MODE_CONFUSION" "ceremony_kind" "PriorDryRunEvidencePath is not valid for dry-run ceremony kind"
     }
+    if (-not [string]::IsNullOrWhiteSpace($PreApplyLiveEvidencePath)) {
+      Stop-Entry "BLOCKED_MODE_CONFUSION" "ceremony_kind" "PreApplyLiveEvidencePath is not valid for dry-run ceremony kind"
+    }
   } elseif ($CeremonyKind -eq "apply") {
     if (-not $ocApply) {
       Stop-Entry "AUTH_METADATA_INVALID" "load_auth" "missing operator_apply_ceremony seals"
@@ -530,6 +562,16 @@ try {
       $hostilePrior = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH", "Process")
       if (-not [string]::IsNullOrWhiteSpace($hostilePrior)) {
         Stop-Entry "BLOCKED_INPUT_INVALID" "prior_dry_run_gate" "RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_PATH override forbidden"
+      }
+      if (-not (Test-PreApplyLivePinsPublished -Auth $auth)) {
+        Stop-Entry "PRE_APPLY_LIVE_PINS_UNPUBLISHED" "pre_apply_live_pin_publication" "required_pre_apply_live_* pins are not published in TOOLING_AUTHORIZATION"
+      }
+      if (-not [string]::IsNullOrWhiteSpace($PreApplyLiveEvidencePath)) {
+        Stop-Entry "BLOCKED_INPUT_INVALID" "pre_apply_live_gate" "PreApplyLiveEvidencePath operator/path override forbidden; tip-sealed fixture only"
+      }
+      $hostilePreApply = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH", "Process")
+      if (-not [string]::IsNullOrWhiteSpace($hostilePreApply)) {
+        Stop-Entry "BLOCKED_INPUT_INVALID" "pre_apply_live_gate" "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH override forbidden"
       }
     }
   } else {
@@ -649,7 +691,7 @@ try {
     (Format-Win32Argument "-ExpectedLauncherBytes"),
     (Format-Win32Argument ([string]$launcherSeal.bytes))
   )
-  # Apply ceremony tip-materializes prior evidence itself; never forward operator paths.
+  # Apply ceremony tip-materializes prior + pre-apply live evidence itself; never forward operator paths.
   if ($WaitForPromptReady) {
     $launchArgs += (Format-Win32Argument "-WaitForPromptReady")
     $launchArgs += (Format-Win32Argument "-PromptReadyTimeoutSec")

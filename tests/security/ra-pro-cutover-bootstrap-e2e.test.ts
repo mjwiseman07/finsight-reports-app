@@ -213,6 +213,14 @@ describe("RA Pro cutover bootstrap auth surface", () => {
     expect(auth.gate_aware_merge_base_ref).toBe(
       "19e8bd071bae5f8afed85340f50168d4ca8e5586",
     );
+    expect(auth.required_pre_apply_live_evidence_sha256).toBeNull();
+    expect(auth.required_pre_apply_live_freeze).toBeNull();
+    expect(auth.required_pre_apply_live_evidence_tip).toBeNull();
+    expect(auth.required_pre_apply_live_bundle_source).toBeNull();
+    expect(auth.published_pre_apply_live_evidence?.status).toBe("UNPUBLISHED");
+    expect(auth.pre_apply_live_evidence_protocol?.id).toBe(
+      "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    );
   });
 });
 

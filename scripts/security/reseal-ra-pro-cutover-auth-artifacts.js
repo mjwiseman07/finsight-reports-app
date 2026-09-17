@@ -77,6 +77,9 @@ function main() {
   auth.precondition_gates = {
     ...sealRel("scripts/security/ra-pro-cutover-precondition-gates.ps1"),
   };
+  auth.pre_apply_live_gates = {
+    ...sealRel("scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1"),
+  };
 
   const evidence = sealRel("scripts/security/ra-pro-cutover-evidence.js");
   const frameTool = sealRel("scripts/security/ra-pro-cutover-evidence-frame-tool.js");
@@ -84,6 +87,9 @@ function main() {
   const shared = sealRel("scripts/security/containment-evidence-protocol.js");
   const contract = sealRel(
     "docs/security/ra-pro-cutover-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
+  );
+  const preApplyContract = sealRel(
+    "docs/security/ra-pro-cutover-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
   );
 
   auth.evidence_protocol = {
@@ -105,6 +111,15 @@ function main() {
     contract_bytes: contract.bytes,
   };
 
+  auth.pre_apply_live_evidence_protocol = {
+    id: "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    schema_version: 1,
+    contract_path: preApplyContract.path,
+    contract_oid: preApplyContract.oid,
+    contract_sha256: preApplyContract.sha256,
+    contract_bytes: preApplyContract.bytes,
+  };
+
   // Ensure pin fields exist and remain unpublished unless explicitly set.
   if (!Object.prototype.hasOwnProperty.call(auth, "required_precondition_evidence_sha256")) {
     auth.required_precondition_evidence_sha256 = null;
@@ -121,6 +136,21 @@ function main() {
   if (!auth.published_precondition_evidence) {
     auth.published_precondition_evidence = { status: "UNPUBLISHED" };
   }
+  if (!Object.prototype.hasOwnProperty.call(auth, "required_pre_apply_live_evidence_sha256")) {
+    auth.required_pre_apply_live_evidence_sha256 = null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(auth, "required_pre_apply_live_freeze")) {
+    auth.required_pre_apply_live_freeze = null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(auth, "required_pre_apply_live_evidence_tip")) {
+    auth.required_pre_apply_live_evidence_tip = null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(auth, "required_pre_apply_live_bundle_source")) {
+    auth.required_pre_apply_live_bundle_source = null;
+  }
+  if (!auth.published_pre_apply_live_evidence) {
+    auth.published_pre_apply_live_evidence = { status: "UNPUBLISHED" };
+  }
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(
@@ -129,7 +159,10 @@ function main() {
         ok: true,
         native_bootstrap: auth.native_bootstrap.oid,
         precondition_gates: auth.precondition_gates.oid,
+        pre_apply_live_gates: auth.pre_apply_live_gates.oid,
         operator_ceremony: auth.operator_ceremony.oid,
+        operator_apply_ceremony: auth.operator_apply_ceremony.oid,
+        visible_ceremony_entry: auth.visible_ceremony_entry.oid,
       },
       null,
       2,

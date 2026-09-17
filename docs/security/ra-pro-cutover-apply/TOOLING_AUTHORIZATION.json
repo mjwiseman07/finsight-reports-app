@@ -78,9 +78,9 @@
   },
   "operator_apply_ceremony": {
     "path": "scripts/security/operator-ra-pro-cutover-production-apply-ceremony.ps1",
-    "oid": "ca637a422ce1af50af7c0aacab91c92d19eefc1a",
-    "sha256": "c25405ff2ce5204d01170ae57a16c1196a610aa7410933ac4fd02c91c4b3aedb",
-    "bytes": 35839
+    "oid": "ce2dff024a764300180983e75ed3293c44b6bcf0",
+    "sha256": "ed0357d8513d2d96429f3cfaac0cc717407813a994a27df34d181799bd774a23",
+    "bytes": 48534
   },
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-cutover-ceremony.ps1",
@@ -90,9 +90,9 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-visible-ra-pro-cutover-ceremony.ps1",
-    "oid": "224355ab97a3f781421673e477303cc7250a38c0",
-    "sha256": "ab009cc690bc01849c2f87b183d9466b528ffc2f2cec1c8760043bb30db5dd66",
-    "bytes": 33086
+    "oid": "907990538f0e1baacd0505719fcd20d3d3d808e4",
+    "sha256": "7e3a168deba6ba87d70344be229df6039ee450d4fb4cc4b61fa25133af3d3903",
+    "bytes": 35515
   },
   "visible_ceremony_launcher": {
     "path": "scripts/security/launch-visible-ra-pro-cutover-ceremony.ps1",
@@ -161,7 +161,8 @@
     "bundle_source_commit = 90af07d27e122d80d5fb5072f7a66da818f245a5 (descendant of freeze; holds sealed standalone .cjs).",
     "required_prior_dry_run_* PUBLISHED: evidence fixture SHA-256 96796784… / 112020 CRLF bytes / OID fcf25851…; dry-run tip c4c414f8…; freeze a74d5108…; bundle source 90af07d2…; accepted precondition SHA fb3625f9…. Apply ceremony tip-materializes git blob only — path/env/SHA overrides forbidden. Two failed sandbox supervisor evidence SHAs rejected and unreferenced.",
     "required_precondition_* PUBLISHED on tip: evidence fixture SHA-256 fb3625f9… / 1407 bytes; freeze a74d5108…; tip 52fbbfcf…; bundle source 90af07d2…; expires 2026-09-17T05:25:11Z. Ceremony materializes tip git blob only — env/argv/worktree path overrides forbidden.",
-    "Visible apply mixed authority: tip materializes visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates from the exact publication tip; freeze materializes launcher/native/bootstrap; no freeze apply-ceremony fallback when prior pins PUBLISHED.",
+    "required_pre_apply_live_* remain UNPUBLISHED (null pins / published_pre_apply_live_evidence.status=UNPUBLISHED). Apply fails closed with PRE_APPLY_LIVE_PINS_UNPUBLISHED before SecureString credentials, Node, or DB. Distinct from precondition and prior dry-run; pin publication of prior dry-run does NOT satisfy this gate. When later PUBLISHED, tip git cat-file materialization only — argv/env/worktree overrides forbidden.",
+    "Visible apply mixed authority: tip materializes visible_ceremony_entry + operator_apply_ceremony + prior_dry_run_gates + pre_apply_live_gates from the exact publication tip; freeze materializes launcher/native/bootstrap; no freeze apply-ceremony fallback when prior pins PUBLISHED.",
     "Pin publication is NOT production apply authorization. Fresh pre-apply live checks (gate/protection/quiescence/inventory) remain required under separate authorization; historical dry-run/precondition PASS is not permanently fresh.",
     "Migration LF seals at artifact_commit b4f06a1c…: OID d36f5e2c…, SHA-256 c756651f…, bytes 40289.",
     "Decision LF seals: OID 0dd39de5…, SHA-256 f00039cb…, bytes 1122; mapping SHA 93f6fe31…; NO_CUTOVER×4.",
@@ -177,6 +178,27 @@
       "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
       "DRY_RUN_READY"
     ]
+  },
+  "pre_apply_live_gates": {
+    "path": "scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1",
+    "oid": "af087447b676c6ad86399b00b63d73ac1c6ef080",
+    "sha256": "e72f2ab672d10aafbfbe2b73f79105ee38d97dff3773b0172ba69ba15e936e4c",
+    "bytes": 21896
+  },
+  "required_pre_apply_live_evidence_sha256": null,
+  "required_pre_apply_live_freeze": null,
+  "required_pre_apply_live_evidence_tip": null,
+  "required_pre_apply_live_bundle_source": null,
+  "published_pre_apply_live_evidence": {
+    "status": "UNPUBLISHED"
+  },
+  "pre_apply_live_evidence_protocol": {
+    "id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "schema_version": 1,
+    "contract_path": "docs/security/ra-pro-cutover-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "contract_oid": "cb0a50d745e78c36505244d4068967eba1f9bf33",
+    "contract_sha256": "3afdb627a886f34742bb31bcd57290e18c2bae8f2b3f5850b97787553eb2b23f",
+    "contract_bytes": 11077
   },
   "published_prior_dry_run": {
     "status": "PUBLISHED",

@@ -1,0 +1,55 @@
+{
+  "protocol_id": "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "LOCAL_SYNTHETIC_FIXTURE_ONLY",
+  "collection_started_at_utc": "2099-01-01T10:00:00Z",
+  "collection_ended_at_utc": "2099-01-01T11:00:00Z",
+  "valid_from_utc": "2099-01-01T00:00:00Z",
+  "valid_until_utc": "2099-12-31T23:59:59Z",
+  "serving_deployment": {
+    "vercel_deployment_id": "synthetic-vercel-deploy-pre-apply-0001",
+    "merge_base_ref": "19e8bd071bae5f8afed85340f50168d4ca8e5586",
+    "merge_contained_or_serving": true,
+    "observed_at_utc": "2099-01-01T10:30:00Z"
+  },
+  "commerce_gate": {
+    "observed": "closed",
+    "never_open": true
+  },
+  "protection": {
+    "generated_production_preview_urls_protected": true,
+    "old_pre_gate_url_protected": true,
+    "custom_domains_public": true
+  },
+  "stripe_tcp1": {
+    "destination_classification": "SYNTHETIC_TCP1_DESTINATION_CLASSIFICATION",
+    "enabled": true,
+    "events_allowlist": [
+      "checkout.session.completed"
+    ],
+    "failed_visible_count": 0,
+    "pending_or_retry_scheduled_visible_count": 0,
+    "visibility_window_start_utc": "2099-01-01T00:00:00Z",
+    "visibility_window_end_utc": "2099-01-01T23:59:59Z",
+    "visibility_limitations": "SYNTHETIC_BOUNDED_OPERATOR_VISIBLE_WINDOW_ONLY"
+  },
+  "database_readonly": {
+    "history_count_expected": 187,
+    "target_version_absent": "20260915004500",
+    "migration_objects_absent": true,
+    "billing_company_id_absent": true,
+    "linked_firms_count": 0,
+    "ceremony_inventory": {
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "classification": "active_and_complimentary"
+    },
+    "unexpected_new_links": 0,
+    "unexpected_new_authorizing_slots": 0,
+    "webhook_ledger_non_terminal_count": 0,
+    "relevant_activity_class": "SYNTHETIC_NO_RELEVANT_MUTATING_ACTIVITY",
+    "relevant_activity_window_start_utc": "2099-01-01T00:00:00Z",
+    "relevant_activity_window_end_utc": "2099-01-01T23:59:59Z"
+  }
+}

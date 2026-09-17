@@ -24,6 +24,10 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$PriorDryRunEvidencePath = "",
 
+  # Forbidden when tip pins are PUBLISHED; tip Git blob only (never operator path).
+  [Parameter(Mandatory = $false)]
+  [string]$PreApplyLiveEvidencePath = "",
+
   # Test harness only: loopback synthetic URL when RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL=1
   [Parameter(Mandatory = $false)]
   [string]$TestSyntheticDatabaseUrl = ""
@@ -37,10 +41,13 @@ try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyCo
 
 # Sealed intent pin - never accept an operator-provided override of this value.
 $script:ExactApplyToken = "I_AUTHORIZE_RA_PRO_BILLING_COMPANY_CUTOVER_APPLY_20260915004500"
-# Gate module is materialized from freeze only — never $PSScriptRoot / worktree.
+# Gate modules are tip-materialized only — never $PSScriptRoot / worktree.
 $script:FrlsGatesTempDir = $null
 $script:FrlsGatesMaterializedPath = $null
 $script:FrlsGatesLoaded = $false
+$script:RaProPreApplyLiveGatesTempDir = $null
+$script:RaProPreApplyLiveGatesMaterializedPath = $null
+$script:RaProPreApplyLiveGatesLoaded = $false
 
 function Get-Sha256Text([string]$Text) {
   $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
@@ -174,6 +181,16 @@ function Classify-CeremonyFailure([string]$Message) {
   if ($msg -match "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE") {
     return @{ code = "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE"; phase = "prior_dry_run_gate" }
   }
+  if ($msg -match "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE") {
+    return @{ code = "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE"; phase = "pre_apply_live_gate" }
+  }
+  if ($msg -match "PRE_APPLY_LIVE_PINS_UNPUBLISHED") {
+    return @{ code = "PRE_APPLY_LIVE_PINS_UNPUBLISHED"; phase = "pre_apply_live_pin_publication" }
+  }
+  if ($msg -match "PRE_APPLY_LIVE_[A-Z0-9_]+") {
+    $m = [regex]::Match($msg, "PRE_APPLY_LIVE_[A-Z0-9_]+")
+    return @{ code = $m.Value; phase = "pre_apply_live_gate" }
+  }
   if ($msg -match "BLOCKED_GATE_MODULE|GATE_MODULE") {
     return @{ code = "BLOCKED_GATE_MODULE"; phase = "gate_module_materialize" }
   }
@@ -208,10 +225,11 @@ function Classify-CeremonyFailure([string]$Message) {
 }
 
 function Get-HarnessContaminationEnvNames {
-  # RA Pro cutover has no fixture Target#2 world; harness channels are synthetic-URL and stop-after-prior only.
+  # RA Pro cutover has no fixture Target#2 world; harness channels are synthetic-URL and stop-after boundaries only.
   return @(
     "RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL",
-    "RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE"
+    "RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE",
+    "RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRE_APPLY_LIVE"
   )
 }
 
@@ -276,6 +294,30 @@ function Test-PriorDryRunPinsPublished([object]$Auth) {
   return $true
 }
 
+function Test-PreApplyLivePinsPublished([object]$Auth) {
+  $status = $null
+  if ($null -ne $Auth.PSObject.Properties["published_pre_apply_live_evidence"] -and $null -ne $Auth.published_pre_apply_live_evidence) {
+    if ($null -ne $Auth.published_pre_apply_live_evidence.PSObject.Properties["status"]) {
+      $status = [string]$Auth.published_pre_apply_live_evidence.status
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($status) -or $status -ine "PUBLISHED") { return $false }
+  foreach ($v in @(
+      [string]$Auth.required_pre_apply_live_evidence_sha256,
+      [string]$Auth.required_pre_apply_live_freeze,
+      [string]$Auth.required_pre_apply_live_evidence_tip,
+      [string]$Auth.required_pre_apply_live_bundle_source
+    )) {
+    if ([string]::IsNullOrWhiteSpace($v)) { return $false }
+    if ($v -match '^(?i)pending') { return $false }
+  }
+  if ([string]$Auth.required_pre_apply_live_evidence_sha256 -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_freeze -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_evidence_tip -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  if ([string]$Auth.required_pre_apply_live_bundle_source -notmatch '^[0-9a-fA-F]{40}$') { return $false }
+  return $true
+}
+
 function Clear-FrlsMaterializedGates {
   $script:FrlsGatesMaterializedPath = $null
   $script:FrlsGatesLoaded = $false
@@ -283,6 +325,15 @@ function Clear-FrlsMaterializedGates {
     Remove-Item -LiteralPath $script:FrlsGatesTempDir -Recurse -Force -ErrorAction SilentlyContinue
   }
   $script:FrlsGatesTempDir = $null
+}
+
+function Clear-RaProPreApplyLiveGates {
+  $script:RaProPreApplyLiveGatesMaterializedPath = $null
+  $script:RaProPreApplyLiveGatesLoaded = $false
+  if ($script:RaProPreApplyLiveGatesTempDir -and (Test-Path -LiteralPath $script:RaProPreApplyLiveGatesTempDir)) {
+    Remove-Item -LiteralPath $script:RaProPreApplyLiveGatesTempDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  $script:RaProPreApplyLiveGatesTempDir = $null
 }
 
 function Import-RaProPriorDryRunGatesFromTip {
@@ -378,6 +429,99 @@ function Import-RaProPriorDryRunGatesFromTip {
   $script:FrlsGatesLoaded = $true
 }
 
+function Import-RaProPreApplyLiveGatesFromTip {
+  param(
+    [object]$Auth,
+    [string]$PublicationTip
+  )
+
+  if ($script:RaProPreApplyLiveGatesLoaded) { return }
+
+  $seal = $Auth.pre_apply_live_gates
+  if (-not $seal -or -not $seal.path -or -not $seal.oid -or -not $seal.sha256 -or -not $seal.bytes) {
+    throw "BLOCKED_GATE_MODULE_SEAL: TOOLING_AUTHORIZATION.pre_apply_live_gates incomplete"
+  }
+  $rel = [string]$seal.path
+  if ($rel -ne "scripts/security/ra-pro-cutover-pre-apply-live-gates.ps1") {
+    throw "BLOCKED_GATE_MODULE_SEAL: unexpected pre_apply_live_gates.path"
+  }
+  if ([string]::IsNullOrWhiteSpace($PublicationTip) -or $PublicationTip -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "BLOCKED_GATE_MODULE_SEAL: publication tip identity required before pre-apply live gate materialization"
+  }
+  $tipResolved = Invoke-GitTextLocal @("rev-parse", "--verify", ($PublicationTip + "^{commit}"))
+  if ($tipResolved.ToLowerInvariant() -ne $PublicationTip.ToLowerInvariant()) {
+    throw "BLOCKED_GATE_MODULE_SEAL: publication tip did not resolve to itself"
+  }
+
+  $oid = Invoke-GitTextLocal @("rev-parse", "${PublicationTip}:${rel}")
+  if ($oid -ne [string]$seal.oid) {
+    throw "BLOCKED_GATE_MODULE_OID: tip pre-apply live gate module OID mismatch"
+  }
+
+  $script:RaProPreApplyLiveGatesTempDir = Join-Path $EvidenceOutDir ("pre-apply-live-gates-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $script:RaProPreApplyLiveGatesTempDir | Out-Null
+  $dest = Join-Path $script:RaProPreApplyLiveGatesTempDir "ra-pro-cutover-pre-apply-live-gates.ps1"
+
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "cat-file blob ${PublicationTip}:${rel}"
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $ms = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($ms)
+  $err = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  if ($p.ExitCode -ne 0) { throw ("BLOCKED_GATE_MODULE_BLOB: " + $err) }
+  $blobBytes = $ms.ToArray()
+  if ($blobBytes.Length -ne [int]$seal.bytes) {
+    throw "BLOCKED_GATE_MODULE_BYTES: tip pre-apply live gate module byte count mismatch"
+  }
+  $sha = Get-Sha256Bytes -Bytes $blobBytes
+  if ($sha -ne ([string]$seal.sha256).ToLowerInvariant()) {
+    throw "BLOCKED_GATE_MODULE_SHA: tip pre-apply live gate module SHA-256 mismatch"
+  }
+  [IO.File]::WriteAllBytes($dest, $blobBytes)
+  $item = Get-Item -LiteralPath $dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "BLOCKED_GATE_MODULE_REPARSE: materialized pre-apply live gate module is a reparse point"
+  }
+  $hashOid = Invoke-GitTextLocal @("hash-object", "--no-filters", $dest)
+  if ($hashOid -ne [string]$seal.oid) {
+    throw "BLOCKED_GATE_MODULE_OID: materialized pre-apply live content OID mismatch"
+  }
+
+  $gateText = [IO.File]::ReadAllText($dest)
+  $gateScript = $ExecutionContext.InvokeCommand.NewScriptBlock($gateText)
+  . $gateScript
+  foreach ($name in @(
+      "Get-RaProPreApplyLiveSha256Bytes",
+      "Get-RaProPreApplyLiveRequiredString",
+      "Get-RaProPreApplyLiveRequiredBoolean",
+      "Get-RaProPreApplyLiveRequiredInt",
+      "Assert-RaProPreApplyLiveRequiredBooleanEquals",
+      "Assert-RaProPreApplyLiveRequiredIntEquals",
+      "Test-RaProPreApplyLiveForbiddenContent",
+      "Assert-RaProPreApplyLiveWrapperApplicatorAgreement",
+      "Assert-RaProPreApplyLiveEvidencePublished",
+      "Assert-RaProPreApplyLiveEvidence"
+    )) {
+    $cmd = Get-Command -Name $name -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $cmd) {
+      throw ("BLOCKED_GATE_MODULE_LOAD: " + $name + " missing after sealed dotsource")
+    }
+    Set-Item -Path ("function:script:" + $name) -Value $cmd.ScriptBlock
+  }
+  if (-not (Get-Command -Name Assert-RaProPreApplyLiveEvidence -ErrorAction SilentlyContinue)) {
+    throw "BLOCKED_GATE_MODULE_LOAD: Assert-RaProPreApplyLiveEvidence missing after sealed dotsource"
+  }
+  $script:RaProPreApplyLiveGatesMaterializedPath = $dest
+  $script:RaProPreApplyLiveGatesLoaded = $true
+}
+
 function Materialize-TipPriorDryRunEvidence {
   param(
     [object]$Auth,
@@ -458,6 +602,89 @@ function Materialize-TipPriorDryRunEvidence {
   return $dest
 }
 
+function Materialize-TipPreApplyLiveEvidence {
+  param(
+    [object]$Auth,
+    [string]$PublicationTip
+  )
+
+  $hostile = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($hostile)) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_PATH must not be set; tip-sealed fixture only"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($PreApplyLiveEvidencePath)) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: -PreApplyLiveEvidencePath is forbidden when tip pins are PUBLISHED; tip Git blob only"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($PriorDryRunEvidencePath)) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_PATH_OVERRIDE_FORBIDDEN: prior/argv path override forbidden for pre-apply live evidence"
+  }
+
+  $pub = $Auth.published_pre_apply_live_evidence
+  if ($null -eq $pub -or [string]$pub.status -ine "PUBLISHED") {
+    throw "PRE_APPLY_LIVE_PINS_UNPUBLISHED: published_pre_apply_live_evidence.status is not PUBLISHED"
+  }
+  $rel = [string]$pub.evidence_fixture_path
+  if ([string]::IsNullOrWhiteSpace($rel)) {
+    throw "AUTH_METADATA_INVALID: published_pre_apply_live_evidence.evidence_fixture_path required"
+  }
+  if ($rel -ne "tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json") {
+    throw "AUTH_METADATA_INVALID: unexpected pre-apply live evidence_fixture_path"
+  }
+  $expectedSha = ([string]$Auth.required_pre_apply_live_evidence_sha256).ToLowerInvariant()
+  $expectedBytes = [int]$pub.evidence_bytes
+  $expectedOid = [string]$pub.evidence_blob_oid
+  if ($expectedBytes -le 0) {
+    throw "AUTH_METADATA_INVALID: published_pre_apply_live_evidence.evidence_bytes required"
+  }
+  if ($expectedOid -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "AUTH_METADATA_INVALID: published_pre_apply_live_evidence.evidence_blob_oid required"
+  }
+
+  $oid = Invoke-GitTextLocal @("rev-parse", "${PublicationTip}:${rel}")
+  if ($oid.ToLowerInvariant() -ne $expectedOid.ToLowerInvariant()) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_OID: tip evidence fixture OID mismatch"
+  }
+
+  $tmp = Join-Path $EvidenceOutDir ("pre-apply-live-ev-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+  $dest = Join-Path $tmp "ra-pro-cutover-pre-apply-live-evidence.json"
+
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "cat-file blob ${PublicationTip}:${rel}"
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $ms = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($ms)
+  $err = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+  if ($p.ExitCode -ne 0) {
+    throw ("PRE_APPLY_LIVE_EVIDENCE_MISSING: git cat-file failed for tip pre-apply live evidence: " + $err)
+  }
+  $bytes = $ms.ToArray()
+  if ($bytes.Length -ne $expectedBytes) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_BYTES: tip pre-apply live evidence byte count mismatch"
+  }
+  $sha = Get-Sha256Bytes -Bytes $bytes
+  if ($sha -ne $expectedSha) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_SHA_MISMATCH: tip pre-apply live evidence SHA-256 mismatch"
+  }
+  [IO.File]::WriteAllBytes($dest, $bytes)
+  $item = Get-Item -LiteralPath $dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_REPARSE: materialized pre-apply live evidence is a reparse point"
+  }
+  $hashOid = Invoke-GitTextLocal @("hash-object", "--no-filters", $dest)
+  if ($hashOid.ToLowerInvariant() -ne $expectedOid.ToLowerInvariant()) {
+    throw "PRE_APPLY_LIVE_EVIDENCE_OID: materialized pre-apply live evidence OID mismatch"
+  }
+  return $dest
+}
+
 if (-not $RepoRoot) {
   $RepoRoot = (git rev-parse --show-toplevel 2>$null)
   if (-not $RepoRoot) { throw "RepoRoot required" }
@@ -479,9 +706,13 @@ $entryTempDir = $null
 $entryPath = $null
 $interactiveClose = $true
 $priorMeta = $null
+$preApplyLiveMeta = $null
 $exactToken = $null
 $useSyntheticNonInteractivePath = $false
 if ([Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRIOR_EVIDENCE", "Process") -eq "1") {
+  $interactiveClose = $false
+}
+if ([Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRE_APPLY_LIVE", "Process") -eq "1") {
   $interactiveClose = $false
 }
 if ([Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -eq "1") {
@@ -552,6 +783,38 @@ try {
       prior_dry_run_evidence_sha256 = [string]$priorMeta.sha256
     }
     throw "TEST_BOUNDARY_STOP_AFTER_PRIOR_EVIDENCE: prior tip evidence accepted; refuse credentials/DB under harness boundary"
+  }
+
+  # Fresh pre-apply live evidence AFTER prior acceptance, BEFORE native entry / credentials.
+  # Fail closed on UNPUBLISHED/null pins before tip gate import (distinct from precondition/prior).
+  if (-not (Test-PreApplyLivePinsPublished -Auth $auth)) {
+    throw "PRE_APPLY_LIVE_PINS_UNPUBLISHED: required_pre_apply_live_* pins are null/UNPUBLISHED in TOOLING_AUTHORIZATION"
+  }
+  Import-RaProPreApplyLiveGatesFromTip -Auth $auth -PublicationTip $tip
+  Write-Host "Pre-apply live gate module materialized and verified from publication tip."
+  Assert-RaProPreApplyLiveEvidencePublished -Auth $auth
+  $preApplyPath = Materialize-TipPreApplyLiveEvidence -Auth $auth -PublicationTip $tip
+  $preApplyLiveMeta = Assert-RaProPreApplyLiveEvidence -Path $preApplyPath -Auth $auth
+  Write-Host ("Pre-apply live evidence SHA verified from tip blob: " + $preApplyLiveMeta.sha256)
+
+  $stopAfterPreApply = [Environment]::GetEnvironmentVariable("RA_PRO_CUTOVER_CEREMONY_STOP_AFTER_PRE_APPLY_LIVE", "Process") -eq "1"
+  if ($stopAfterPreApply) {
+    Write-Host "TEST_BOUNDARY_PRE_APPLY_LIVE_ACCEPTED"
+    $interactiveClose = $false
+    $resultCode = "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE"
+    $parsed = [pscustomobject]@{
+      evidence_source = "ceremony_test_boundary"
+      result_code = $resultCode
+      reason_code = $resultCode
+      phase = "pre_apply_live_gate"
+      databaseConnectionAttempts = 0
+      sqlApplicationAttempts = 0
+      advisory_lock_acquired = $false
+      wrapper_observed = $true
+      prior_dry_run_evidence_sha256 = [string]$priorMeta.sha256
+      pre_apply_live_evidence_sha256 = [string]$preApplyLiveMeta.sha256
+    }
+    throw "TEST_BOUNDARY_STOP_AFTER_PRE_APPLY_LIVE: pre-apply live tip evidence accepted; refuse credentials/DB under harness boundary"
   }
 
   $ne = $auth.native_entry
@@ -720,6 +983,7 @@ finally {
     Remove-Item -LiteralPath $entryTempDir -Recurse -Force -ErrorAction SilentlyContinue
   }
   Clear-FrlsMaterializedGates
+  Clear-RaProPreApplyLiveGates
   $entryPath = $null
   [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
@@ -738,6 +1002,7 @@ finally {
     mode = "apply"
     freeze = $Freeze
     prior_dry_run_evidence_sha256 = $(if ($priorMeta) { [string]$priorMeta.sha256 } else { $null })
+    pre_apply_live_evidence_sha256 = $(if ($preApplyLiveMeta) { [string]$preApplyLiveMeta.sha256 } else { $null })
     harness_derived_forward_args = $false
     databaseConnectionAttempts = $dbAttempts
     sqlApplicationAttempts = $sqlAttempts
