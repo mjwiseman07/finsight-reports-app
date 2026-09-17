@@ -31,8 +31,10 @@
 
 1. Hourly provider-neutral refresh, RA Pro eligibility gate, and observability.
 2. Weekly completeness orchestrator and reviewer exception persistence.
+   Implemented behind `ENABLE_RA_PRO_ACCOUNTING_AUTOMATION`; runs Mondays at
+   06:30 UTC. Findings are aggregate, idempotent, server-written, and read-only
+   to active firm members. Missing source evidence blocks rather than guessing.
 3. Bank/cash, revenue-cutoff, and expense-cutoff resolvers plus workpapers.
 4. Provider-neutral month-end orchestration and Xero parity.
 5. Closed production deployment, monitored pilot rehearsal, and separate
    commerce-open authorization.
-
