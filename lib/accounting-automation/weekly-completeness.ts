@@ -229,7 +229,7 @@ function weeklyKey(candidate: WeeklyCandidate, weekEnding: string): string {
     .digest("hex");
 }
 
-async function loadWeeklyCandidates(): Promise<WeeklyCandidate[]> {
+export async function loadWeeklyCandidates(): Promise<WeeklyCandidate[]> {
   const db = createServiceClient();
   const { data: firms, error: firmError } = await db.from("firms").select("id, billing_company_id").not("billing_company_id", "is", null);
   if (firmError) throw firmError;
