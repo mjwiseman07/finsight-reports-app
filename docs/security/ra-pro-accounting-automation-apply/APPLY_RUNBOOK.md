@@ -1,49 +1,36 @@
-# RA Pro accounting-automation migration apply
+# RA Pro accounting-automation migration applicator
 
-Status: **UNPUBLISHED / production apply disabled**.
+## Scope
 
-This package is dedicated to the two review-only accounting-automation
-migrations. It must not reuse or retarget the RA Pro cutover, containment, or
-free-review applicators.
+Applies these two sealed migrations **atomically** (one transaction), in order:
 
-## Fixed order
+1. `20260917044537_ra_pro_weekly_completeness_findings`
+2. `20260917180140_ra_pro_month_end_review_packages`
 
-1. `20260917044537_ra_pro_weekly_completeness_findings.sql`
-2. `20260917180140_ra_pro_month_end_review_packages.sql`
+History contract: **188 → 190**.
 
-The production history contract is `188 -> 190`. Both versions must be absent
-before an apply. Either version already being present, any unexpected history
-count, or any seal mismatch blocks the ceremony without applying SQL.
+## Safety
 
-## Safety boundary
+- Credential channel: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL` only.
+- Forbidden: `DATABASE_URL`, cutover / FRLS / containment apply URL envs.
+- Never sets `ENABLE_RA_PRO_ACCOUNTING_AUTOMATION`.
+- Advisory lock: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY`.
+- No automatic retry.
+- Production apply remains **unreachable** while `TOOLING_AUTHORIZATION.json` publication pins are `UNPUBLISHED` / null.
 
-- `ENABLE_RA_PRO_ACCOUNTING_AUTOMATION` stays absent/false through apply and
-  post-apply verification.
-- The two migrations execute in one transaction under the dedicated advisory
-  lock `RA_PRO_ACCOUNTING_AUTOMATION_APPLY`.
-- No invoice, bill, payment, journal-entry, QuickBooks, or Xero write is part of
-  this ceremony.
-- There is no automatic retry after a production attempt.
-- Only `RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL` may carry the database
-  credential, and it must never be supplied on argv or retained in evidence.
+## Operator
 
-## Required review sequence
+```powershell
+# Always blocked on this tip (pins unpublished):
+powershell -NoProfile -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 -Mode dry-run
+```
 
-1. Verify committed Git blobs and the `188 -> 190` contract offline.
-2. Complete a disposable PostgreSQL boot/apply/security/concurrency rehearsal.
-3. Freeze and independently review the executable bundle and operator ceremony.
-4. Collect and publish a sanitized read-only production precondition artifact.
-5. Run one separately authorized production dry run.
-6. Publish and independently review the prior-dry-run pin.
-7. Collect fresh pre-apply live evidence while the feature flag remains closed.
-8. Obtain a separate one-attempt production apply authorization.
-9. Apply once, then independently verify history, RLS, grants, functions,
-   idempotency, and absence of provider-side writes.
+Offline seal verify (no DB):
 
-The offline verifier is:
-
-```text
+```bash
 node scripts/security/verify-ra-pro-accounting-automation-apply-authority.js
 ```
 
-It contacts no production service and cannot apply SQL.
+## Harness only
+
+Disposable Docker rehearsals may pass `allowUnpublishedForHarness: true` to exercise apply logic without publishing production pins.

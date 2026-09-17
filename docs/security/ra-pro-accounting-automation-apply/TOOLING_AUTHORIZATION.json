@@ -1,19 +1,17 @@
 {
   "package": "ra-pro-accounting-automation-apply-tooling",
-  "status": "UNPUBLISHED",
   "artifact_commit": "85ae600be8ef8ef3498703bf480f8148d6fe0971",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL",
   "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917",
   "advisory_lock": {
     "name": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY",
-    "key1": 1380008257,
-    "key2": 539363607
+    "key1": 1380012353,
+    "key2": 539364119
   },
   "history_contract": {
     "prior": 188,
-    "post": 190,
-    "ordered_versions": ["20260917044537", "20260917180140"]
+    "post": 190
   },
   "migrations": [
     {
@@ -33,22 +31,23 @@
       "bytes": 3997
     }
   ],
-  "published_prior_dry_run": {
+  "publication": {
     "status": "UNPUBLISHED",
-    "sha256": null
+    "required_prior_dry_run_evidence_sha256": null,
+    "required_prior_dry_run_evidence_oid": null,
+    "required_prior_dry_run_evidence_bytes": null,
+    "required_pre_apply_live_evidence_sha256": null,
+    "required_pre_apply_live_evidence_oid": null,
+    "required_pre_apply_live_evidence_bytes": null
   },
-  "published_pre_apply_live_evidence": {
-    "status": "UNPUBLISHED",
-    "sha256": null,
-    "valid_until_utc": null
+  "feature_flag": {
+    "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "must_remain": "absent_or_not_true",
+    "applicator_may_enable": false
   },
-  "apply_enabled": false,
-  "constraints": {
-    "single_transaction": true,
-    "ordered_migrations_only": true,
-    "no_automatic_retry": true,
-    "no_provider_writes": true,
-    "automation_flag_must_remain_closed": true,
-    "production_contact_forbidden_until_review": true
-  }
+  "notes": [
+    "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
+    "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
+    "Never uses cutover, FRLS, or containment database credential channels."
+  ]
 }

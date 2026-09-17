@@ -2,26 +2,17 @@
 "use strict";
 /* eslint-disable @typescript-eslint/no-require-imports */
 
-const crypto = require("node:crypto");
-const { execFileSync } = require("node:child_process");
+/**
+ * Offline authority verifier for RA Pro accounting-automation migrations.
+ * Never accepts a database URL or apply token. Never contacts production.
+ */
 const {
   ARTIFACT_COMMIT,
   MIGRATIONS,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
 } = require("./ra-pro-accounting-automation-apply-constants");
-
-function sha256(value) {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-function git(args, encoding = null) {
-  return execFileSync("git", args, {
-    cwd: process.cwd(),
-    encoding,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
+const { loadAndVerifyGitBlob } = require("./git-blob-authority");
 
 function fail(code, details) {
   const error = new Error(code);
@@ -31,24 +22,22 @@ function fail(code, details) {
 }
 
 function verifyMigration(migration) {
-  const spec = `${ARTIFACT_COMMIT}:${migration.path}`;
-  const oid = git(["rev-parse", spec], "utf8").trim();
-  const bytes = git(["cat-file", "blob", oid]);
-  const observed = { oid, sha256: sha256(bytes), bytes: bytes.length };
-  for (const field of ["oid", "sha256", "bytes"]) {
-    if (observed[field] !== migration[field]) {
-      fail("MIGRATION_SEAL_MISMATCH", {
-        version: migration.version,
-        field,
-        expected: migration[field],
-        observed: observed[field],
-      });
-    }
-  }
-  if (bytes.includes(13)) {
-    fail("MIGRATION_NOT_LF_ONLY", { version: migration.version });
-  }
-  return { ...migration, lineEndings: "LF" };
+  const loaded = loadAndVerifyGitBlob({
+    commit: ARTIFACT_COMMIT,
+    path: migration.path,
+    expectedOid: migration.oid,
+    expectedSha256: migration.sha256,
+    expectedBytes: migration.bytes,
+  });
+  return {
+    version: migration.version,
+    name: migration.name,
+    path: migration.path,
+    oid: loaded.oid,
+    sha256: loaded.sha256,
+    bytes: loaded.bytes,
+    lineEndings: "LF",
+  };
 }
 
 function main() {
@@ -85,7 +74,7 @@ try {
     `${JSON.stringify({
       verdict: "BLOCKED",
       reason: error.code || "OFFLINE_AUTHORITY_FAILURE",
-      details: error.details || null,
+      details: error.details || String(error && error.message) || null,
     })}\n`,
   );
   process.exitCode = 1;

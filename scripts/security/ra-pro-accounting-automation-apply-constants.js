@@ -1,15 +1,23 @@
 "use strict";
 
 /**
- * Offline authority for the RA Pro accounting-automation migration bundle.
- * Production apply remains disabled until the authorization package publishes
- * reviewed prior-dry-run and fresh pre-apply evidence pins.
+ * Offline authority for the RA Pro accounting-automation migration applicator.
+ * Production apply remains unreachable until prior-dry-run and pre-apply pins publish.
  */
 const ARTIFACT_COMMIT = "85ae600be8ef8ef3498703bf480f8148d6fe0971";
 const EXPECTED_PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
 const DATABASE_URL_ENV = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL";
 const APPLY_AUTHORIZATION_TOKEN =
   "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917";
+
+const FORBIDDEN_DATABASE_URL_ENVS = Object.freeze([
+  "DATABASE_URL",
+  "RA_PRO_CUTOVER_APPLY_DATABASE_URL",
+  "CONTAINMENT_APPLY_DATABASE_URL",
+  "FREE_REVIEW_LEAD_SESSION_APPLY_DATABASE_URL",
+]);
+
+const FEATURE_FLAG_ENV = "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION";
 
 const ADVISORY_LOCK = Object.freeze({
   name: "RA_PRO_ACCOUNTING_AUTOMATION_APPLY",
@@ -39,13 +47,37 @@ const MIGRATIONS = Object.freeze([
   }),
 ]);
 
+const TOOLING_AUTHORIZATION_PATH =
+  "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
+
+const STANDALONE_BUNDLE_PATH =
+  "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
+
+/** Pending placeholder — whole-file self-hash fixed-point not used (cutover/FRLS contract). */
+const EXPECTED_STANDALONE_BUNDLE_SHA256 =
+  "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
+
+const SELF_AUTHORITY_MODULES = Object.freeze([
+  "scripts/security/apply-ra-pro-accounting-automation.js",
+  "scripts/security/ra-pro-accounting-automation-apply-core.js",
+  "scripts/security/ra-pro-accounting-automation-apply-constants.js",
+  "scripts/security/git-blob-authority.js",
+  "scripts/security/verify-ra-pro-accounting-automation-apply-authority.js",
+]);
+
 module.exports = {
   ADVISORY_LOCK,
   APPLY_AUTHORIZATION_TOKEN,
   ARTIFACT_COMMIT,
   DATABASE_URL_ENV,
   EXPECTED_PROJECT_REF,
+  EXPECTED_STANDALONE_BUNDLE_SHA256,
+  FEATURE_FLAG_ENV,
+  FORBIDDEN_DATABASE_URL_ENVS,
   MIGRATIONS,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
+  SELF_AUTHORITY_MODULES,
+  STANDALONE_BUNDLE_PATH,
+  TOOLING_AUTHORIZATION_PATH,
 };
