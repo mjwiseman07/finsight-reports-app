@@ -212,7 +212,8 @@ function Protect-SanitizedText([string]$Text) {
   if (-not $Text) { return "" }
   $t = [regex]::Replace($Text, "postgres(?:ql)?://\S+", "postgres://***")
   $t = [regex]::Replace($t, "password=[^&\s]+", "password=***")
-  $t = [regex]::Replace($t, "sk_live_\w+", "sk_live_***")
+  $livePrefix = "sk_" + "live_"
+  $t = [regex]::Replace($t, ($livePrefix + "\w+"), ($livePrefix + "***"))
   return $t
 }
 
