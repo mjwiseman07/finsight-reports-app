@@ -31,11 +31,13 @@ Gate order (fail-closed):
 
 - Credential channel: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL` only.
 - Forbidden: `DATABASE_URL`, cutover / FRLS / containment apply URL envs.
+- Production / ceremony hosts must bind to Supabase project `jzmdgwwiestcmmeuhhkr` (`DATABASE_PROJECT_REF_MISMATCH` otherwise). Loopback is forbidden outside an in-process harness input unavailable via CLI/argv/env/standalone.
 - Never sets `ENABLE_RA_PRO_ACCOUNTING_AUTOMATION`.
 - Advisory lock: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY`.
 - No automatic retry (one authorization → one attempt marker).
 - Evidence and seals come from committed Git blobs only — never mutable worktree evidence authority.
 - Forbid argv/environment precondition evidence-path overrides.
+- Visible ceremony: bounded child timeout, scoped process-tree termination, guaranteed removal of `raw-child-stdout.frame.txt` and `bundle-*.cjs`, truthful `cleanup.*` evidence fields.
 
 ## Operator (visible dry-run ceremony)
 

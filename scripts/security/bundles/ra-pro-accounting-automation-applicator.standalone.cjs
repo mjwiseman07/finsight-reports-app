@@ -5581,16 +5581,37 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       try {
         host = new URL(url.replace(/^postgres(ql)?:/i, "http:")).hostname;
       } catch {
-        return { ok: false, reason: "MALFORMED_DATABASE_URL", host: null };
+        return {
+          ok: false,
+          reason: "MALFORMED_DATABASE_URL",
+          host_class: "malformed",
+          is_local: false,
+          matches_expected_project_ref: false,
+          expected_project_ref: expectedProjectRef
+        };
       }
       const isLocal = host === "127.0.0.1" || host === "localhost";
-      const matchesRef = host && host.includes(expectedProjectRef);
+      const matchesRef = Boolean(host && host.includes(expectedProjectRef));
+      let hostClass = "mismatched";
+      if (isLocal) hostClass = "loopback";
+      else if (matchesRef) hostClass = "expected_project";
       return {
         ok: true,
-        host,
+        host_class: hostClass,
         is_local: isLocal,
-        matches_expected_project_ref: Boolean(matchesRef),
+        matches_expected_project_ref: matchesRef,
         expected_project_ref: expectedProjectRef
+      };
+    }
+    function sanitizeUriDiagnostics(diagnostics) {
+      if (!diagnostics || typeof diagnostics !== "object") return diagnostics;
+      return {
+        ok: Boolean(diagnostics.ok),
+        host_class: diagnostics.host_class || (diagnostics.ok ? "mismatched" : "malformed"),
+        is_local: Boolean(diagnostics.is_local),
+        matches_expected_project_ref: Boolean(diagnostics.matches_expected_project_ref),
+        expected_project_ref: diagnostics.expected_project_ref || EXPECTED_PROJECT_REF,
+        reason: diagnostics.reason || void 0
       };
     }
     function assertFeatureFlagUntouched(env = process.env) {
@@ -5602,13 +5623,13 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         throw e;
       }
     }
-    function resolveDatabaseUrlFromEnv(env = process.env) {
+    function resolveDatabaseUrlFromEnv(env = process.env, options = {}) {
       assertFeatureFlagUntouched(env);
       for (const forbidden of FORBIDDEN_DATABASE_URL_ENVS) {
         if (Object.prototype.hasOwnProperty.call(env, forbidden) && env[forbidden]) {
           const e = new Error(`PROHIBITED_CREDENTIAL_CHANNEL: ${forbidden} is forbidden`);
           e.code = "PROHIBITED_CREDENTIAL_CHANNEL";
-          e.uri_diagnostics = classifyDatabaseUrl(env[forbidden]);
+          e.uri_diagnostics = sanitizeUriDiagnostics(classifyDatabaseUrl(env[forbidden]));
           e.phase = "uri_validate";
           throw e;
         }
@@ -5620,10 +5641,30 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         e.phase = "uri_validate";
         throw e;
       }
-      const diagnostics = classifyDatabaseUrl(raw);
+      const diagnostics = sanitizeUriDiagnostics(classifyDatabaseUrl(raw));
       if (!diagnostics.ok) {
         const e = new Error("MALFORMED_DATABASE_URL");
         e.code = "MALFORMED_DATABASE_URL";
+        e.uri_diagnostics = diagnostics;
+        e.phase = "uri_validate";
+        throw e;
+      }
+      const allowLocalhostForHarness = options.allowLocalhostForHarness === true;
+      if (diagnostics.is_local) {
+        if (!allowLocalhostForHarness) {
+          const e = new Error(
+            "DATABASE_PROJECT_REF_MISMATCH: loopback hosts are forbidden outside in-process harness"
+          );
+          e.code = "DATABASE_PROJECT_REF_MISMATCH";
+          e.uri_diagnostics = diagnostics;
+          e.phase = "uri_validate";
+          throw e;
+        }
+      } else if (!diagnostics.matches_expected_project_ref) {
+        const e = new Error(
+          `DATABASE_PROJECT_REF_MISMATCH: host is not bound to Supabase project ${EXPECTED_PROJECT_REF}`
+        );
+        e.code = "DATABASE_PROJECT_REF_MISMATCH";
         e.uri_diagnostics = diagnostics;
         e.phase = "uri_validate";
         throw e;
@@ -5666,7 +5707,10 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       const forbiddenEnv = [
         "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_HARNESS",
         "ALLOW_UNPUBLISHED_FOR_HARNESS",
-        "ALLOW_UNPUBLISHED_RA_PRO_ACCOUNTING_AUTOMATION"
+        "ALLOW_UNPUBLISHED_RA_PRO_ACCOUNTING_AUTOMATION",
+        "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST",
+        "ALLOW_LOCALHOST_FOR_HARNESS",
+        "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS"
       ];
       for (const name of forbiddenEnv) {
         if (Object.prototype.hasOwnProperty.call(env, name) && env[name]) {
@@ -5677,7 +5721,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         }
       }
       const argv = inputs.argv || process.argv || [];
-      if (argv.some((a) => /harness|allow-unpublished/i.test(String(a)))) {
+      if (argv.some((a) => /harness|allow-unpublished|allow-localhost/i.test(String(a)))) {
         const e = new Error("HARNESS_VIA_ARGV_FORBIDDEN");
         e.code = "HARNESS_VIA_ARGV_FORBIDDEN";
         e.phase = "bundle_authority";
@@ -5999,10 +6043,12 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
           sha256: p.loaded.sha256,
           bytes: p.loaded.bytes
         }));
-        const { url, uri_diagnostics } = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        const { url, uri_diagnostics } = resolveDatabaseUrlFromEnv(inputs.env || process.env, {
+          allowLocalhostForHarness: inputs.allowLocalhostForHarness === true
+        });
         evidence.uri_diagnostics = uri_diagnostics;
         evidence.databaseConnectionAttempts = 1;
-        evidence.productionContact = true;
+        evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
         const versionsAbsent = [];
         await withClient(url, async (client) => {
           await client.query("BEGIN");
@@ -6051,7 +6097,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
           e.code = "APPLY_AUTHORIZATION_TOKEN_MISMATCH";
           throw e;
         }
-        const resolved = resolveDatabaseUrlFromEnv(inputs.env || process.env);
+        const resolved = resolveDatabaseUrlFromEnv(inputs.env || process.env, {
+          allowLocalhostForHarness: inputs.allowLocalhostForHarness === true
+        });
         databaseUrl = resolved.url;
         evidence.uri_diagnostics = resolved.uri_diagnostics;
         packed = loadSealedMigrations(inputs);
@@ -6212,6 +6260,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       runApply,
       runDryRun,
       sanitizeError,
+      sanitizeUriDiagnostics,
       sanitizeValue
     };
   }

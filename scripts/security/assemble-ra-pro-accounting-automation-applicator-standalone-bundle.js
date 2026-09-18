@@ -174,7 +174,9 @@ function main() {
     ? String(parsed.reason || parsed.result_code || parsed.error_code || parsed.error || "")
     : out;
   if (
-    !/BUNDLE_|AUTHORIZATION_PINS_UNPUBLISHED|BLOCKED_PIN_MISMATCH|GIT_BLOB/i.test(code)
+    !/BUNDLE_|AUTHORIZATION_PINS_UNPUBLISHED|BLOCKED_PIN_MISMATCH|GIT_BLOB|MISSING_INPUT|DATABASE_PROJECT_REF_MISMATCH/i.test(
+      code,
+    )
   ) {
     throw new Error(`standalone smoke unexpected verdict: ${out}`);
   }

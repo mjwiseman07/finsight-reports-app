@@ -20,6 +20,7 @@ import {
 } from "../../scripts/security/ra-pro-accounting-automation-apply-core.js";
 import {
   ARTIFACT_COMMIT,
+  EXPECTED_PROJECT_REF,
   MIGRATIONS,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
@@ -78,6 +79,21 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         [FEATURE_FLAG_ENV]: "true",
       }),
     ).toThrow(/ENABLE_RA_PRO_ACCOUNTING_AUTOMATION=true is forbidden/);
+    expect(() =>
+      resolveDatabaseUrlFromEnv({
+        [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db",
+      }),
+    ).toThrow(/DATABASE_PROJECT_REF_MISMATCH/);
+    expect(() =>
+      resolveDatabaseUrlFromEnv({
+        [DATABASE_URL_ENV]: "postgres://x@db.otherproject.supabase.co/postgres",
+      }),
+    ).toThrow(/DATABASE_PROJECT_REF_MISMATCH/);
+    const projectOk = resolveDatabaseUrlFromEnv({
+      [DATABASE_URL_ENV]: `postgres://x@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres`,
+    });
+    expect(projectOk.uri_diagnostics.host_class).toBe("expected_project");
+    expect(projectOk.uri_diagnostics).not.toHaveProperty("host");
   });
 
   it("redacts database URLs from evidence", () => {
@@ -275,6 +291,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     return {
       mode: "apply" as const,
       allowUnpublishedForHarness: true,
+      allowLocalhostForHarness: true,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       artifactCommit: ARTIFACT_COMMIT,
       env: { [DATABASE_URL_ENV]: url },
@@ -311,6 +328,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
       sleep(400);
     }
     if (!ready) throw new Error("postgres readiness timeout");
+    sleep(1000);
 
     const boot = `
       CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -405,6 +423,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   it("dry-run is ready with zero SQL attempts when history is 188", async () => {
     const result = await runApplicator({
       mode: "dry-run",
+      allowLocalhostForHarness: true,
       env: { [DATABASE_URL_ENV]: url },
     });
     expect(result, JSON.stringify(result)).toMatchObject({
@@ -417,6 +436,8 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     });
     expect(result.versions_absent).toEqual(MIGRATIONS.map((m) => m.version));
     expect(result.advisory_lock_acquired).toBe(true);
+    expect(result.uri_diagnostics?.host_class).toBe("loopback");
+    expect(result.uri_diagnostics).not.toHaveProperty("host");
   });
 
   it("applies both sealed migrations atomically and stores exact LF blobs", async () => {

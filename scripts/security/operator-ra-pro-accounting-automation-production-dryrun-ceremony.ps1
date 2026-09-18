@@ -4,6 +4,7 @@
   Visible Windows PowerShell production dry-run ceremony for RA Pro accounting-automation.
   SecureString URL prompt. Never applies migrations. Never publishes prior/pre-apply pins.
   Dry-run authority = published precondition_publication only (not prior-dry-run / pre-apply).
+  Guaranteed cleanup of raw stdout + materialized bundle; bounded child supervision.
 #>
 [CmdletBinding()]
 param(
@@ -17,9 +18,27 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$EvidenceOutDir = "",
 
-  # Harness only: loopback URL when RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL=1
+  # Harness-only: non-interactive SecureString source when ALLOW_SYNTHETIC=1.
+  # Must be a project-bound host (never localhost). Used only for ceremony unit tests.
   [Parameter(Mandatory = $false)]
-  [string]$TestSyntheticDatabaseUrl = ""
+  [string]$TestSyntheticDatabaseUrl = "",
+
+  # Harness-only child behavior: success | hang | fail | malformed (requires ALLOW_SYNTHETIC=1).
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("", "success", "hang", "fail", "malformed")]
+  [string]$TestHarnessChildStub = "",
+
+  # Bounded child wait (ms). Default 120s. Harness may lower for hang tests.
+  [Parameter(Mandatory = $false)]
+  [int]$ChildTimeoutMs = 120000,
+
+  # Harness-only: force cleanup verification to fail closed.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceCleanupFailure,
+
+  # Harness-only: force child termination verification to fail closed.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceTerminateFailure
 )
 
 Set-StrictMode -Version Latest
@@ -28,6 +47,7 @@ $ProgressPreference = "SilentlyContinue"
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
 $DatabaseUrlEnv = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL"
+$ExpectedProjectRef = "jzmdgwwiestcmmeuhhkr"
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
 $ForbiddenUrlEnvs = @(
@@ -38,7 +58,10 @@ $ForbiddenUrlEnvs = @(
 )
 $ForbiddenOverrideEnvs = @(
   "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_PATH",
-  "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_SHA256"
+  "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_SHA256",
+  "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST",
+  "ALLOW_LOCALHOST_FOR_HARNESS",
+  "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS"
 )
 
 function Get-Sha256Bytes([byte[]]$Bytes) {
@@ -63,6 +86,22 @@ function Sanitize-Text([string]$Text) {
   return $t
 }
 
+function Get-HostClass([string]$Url) {
+  try {
+    $u = [Uri]($Url -replace '^postgres(ql)?:', 'http:')
+    $hostName = $u.Host
+    if ($hostName -eq "127.0.0.1" -or $hostName -eq "localhost") {
+      return @{ ok = $true; host_class = "loopback"; is_local = $true; matches = $false }
+    }
+    if ($hostName -and $hostName.Contains($ExpectedProjectRef)) {
+      return @{ ok = $true; host_class = "expected_project"; is_local = $false; matches = $true }
+    }
+    return @{ ok = $true; host_class = "mismatched"; is_local = $false; matches = $false }
+  } catch {
+    return @{ ok = $false; host_class = "malformed"; is_local = $false; matches = $false }
+  }
+}
+
 function Invoke-GitTextLocal([string[]]$GitArgs) {
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = "git"
@@ -74,14 +113,16 @@ function Invoke-GitTextLocal([string[]]$GitArgs) {
   $psi.RedirectStandardError = $true
   $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
-  # Trust this worktree without mutating global git config.
   $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
   $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
   $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = ($RepoRoot -replace "\\", "/")
   $p = [Diagnostics.Process]::Start($psi)
   $out = $p.StandardOutput.ReadToEnd()
   $err = $p.StandardError.ReadToEnd()
-  $p.WaitForExit()
+  if (-not $p.WaitForExit(60000)) {
+    try { $p.Kill() } catch {}
+    throw "git timed out"
+  }
   if ($p.ExitCode -ne 0) { throw "git failed: $err" }
   return $out.Trim()
 }
@@ -102,9 +143,66 @@ function Get-GitBlobBytes([string]$Commit, [string]$Rel) {
   $ms = New-Object IO.MemoryStream
   $p.StandardOutput.BaseStream.CopyTo($ms)
   $err = $p.StandardError.ReadToEnd()
-  $p.WaitForExit()
+  if (-not $p.WaitForExit(60000)) {
+    try { $p.Kill() } catch {}
+    throw "git cat-file timed out"
+  }
   if ($p.ExitCode -ne 0) { throw "git cat-file failed for ${Rel}: $err" }
   return $ms.ToArray()
+}
+
+function Get-ScopedOrphanPids([string]$Sentinel, [int]$ExcludePid) {
+  $found = @()
+  try {
+    $procs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
+    foreach ($proc in $procs) {
+      if ($null -eq $proc) { continue }
+      if ([int]$proc.ProcessId -eq $ExcludePid) { continue }
+      $cmd = [string]$proc.CommandLine
+      if ([string]::IsNullOrWhiteSpace($cmd)) { continue }
+      if ($cmd.IndexOf($Sentinel, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $found += [int]$proc.ProcessId
+      }
+    }
+  } catch {}
+  return $found
+}
+
+function Stop-CeremonyChildTree([Diagnostics.Process]$Proc, [string]$Sentinel) {
+  $terminated = $false
+  $confirmed = $false
+  if ($null -eq $Proc) {
+    return @{ terminated = $true; confirmed = $true; method = "no_child" }
+  }
+  $procId = 0
+  try { $procId = [int]$Proc.Id } catch {}
+  try {
+    if (-not $Proc.HasExited) {
+      # Kill process tree rooted at child PID only (scoped).
+      $tk = Start-Process -FilePath "taskkill.exe" -ArgumentList @("/PID", "$procId", "/T", "/F") -Wait -PassThru -WindowStyle Hidden -ErrorAction SilentlyContinue
+      $terminated = $true
+      if ($null -ne $tk -and $tk.ExitCode -ne 0) {
+        try { $Proc.Kill() } catch {}
+      }
+    } else {
+      $terminated = $true
+    }
+  } catch {
+    try { if (-not $Proc.HasExited) { $Proc.Kill() }; $terminated = $true } catch {}
+  }
+  try {
+    if (-not $Proc.HasExited) { [void]$Proc.WaitForExit(15000) }
+    $confirmed = [bool]$Proc.HasExited
+  } catch {
+    $confirmed = $false
+  }
+  # Also kill any remaining scoped orphans matching the ceremony sentinel.
+  foreach ($op in (Get-ScopedOrphanPids -Sentinel $Sentinel -ExcludePid 0)) {
+    try {
+      Start-Process -FilePath "taskkill.exe" -ArgumentList @("/PID", "$op", "/T", "/F") -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+  }
+  return @{ terminated = $terminated; confirmed = $confirmed; method = "taskkill_tree"; pid = $procId }
 }
 
 if (-not $RepoRoot) {
@@ -122,11 +220,29 @@ $bstr = [IntPtr]::Zero
 $plain = $null
 $attemptMarker = $null
 $child = $null
-$credentialCleared = $false
-$orphanProcesses = @()
-$resultCode = "CEREMONY_FAILED"
-$evidencePath = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+$childPid = $null
+$bundleTemp = $null
+$ceremonySentinel = "ra-acct-dryrun-" + [guid]::NewGuid().ToString("N")
 $rawCapture = Join-Path $EvidenceOutDir "raw-child-stdout.frame.txt"
+$evidencePath = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+$resultCode = "CEREMONY_FAILED"
+$parsed = $null
+$pre = $null
+$bundleSeal = $null
+$hostClass = $null
+$timedOut = $false
+$childTerminated = $false
+$terminationConfirmed = $false
+$orphanPids = @()
+$orphanCheckCompleted = $false
+$rawStdoutRemoved = $false
+$materialRemoved = $false
+$credentialCleared = $false
+$secureZeroFreed = $false
+$cleanupCompleted = $false
+$stdout = ""
+$stderr = ""
+$combined = ""
 
 Clear-Host
 Write-Host "RA Pro accounting-automation production dry-run ceremony"
@@ -160,13 +276,8 @@ try {
     throw "PRECONDITION_PINS_UNPUBLISHED: precondition_publication is not PUBLISHED"
   }
   $pub = $auth.publication
-  if ($null -eq $pub -or [string]$pub.status -ne "UNPUBLISHED" -or
-      $null -ne $pub.required_prior_dry_run_evidence_sha256 -or
-      $null -ne $pub.required_pre_apply_live_evidence_sha256) {
-    # Soft note only — dry-run does not require these pins unpublished forever, but this tip must keep them null.
-    if ($null -ne $pub.required_prior_dry_run_evidence_sha256 -or $null -ne $pub.required_pre_apply_live_evidence_sha256) {
-      Write-Host "NOTE: prior/pre-apply pins are present; dry-run still does not consume apply authority."
-    }
+  if ($null -ne $pub.required_prior_dry_run_evidence_sha256 -or $null -ne $pub.required_pre_apply_live_evidence_sha256) {
+    Write-Host "NOTE: prior/pre-apply pins are present; dry-run still does not consume apply authority."
   }
 
   $bundleSeal = $auth.standalone_bundle
@@ -197,17 +308,17 @@ try {
   [IO.File]::WriteAllText($attemptMarker, ("dry-run`n{0}`n{1}`n" -f $PrHead, (Get-Date).ToUniversalTime().ToString("o")))
 
   $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
-  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
+  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
     if ($allowSynthetic -ne "1") {
       throw "SYNTHETIC_URL_NOT_ALLOWED"
     }
-    if ($TestSyntheticDatabaseUrl -notmatch '^postgres(?:ql)?://.+@(127\.0\.0\.1|localhost)[:/]') {
-      throw "TEST_URL_NOT_LOOPBACK"
-    }
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
     $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
   } else {
-    if (-not [string]::IsNullOrWhiteSpace($allowSynthetic) -or -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-      throw "BLOCKED_HARNESS_ENV_CONTAMINATION: interactive path forbids synthetic harness env"
+    if (-not [string]::IsNullOrWhiteSpace($allowSynthetic)) {
+      throw "BLOCKED_HARNESS_ENV_CONTAMINATION: interactive path forbids synthetic harness env without TestSyntheticDatabaseUrl"
     }
     $secure = Read-Host -Prompt $DatabaseUrlEnv -AsSecureString
   }
@@ -220,8 +331,61 @@ try {
     throw "BLOCKED_CREDENTIAL_UNAVAILABLE: Empty URL after SecureString"
   }
 
-  $bundleTemp = Join-Path $EvidenceOutDir ("bundle-" + [guid]::NewGuid().ToString("N") + ".cjs")
-  [IO.File]::WriteAllBytes($bundleTemp, $bundleBytes)
+  $hostClass = Get-HostClass -Url $plain
+  if (-not $hostClass.ok) {
+    throw "MALFORMED_DATABASE_URL"
+  }
+  if ($hostClass.is_local -or -not $hostClass.matches) {
+    throw "DATABASE_PROJECT_REF_MISMATCH: host must be bound to Supabase project $ExpectedProjectRef"
+  }
+
+  $bundleTemp = Join-Path $EvidenceOutDir ("bundle-" + $ceremonySentinel + ".cjs")
+  if (-not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -and $allowSynthetic -eq "1") {
+    $stubBody = switch ($TestHarnessChildStub) {
+      "success" {
+        @"
+console.log(JSON.stringify({
+  verdict: "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+  result_code: "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+  databaseConnectionAttempts: 0,
+  sqlApplicationAttempts: 0,
+  migration_sql_attempts: 0,
+  harness_stub: true,
+  ceremony_sentinel: "$ceremonySentinel"
+}));
+process.exit(0);
+"@
+      }
+      "hang" {
+        @"
+setInterval(() => {}, 1000);
+// hang until killed; sentinel=$ceremonySentinel
+"@
+      }
+      "fail" {
+        @"
+console.log(JSON.stringify({
+  verdict: "DRY_RUN_BLOCKED",
+  result_code: "HARNESS_CHILD_FAIL",
+  databaseConnectionAttempts: 0,
+  sqlApplicationAttempts: 0,
+  ceremony_sentinel: "$ceremonySentinel"
+}));
+process.exit(2);
+"@
+      }
+      "malformed" {
+        @"
+console.log("NOT_JSON_EVIDENCE sentinel=$ceremonySentinel");
+process.exit(0);
+"@
+      }
+      default { throw "INVALID_HARNESS_STUB" }
+    }
+    [IO.File]::WriteAllText($bundleTemp, ($stubBody -replace "`r`n", "`n"))
+  } else {
+    [IO.File]::WriteAllBytes($bundleTemp, $bundleBytes)
+  }
 
   Clear-AccountingCredentialChannels
   [Environment]::SetEnvironmentVariable($DatabaseUrlEnv, $plain, "Process")
@@ -242,17 +406,44 @@ try {
   $child = New-Object Diagnostics.Process
   $child.StartInfo = $psi
   [void]$child.Start()
-  $stdout = $child.StandardOutput.ReadToEnd()
-  $stderr = $child.StandardError.ReadToEnd()
-  $child.WaitForExit()
+  $childPid = [int]$child.Id
+
+  # Async read so WaitForExit timeout cannot deadlock on full pipes.
+  $outTask = $child.StandardOutput.ReadToEndAsync()
+  $errTask = $child.StandardError.ReadToEndAsync()
+  $exited = $child.WaitForExit([Math]::Max(1, $ChildTimeoutMs))
+  if (-not $exited) {
+    $timedOut = $true
+    $stop = Stop-CeremonyChildTree -Proc $child -Sentinel $ceremonySentinel
+    $childTerminated = [bool]$stop.terminated
+    $terminationConfirmed = [bool]$stop.confirmed
+    if ($TestForceTerminateFailure) {
+      $terminationConfirmed = $false
+      $childTerminated = $false
+    }
+    if (-not $terminationConfirmed) {
+      throw "CEREMONY_CHILD_TERMINATION_FAILED: timed out and child tree not confirmed exited"
+    }
+    throw "CEREMONY_CHILD_TIMEOUT: child exceeded ${ChildTimeoutMs}ms"
+  } else {
+    $childTerminated = $true
+    $terminationConfirmed = $true
+    if ($TestForceTerminateFailure) {
+      $terminationConfirmed = $false
+      throw "CEREMONY_CHILD_TERMINATION_FAILED: forced harness termination failure"
+    }
+  }
+  try { $stdout = [string]$outTask.Result } catch { $stdout = "" }
+  try { $stderr = [string]$errTask.Result } catch { $stderr = "" }
   $combined = $stdout + "`n" + $stderr
   [IO.File]::WriteAllText($rawCapture, (Sanitize-Text $combined))
 
-  # Zero-free credential material immediately after child launch completes.
+  # Zero-free credential material immediately after child completes.
   if ($bstr -ne [IntPtr]::Zero) {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
     $bstr = [IntPtr]::Zero
   }
+  $secureZeroFreed = $true
   $plain = $null
   if ($null -ne $secure) { $secure.Dispose(); $secure = $null }
   Clear-AccountingCredentialChannels
@@ -267,56 +458,207 @@ try {
   if ($child.ExitCode -ne 0 -and $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
     $resultCode = "CEREMONY_CHILD_EXIT_MISMATCH"
   }
+}
+catch {
+  $msg = Sanitize-Text ([string]$_.Exception.Message)
+  if ($resultCode -eq "CEREMONY_FAILED" -or $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
+    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS)') {
+      $resultCode = ($msg -split ":")[0]
+    } else {
+      $resultCode = "BLOCKED"
+    }
+  }
+  if (-not $parsed) {
+    $parsed = [ordered]@{
+      verdict = "BLOCKED"
+      reason = $msg
+      productionContact = $false
+    }
+  }
+}
+finally {
+  # Guaranteed credential / SecureString cleanup
+  try {
+    if ($bstr -ne [IntPtr]::Zero) {
+      [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) | Out-Null
+      $bstr = [IntPtr]::Zero
+      $secureZeroFreed = $true
+    }
+  } catch {}
+  try {
+    if ($null -ne $secure) { $secure.Dispose(); $secure = $null; $secureZeroFreed = $true }
+  } catch {}
+  $plain = $null
+  Clear-AccountingCredentialChannels
+  $credentialCleared = (-not [bool][Environment]::GetEnvironmentVariable($DatabaseUrlEnv, "Process"))
+
+  # SecureString/BSTR: either never allocated, or must be zero-freed/disposed above.
+  if ($bstr -eq [IntPtr]::Zero -and $null -eq $secure) {
+    $secureZeroFreed = $true
+  }
+
+  # Terminate child tree if still alive
+  if ($null -ne $child) {
+    try {
+      if (-not $child.HasExited) {
+        $stop = Stop-CeremonyChildTree -Proc $child -Sentinel $ceremonySentinel
+        $childTerminated = [bool]$stop.terminated
+        $terminationConfirmed = [bool]$stop.confirmed
+      } else {
+        $childTerminated = $true
+        $terminationConfirmed = $true
+      }
+    } catch {
+      $terminationConfirmed = $false
+    }
+  } else {
+    $childTerminated = $true
+    $terminationConfirmed = $true
+  }
+  if ($TestForceTerminateFailure -and $null -ne $child) {
+    $terminationConfirmed = $false
+    $childTerminated = $false
+  }
+
+  # Remove raw stdout capture
+  try {
+    if (Test-Path -LiteralPath $rawCapture) {
+      Remove-Item -LiteralPath $rawCapture -Force -ErrorAction Stop
+    }
+    $rawStdoutRemoved = -not (Test-Path -LiteralPath $rawCapture)
+  } catch {
+    $rawStdoutRemoved = $false
+  }
+
+  # Remove every materialized bundle-*.cjs in the evidence dir
+  try {
+    Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "bundle-*.cjs" -ErrorAction SilentlyContinue | ForEach-Object {
+      Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+    }
+    if ($bundleTemp -and (Test-Path -LiteralPath $bundleTemp)) {
+      Remove-Item -LiteralPath $bundleTemp -Force -ErrorAction SilentlyContinue
+    }
+    $left = @(Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "bundle-*.cjs" -ErrorAction SilentlyContinue)
+    $materialRemoved = ($left.Count -eq 0)
+  } catch {
+    $materialRemoved = $false
+  }
+
+  if ($TestForceCleanupFailure) {
+    $rawStdoutRemoved = $false
+    $materialRemoved = $false
+  }
+
+  # Scoped orphan check using ceremony sentinel (never kill unrelated node/pwsh)
+  try {
+    $orphanPids = @(Get-ScopedOrphanPids -Sentinel $ceremonySentinel -ExcludePid 0)
+    $orphanCheckCompleted = $true
+  } catch {
+    $orphanPids = @()
+    $orphanCheckCompleted = $false
+  }
+
+  $orphanFree = ($orphanCheckCompleted -and $orphanPids.Count -eq 0)
+  $cleanupCompleted = (
+    $credentialCleared -and
+    $secureZeroFreed -and
+    $rawStdoutRemoved -and
+    $materialRemoved -and
+    $terminationConfirmed -and
+    $orphanCheckCompleted -and
+    $orphanFree
+  )
+
+  # Prefer primary failure codes; only overwrite with cleanup faults when primary was success-like.
+  $primaryCodes = @(
+    "WRONG_TIP", "SYNTHETIC_URL_NOT_ALLOWED", "DATABASE_PROJECT_REF_MISMATCH", "MALFORMED_DATABASE_URL",
+    "CEREMONY_CHILD_TIMEOUT", "CEREMONY_CHILD_TERMINATION_FAILED", "CEREMONY_EVIDENCE_DECODE_FAIL",
+    "BLOCKED_CREDENTIAL_UNAVAILABLE", "PROHIBITED_CREDENTIAL_CHANNEL", "PRECONDITION_PINS_UNPUBLISHED",
+    "PRECONDITION_EVIDENCE_ENV_OVERRIDE_FORBIDDEN", "BUNDLE_AUTHORITY_MISMATCH", "BUNDLE_AUTHORITY_UNPUBLISHED",
+    "BUNDLE_CRLF_FORBIDDEN", "ATTEMPT_MARKER_COLLISION", "BLOCKED_HARNESS_ENV_CONTAMINATION",
+    "DRY_RUN_BLOCKED", "HARNESS_CHILD_FAIL", "CEREMONY_CHILD_EXIT_MISMATCH", "BLOCKED"
+  )
+  if ($resultCode -notin $primaryCodes -and $resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
+    # keep
+  }
+  if (-not $terminationConfirmed) {
+    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "CEREMONY_FAILED") {
+      $resultCode = "CEREMONY_CHILD_TERMINATION_FAILED"
+    } elseif ($TestForceTerminateFailure) {
+      $resultCode = "CEREMONY_CHILD_TERMINATION_FAILED"
+    }
+  } elseif (-not $orphanFree -or -not $orphanCheckCompleted) {
+    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "CEREMONY_FAILED") {
+      $resultCode = "CEREMONY_ORPHAN_PROCESSES_REMAIN"
+    }
+  } elseif (-not $rawStdoutRemoved -or -not $materialRemoved -or -not $cleanupCompleted) {
+    if (
+      $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or
+      $resultCode -eq "CEREMONY_FAILED" -or
+      $TestForceCleanupFailure
+    ) {
+      $resultCode = "CEREMONY_CLEANUP_FAILED"
+    }
+  }
+
+  $cleanup = [ordered]@{
+    completed = [bool]$cleanupCompleted
+    credential_cleared = [bool]$credentialCleared
+    secure_string_zero_freed = [bool]$secureZeroFreed
+    raw_stdout_removed = [bool]$rawStdoutRemoved
+    material_removed = [bool]$materialRemoved
+    child_terminated = [bool]$childTerminated -and [bool]$terminationConfirmed
+    orphan_check_completed = [bool]$orphanCheckCompleted
+  }
+  $childSupervision = [ordered]@{
+    child_pid = $childPid
+    timed_out = [bool]$timedOut
+    timeout_ms = [int]$ChildTimeoutMs
+    termination_confirmed = [bool]$terminationConfirmed
+    orphan_count = [int]$orphanPids.Count
+    orphan_free = [bool]$orphanFree
+    ceremony_sentinel = $ceremonySentinel
+  }
 
   $wrapper = [ordered]@{
     protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1"
     pr_tip = $PrHead
     mode = "dry-run"
-    attempt_marker = [IO.Path]::GetFileName($attemptMarker)
-    precondition_sha256 = [string]$pre.evidence_sha256
-    precondition_source_commit = [string]$pre.evidence_source_commit
-    bundle_oid = [string]$bundleSeal.oid
-    bundle_sha256 = [string]$bundleSeal.sha256
-    bundle_bytes = [int]$bundleSeal.bytes
+    attempt_marker = $(if ($attemptMarker) { [IO.Path]::GetFileName($attemptMarker) } else { $null })
+    precondition_sha256 = $(if ($pre) { [string]$pre.evidence_sha256 } else { $null })
+    precondition_source_commit = $(if ($pre) { [string]$pre.evidence_source_commit } else { $null })
+    bundle_oid = $(if ($bundleSeal) { [string]$bundleSeal.oid } else { $null })
+    bundle_sha256 = $(if ($bundleSeal) { [string]$bundleSeal.sha256 } else { $null })
+    bundle_bytes = $(if ($bundleSeal) { [int]$bundleSeal.bytes } else { $null })
     prior_dry_run_pins = "UNPUBLISHED"
     pre_apply_pins = "UNPUBLISHED"
     feature_flag_untouched = $true
-    credential_cleared = $credentialCleared
-    secure_string_zero_freed = $true
-    orphan_processes = $orphanProcesses
-    child_exit_code = $child.ExitCode
+    productionContact = $false
+    uri_diagnostics = $(if ($hostClass) {
+      [ordered]@{
+        ok = [bool]$hostClass.ok
+        host_class = [string]$hostClass.host_class
+        is_local = [bool]$hostClass.is_local
+        matches_expected_project_ref = [bool]$hostClass.matches
+        expected_project_ref = $ExpectedProjectRef
+      }
+    } else { $null })
+    cleanup = $cleanup
+    child_supervision = $childSupervision
+    child_exit_code = $(if ($null -ne $child) { try { $child.ExitCode } catch { $null } } else { $null })
     child_evidence = $parsed
     result_code = $resultCode
   }
-  $json = ($wrapper | ConvertTo-Json -Depth 12)
-  [IO.File]::WriteAllText($evidencePath, ((Sanitize-Text $json) + "`n"))
-  Write-Output (Sanitize-Text $json)
-  if ($resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") { exit 1 }
+  $json = ($wrapper | ConvertTo-Json -Depth 12 -Compress)
+  $sanitized = Sanitize-Text $json
+  try { [IO.File]::WriteAllText($evidencePath, ($sanitized + "`n")) } catch {}
+  Write-Output $sanitized
+}
+
+if (
+  $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -and
+  $cleanupCompleted
+) {
   exit 0
 }
-catch {
-  if ($bstr -ne [IntPtr]::Zero) {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) | Out-Null
-    $bstr = [IntPtr]::Zero
-  }
-  if ($null -ne $secure) { try { $secure.Dispose() } catch {} }
-  Clear-AccountingCredentialChannels
-  $credentialCleared = $true
-  $msg = Sanitize-Text ([string]$_.Exception.Message)
-  $payload = [ordered]@{
-    verdict = "BLOCKED"
-    reason = $msg
-    mode = "dry-run"
-    pr_tip = $PrHead
-    productionContact = $false
-    featureFlagTouched = $false
-    credential_cleared = $credentialCleared
-    attempt_marker = $(if ($attemptMarker) { [IO.Path]::GetFileName($attemptMarker) } else { $null })
-  } | ConvertTo-Json -Compress
-  Write-Output $payload
-  try { [IO.File]::WriteAllText($evidencePath, ($payload + "`n")) } catch {}
-  exit 1
-}
-finally {
-  Clear-AccountingCredentialChannels
-}
+exit 1
