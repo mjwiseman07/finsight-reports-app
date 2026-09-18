@@ -72,26 +72,26 @@
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "13e25db2424fd631055930db654981c8a1325f49",
+  "ceremony_source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "13e25db2424fd631055930db654981c8a1325f49",
-    "oid": "748d4ee4a02e71902fbed30f40f17e430ed6b407",
-    "sha256": "07aba3a5edfff2e6904e24719b26e44ff696b83bd340c503cb52b39497c8af4d",
-    "bytes": 12649,
+    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
+    "oid": "e0cc345178b6c7bc3e3b44110d73c2f9c0aa2332",
+    "sha256": "e1e45696be2753ee77ddbb4cc27e65446d601424aec0b27b0df0a60a2cc68f42",
+    "bytes": 12641,
     "line_endings": "LF"
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "13e25db2424fd631055930db654981c8a1325f49",
-    "oid": "2b4ab418807a1493527c41c8fb513628904664d9",
-    "sha256": "820b39bd03d257e891e6c5df3a2258624276b76078c1617b14e75bb0b7f4a77a",
-    "bytes": 13765,
+    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
+    "oid": "5f7fd6c818f2fb671263785c4693cee3cb96fc6b",
+    "sha256": "054695fa54e802db69b9a3025af6719e3642122edddd56419932ff75566228c9",
+    "bytes": 13754,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "13e25db2424fd631055930db654981c8a1325f49",
+    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
     "oid": "e120edd4142172e26f2eef9efd7681d5bb828d56",
     "sha256": "ec09ed46de6fa91a1c3c55a1af9a3cc5240369997732c8458e585ff8acd5cf63",
     "bytes": 30245,
