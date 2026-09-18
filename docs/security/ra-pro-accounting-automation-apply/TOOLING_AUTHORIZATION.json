@@ -60,7 +60,8 @@
     "Dry-run requires published precondition_publication only.",
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
-    "Never uses cutover, FRLS, or containment database credential channels."
+    "Never uses cutover, FRLS, or containment database credential channels.",
+    "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
@@ -69,5 +70,31 @@
     "bytes": 227546,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
+  },
+  "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
+  "ceremony_source_commit": "981af950af539b31808920601dec17734d806241",
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "981af950af539b31808920601dec17734d806241",
+    "oid": "574125e09788d0f76d78b314a0d59bba00d2bfa1",
+    "sha256": "41c4527171588882586c01522738c2d9139e01f40516c664180d65e8ee24fd33",
+    "bytes": 11642,
+    "line_endings": "LF"
+  },
+  "visible_ceremony_entry": {
+    "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
+    "source_commit": "981af950af539b31808920601dec17734d806241",
+    "oid": "a749808fbba4330ff3410954c0aee8e5e53059e7",
+    "sha256": "b1ff65b5cc52f70d118c5544848ca0f3c8e689093468bfeb264f65b3b95fe6c8",
+    "bytes": 12769,
+    "line_endings": "LF"
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
+    "source_commit": "981af950af539b31808920601dec17734d806241",
+    "oid": "0ce308555edd93604868937397f4eb7ccbb864f5",
+    "sha256": "8597fdcc052cb782853dc70a84b8a79b42ba9545d68c8a5a1a4eba58d68965b4",
+    "bytes": 30554,
+    "line_endings": "LF"
   }
 }
