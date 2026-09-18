@@ -47,6 +47,25 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestVisiblePromptProbe,
 
+  # Operator SecureString window. Separate from -ChildTimeoutMs. Default 10 minutes.
+  [Parameter(Mandatory = $false)]
+  [int]$PromptInputTimeoutMs = 600000,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestTimeoutBudgetProbe,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptTimeout,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptWindowClose,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptCancel,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestHangBeforeEvidence,
+
   # Set only by sealed bootstrap after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -176,8 +195,100 @@ function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze,
 }
 
 function Clear-MaterialRoot {
+  # Materialized scripts only. Never remove PRODUCTION_DRY_RUN_EVIDENCE.json or attempt markers.
   if ($script:MaterialRoot -and (Test-Path -LiteralPath $script:MaterialRoot)) {
     try { Remove-Item -LiteralPath $script:MaterialRoot -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  }
+}
+
+function Get-SupervisedWaitMs([int]$PromptMs, [int]$ChildMs, [int]$HarnessBufferMs, [int]$ProductionBufferMs) {
+  if ($PromptMs -lt 1000) { $PromptMs = 1000 }
+  if ($ChildMs -lt 1) { $ChildMs = 1 }
+  $buffer = $ProductionBufferMs
+  if ($PromptMs -ne 600000 -or $ChildMs -ne 120000) { $buffer = $HarnessBufferMs }
+  return ($PromptMs + $ChildMs + $buffer)
+}
+
+function Protect-SanitizedText([string]$Text) {
+  if (-not $Text) { return "" }
+  $t = [regex]::Replace($Text, "postgres(?:ql)?://\S+", "postgres://***")
+  $t = [regex]::Replace($t, "password=[^&\s]+", "password=***")
+  $t = [regex]::Replace($t, "sk_live_\w+", "sk_live_***")
+  return $t
+}
+
+function Write-ParentFallbackEvidence([string]$Reason, [string]$Termination) {
+  if (-not $EvidenceOutDir) { return }
+  if (-not (Test-Path -LiteralPath $EvidenceOutDir)) { return }
+  $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+  if (Test-Path -LiteralPath $evidenceFile) { return }
+  $readyPath = Join-Path $EvidenceOutDir "PROMPT_READY.json"
+  $ready = $null
+  if (Test-Path -LiteralPath $readyPath) {
+    try { $ready = Get-Content -LiteralPath $readyPath -Raw | ConvertFrom-Json } catch { $ready = $null }
+  }
+  $markers = @(Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "attempt-*.marker" -ErrorAction SilentlyContinue)
+  $markerName = $null
+  if ($markers.Count -gt 0) { $markerName = [string]$markers[0].Name }
+  $preSha = $null
+  $opened = $null
+  $readyAt = $null
+  $deadline = $null
+  if ($null -ne $ready) {
+    try { $preSha = [string]$ready.precondition_sha256 } catch {}
+    try { $opened = [string]$ready.prompt_opened_utc } catch {}
+    try { $readyAt = [string]$ready.prompt_ready_utc } catch {}
+    try { $deadline = [string]$ready.prompt_deadline_utc } catch {}
+  }
+  $frame = [ordered]@{
+    protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1"
+    verdict = "BLOCKED"
+    result_code = "PROMPT_PARENT_TERMINATED"
+    pre_prompt_phase = "prompt_host"
+    termination_reason = $Termination
+    reason = (Protect-SanitizedText $Reason)
+    pr_tip = $PrHead
+    prompt_opened_utc = $opened
+    prompt_ready_utc = $readyAt
+    prompt_deadline_utc = $deadline
+    prompt_input_timeout_ms = [int]$PromptInputTimeoutMs
+    child_runtime_timeout_ms = [int]$ChildTimeoutMs
+    securestring_acquired = $false
+    attempt_marker = $markerName
+    marker_before_child = $false
+    productionContact = $false
+    node_started = $false
+    database_connection_attempts = 0
+    sql_application_attempts = 0
+    precondition_sha256 = $preSha
+    fallback_frame = $true
+    cleanup = [ordered]@{
+      completed = $false
+      credential_cleared = $true
+      secure_string_zero_freed = $true
+      raw_stdout_removed = $true
+      material_removed = $true
+      child_terminated = $true
+      orphan_check_completed = $true
+    }
+    child_supervision = [ordered]@{
+      timed_out = $true
+      timeout_ms = [int]$ChildTimeoutMs
+      orphan_count = 0
+      orphan_free = $true
+      termination_confirmed = $true
+    }
+  }
+  $json = Protect-SanitizedText (($frame | ConvertTo-Json -Depth 8 -Compress))
+  [IO.File]::WriteAllText($evidenceFile, ($json + "`n"))
+  if (Test-Path -LiteralPath $readyPath) {
+    Remove-Item -LiteralPath $readyPath -Force -ErrorAction SilentlyContinue
+  }
+  Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "raw-*" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+  }
+  Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "bundle-*.cjs" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
   }
 }
 
@@ -279,6 +390,12 @@ try {
   if ($TestForceCleanupFailure) { $entryArgs += "-TestForceCleanupFailure" }
   if ($TestForceTerminateFailure) { $entryArgs += "-TestForceTerminateFailure" }
   if ($TestVisiblePromptProbe) { $entryArgs += "-TestVisiblePromptProbe" }
+  if ($PromptInputTimeoutMs -ne 600000) { $entryArgs += @("-PromptInputTimeoutMs", "$PromptInputTimeoutMs") }
+  if ($TestTimeoutBudgetProbe) { $entryArgs += "-TestTimeoutBudgetProbe" }
+  if ($TestForcePromptTimeout) { $entryArgs += "-TestForcePromptTimeout" }
+  if ($TestForcePromptWindowClose) { $entryArgs += "-TestForcePromptWindowClose" }
+  if ($TestForcePromptCancel) { $entryArgs += "-TestForcePromptCancel" }
+  if ($TestHangBeforeEvidence) { $entryArgs += "-TestHangBeforeEvidence" }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe
@@ -290,12 +407,28 @@ try {
   $psi.CreateNoWindow = $true
   Set-GitSafeDirectoryEnv -Psi $psi -Root $script:RepoRoot
   $p = [Diagnostics.Process]::Start($psi)
-  $stdout = $p.StandardOutput.ReadToEnd()
-  $stderr = $p.StandardError.ReadToEnd()
-  if (-not $p.WaitForExit([Math]::Max(60000, $ChildTimeoutMs + 60000))) {
-    try { $p.Kill() } catch {}
-    throw "sealed entry child timed out"
+  $outTask = $p.StandardOutput.ReadToEndAsync()
+  $errTask = $p.StandardError.ReadToEndAsync()
+  $waitMs = Get-SupervisedWaitMs $PromptInputTimeoutMs $ChildTimeoutMs 20000 90000
+  if (-not $p.WaitForExit($waitMs)) {
+    try {
+      Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") -ArgumentList @("/PID", "$($p.Id)", "/T", "/F") -Wait -WindowStyle Hidden | Out-Null
+    } catch {
+      try { $p.Kill() } catch {}
+    }
+    try { $stdout = [string]$outTask.Result } catch { $stdout = "" }
+    try { $stderr = [string]$errTask.Result } catch { $stderr = "" }
+    Write-ParentFallbackEvidence "sealed entry child timed out" "forced_parent_termination"
+    $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+    if (Test-Path -LiteralPath $evidenceFile) {
+      Write-Output ([IO.File]::ReadAllText($evidenceFile).TrimEnd())
+    } else {
+      Write-Blocked "sealed entry child timed out"
+    }
+    exit 1
   }
+  try { $stdout = [string]$outTask.Result } catch { $stdout = "" }
+  try { $stderr = [string]$errTask.Result } catch { $stderr = "" }
   if (-not [string]::IsNullOrWhiteSpace($stdout)) { Write-Output $stdout.TrimEnd() }
   if (-not [string]::IsNullOrWhiteSpace($stderr)) { [Console]::Error.WriteLine($stderr.TrimEnd()) }
   exit $p.ExitCode

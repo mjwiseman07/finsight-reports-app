@@ -28,9 +28,15 @@ param(
   [ValidateSet("", "success", "hang", "fail", "malformed")]
   [string]$TestHarnessChildStub = "",
 
-  # Bounded child wait (ms). Default 120s. Harness may lower for hang tests.
+  # Post-credential Node runtime only. Not the operator prompt window.
+  # Default 120s. Harness may lower for hang tests.
   [Parameter(Mandatory = $false)]
   [int]$ChildTimeoutMs = 120000,
+
+  # Visible SecureString window. Independent of -ChildTimeoutMs.
+  # Default 10 minutes so the prompt is not killed at the old 180-second parent wait.
+  [Parameter(Mandatory = $false)]
+  [int]$PromptInputTimeoutMs = 600000,
 
   # Harness-only: force cleanup verification to fail closed.
   [Parameter(Mandatory = $false)]
@@ -54,6 +60,22 @@ param(
   # Harness-only: simulate operator cancel before a credential exists. Requires ALLOW_SYNTHETIC=1.
   [Parameter(Mandatory = $false)]
   [switch]$TestForcePromptCancel,
+
+  # Harness-only: report the prompt/child timeout split and exit before Read-Host. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestTimeoutBudgetProbe,
+
+  # Harness-only: fail as a prompt deadline before any marker. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptTimeout,
+
+  # Harness-only: fail as a closed prompt window before any marker. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptWindowClose,
+
+  # Harness-only: sleep past the parent wait so the parent must emit fallback evidence. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestHangBeforeEvidence,
 
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
@@ -111,6 +133,98 @@ public static class RaAcctPromptConsole {
   return $true
 }
 
+function Write-PromptReadySidecar {
+  $now = [DateTime]::UtcNow
+  if (-not $script:PromptOpenedUtc) { $script:PromptOpenedUtc = $now.ToString("o") }
+  $script:PromptDeadlineUtc = $now.AddMilliseconds([Math]::Max(1, $PromptInputTimeoutMs)).ToString("o")
+  $script:PromptReadyUtc = [DateTime]::UtcNow.ToString("o")
+  $side = [ordered]@{
+    prompt_opened_utc = [string]$script:PromptOpenedUtc
+    prompt_ready_utc = [string]$script:PromptReadyUtc
+    prompt_deadline_utc = [string]$script:PromptDeadlineUtc
+    prompt_input_timeout_ms = [int]$PromptInputTimeoutMs
+    precondition_sha256 = $(if ($pre) { [string]$pre.evidence_sha256 } else { $null })
+    pr_tip = $PrHead
+  }
+  $sidePath = Join-Path $EvidenceOutDir "PROMPT_READY.json"
+  [IO.File]::WriteAllText($sidePath, (($side | ConvertTo-Json -Compress) + "`n"))
+}
+
+function Read-BoundedSecureString([string]$Prompt, [int]$TimeoutMs) {
+  Write-PromptReadySidecar
+  $deadline = [DateTime]::Parse([string]$script:PromptDeadlineUtc).ToUniversalTime()
+  Write-Host $Prompt
+  Write-Host ("Prompt deadline (UTC): " + $script:PromptDeadlineUtc)
+  Write-Host ("Input window: " + [int]($TimeoutMs / 1000) + " seconds. This prompt is not closed at 180 seconds.")
+  $remain0 = [int][Math]::Max(0, ($deadline - [DateTime]::UtcNow).TotalSeconds)
+  Write-Host ("Remaining prompt time: " + $remain0 + " seconds.")
+  $ss = New-Object Security.SecureString
+  $previousTreatControlC = $false
+  try {
+    $previousTreatControlC = [Console]::TreatControlCAsInput
+    [Console]::TreatControlCAsInput = $true
+  } catch {}
+  $lastBeat = [DateTime]::UtcNow
+  try {
+    while ($true) {
+      $now = [DateTime]::UtcNow
+      if ($now -ge $deadline) {
+        try { $ss.Dispose() } catch {}
+        $ss = $null
+        throw "PROMPT_INPUT_TIMEOUT: operator prompt exceeded ${TimeoutMs}ms; deadline $($script:PromptDeadlineUtc)"
+      }
+      if (($now - $lastBeat).TotalSeconds -ge 30) {
+        $remain = [int][Math]::Max(0, ($deadline - $now).TotalSeconds)
+        Write-Host ("Remaining prompt time: " + $remain + " seconds. Deadline " + $script:PromptDeadlineUtc)
+        $lastBeat = $now
+      }
+      $available = $false
+      try {
+        $available = [Console]::KeyAvailable
+      } catch {
+        try { if ($null -ne $ss) { $ss.Dispose() } } catch {}
+        $ss = $null
+        throw "PROMPT_WINDOW_CLOSED: console unavailable"
+      }
+      if (-not $available) {
+        Start-Sleep -Milliseconds 200
+        continue
+      }
+      try {
+        $key = [Console]::ReadKey($true)
+      } catch {
+        try { if ($null -ne $ss) { $ss.Dispose() } } catch {}
+        $ss = $null
+        throw "PROMPT_WINDOW_CLOSED: console read failed"
+      }
+      if ($key.Key -eq [ConsoleKey]::Enter) { break }
+      $controlC = $false
+      try {
+        $controlC = (($key.Modifiers -band [ConsoleModifiers]::Control) -and $key.Key -eq [ConsoleKey]::C)
+      } catch { $controlC = $false }
+      if ($key.Key -eq [ConsoleKey]::Escape -or $controlC) {
+        try { $ss.Dispose() } catch {}
+        $ss = $null
+        throw "BLOCKED_CREDENTIAL_UNAVAILABLE: operator cancel"
+      }
+      if ($key.Key -eq [ConsoleKey]::Backspace) {
+        if ($ss.Length -gt 0) {
+          $ss.RemoveAt($ss.Length - 1)
+          Write-Host "`b `b" -NoNewline
+        }
+        continue
+      }
+      if ($key.KeyChar -eq [char]0) { continue }
+      $ss.AppendChar($key.KeyChar)
+      Write-Host "*" -NoNewline
+    }
+  } finally {
+    try { [Console]::TreatControlCAsInput = $previousTreatControlC } catch {}
+  }
+  Write-Host ""
+  return $ss
+}
+
 function New-AttemptMarkerAtomic([string]$Dir, [string]$Head) {
   $name = "attempt-" + $Head.Substring(0, 12) + "-" + [guid]::NewGuid().ToString("N") + ".marker"
   $markerPath = Join-Path $Dir $name
@@ -136,6 +250,12 @@ $script:PrePromptError = $null
 $script:PromptHostNonInteractive = $null
 $script:PromptHostVisible = $null
 $script:MarkerBeforeChild = $false
+$script:PromptOpenedUtc = $null
+$script:PromptReadyUtc = $null
+$script:PromptDeadlineUtc = $null
+$script:SecureStringAcquired = $false
+$script:TerminationReason = $null
+$script:NodeStarted = $false
 $ForbiddenUrlEnvs = @(
   "DATABASE_URL",
   "RA_PRO_CUTOVER_APPLY_DATABASE_URL",
@@ -480,11 +600,42 @@ try {
       throw "PROMPT_HOST_NOT_INTERACTIVE: prompt owner is hidden or noninteractive"
     }
     $resultCode = "VISIBLE_PROMPT_READY"
+  } elseif ($TestTimeoutBudgetProbe) {
+    $allowBudget = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowBudget -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    if ($PromptInputTimeoutMs -le 180000) { throw "PROMPT_WINDOW_STILL_180S" }
+    $script:PromptOpenedUtc = [DateTime]::UtcNow.ToString("o")
+    $script:PromptReadyUtc = [string]$script:PromptOpenedUtc
+    $script:PromptDeadlineUtc = [DateTime]::UtcNow.AddMilliseconds($PromptInputTimeoutMs).ToString("o")
+    $script:TerminationReason = "budget_probe"
+    $resultCode = "TIMEOUT_BUDGET_READY"
   } else {
   if ($TestForcePromptCancel) {
     $allowCancel = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
     if ($allowCancel -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    $script:TerminationReason = "operator_cancel"
     throw "BLOCKED_CREDENTIAL_UNAVAILABLE: operator cancel"
+  }
+  if ($TestForcePromptTimeout) {
+    $allowTimeout = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowTimeout -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    Write-PromptReadySidecar
+    $script:TerminationReason = "prompt_input_timeout"
+    throw "PROMPT_INPUT_TIMEOUT: operator prompt exceeded ${PromptInputTimeoutMs}ms; deadline $($script:PromptDeadlineUtc)"
+  }
+  if ($TestForcePromptWindowClose) {
+    $allowClose = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowClose -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    Write-PromptReadySidecar
+    $script:TerminationReason = "prompt_window_closed"
+    throw "PROMPT_WINDOW_CLOSED: operator window closed"
+  }
+  if ($TestHangBeforeEvidence) {
+    $allowHang = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowHang -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    Write-PromptReadySidecar
+    Start-Sleep -Seconds 30
+    throw "PROMPT_HANG_BEFORE_EVIDENCE"
   }
   $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
   if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
@@ -503,13 +654,15 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($allowSynthetic)) {
       throw "BLOCKED_HARNESS_ENV_CONTAMINATION: interactive path forbids synthetic harness env without TestSyntheticDatabaseUrl"
     }
-    $secure = Read-Host -Prompt $DatabaseUrlEnv -AsSecureString
+    if ($PromptInputTimeoutMs -le 180000) { throw "PROMPT_WINDOW_STILL_180S" }
+    $secure = Read-BoundedSecureString -Prompt $DatabaseUrlEnv -TimeoutMs $PromptInputTimeoutMs
   } else {
     $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
   }
   if ($null -eq $secure -or $secure.Length -le 0) {
     throw "BLOCKED_CREDENTIAL_UNAVAILABLE: No URL provided by operator"
   }
+  $script:SecureStringAcquired = $true
 
   Set-PrePromptPhase "attempt_marker"
   $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
@@ -599,6 +752,7 @@ process.exit(0);
   $child = New-Object Diagnostics.Process
   $child.StartInfo = $psi
   [void]$child.Start()
+  $script:NodeStarted = $true
   $childPid = [int]$child.Id
 
   # Async read so WaitForExit timeout cannot deadlock on full pipes.
@@ -675,6 +829,13 @@ catch {
     } else {
       $resultCode = "BLOCKED"
     }
+  }
+  if (-not $script:TerminationReason) {
+    if ($resultCode -eq "PROMPT_INPUT_TIMEOUT") { $script:TerminationReason = "prompt_input_timeout" }
+    elseif ($resultCode -eq "PROMPT_WINDOW_CLOSED") { $script:TerminationReason = "prompt_window_closed" }
+    elseif ($resultCode -eq "CEREMONY_CHILD_TIMEOUT") { $script:TerminationReason = "child_runtime_timeout" }
+    elseif ($msg -match "operator cancel") { $script:TerminationReason = "operator_cancel" }
+    else { $script:TerminationReason = "pre_marker_failure" }
   }
   if (-not $parsed) {
     $parsed = [ordered]@{
@@ -787,6 +948,7 @@ finally {
     "PRECONDITION_EVIDENCE_ENV_OVERRIDE_FORBIDDEN", "BUNDLE_AUTHORITY_MISMATCH", "BUNDLE_AUTHORITY_UNPUBLISHED",
     "BUNDLE_CRLF_FORBIDDEN", "ATTEMPT_MARKER_COLLISION", "BLOCKED_HARNESS_ENV_CONTAMINATION",
     "PROMPT_HOST_NOT_INTERACTIVE", "PROMPT_PROBE_REJECTS_CREDENTIALS",
+    "PROMPT_INPUT_TIMEOUT", "PROMPT_WINDOW_CLOSED", "PROMPT_WINDOW_STILL_180S",
     "DRY_RUN_BLOCKED", "HARNESS_CHILD_FAIL", "CEREMONY_CHILD_EXIT_MISMATCH", "BLOCKED"
   )
   if ($resultCode -notin $primaryCodes -and $resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
@@ -831,12 +993,33 @@ finally {
     ceremony_sentinel = $ceremonySentinel
   }
 
+  $dbAttempts = 0
+  $sqlAttempts = 0
+  if ($null -ne $parsed) {
+    try {
+      if ($null -ne $parsed.databaseConnectionAttempts) { $dbAttempts = [int]$parsed.databaseConnectionAttempts }
+    } catch { $dbAttempts = 0 }
+    try {
+      if ($null -ne $parsed.sqlApplicationAttempts) { $sqlAttempts = [int]$parsed.sqlApplicationAttempts }
+    } catch { $sqlAttempts = 0 }
+  }
+  $parentWaitFloor = [int]$PromptInputTimeoutMs + [int]$ChildTimeoutMs + 60000
+
   $wrapper = [ordered]@{
     protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1"
+    verdict = $(if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "VISIBLE_PROMPT_READY" -or $resultCode -eq "TIMEOUT_BUDGET_READY") { $resultCode } else { "BLOCKED" })
     pr_tip = $PrHead
     mode = "dry-run"
     attempt_marker = $(if ($attemptMarker) { [IO.Path]::GetFileName($attemptMarker) } else { $null })
     marker_before_child = [bool]$script:MarkerBeforeChild
+    securestring_acquired = [bool]$script:SecureStringAcquired
+    prompt_opened_utc = $script:PromptOpenedUtc
+    prompt_ready_utc = $script:PromptReadyUtc
+    prompt_deadline_utc = $script:PromptDeadlineUtc
+    prompt_input_timeout_ms = [int]$PromptInputTimeoutMs
+    child_runtime_timeout_ms = [int]$ChildTimeoutMs
+    parent_wait_floor_ms = [int]$parentWaitFloor
+    termination_reason = $script:TerminationReason
     prompt_host_noninteractive = $script:PromptHostNonInteractive
     prompt_host_visible = $script:PromptHostVisible
     precondition_sha256 = $(if ($pre) { [string]$pre.evidence_sha256 } else { $null })
@@ -848,6 +1031,9 @@ finally {
     pre_apply_pins = "UNPUBLISHED"
     feature_flag_untouched = $true
     productionContact = $false
+    node_started = [bool]$script:NodeStarted
+    database_connection_attempts = [int]$dbAttempts
+    sql_application_attempts = [int]$sqlAttempts
     pre_prompt_phase = $(if ($script:PrePromptPhase) { [string]$script:PrePromptPhase } else { $null })
     pre_prompt_error = $(if ($script:PrePromptError) { $script:PrePromptError } else { $null })
     uri_diagnostics = $(if ($hostClass) {
@@ -868,13 +1054,18 @@ finally {
   $json = ($wrapper | ConvertTo-Json -Depth 12 -Compress)
   $sanitized = Sanitize-Text $json
   try { [IO.File]::WriteAllText($evidencePath, ($sanitized + "`n")) } catch {}
+  $readySide = Join-Path $EvidenceOutDir "PROMPT_READY.json"
+  if (Test-Path -LiteralPath $readySide) {
+    try { Remove-Item -LiteralPath $readySide -Force -ErrorAction SilentlyContinue } catch {}
+  }
   Write-Output $sanitized
 }
 
 if (
   (
     $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or
-    $resultCode -eq "VISIBLE_PROMPT_READY"
+    $resultCode -eq "VISIBLE_PROMPT_READY" -or
+    $resultCode -eq "TIMEOUT_BUDGET_READY"
   ) -and
   $cleanupCompleted
 ) {
