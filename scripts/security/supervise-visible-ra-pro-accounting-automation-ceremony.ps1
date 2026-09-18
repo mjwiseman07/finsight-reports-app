@@ -18,6 +18,9 @@ param(
   [string]$Mode = "dry-run",
 
   [Parameter(Mandatory = $false)]
+  [string]$RepoRoot = "",
+
+  [Parameter(Mandatory = $false)]
   [string]$EvidenceOutDir = "",
 
   [Parameter(Mandatory = $false)]
@@ -207,7 +210,10 @@ try {
     }
   }
 
-  $script:RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+  if (-not $RepoRoot) {
+    $RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+  }
+  $script:RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
   if (-not $EvidenceOutDir) {
     $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-supervise-" + [guid]::NewGuid().ToString("N"))
   }
