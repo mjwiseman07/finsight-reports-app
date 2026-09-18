@@ -61,7 +61,8 @@
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels.",
-    "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony."
+    "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
+    "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
@@ -72,29 +73,46 @@
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
+  "ceremony_source_commit": "dcef0577ab84e240e32d7b741ea9e5f42f43ebef",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
-    "oid": "e0cc345178b6c7bc3e3b44110d73c2f9c0aa2332",
-    "sha256": "e1e45696be2753ee77ddbb4cc27e65446d601424aec0b27b0df0a60a2cc68f42",
-    "bytes": 12641,
+    "source_commit": "dcef0577ab84e240e32d7b741ea9e5f42f43ebef",
+    "oid": "c3dd4cd6e2d79f4d256b46eb8a26fb70a902baa1",
+    "sha256": "f5b4c85df76f1757298409aa4489dc697f1a9219ff27aa443da9aa44930db0d8",
+    "bytes": 13651,
     "line_endings": "LF"
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
-    "oid": "5f7fd6c818f2fb671263785c4693cee3cb96fc6b",
-    "sha256": "054695fa54e802db69b9a3025af6719e3642122edddd56419932ff75566228c9",
-    "bytes": 13754,
+    "source_commit": "dcef0577ab84e240e32d7b741ea9e5f42f43ebef",
+    "oid": "50f678d85cc88b8d61b2cb8af26768e0ab60e586",
+    "sha256": "599119557d08f28cb499c8e532149282b67f1bb76bc676dbf1999f3b801aa27e",
+    "bytes": 14422,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "4b541b7c017dc0c86bcb4cf75bff854480a9d9b8",
+    "source_commit": "dcef0577ab84e240e32d7b741ea9e5f42f43ebef",
     "oid": "e120edd4142172e26f2eef9efd7681d5bb828d56",
     "sha256": "ec09ed46de6fa91a1c3c55a1af9a3cc5240369997732c8458e585ff8acd5cf63",
     "bytes": 30245,
+    "line_endings": "LF"
+  },
+  "bootstrap_source_commit": "6f05c3b90c25f3e26b3e63bf69b63c859a96b293",
+  "visible_ceremony_bootstrap": {
+    "path": "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "6f05c3b90c25f3e26b3e63bf69b63c859a96b293",
+    "oid": "e1addc2c1f7f6a4431b387760161913f1f674c55",
+    "sha256": "382b281e0ff00fa2af324a25265ad27969552d25a18a20326dc1045600033aea",
+    "bytes": 13204,
+    "line_endings": "LF"
+  },
+  "visible_ceremony_native_entry": {
+    "path": "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "6f05c3b90c25f3e26b3e63bf69b63c859a96b293",
+    "oid": "8ce70fa8323f828dd4c92b3bdf1574001c499b9b",
+    "sha256": "31b0859ddafe4b64a5b6e2b9abf6b5f2fb92856fc7417c2f2c31aef913afd9c6",
+    "bytes": 13012,
     "line_endings": "LF"
   }
 }
