@@ -415,6 +415,149 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     );
   });
 
+  it("pre-prompt path reaches credential boundary and sealed stub child without production contact", () => {
+    const tip = tipSha();
+    const { run, outDir, payload } = runCeremony(
+      [
+        "-PrHead",
+        tip,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestHarnessChildStub",
+        "success",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, JSON.stringify(payload)).toBe(0);
+    expect(payload.result_code).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
+    expect(payload.productionContact).toBe(false);
+    expect(payload.attempt_marker).toBeTruthy();
+    expect(payload.precondition_sha256).toBe(PRECOND_SHA);
+    expect(payload.pre_prompt_phase).toBe("credential_boundary");
+    expect(payload.pre_prompt_error).toBeNull();
+    const childEv = payload.child_evidence as Record<string, unknown>;
+    expect(childEv.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(childEv.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(fs.existsSync(path.join(outDir, "raw-child-stdout.frame.txt"))).toBe(false);
+  });
+
+  it("regression: empty blob unroll + index is the NullArray defect with structured phase evidence", () => {
+    const tip = tipSha();
+    const { run, payload } = runCeremony(
+      [
+        "-PrHead",
+        tip,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestForcePrePromptNullIndex",
+        "empty_blob_index",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status).toBe(1);
+    expect(payload.productionContact).toBe(false);
+    expect(payload.attempt_marker).toBeNull();
+    expect(String((payload.child_evidence as Record<string, unknown>)?.reason || "")).toMatch(
+      /Cannot index into a null array/i,
+    );
+    expect(String(payload.pre_prompt_phase || "")).toBe("auth_blob");
+    const err = payload.pre_prompt_error as Record<string, unknown>;
+    expect(err).toBeTruthy();
+    expect(String(err.phase || "")).toBe("auth_blob");
+    expect(Number(err.script_line || 0)).toBeGreaterThan(0);
+    expect(String(err.statement || "")).toMatch(/legacy\[0\]|\$legacy\[0\]/i);
+    expect(String(JSON.stringify(payload))).not.toMatch(/postgres:\/\/|password=/i);
+  });
+
+  it("regression: null EnvironmentVariables index reports tip_rev_parse phase", () => {
+    const tip = tipSha();
+    const { run, payload } = runCeremony(
+      [
+        "-PrHead",
+        tip,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestForcePrePromptNullIndex",
+        "envvars_null",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status).toBe(1);
+    expect(payload.productionContact).toBe(false);
+    expect(payload.attempt_marker).toBeNull();
+    expect(String((payload.child_evidence as Record<string, unknown>)?.reason || "")).toMatch(
+      /Cannot index into a null array/i,
+    );
+    expect(String(payload.pre_prompt_phase || "")).toBe("tip_rev_parse");
+    const err = payload.pre_prompt_error as Record<string, unknown>;
+    expect(String(err.statement || "")).toMatch(/nullMap\[/i);
+  });
+
+  it("null publication pin note is safe (no NullArray) and continues to sealed stub", () => {
+    const tip = tipSha();
+    const { run, payload } = runCeremony(
+      [
+        "-PrHead",
+        tip,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestHarnessChildStub",
+        "success",
+        "-TestForcePrePromptNullIndex",
+        "pub_null_index",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, JSON.stringify(payload)).toBe(0);
+    expect(payload.result_code).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
+    expect(payload.productionContact).toBe(false);
+    expect(payload.attempt_marker).toBeTruthy();
+  });
+
+  it("PowerShell byte[] null/empty/scalar edge cases around ceremony array operations", () => {
+    const ps = `
+      Set-StrictMode -Version Latest
+      $ErrorActionPreference = 'Stop'
+      function LegacyReturn([byte[]]$b) { return $b }
+      function FixedReturn([byte[]]$b) { return , $b }
+      $empty = New-Object byte[] 0
+      $one = [byte[]]@(65)
+      $multi = [byte[]]@(1,13,3)
+      $legE = LegacyReturn $empty
+      if ($null -ne $legE) { throw 'legacy empty should be null' }
+      try { $null = $legE[0]; throw 'expected NullArray' } catch {
+        if ($_.Exception.Message -notmatch 'Cannot index into a null array') { throw $_ }
+      }
+      $fixE = FixedReturn $empty
+      if ($fixE -isnot [byte[]]) { throw 'fixed empty type' }
+      if ($fixE.Length -ne 0) { throw 'fixed empty len' }
+      $leg1 = LegacyReturn $one
+      if ($leg1 -isnot [byte]) { throw 'legacy one should scalar' }
+      try { $null = $leg1.Length; throw 'expected Length fail on scalar' } catch {
+        if ($_.Exception.Message -notmatch 'Length') { throw $_ }
+      }
+      $fix1 = FixedReturn $one
+      if ($fix1 -isnot [byte[]] -or $fix1.Length -ne 1) { throw 'fixed one' }
+      $fixM = FixedReturn $multi
+      if ($fixM -isnot [byte[]] -or $fixM.Length -ne 3) { throw 'fixed multi' }
+      if ([Array]::IndexOf($fixM, [byte]0x0d) -lt 0) { throw 'CR detect' }
+      $nullMap = $null
+      try { $nullMap['GIT_CONFIG_COUNT'] = '1'; throw 'expected env null index' } catch {
+        if ($_.Exception.Message -notmatch 'Cannot index into a null array') { throw $_ }
+      }
+      $pub = $null
+      if ($null -ne $pub -and $null -ne $pub.required_prior_dry_run_evidence_sha256) { throw 'pub guard failed' }
+      Write-Output 'EDGE_OK'
+    `;
+    const r = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps],
+      { encoding: "utf8", windowsHide: true },
+    );
+    expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(0);
+    expect(`${r.stdout || ""}${r.stderr || ""}`).toMatch(/EDGE_OK/);
+  });
+
   it("records accepted precondition sha on dry-run blocked before URL", async () => {
     const result = await runApplicator({ mode: "dry-run", env: {} });
     expect(result.precondition_evidence?.sha256).toBe(PRECOND_SHA);

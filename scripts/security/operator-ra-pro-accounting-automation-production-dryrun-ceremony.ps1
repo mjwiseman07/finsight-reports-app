@@ -38,7 +38,13 @@ param(
 
   # Harness-only: force child termination verification to fail closed.
   [Parameter(Mandatory = $false)]
-  [switch]$TestForceTerminateFailure
+  [switch]$TestForceTerminateFailure,
+
+  # Harness-only: inject the pre-prompt null-index defect at a named site (requires ALLOW_SYNTHETIC=1).
+  # Sites: empty_blob_index | envvars_null | pub_null_index
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("", "empty_blob_index", "envvars_null", "pub_null_index")]
+  [string]$TestForcePrePromptNullIndex = ""
 )
 
 Set-StrictMode -Version Latest
@@ -50,6 +56,8 @@ $DatabaseUrlEnv = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL"
 $ExpectedProjectRef = "jzmdgwwiestcmmeuhhkr"
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+$script:PrePromptPhase = "init"
+$script:PrePromptError = $null
 $ForbiddenUrlEnvs = @(
   "DATABASE_URL",
   "RA_PRO_CUTOVER_APPLY_DATABASE_URL",
@@ -64,11 +72,53 @@ $ForbiddenOverrideEnvs = @(
   "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS"
 )
 
+function Set-PrePromptPhase([string]$Phase) {
+  $script:PrePromptPhase = $Phase
+}
+
 function Get-Sha256Bytes([byte[]]$Bytes) {
+  if ($null -eq $Bytes) {
+    throw "CEREMONY_BLOB_BYTES_NULL: Get-Sha256Bytes received null byte array"
+  }
   $sha = [System.Security.Cryptography.SHA256]::Create()
   try {
     return ([System.BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace "-", "").ToLowerInvariant()
   } finally { $sha.Dispose() }
+}
+
+function Set-ProcessGitSafeDirectory([Diagnostics.ProcessStartInfo]$Psi, [string]$Root) {
+  if ($null -eq $Psi) {
+    throw "CEREMONY_PROCESS_STARTINFO_UNAVAILABLE"
+  }
+  $Psi.UseShellExecute = $false
+  $envMap = $Psi.EnvironmentVariables
+  if ($null -eq $envMap) {
+    throw "CEREMONY_PROCESS_ENV_UNAVAILABLE: ProcessStartInfo.EnvironmentVariables is null"
+  }
+  $envMap["GIT_CONFIG_COUNT"] = "1"
+  $envMap["GIT_CONFIG_KEY_0"] = "safe.directory"
+  $envMap["GIT_CONFIG_VALUE_0"] = ($Root -replace "\\", "/")
+}
+
+function ConvertTo-ByteArrayStrict($Value, [string]$Label) {
+  if ($null -eq $Value) {
+    throw "CEREMONY_BLOB_BYTES_NULL: $Label is null (byte[] unroll)"
+  }
+  if ($Value -is [byte[]]) {
+    return $Value
+  }
+  try {
+    return [byte[]]$Value
+  } catch {
+    throw "CEREMONY_BLOB_BYTES_INVALID: $Label could not be coerced to byte[] ($($_.Exception.Message))"
+  }
+}
+
+function Test-BundleBytesContainCR([byte[]]$Bytes) {
+  if ($null -eq $Bytes) {
+    throw "CEREMONY_BLOB_BYTES_NULL: CRLF scan received null"
+  }
+  return ([Array]::IndexOf($Bytes, [byte]0x0d) -ge 0)
 }
 
 function Clear-AccountingCredentialChannels {
@@ -103,6 +153,9 @@ function Get-HostClass([string]$Url) {
 }
 
 function Invoke-GitTextLocal([string[]]$GitArgs) {
+  if ($null -eq $GitArgs -or $GitArgs.Count -eq 0) {
+    throw "CEREMONY_GIT_ARGS_NULL"
+  }
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = "git"
   $psi.Arguments = ($GitArgs | ForEach-Object {
@@ -111,11 +164,13 @@ function Invoke-GitTextLocal([string[]]$GitArgs) {
   $psi.WorkingDirectory = $RepoRoot
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
-  $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
-  $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
-  $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
-  $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = ($RepoRoot -replace "\\", "/")
+  Set-ProcessGitSafeDirectory -Psi $psi -Root $RepoRoot
+  if ($TestForcePrePromptNullIndex -eq "envvars_null") {
+    # Exact production-class failure: index into a null EnvironmentVariables map.
+    $nullMap = $null
+    $nullMap["GIT_CONFIG_COUNT"] = "1"
+  }
   $p = [Diagnostics.Process]::Start($psi)
   $out = $p.StandardOutput.ReadToEnd()
   $err = $p.StandardError.ReadToEnd()
@@ -128,17 +183,23 @@ function Invoke-GitTextLocal([string[]]$GitArgs) {
 }
 
 function Get-GitBlobBytes([string]$Commit, [string]$Rel) {
+  if ($TestForcePrePromptNullIndex -eq "empty_blob_index") {
+    # Legacy defect: empty `return $ms.ToArray()` unrolls to $null; `$null[0]` throws
+    # "Cannot index into a null array."
+    $legacy = & {
+      $msEmpty = New-Object IO.MemoryStream
+      return $msEmpty.ToArray()
+    }
+    $null = $legacy[0]
+  }
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = "git"
   $psi.Arguments = "cat-file blob ${Commit}:${Rel}"
   $psi.WorkingDirectory = $RepoRoot
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
-  $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
-  $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
-  $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
-  $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = ($RepoRoot -replace "\\", "/")
+  Set-ProcessGitSafeDirectory -Psi $psi -Root $RepoRoot
   $p = [Diagnostics.Process]::Start($psi)
   $ms = New-Object IO.MemoryStream
   $p.StandardOutput.BaseStream.CopyTo($ms)
@@ -148,7 +209,8 @@ function Get-GitBlobBytes([string]$Commit, [string]$Rel) {
     throw "git cat-file timed out"
   }
   if ($p.ExitCode -ne 0) { throw "git cat-file failed for ${Rel}: $err" }
-  return $ms.ToArray()
+  # Unary comma prevents PowerShell from unrolling byte[] (empty → $null; len=1 → scalar).
+  return , $ms.ToArray()
 }
 
 function Get-ScopedOrphanPids([string]$Sentinel, [int]$ExcludePid) {
@@ -251,6 +313,13 @@ Write-Host "Mode: dry-run (precondition authority only; apply pins remain unpubl
 Write-Host "Paste an already-known URL at the hidden prompt. Do not paste into chat."
 
 try {
+  Set-PrePromptPhase "forbidden_envs"
+  if (-not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex)) {
+    $allowSyntheticProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowSyntheticProbe -ne "1") {
+      throw "SYNTHETIC_URL_NOT_ALLOWED"
+    }
+  }
   foreach ($k in $ForbiddenOverrideEnvs) {
     $v = [Environment]::GetEnvironmentVariable($k, "Process")
     if (-not [string]::IsNullOrWhiteSpace($v)) {
@@ -264,42 +333,64 @@ try {
     }
   }
 
+  Set-PrePromptPhase "tip_rev_parse"
   $tip = Invoke-GitTextLocal @("rev-parse", "HEAD")
   if ($tip.ToLowerInvariant() -ne $PrHead.ToLowerInvariant()) {
     throw "WRONG_TIP: HEAD $tip does not match -PrHead $PrHead"
   }
 
-  $authBytes = Get-GitBlobBytes -Commit $tip -Rel $AuthRel
+  Set-PrePromptPhase "auth_blob"
+  $authBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $tip -Rel $AuthRel) "auth_blob"
+  Set-PrePromptPhase "auth_parse"
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
+  Set-PrePromptPhase "precondition"
   $pre = $auth.precondition_publication
   if ($null -eq $pre -or [string]$pre.status -ne "PUBLISHED") {
     throw "PRECONDITION_PINS_UNPUBLISHED: precondition_publication is not PUBLISHED"
   }
+  Set-PrePromptPhase "publication_pin_note"
   $pub = $auth.publication
-  if ($null -ne $pub.required_prior_dry_run_evidence_sha256 -or $null -ne $pub.required_pre_apply_live_evidence_sha256) {
+  # Null-safe: never index/dereference $pub when absent (restores guard removed at 03f0bc0c).
+  if ($TestForcePrePromptNullIndex -eq "pub_null_index") {
+    # Prove fixed path tolerates null publication without NullArray.
+    $pub = $null
+  }
+  if (
+    $null -ne $pub -and (
+      $null -ne $pub.required_prior_dry_run_evidence_sha256 -or
+      $null -ne $pub.required_pre_apply_live_evidence_sha256
+    )
+  ) {
     Write-Host "NOTE: prior/pre-apply pins are present; dry-run still does not consume apply authority."
   }
 
+  Set-PrePromptPhase "bundle_seal"
   $bundleSeal = $auth.standalone_bundle
   if (-not $bundleSeal -or -not $bundleSeal.oid -or -not $bundleSeal.sha256 -or -not $bundleSeal.bytes) {
     throw "BUNDLE_AUTHORITY_UNPUBLISHED: standalone_bundle seals missing"
   }
+  Set-PrePromptPhase "bundle_oid"
   $bundleOid = Invoke-GitTextLocal @("rev-parse", "${tip}:${BundleRel}")
   if ($bundleOid -ne [string]$bundleSeal.oid) {
     throw "BUNDLE_AUTHORITY_MISMATCH: tip bundle OID mismatch"
   }
-  $bundleBytes = Get-GitBlobBytes -Commit $tip -Rel $BundleRel
+  Set-PrePromptPhase "bundle_blob"
+  $bundleBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $tip -Rel $BundleRel) "bundle_blob"
+  Set-PrePromptPhase "bundle_sha"
   $bundleSha = Get-Sha256Bytes -Bytes $bundleBytes
   if ($bundleSha -ne ([string]$bundleSeal.sha256).ToLowerInvariant()) {
     throw "BUNDLE_AUTHORITY_MISMATCH: tip bundle SHA-256 mismatch"
   }
+  Set-PrePromptPhase "bundle_len"
   if ($bundleBytes.Length -ne [int]$bundleSeal.bytes) {
     throw "BUNDLE_AUTHORITY_MISMATCH: tip bundle bytes mismatch"
   }
-  if (($bundleBytes | Where-Object { $_ -eq 0x0d } | Select-Object -First 1) -ne $null) {
+  Set-PrePromptPhase "bundle_crlf"
+  if (Test-BundleBytesContainCR -Bytes $bundleBytes) {
     throw "BUNDLE_CRLF_FORBIDDEN"
   }
 
+  Set-PrePromptPhase "attempt_marker"
   # One authorization → one attempt marker (no automatic retry).
   $attemptMarker = Join-Path $EvidenceOutDir ("attempt-" + $PrHead.Substring(0, 12) + "-" + [guid]::NewGuid().ToString("N") + ".marker")
   if (Test-Path -LiteralPath $attemptMarker) {
@@ -307,6 +398,7 @@ try {
   }
   [IO.File]::WriteAllText($attemptMarker, ("dry-run`n{0}`n{1}`n" -f $PrHead, (Get-Date).ToUniversalTime().ToString("o")))
 
+  Set-PrePromptPhase "credential_boundary"
   $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
   if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
     if ($allowSynthetic -ne "1") {
@@ -399,9 +491,13 @@ process.exit(0);
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
   $psi.CreateNoWindow = $true
-  $psi.EnvironmentVariables[$DatabaseUrlEnv] = $plain
+  $childEnv = $psi.EnvironmentVariables
+  if ($null -eq $childEnv) {
+    throw "CEREMONY_PROCESS_ENV_UNAVAILABLE: child EnvironmentVariables is null"
+  }
+  $childEnv[$DatabaseUrlEnv] = $plain
   foreach ($k in $ForbiddenUrlEnvs) {
-    if ($psi.EnvironmentVariables.ContainsKey($k)) { $psi.EnvironmentVariables.Remove($k) }
+    if ($childEnv.ContainsKey($k)) { $childEnv.Remove($k) }
   }
   $child = New-Object Diagnostics.Process
   $child.StartInfo = $psi
@@ -461,8 +557,22 @@ process.exit(0);
 }
 catch {
   $msg = Sanitize-Text ([string]$_.Exception.Message)
+  $failLine = 0
+  $failStmt = ""
+  $failPhase = [string]$script:PrePromptPhase
+  try { $failLine = [int]$_.InvocationInfo.ScriptLineNumber } catch {}
+  try {
+    $failStmt = Sanitize-Text ([string]$_.InvocationInfo.Line).Trim()
+    if ($failStmt.Length -gt 240) { $failStmt = $failStmt.Substring(0, 240) }
+  } catch { $failStmt = "" }
+  $script:PrePromptError = [ordered]@{
+    phase = $failPhase
+    script_line = $failLine
+    statement = $failStmt
+    exception_type = [string]$_.Exception.GetType().FullName
+  }
   if ($resultCode -eq "CEREMONY_FAILED" -or $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
-    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS)') {
+    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS|CEREMONY_PROCESS_|CEREMONY_BLOB_|CEREMONY_GIT_)') {
       $resultCode = ($msg -split ":")[0]
     } else {
       $resultCode = "BLOCKED"
@@ -473,6 +583,8 @@ catch {
       verdict = "BLOCKED"
       reason = $msg
       productionContact = $false
+      pre_prompt_phase = $failPhase
+      pre_prompt_error = $script:PrePromptError
     }
   }
 }
@@ -634,6 +746,8 @@ finally {
     pre_apply_pins = "UNPUBLISHED"
     feature_flag_untouched = $true
     productionContact = $false
+    pre_prompt_phase = $(if ($script:PrePromptPhase) { [string]$script:PrePromptPhase } else { $null })
+    pre_prompt_error = $(if ($script:PrePromptError) { $script:PrePromptError } else { $null })
     uri_diagnostics = $(if ($hostClass) {
       [ordered]@{
         ok = [bool]$hostClass.ok

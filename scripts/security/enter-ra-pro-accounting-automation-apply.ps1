@@ -39,9 +39,11 @@ function Invoke-GitText([string[]]$GitArgs) {
   $psi.RedirectStandardError = $true
   $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
-  $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
-  $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
-  $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = ([string]$repoRoot -replace "\\", "/")
+  $envMap = $psi.EnvironmentVariables
+  if ($null -eq $envMap) { throw "CEREMONY_PROCESS_ENV_UNAVAILABLE" }
+  $envMap["GIT_CONFIG_COUNT"] = "1"
+  $envMap["GIT_CONFIG_KEY_0"] = "safe.directory"
+  $envMap["GIT_CONFIG_VALUE_0"] = ([string]$repoRoot -replace "\\", "/")
   $p = [Diagnostics.Process]::Start($psi)
   $out = $p.StandardOutput.ReadToEnd()
   $err = $p.StandardError.ReadToEnd()
@@ -96,7 +98,7 @@ if ([string]::IsNullOrWhiteSpace($PrHead)) {
 }
 
 $ceremony = Join-Path $PSScriptRoot "operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
-$args = @(
+$ceremonyArgs = @(
   "-NoProfile",
   "-ExecutionPolicy", "Bypass",
   "-File", $ceremony,
@@ -104,11 +106,11 @@ $args = @(
   "-RepoRoot", ([string]$repoRoot)
 )
 if (-not [string]::IsNullOrWhiteSpace($EvidenceOutDir)) {
-  $args += @("-EvidenceOutDir", $EvidenceOutDir)
+  $ceremonyArgs += @("-EvidenceOutDir", $EvidenceOutDir)
 }
 if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-  $args += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
+  $ceremonyArgs += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
 }
 
-$p = Start-Process -FilePath "powershell.exe" -ArgumentList $args -Wait -PassThru -NoNewWindow
+$p = Start-Process -FilePath "powershell.exe" -ArgumentList $ceremonyArgs -Wait -PassThru -NoNewWindow
 exit $p.ExitCode
