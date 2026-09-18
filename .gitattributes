@@ -66,3 +66,15 @@ tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence
 # RA Pro pre-apply live evidence — LF-authoritative Git blob (SHA-256 98e8824b… / 2309 bytes)
 tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json text eol=lf
 
+# RA Pro accounting-automation applicator — LF-authoritative seals
+docs/security/ra-pro-accounting-automation-apply/** text eol=lf
+scripts/security/ra-pro-accounting-automation-*.js text eol=lf
+scripts/security/apply-ra-pro-accounting-automation.js text eol=lf
+scripts/security/assemble-ra-pro-accounting-automation-applicator-standalone-bundle.js text eol=lf
+scripts/security/verify-ra-pro-accounting-automation-apply-authority.js text eol=lf
+scripts/security/enter-ra-pro-accounting-automation-apply.ps1 text eol=lf
+scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs text eol=lf
+tests/security/ra-pro-accounting-automation-*.test.ts text eol=lf
+supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql text eol=lf
+supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql text eol=lf
+

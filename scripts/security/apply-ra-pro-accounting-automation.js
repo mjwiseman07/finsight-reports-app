@@ -28,6 +28,7 @@ async function main() {
     mode: apply && !dryRun ? "apply" : "dry-run",
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_APPLY_TOKEN,
     env: process.env,
+    argv: process.argv,
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
   if (

@@ -15,6 +15,7 @@ import {
   runApplicator,
   resolveDatabaseUrlFromEnv,
   assertAuthorizationPublished,
+  assertBundleAuthority,
   sanitizeValue,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-core.js";
 import {
@@ -22,6 +23,10 @@ import {
   MIGRATIONS,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
+  STANDALONE_BUNDLE_BYTES,
+  STANDALONE_BUNDLE_OID,
+  STANDALONE_BUNDLE_PATH,
+  STANDALONE_BUNDLE_SHA256,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 import { loadAndVerifyGitBlob } from "../../scripts/security/git-blob-authority.js";
 
@@ -101,6 +106,125 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     const payload = JSON.parse(run.stdout.trim().split(/\r?\n/).pop() || "{}");
     expect(payload.reason).toBe("AUTHORIZATION_PINS_UNPUBLISHED");
     expect(payload.productionContact).toBe(false);
+  });
+
+  it("standalone bundle executes under Node and fails closed without packaging errors", () => {
+    const check = spawnSync(process.execPath, ["--check", STANDALONE_BUNDLE_PATH], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    expect(check.status, check.stderr).toBe(0);
+
+    const run = spawnSync(process.execPath, [STANDALONE_BUNDLE_PATH], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      windowsHide: true,
+      env: { ...process.env },
+    });
+    const out = `${run.stdout || ""}${run.stderr || ""}`;
+    expect(out).not.toMatch(/SyntaxError|Cannot find module|Identifier 'module'/);
+    expect(run.status).not.toBe(0);
+    const payload = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop() || "{}");
+    expect(
+      String(payload.reason || payload.result_code || payload.error_code || payload.error || ""),
+    ).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/);
+    expect(payload.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(payload.sqlApplicationAttempts ?? 0).toBe(0);
+  });
+
+  it("enforces committed bundle OID/SHA/bytes before credentials", () => {
+    const ok = assertBundleAuthority({});
+    expect(ok.oid).toBe(STANDALONE_BUNDLE_OID);
+    expect(ok.sha256).toBe(STANDALONE_BUNDLE_SHA256);
+    expect(ok.bytes).toBe(STANDALONE_BUNDLE_BYTES);
+    expect(ok.path).toBe(STANDALONE_BUNDLE_PATH);
+
+    expect(() =>
+      assertBundleAuthority({
+        bundleSealsOverride: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          sha256: STANDALONE_BUNDLE_SHA256,
+          bytes: STANDALONE_BUNDLE_BYTES,
+        },
+      }),
+    ).toThrow(/BLOCKED_PIN_MISMATCH|BUNDLE_AUTHORITY_MISMATCH|OID/);
+
+    expect(() =>
+      assertBundleAuthority({
+        bundleSealsOverride: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: STANDALONE_BUNDLE_OID,
+          sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          bytes: STANDALONE_BUNDLE_BYTES,
+        },
+      }),
+    ).toThrow(/BLOCKED_PIN_MISMATCH|BUNDLE_AUTHORITY_MISMATCH|SHA-256/);
+
+    expect(() =>
+      assertBundleAuthority({
+        bundleSealsOverride: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: STANDALONE_BUNDLE_OID,
+          sha256: STANDALONE_BUNDLE_SHA256,
+          bytes: STANDALONE_BUNDLE_BYTES + 1,
+        },
+      }),
+    ).toThrow(/BLOCKED_PIN_MISMATCH|BUNDLE_AUTHORITY_MISMATCH|byte/);
+
+    expect(() =>
+      assertBundleAuthority({
+        bundleSealsOverride: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: "PENDING_BUNDLE_OID_PLACEHOLDER_000000000000",
+          sha256: STANDALONE_BUNDLE_SHA256,
+          bytes: STANDALONE_BUNDLE_BYTES,
+        },
+      }),
+    ).toThrow(/BUNDLE_AUTHORITY_UNPUBLISHED/);
+  });
+
+  it("refuses harness activation via env or argv; CLI never bypasses unpublished pins", () => {
+    expect(() =>
+      assertBundleAuthority({
+        env: { RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_HARNESS: "1" },
+      }),
+    ).toThrow(/HARNESS_VIA_ENV_FORBIDDEN/);
+    expect(() =>
+      assertBundleAuthority({
+        argv: ["node", "apply.js", "--allow-unpublished-harness"],
+      }),
+    ).toThrow(/HARNESS_VIA_ARGV_FORBIDDEN/);
+
+    const cli = spawnSync(
+      process.execPath,
+      ["scripts/security/apply-ra-pro-accounting-automation.js", "--dry-run"],
+      { cwd: process.cwd(), encoding: "utf8", windowsHide: true, env: { ...process.env } },
+    );
+    expect(cli.status).toBe(1);
+    const payload = JSON.parse(`${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}");
+    expect(String(payload.reason || payload.result_code || payload.error_code || "")).toMatch(
+      /AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/,
+    );
+    expect(payload.databaseConnectionAttempts ?? 0).toBe(0);
+  });
+
+  it("dry-run without harness never reaches credentials when pins unpublished", async () => {
+    const result = await runApplicator({
+      mode: "dry-run",
+      env: {}, // no database URL
+    });
+    expect(result.verdict).toMatch(/BLOCKED|DRY_RUN_BLOCKED/);
+    expect(String(result.error_code || result.result_code || "")).toMatch(
+      /AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/,
+    );
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
+    // Bundle gate must run first when seals are published.
+    if (result.bundle_authority) {
+      expect(result.phase || result.error_code).toMatch(/authorization|AUTHORIZATION/i);
+    }
   });
 });
 

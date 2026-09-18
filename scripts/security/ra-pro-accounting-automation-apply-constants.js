@@ -3,6 +3,7 @@
 /**
  * Offline authority for the RA Pro accounting-automation migration applicator.
  * Production apply remains unreachable until prior-dry-run and pre-apply pins publish.
+ * Bundle authority is external (OID/SHA/bytes) — never PENDING self-hash alone.
  */
 const ARTIFACT_COMMIT = "85ae600be8ef8ef3498703bf480f8148d6fe0971";
 const EXPECTED_PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
@@ -53,9 +54,20 @@ const TOOLING_AUTHORIZATION_PATH =
 const STANDALONE_BUNDLE_PATH =
   "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
 
-/** Pending placeholder — whole-file self-hash fixed-point not used (cutover/FRLS contract). */
+/**
+ * Inert placeholder — MUST NOT be treated as a matching authority hash.
+ * Mandatory external gate: STANDALONE_BUNDLE_{OID,SHA256,BYTES} + TOOLING_AUTHORIZATION.standalone_bundle
+ * verified via git cat-file before credentials/DB/SQL.
+ */
 const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
+
+/** Filled by assemble script after LF measure; non-circular (constants updated without rebuild). */
+const STANDALONE_BUNDLE_OID =
+  "7ee255f64abe45ff26883e1b96db626b8a75aaf7";
+const STANDALONE_BUNDLE_SHA256 =
+  "6726a1d94064c648294b6a8a9a90017798d9ddf72cf1f5886aba1626fb5116f3";
+const STANDALONE_BUNDLE_BYTES = 215934;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation.js",
@@ -78,6 +90,9 @@ module.exports = {
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
   SELF_AUTHORITY_MODULES,
+  STANDALONE_BUNDLE_BYTES,
+  STANDALONE_BUNDLE_OID,
   STANDALONE_BUNDLE_PATH,
+  STANDALONE_BUNDLE_SHA256,
   TOOLING_AUTHORIZATION_PATH,
 };

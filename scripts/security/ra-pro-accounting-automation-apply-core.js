@@ -11,17 +11,23 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("pg");
+const { execFileSync } = require("node:child_process");
 const {
   ADVISORY_LOCK,
   APPLY_AUTHORIZATION_TOKEN,
   ARTIFACT_COMMIT,
   DATABASE_URL_ENV,
   EXPECTED_PROJECT_REF,
+  EXPECTED_STANDALONE_BUNDLE_SHA256,
   FEATURE_FLAG_ENV,
   FORBIDDEN_DATABASE_URL_ENVS,
   MIGRATIONS,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
+  STANDALONE_BUNDLE_BYTES,
+  STANDALONE_BUNDLE_OID,
+  STANDALONE_BUNDLE_PATH,
+  STANDALONE_BUNDLE_SHA256,
   TOOLING_AUTHORIZATION_PATH,
 } = require("./ra-pro-accounting-automation-apply-constants");
 const {
@@ -161,6 +167,28 @@ function resolveDatabaseUrlFromEnv(env = process.env) {
   return { url: raw, uri_diagnostics: diagnostics };
 }
 
+function resolveRepoRoot(inputs = {}) {
+  if (inputs.cwd) return inputs.cwd;
+  const candidates = [
+    process.cwd(),
+    ROOT,
+    // Modular scripts live in scripts/security → ../..
+    path.resolve(__dirname, "../.."),
+    // Standalone bundle lives in scripts/security/bundles → ../../..
+    path.resolve(__dirname, "../../.."),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(path.join(candidate, TOOLING_AUTHORIZATION_PATH))) {
+        return candidate;
+      }
+    } catch {
+      // continue
+    }
+  }
+  return process.cwd();
+}
+
 function loadAuthorizationPackage(cwd = ROOT) {
   const abs = path.join(cwd, TOOLING_AUTHORIZATION_PATH);
   try {
@@ -173,9 +201,180 @@ function loadAuthorizationPackage(cwd = ROOT) {
   }
 }
 
+function assertNoHarnessEnvOrArgv(inputs = {}) {
+  const env = inputs.env || process.env;
+  const forbiddenEnv = [
+    "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_HARNESS",
+    "ALLOW_UNPUBLISHED_FOR_HARNESS",
+    "ALLOW_UNPUBLISHED_RA_PRO_ACCOUNTING_AUTOMATION",
+  ];
+  for (const name of forbiddenEnv) {
+    if (Object.prototype.hasOwnProperty.call(env, name) && env[name]) {
+      const e = new Error(`HARNESS_VIA_ENV_FORBIDDEN: ${name}`);
+      e.code = "HARNESS_VIA_ENV_FORBIDDEN";
+      e.phase = "bundle_authority";
+      throw e;
+    }
+  }
+  const argv = inputs.argv || process.argv || [];
+  if (argv.some((a) => /harness|allow-unpublished/i.test(String(a)))) {
+    const e = new Error("HARNESS_VIA_ARGV_FORBIDDEN");
+    e.code = "HARNESS_VIA_ARGV_FORBIDDEN";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+}
+
+function isPublishedHexOid(value) {
+  return typeof value === "string" && /^[0-9a-f]{40}$/i.test(value);
+}
+
+function isPublishedHexSha256(value) {
+  return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value) && !value.startsWith("PENDING_");
+}
+
+function resolveBundleSeals(inputs = {}) {
+  if (inputs.bundleSealsOverride) return inputs.bundleSealsOverride;
+  const auth = loadAuthorizationPackage(resolveRepoRoot(inputs));
+  const fromAuth = auth.standalone_bundle || {};
+  const oid = fromAuth.oid || STANDALONE_BUNDLE_OID;
+  const sha256 = fromAuth.sha256 || STANDALONE_BUNDLE_SHA256;
+  const bytes = fromAuth.bytes != null ? fromAuth.bytes : STANDALONE_BUNDLE_BYTES;
+  const bundlePath = fromAuth.path || STANDALONE_BUNDLE_PATH;
+  return { path: bundlePath, oid, sha256, bytes, source: "tooling_authorization+constants" };
+}
+
+/**
+ * Mandatory external bundle gate. Runs before credentials, DB connect, or SQL.
+ * PENDING EXPECTED_STANDALONE_BUNDLE_SHA256 is inert and never treated as a match.
+ * Authority is git cat-file of the committed LF blob (never CRLF worktree bytes).
+ */
+function assertBundleAuthority(inputs = {}) {
+  assertNoHarnessEnvOrArgv(inputs);
+
+  // EXPECTED_STANDALONE_BUNDLE_SHA256 must never authorize by itself.
+  if (
+    EXPECTED_STANDALONE_BUNDLE_SHA256 &&
+    !String(EXPECTED_STANDALONE_BUNDLE_SHA256).startsWith("PENDING_") &&
+    isPublishedHexSha256(EXPECTED_STANDALONE_BUNDLE_SHA256)
+  ) {
+    // Optional cross-check only when published; still requires external OID/bytes gate below.
+  } else if (
+    EXPECTED_STANDALONE_BUNDLE_SHA256 &&
+    !String(EXPECTED_STANDALONE_BUNDLE_SHA256).startsWith("PENDING_")
+  ) {
+    const e = new Error("BUNDLE_SELF_HASH_INVALID");
+    e.code = "BUNDLE_AUTHORITY_UNPUBLISHED";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+
+  const seals = resolveBundleSeals(inputs);
+  if (
+    !seals ||
+    !isPublishedHexOid(seals.oid) ||
+    !isPublishedHexSha256(seals.sha256) ||
+    !Number.isInteger(seals.bytes) ||
+    seals.bytes <= 0 ||
+    String(seals.oid).startsWith("PENDING_") ||
+    String(seals.sha256).startsWith("PENDING_")
+  ) {
+    const e = new Error(
+      "BUNDLE_AUTHORITY_UNPUBLISHED: standalone_bundle OID/SHA/bytes pins missing or PENDING",
+    );
+    e.code = "BUNDLE_AUTHORITY_UNPUBLISHED";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+
+  // Constants mirror must agree when both are published (detect drift).
+  if (isPublishedHexOid(STANDALONE_BUNDLE_OID) && STANDALONE_BUNDLE_OID !== seals.oid) {
+    const e = new Error("BUNDLE_AUTHORITY_CONSTANTS_DRIFT: OID mismatch vs TOOLING_AUTHORIZATION");
+    e.code = "BUNDLE_AUTHORITY_MISMATCH";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+  if (
+    isPublishedHexSha256(STANDALONE_BUNDLE_SHA256) &&
+    STANDALONE_BUNDLE_SHA256 !== seals.sha256
+  ) {
+    const e = new Error("BUNDLE_AUTHORITY_CONSTANTS_DRIFT: SHA-256 mismatch vs TOOLING_AUTHORIZATION");
+    e.code = "BUNDLE_AUTHORITY_MISMATCH";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+  if (
+    Number.isInteger(STANDALONE_BUNDLE_BYTES) &&
+    STANDALONE_BUNDLE_BYTES > 0 &&
+    STANDALONE_BUNDLE_BYTES !== seals.bytes
+  ) {
+    const e = new Error("BUNDLE_AUTHORITY_CONSTANTS_DRIFT: bytes mismatch vs TOOLING_AUTHORIZATION");
+    e.code = "BUNDLE_AUTHORITY_MISMATCH";
+    e.phase = "bundle_authority";
+    throw e;
+  }
+
+  const cwd = resolveRepoRoot(inputs);
+  let commit = inputs.bundleAuthorityCommit;
+  if (!commit) {
+    try {
+      commit = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd,
+        encoding: "utf8",
+        env: (() => {
+          const env = { ...process.env };
+          const n = Number(env.GIT_CONFIG_COUNT || 0);
+          env.GIT_CONFIG_COUNT = String(n + 1);
+          env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+          env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+          return env;
+        })(),
+      }).trim();
+    } catch (err) {
+      const e = new Error(`BUNDLE_AUTHORITY_GIT_HEAD_UNRESOLVED: ${err.message}`);
+      e.code = "BUNDLE_AUTHORITY_MISMATCH";
+      e.phase = "bundle_authority";
+      throw e;
+    }
+  }
+
+  try {
+    const loaded = loadAndVerifyGitBlob({
+      commit,
+      path: seals.path,
+      expectedOid: seals.oid,
+      expectedSha256: seals.sha256,
+      expectedBytes: seals.bytes,
+      cwd,
+    });
+    if (loaded.buffer.includes(0x0d)) {
+      const e = new Error("BUNDLE_NOT_LF_ONLY: committed blob contains CR");
+      e.code = "BUNDLE_CRLF_FORBIDDEN";
+      e.phase = "bundle_authority";
+      throw e;
+    }
+    return {
+      path: seals.path,
+      oid: loaded.oid,
+      sha256: loaded.sha256,
+      bytes: loaded.bytes,
+      commit,
+      phase: "bundle_authority",
+    };
+  } catch (err) {
+    if (err.code && String(err.code).startsWith("BUNDLE_")) throw err;
+    const e = new Error(err.message || "BUNDLE_AUTHORITY_MISMATCH");
+    e.code = err.code || "BUNDLE_AUTHORITY_MISMATCH";
+    e.phase = "bundle_authority";
+    e.cause = err;
+    throw e;
+  }
+}
+
 function assertAuthorizationPublished(inputs = {}) {
+  assertNoHarnessEnvOrArgv(inputs);
   if (inputs.allowUnpublishedForHarness === true) return { harness_bypass: true };
-  const auth = loadAuthorizationPackage(inputs.cwd || ROOT);
+  const auth = loadAuthorizationPackage(resolveRepoRoot(inputs));
   const pub = auth.publication || {};
   const unpublished =
     auth.publication?.status === "UNPUBLISHED" ||
@@ -212,7 +411,7 @@ function assertMigrationOrder(migrations = MIGRATIONS) {
 function loadSealedMigrations(inputs = {}) {
   assertMigrationOrder();
   const commit = inputs.artifactCommit || ARTIFACT_COMMIT;
-  const cwd = inputs.cwd || ROOT;
+  const cwd = resolveRepoRoot(inputs);
   return MIGRATIONS.map((migration) => {
     const loaded = loadAndVerifyGitBlob({
       commit,
@@ -373,6 +572,10 @@ async function insertMigrationHistory(client, packed) {
 async function runDryRun(inputs = {}) {
   const evidence = buildEvidenceBase({ ...inputs, mode: "dry-run" });
   try {
+    // Bundle seals before authorization, credentials, DB, or SQL.
+    evidence.bundle_authority = assertBundleAuthority(inputs);
+    evidence.databaseConnectionAttempts = 0;
+    evidence.sqlApplicationAttempts = 0;
     assertAuthorizationPublished(inputs);
     assertFeatureFlagUntouched(inputs.env || process.env);
     const packed = loadSealedMigrations(inputs);
@@ -417,6 +620,10 @@ async function runApply(inputs = {}) {
   let commitPhase = "pre_commit";
 
   try {
+    // Bundle seals before authorization, credentials, DB, or SQL.
+    evidence.bundle_authority = assertBundleAuthority(inputs);
+    evidence.databaseConnectionAttempts = 0;
+    evidence.sqlApplicationAttempts = 0;
     assertAuthorizationPublished(inputs);
     assertFeatureFlagUntouched(inputs.env || process.env);
     if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN) {
@@ -590,10 +797,13 @@ module.exports = {
   FEATURE_FLAG_ENV,
   IndeterminateCommitError,
   assertAuthorizationPublished,
+  assertBundleAuthority,
   assertFeatureFlagUntouched,
   assertMigrationOrder,
+  assertNoHarnessEnvOrArgv,
   classifyDatabaseUrl,
   loadSealedMigrations,
+  resolveBundleSeals,
   resolveDatabaseUrlFromEnv,
   runApplicator,
   runApply,

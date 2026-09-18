@@ -1,123 +1,177 @@
 #!/usr/bin/env node
+/**
+ * Deterministic standalone bundle builder for RA Pro accounting-automation applicator.
+ * Uses esbuild → __commonJS pack (same pattern as cutover/FRLS/containment).
+ * Publishes external bundle OID/SHA/bytes into TOOLING_AUTHORIZATION.json + constants
+ * WITHOUT rebuilding (non-circular authority). Seal publication only — not production apply.
+ */
 "use strict";
 /* eslint-disable @typescript-eslint/no-require-imports */
 
-/**
- * Assemble a standalone CommonJS bundle for the accounting-automation applicator.
- * Embeds core + constants + git-blob-authority. Does not publish apply pins.
- * Bundle SHA is measured after write; EXPECTED_STANDALONE_BUNDLE_SHA256 stays
- * PENDING (same contract as cutover / FRLS / containment applicators).
- */
+const { spawnSync, execFileSync } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
-const {
-  STANDALONE_BUNDLE_PATH,
-  SELF_AUTHORITY_MODULES,
-} = require("./ra-pro-accounting-automation-apply-constants");
 
 const ROOT = path.resolve(__dirname, "../..");
-
-const MODULES = [
-  "scripts/security/git-blob-authority.js",
+const ENTRY = path.join(ROOT, "scripts/security/apply-ra-pro-accounting-automation.js");
+const OUT_REL = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
+const OUT_FILE = path.join(ROOT, OUT_REL);
+const CONSTANTS = path.join(
+  ROOT,
   "scripts/security/ra-pro-accounting-automation-apply-constants.js",
-  "scripts/security/ra-pro-accounting-automation-apply-core.js",
-];
+);
+const AUTH_PATH = path.join(
+  ROOT,
+  "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json",
+);
+const ESBUILD_VERSION = "0.25.0";
 
-function stripHeader(source) {
-  return source
-    .replace(/^[\s\S]*?"use strict";\s*/, "")
-    .replace(/^\/\* eslint-disable[^*]*\*\/\s*/m, "");
+function sha256(buf) {
+  return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
-function buildBody() {
-  const parts = [];
-  parts.push(`/** Auto-generated RA Pro accounting-automation applicator standalone bundle. */`);
-  parts.push(`"use strict";`);
-  parts.push(`const __bundle_fs = require("node:fs");`);
-  parts.push(`const __bundle_path = require("node:path");`);
-  parts.push(`const __bundle_crypto = require("node:crypto");`);
-  parts.push(`const __bundle_child = require("node:child_process");`);
-  parts.push(`const { Client } = require("pg");`);
-  parts.push(`const module = { exports: {} };`);
-  parts.push(`const exports = module.exports;`);
+function lf(s) {
+  return String(s).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
 
-  let gitBlob = stripHeader(fs.readFileSync(path.join(ROOT, MODULES[0]), "utf8"));
-  gitBlob = gitBlob
-    .replace(/const \{ createHash \} = require\("node:crypto"\);/, "")
-    .replace(/const \{ execFileSync \} = require\("node:child_process"\);/, "")
-    .replace(/const path = require\("node:path"\);/, "const path = __bundle_path;")
-    .replace(/createHash/g, "__bundle_crypto.createHash")
-    .replace(/execFileSync/g, "__bundle_child.execFileSync");
-  parts.push(`/* ---- git-blob-authority ---- */`);
-  parts.push(gitBlob);
-  parts.push(`const gitBlobAuthority = module.exports;`);
-  parts.push(`module.exports = {};`);
+function writeLf(file, text) {
+  fs.writeFileSync(file, lf(text), { encoding: "utf8" });
+}
 
-  const constants = stripHeader(fs.readFileSync(path.join(ROOT, MODULES[1]), "utf8"));
-  parts.push(`/* ---- constants ---- */`);
-  parts.push(constants);
-  parts.push(`const applyConstants = module.exports;`);
-  parts.push(`module.exports = {};`);
+function gitEnv() {
+  const env = { ...process.env };
+  const n = Number(env.GIT_CONFIG_COUNT || 0);
+  env.GIT_CONFIG_COUNT = String(n + 1);
+  env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+  env[`GIT_CONFIG_VALUE_${n}`] = ROOT.replace(/\\/g, "/");
+  return env;
+}
 
-  let core = stripHeader(fs.readFileSync(path.join(ROOT, MODULES[2]), "utf8"));
-  core = core
-    .replace(/const fs = require\("node:fs"\);/, "const fs = __bundle_fs;")
-    .replace(/const path = require\("node:path"\);/, "const path = __bundle_path;")
-    .replace(/const \{ Client \} = require\("pg"\);/, "")
-    .replace(
-      /const \{[\s\S]*?\} = require\("\.\/ra-pro-accounting-automation-apply-constants"\);/,
-      "const {\n  ADVISORY_LOCK,\n  APPLY_AUTHORIZATION_TOKEN,\n  ARTIFACT_COMMIT,\n  DATABASE_URL_ENV,\n  EXPECTED_PROJECT_REF,\n  FEATURE_FLAG_ENV,\n  FORBIDDEN_DATABASE_URL_ENVS,\n  MIGRATIONS,\n  POST_HISTORY_COUNT,\n  PRIOR_HISTORY_COUNT,\n  TOOLING_AUTHORIZATION_PATH,\n} = applyConstants;",
-    )
-    .replace(
-      /const \{[\s\S]*?\} = require\("\.\/git-blob-authority"\);/,
-      "const {\n  loadAndVerifyGitBlob,\n  stripOuterBeginCommit,\n  assertNoDropCascade,\n  sha256Buffer,\n  ROOT,\n} = gitBlobAuthority;",
-    );
-  parts.push(`/* ---- apply-core ---- */`);
-  parts.push(core);
-  parts.push(`const applyCore = module.exports;`);
-  parts.push(
-    `module.exports = { ...applyConstants, ...applyCore, runApplicator: applyCore.runApplicator };`,
+function measureLfBundle() {
+  const raw = fs.readFileSync(OUT_FILE);
+  const text = lf(raw.toString("utf8"));
+  writeLf(OUT_FILE, text);
+  const buf = Buffer.from(text, "utf8");
+  if (buf.includes(0x0d)) {
+    throw new Error("BUNDLE_NOT_LF_ONLY");
+  }
+  const oid = execFileSync("git", ["hash-object", "--stdin"], {
+    cwd: ROOT,
+    env: gitEnv(),
+    input: buf,
+    encoding: "utf8",
+  }).trim();
+  return { oid, sha256: sha256(buf), bytes: buf.length, lf: true };
+}
+
+function runEsbuild() {
+  fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
+  const pgNativeStub = path.join(ROOT, "scripts/security/stubs/pg-native-failclosed.js");
+  const r = spawnSync(
+    process.platform === "win32" ? "npx.cmd" : "npx",
+    [
+      "--yes",
+      `esbuild@${ESBUILD_VERSION}`,
+      ENTRY,
+      "--bundle",
+      "--platform=node",
+      "--format=cjs",
+      `--outfile=${OUT_FILE}`,
+      `--alias:pg-native=${pgNativeStub}`,
+      "--log-level=warning",
+    ],
+    { cwd: ROOT, encoding: "utf8", windowsHide: true, shell: true },
   );
-  parts.push(`if (require.main === module) {`);
-  parts.push(
-    `  applyCore.runApplicator({ mode: process.argv.includes("--apply") ? "apply" : "dry-run", authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_APPLY_TOKEN, env: process.env }).then((r) => {`,
+  if (r.status !== 0) {
+    throw new Error(`esbuild failed: ${r.stderr || r.stdout}`);
+  }
+  writeLf(OUT_FILE, fs.readFileSync(OUT_FILE, "utf8"));
+}
+
+function publishSeals(seals) {
+  const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+  auth.standalone_bundle = {
+    path: OUT_REL,
+    oid: seals.oid,
+    sha256: seals.sha256,
+    bytes: seals.bytes,
+    line_endings: "LF",
+    authority: "git_blob_cat_file",
+  };
+  writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
+
+  let constants = lf(fs.readFileSync(CONSTANTS, "utf8"));
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_OID =\n {2}"[^"]+";/,
+    `const STANDALONE_BUNDLE_OID =\n  "${seals.oid}";`,
   );
-  parts.push(`    process.stdout.write(JSON.stringify(r) + "\\n");`);
-  parts.push(
-    `    if (r.verdict !== "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" && r.verdict !== "APPLY_COMMITTED") process.exitCode = 1;`,
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_SHA256 =\n {2}"[^"]+";/,
+    `const STANDALONE_BUNDLE_SHA256 =\n  "${seals.sha256}";`,
   );
-  parts.push(
-    `  }).catch((err) => { process.stderr.write(JSON.stringify({ verdict: "BLOCKED", reason: String(err && err.message) }) + "\\n"); process.exitCode = 1; });`,
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_BYTES = \d+;/,
+    `const STANDALONE_BUNDLE_BYTES = ${seals.bytes};`,
   );
-  parts.push(`}`);
-  return `${parts.join("\n")}\n`;
+  // EXPECTED_STANDALONE_BUNDLE_SHA256 stays PENDING — external git-blob gate is mandatory.
+  writeLf(CONSTANTS, constants);
 }
 
 function main() {
-  const outAbs = path.join(ROOT, STANDALONE_BUNDLE_PATH);
-  fs.mkdirSync(path.dirname(outAbs), { recursive: true });
-  const body = buildBody();
-  fs.writeFileSync(outAbs, body);
-  const buf = Buffer.from(body, "utf8");
-  const sha256 = crypto.createHash("sha256").update(buf).digest("hex");
-  const oid = execFileSync("git", ["hash-object", outAbs], {
+  runEsbuild();
+  const seals = measureLfBundle();
+  publishSeals(seals);
+
+  // Smoke: must parse under Node (packaging). Full fail-closed auth is proven post-commit.
+  const check = spawnSync(process.execPath, ["--check", OUT_FILE], {
     cwd: ROOT,
     encoding: "utf8",
-  }).trim();
-  const bytes = buf.length;
+    windowsHide: true,
+  });
+  if (check.status !== 0) {
+    throw new Error(`standalone --check failed: ${check.stderr || check.stdout}`);
+  }
+  const smoke = spawnSync(process.execPath, [OUT_FILE], {
+    cwd: ROOT,
+    encoding: "utf8",
+    windowsHide: true,
+    env: { ...process.env },
+  });
+  const out = `${smoke.stdout || ""}${smoke.stderr || ""}`;
+  if (/SyntaxError|Cannot find module|Identifier 'module'/.test(out)) {
+    throw new Error(`standalone packaging failure: ${out}`);
+  }
+  if (smoke.status === 0) {
+    throw new Error(`standalone smoke unexpectedly succeeded: ${out}`);
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop() || "null");
+  } catch {
+    parsed = null;
+  }
+  const code = parsed
+    ? String(parsed.reason || parsed.result_code || parsed.error_code || parsed.error || "")
+    : out;
+  if (
+    !/BUNDLE_|AUTHORIZATION_PINS_UNPUBLISHED|BLOCKED_PIN_MISMATCH|GIT_BLOB/i.test(code)
+  ) {
+    throw new Error(`standalone smoke unexpected verdict: ${out}`);
+  }
+
   process.stdout.write(
     `${JSON.stringify({
       verdict: "BUNDLE_ASSEMBLED",
-      path: STANDALONE_BUNDLE_PATH,
-      oid,
-      sha256,
-      bytes,
-      modules: MODULES,
-      self_authority_modules: SELF_AUTHORITY_MODULES,
+      path: OUT_REL,
+      oid: seals.oid,
+      sha256: seals.sha256,
+      bytes: seals.bytes,
+      lf: true,
+      esbuild_version: ESBUILD_VERSION,
       productionContact: false,
       applyAuthorized: false,
+      note: "Seals published externally; constants updated without rebuild (non-circular).",
     })}\n`,
   );
 }

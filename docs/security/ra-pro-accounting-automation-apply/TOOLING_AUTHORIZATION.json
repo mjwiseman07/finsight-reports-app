@@ -49,5 +49,13 @@
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels."
-  ]
+  ],
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
+    "oid": "7ee255f64abe45ff26883e1b96db626b8a75aaf7",
+    "sha256": "6726a1d94064c648294b6a8a9a90017798d9ddf72cf1f5886aba1626fb5116f3",
+    "bytes": 215934,
+    "line_endings": "LF",
+    "authority": "git_blob_cat_file"
+  }
 }
