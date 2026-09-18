@@ -6,8 +6,8 @@
   "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917",
   "advisory_lock": {
     "name": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY",
-    "key1": 1380012353,
-    "key2": 539364119
+    "key1": 1380008257,
+    "key2": 539363607
   },
   "history_contract": {
     "prior": 188,
