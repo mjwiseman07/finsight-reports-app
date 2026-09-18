@@ -45,6 +45,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestForceTerminateFailure,
 
+  # Harness-only: ask entry to open the visible prompt probe. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe,
+
   # Set only after tip-seal materialize of this bootstrap (authenticated operator/harness path).
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -279,6 +283,7 @@ try {
   }
   if ($TestForceCleanupFailure) { $supArgs += "-TestForceCleanupFailure" }
   if ($TestForceTerminateFailure) { $supArgs += "-TestForceTerminateFailure" }
+  if ($TestVisiblePromptProbe) { $supArgs += "-TestVisiblePromptProbe" }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe
