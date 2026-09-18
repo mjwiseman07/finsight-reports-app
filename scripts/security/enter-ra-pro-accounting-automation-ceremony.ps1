@@ -1,16 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Native entry for RA Pro accounting-automation visible dry-run.
-  Tip-loads TOOLING_AUTHORIZATION, materializes visible_ceremony_bootstrap from
-  bootstrap_source_commit via git cat-file, verifies OID/SHA/bytes/LF/no-BOM/non-reparse,
-  launches only the temporary materialized bootstrap with -SealedMaterialInvocation.
-  Never executes worktree bootstrap/supervisor/entry/ceremony.
-
-.NOTES
-  Preferred operator path (APPLY_RUNBOOK.md): authenticate via tip seals then invoke
-  this entry OR the equivalent inline git cat-file bootstrap materialize. Do not
-  -File worktree supervise/enter-apply/ceremony scripts.
+  Retired worktree helper. Not an operator entrypoint.
+  Direct -File of this worktree script fails closed.
+  The only supported launch is the APPLY_RUNBOOK.md Git-blob bootstrap materialize.
 #>
 [CmdletBinding()]
 param(
@@ -51,6 +44,30 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Worktree -File is never a trust root. Only a copy already materialized under TEMP
+# could continue, and the runbook does not use this script at all.
+$nativeEntryCmd = ""
+try { $nativeEntryCmd = [IO.Path]::GetFullPath($PSCommandPath) } catch { $nativeEntryCmd = "" }
+$tempRoot = ""
+try { $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()) } catch { $tempRoot = "" }
+$tempPrefix = ""
+if ($tempRoot) { $tempPrefix = $tempRoot.TrimEnd('\') + '\' }
+$underTemp = $false
+if ($nativeEntryCmd -and $tempPrefix) {
+  $underTemp = $nativeEntryCmd.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase)
+}
+if (-not $underTemp) {
+  $blocked = [ordered]@{
+    verdict = "BLOCKED"
+    reason = "NATIVE_ENTRY_DIRECT_EXEC_FORBIDDEN: worktree native entry is not an operator entrypoint"
+    mode = $Mode
+    productionContact = $false
+    featureFlagTouched = $false
+  } | ConvertTo-Json -Compress
+  Write-Output $blocked
+  exit 1
+}
 
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $BootstrapRel = "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1"
