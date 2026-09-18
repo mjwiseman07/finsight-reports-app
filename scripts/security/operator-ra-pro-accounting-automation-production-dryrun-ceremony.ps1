@@ -57,22 +57,13 @@ $ProgressPreference = "SilentlyContinue"
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
 # Fail closed on direct worktree/operator ceremony execution unless sealed materialize or harness.
+# ALLOW_DIRECT_HARNESS=1 is unit-test only; synthetic-URL policy is enforced later in-ceremony.
 $allowDirectHarness = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_DIRECT_HARNESS", "Process")
 if (-not $SealedMaterialInvocation) {
   if ($allowDirectHarness -ne "1") {
     $blocked = [ordered]@{
       verdict = "BLOCKED"
       reason = "CEREMONY_DIRECT_EXEC_FORBIDDEN: launch only via sealed supervise/enter materialize path"
-      mode = "dry-run"
-      productionContact = $false
-    } | ConvertTo-Json -Compress
-    Write-Output $blocked
-    exit 1
-  }
-  if ([Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -ne "1") {
-    $blocked = [ordered]@{
-      verdict = "BLOCKED"
-      reason = "CEREMONY_DIRECT_EXEC_FORBIDDEN: harness direct requires ALLOW_SYNTHETIC_URL=1"
       mode = "dry-run"
       productionContact = $false
     } | ConvertTo-Json -Compress

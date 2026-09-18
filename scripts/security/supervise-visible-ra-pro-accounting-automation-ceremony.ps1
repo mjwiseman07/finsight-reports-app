@@ -92,14 +92,22 @@ function Invoke-GitText([string[]]$GitArgs, [string]$WorkDir) {
 }
 
 function Assert-Utf8LfNoBom([byte[]]$Bytes, [string]$Label) {
-  if ($null -eq $Bytes) { throw "$Label: null bytes" }
+  if ($null -eq $Bytes) { throw ("{0}: null bytes" -f $Label) }
   if ($Bytes.Length -ge 3 -and $Bytes[0] -eq 0xef -and $Bytes[1] -eq 0xbb -and $Bytes[2] -eq 0xbf) {
-    throw "$Label: UTF-8 BOM forbidden"
+    throw ("{0}: UTF-8 BOM forbidden" -f $Label)
   }
   if ([Array]::IndexOf($Bytes, [byte]0x0d) -ge 0) {
-    throw "$Label: CR/CRLF bytes forbidden; require LF-only"
+    throw ("{0}: CR/CRLF bytes forbidden; require LF-only" -f $Label)
   }
   $null = [Text.Encoding]::UTF8.GetString($Bytes)
+}
+
+function Format-Win32Argument([string]$Value) {
+  if ($null -eq $Value) { return '""' }
+  if ($Value -match '[\s"]') {
+    return '"' + ($Value -replace '"', '\"') + '"'
+  }
+  return $Value
 }
 
 function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
@@ -222,7 +230,7 @@ try {
 
   $psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
   $entryArgs = @(
-    "-NoProfile", "-ExecutionPolicy", "Bypass",
+    "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
     "-File", $entryDest,
     "-Mode", $Mode,
     "-PrHead", $PrHead,
@@ -245,7 +253,24 @@ try {
   if ($TestForceCleanupFailure) { $entryArgs += "-TestForceCleanupFailure" }
   if ($TestForceTerminateFailure) { $entryArgs += "-TestForceTerminateFailure" }
 
-  $p = Start-Process -FilePath $psExe -ArgumentList $entryArgs -Wait -PassThru -NoNewWindow
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = $psExe
+  $psi.Arguments = ($entryArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+  $psi.WorkingDirectory = $script:RepoRoot
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  Set-GitSafeDirectoryEnv -Psi $psi -Root $script:RepoRoot
+  $p = [Diagnostics.Process]::Start($psi)
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit([Math]::Max(60000, $ChildTimeoutMs + 60000))) {
+    try { $p.Kill() } catch {}
+    throw "sealed entry child timed out"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($stdout)) { Write-Output $stdout.TrimEnd() }
+  if (-not [string]::IsNullOrWhiteSpace($stderr)) { [Console]::Error.WriteLine($stderr.TrimEnd()) }
   exit $p.ExitCode
 }
 catch {

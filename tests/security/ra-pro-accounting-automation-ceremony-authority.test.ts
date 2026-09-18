@@ -82,7 +82,7 @@ function runSupervise(args: string[], envExtra: Record<string, string> = {}) {
       cwd: ROOT,
       encoding: "utf8",
       windowsHide: true,
-      env: { ...process.env, ...envExtra },
+      env: { ...gitEnv(), ...envExtra },
     },
   );
   return {

@@ -4,6 +4,9 @@
  */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error pg types optional in this repo
 import { Client } from "pg";
@@ -104,6 +107,24 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   });
 
   it("apply ceremony entry refuses unpublished prior/pre-apply pins without credentials", () => {
+    const authRaw = spawnSync(
+      "git",
+      ["show", "HEAD:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          ...process.env,
+          GIT_CONFIG_COUNT: "1",
+          GIT_CONFIG_KEY_0: "safe.directory",
+          GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+        },
+      },
+    );
+    const auth = JSON.parse(authRaw.stdout || "{}") as { authorized_pr_head?: string };
+    const freeze = String(auth.authorized_pr_head || "");
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-pin-"));
     const run = spawnSync(
       "powershell.exe",
       [
@@ -112,14 +133,27 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
+        "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
         "-Mode",
         "apply",
+        "-PrHead",
+        freeze,
+        "-EvidenceOutDir",
+        outDir,
       ],
       { cwd: process.cwd(), encoding: "utf8", windowsHide: true },
     );
     expect(run.status).toBe(1);
-    const payload = JSON.parse(run.stdout.trim().split(/\r?\n/).pop() || "{}");
+    const lines = `${run.stdout || ""}${run.stderr || ""}`.trim().split(/\r?\n/).filter(Boolean);
+    let payload: Record<string, unknown> = {};
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      try {
+        payload = JSON.parse(lines[i]);
+        break;
+      } catch {
+        // continue
+      }
+    }
     expect(payload.reason).toBe("AUTHORIZATION_PINS_UNPUBLISHED");
     expect(payload.mode).toBe("apply");
     expect(payload.productionContact).toBe(false);
