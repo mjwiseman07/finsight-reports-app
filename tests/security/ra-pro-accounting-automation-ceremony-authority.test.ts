@@ -1,5 +1,5 @@
 /**
- * Ceremony-authority seal/materialize coverage for RA Pro accounting-automation.
+ * Ceremony-authority / first-hop seal-materialize coverage for RA Pro accounting-automation.
  * Never contacts production.
  */
 import { spawnSync } from "node:child_process";
@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
+const BOOTSTRAP_REL =
+  "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1";
 const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:5432/postgres";
 
 function gitEnv() {
@@ -59,7 +61,10 @@ function loadAuth() {
   if (raw.status !== 0) throw new Error(raw.stderr || "auth load failed");
   return JSON.parse(raw.stdout || "{}") as {
     authorized_pr_head?: string;
+    bootstrap_source_commit?: string;
     ceremony_source_commit?: string;
+    visible_ceremony_bootstrap?: AuthSeal;
+    visible_ceremony_native_entry?: AuthSeal;
     visible_ceremony_supervisor?: AuthSeal;
     visible_ceremony_entry?: AuthSeal;
     operator_ceremony?: AuthSeal;
@@ -84,8 +89,34 @@ function lastJson(text: string): Record<string, unknown> {
   return {};
 }
 
-function runSupervise(args: string[], envExtra: Record<string, string> = {}) {
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-sup-"));
+/** Authenticated first hop: tip-seal materialize bootstrap, then launch temp only. */
+function runAuthenticatedBootstrap(args: string[], envExtra: Record<string, string> = {}) {
+  const auth = loadAuth();
+  const tip = tipSha();
+  const bootSrc = String(auth.bootstrap_source_commit || "");
+  const seal = auth.visible_ceremony_bootstrap;
+  if (!seal?.path || !seal.oid || !seal.sha256 || !seal.bytes) {
+    throw new Error("missing visible_ceremony_bootstrap seals");
+  }
+  const oid = git(["rev-parse", `${bootSrc}:${seal.path}`]);
+  expect(oid).toBe(seal.oid);
+  const show = spawnSync("git", ["cat-file", "blob", `${bootSrc}:${seal.path}`], {
+    cwd: ROOT,
+    windowsHide: true,
+    env: gitEnv(),
+  });
+  if (show.status !== 0) throw new Error(String(show.stderr || "cat-file failed"));
+  const bytes = Buffer.isBuffer(show.stdout)
+    ? show.stdout
+    : Buffer.from(show.stdout || "");
+  expect(bytes.includes(0x0d)).toBe(false);
+  expect(bytes.length).toBe(Number(seal.bytes));
+  expect(crypto.createHash("sha256").update(bytes).digest("hex")).toBe(seal.sha256);
+
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-boot-"));
+  const materialDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-boot-mat-"));
+  const bootFile = path.join(materialDir, "bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1");
+  fs.writeFileSync(bootFile, bytes);
   const run = spawnSync(
     "powershell.exe",
     [
@@ -94,9 +125,12 @@ function runSupervise(args: string[], envExtra: Record<string, string> = {}) {
       "-ExecutionPolicy",
       "Bypass",
       "-File",
-      "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+      bootFile,
       "-EvidenceOutDir",
       outDir,
+      "-RepoRoot",
+      ROOT,
+      "-SealedMaterialInvocation",
       ...args,
     ],
     {
@@ -106,43 +140,52 @@ function runSupervise(args: string[], envExtra: Record<string, string> = {}) {
       env: { ...gitEnv(), ...envExtra },
     },
   );
+  try {
+    fs.rmSync(materialDir, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
   return {
     run,
     outDir,
     payload: lastJson(`${run.stdout || ""}${run.stderr || ""}`),
+    tip,
   };
 }
 
 describe("RA Pro accounting-automation ceremony authority", () => {
-  it("publishes non-circular freeze/source/tip seals for supervise/enter/ceremony", () => {
+  it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
     const auth = loadAuth();
     const tip = tipSha().toLowerCase();
     const freeze = String(auth.authorized_pr_head || "").toLowerCase();
+    const bootSrc = String(auth.bootstrap_source_commit || "").toLowerCase();
     const source = String(auth.ceremony_source_commit || "").toLowerCase();
     expect(freeze).toMatch(/^[0-9a-f]{40}$/);
+    expect(bootSrc).toMatch(/^[0-9a-f]{40}$/);
     expect(source).toMatch(/^[0-9a-f]{40}$/);
     expect(tip).toMatch(/^[0-9a-f]{40}$/);
-    expect(tip).not.toBe(freeze);
-    expect(tip).not.toBe(source);
-    expect(freeze).not.toBe(source);
-    expect(git(["merge-base", "--is-ancestor", freeze, source])).toBe("");
+    expect(new Set([freeze, bootSrc, source, tip]).size).toBe(4);
+    expect(git(["merge-base", "--is-ancestor", freeze, bootSrc])).toBe("");
+    expect(git(["merge-base", "--is-ancestor", bootSrc, source])).toBe("");
     expect(git(["merge-base", "--is-ancestor", source, tip])).toBe("");
 
-    for (const key of [
-      "visible_ceremony_supervisor",
-      "visible_ceremony_entry",
-      "operator_ceremony",
+    for (const [key, expectedSource] of [
+      ["visible_ceremony_bootstrap", bootSrc],
+      ["visible_ceremony_native_entry", bootSrc],
+      ["visible_ceremony_supervisor", source],
+      ["visible_ceremony_entry", source],
+      ["operator_ceremony", source],
     ] as const) {
       const seal = auth[key] as AuthSeal;
       expect(seal?.path).toBeTruthy();
-      expect(String(seal.source_commit).toLowerCase()).toBe(source);
+      expect(String(seal.source_commit).toLowerCase()).toBe(expectedSource);
       expect(seal.line_endings).toBe("LF");
       expect(String(seal.oid)).toMatch(/^[0-9a-f]{40}$/);
       expect(String(seal.sha256)).toMatch(/^[0-9a-f]{64}$/);
       expect(Number(seal.bytes)).toBeGreaterThan(0);
-      const oid = git(["rev-parse", `${source}:${seal.path}`]);
+      const oid = git(["rev-parse", `${expectedSource}:${seal.path}`]);
       expect(oid).toBe(seal.oid);
-      const buf = spawnSync("git", ["show", `${source}:${seal.path}`], {
+      const buf = spawnSync("git", ["show", `${expectedSource}:${seal.path}`], {
         cwd: ROOT,
         windowsHide: true,
         env: gitEnv(),
@@ -162,19 +205,24 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     );
   });
 
-  it("worktree-poisoned enter+ceremony still executes only sealed source blobs", () => {
+  it("worktree-poisoned supervisor still executes only sealed ceremony-source blobs", () => {
     const tip = tipSha();
-    const enterPath = path.join(ROOT, "scripts/security/enter-ra-pro-accounting-automation-apply.ps1");
+    const supervisorPath = path.join(
+      ROOT,
+      "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+    );
     const ceremonyPath = path.join(
       ROOT,
       "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
     );
-    const enterBackup = fs.readFileSync(enterPath);
+    const bootstrapPath = path.join(ROOT, BOOTSTRAP_REL);
+    const supervisorBackup = fs.readFileSync(supervisorPath);
     const ceremonyBackup = fs.readFileSync(ceremonyPath);
+    const bootstrapBackup = fs.readFileSync(bootstrapPath);
     try {
       fs.writeFileSync(
-        enterPath,
-        `${enterBackup.toString("utf8")}\n# POISON_ENTER_${Date.now()}\n`,
+        supervisorPath,
+        'Write-Output \'{"verdict":"POISONED","reason":"WORKTREE_SUPERVISOR"}\'; exit 0\n',
         "utf8",
       );
       fs.writeFileSync(
@@ -182,7 +230,12 @@ describe("RA Pro accounting-automation ceremony authority", () => {
         `${ceremonyBackup.toString("utf8")}\n# POISON_CEREMONY_${Date.now()}\n`,
         "utf8",
       );
-      const { run, payload } = runSupervise(
+      fs.writeFileSync(
+        bootstrapPath,
+        'Write-Output \'{"verdict":"POISONED","reason":"WORKTREE_BOOTSTRAP"}\'; exit 0\n',
+        "utf8",
+      );
+      const { run, payload } = runAuthenticatedBootstrap(
         [
           "-Mode",
           "dry-run",
@@ -198,44 +251,77 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       expect(run.status, JSON.stringify(payload)).toBe(0);
       expect(payload.result_code).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
       expect(payload.productionContact).toBe(false);
+      expect(String(payload.reason || "")).not.toMatch(/POISONED|WORKTREE_/);
       const child = payload.child_evidence as Record<string, unknown>;
       expect(child.databaseConnectionAttempts ?? 0).toBe(0);
       expect(child.sqlApplicationAttempts ?? 0).toBe(0);
     } finally {
-      fs.writeFileSync(enterPath, enterBackup);
+      fs.writeFileSync(supervisorPath, supervisorBackup);
       fs.writeFileSync(ceremonyPath, ceremonyBackup);
+      fs.writeFileSync(bootstrapPath, bootstrapBackup);
     }
   });
 
   it("wrong PrHead / forbidden env overrides fail before credentials", () => {
     const tip = tipSha();
-    const wrong = runSupervise(
+    const wrong = runAuthenticatedBootstrap(
       ["-Mode", "dry-run", "-PrHead", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
     );
     expect(wrong.run.status).toBe(1);
     expect(String(wrong.payload.reason || "")).toMatch(/BLOCKED_PIN_MISMATCH|BLOCKED_PUBLICATION_TIP/);
 
-    const envOverride = runSupervise(
-      [
-        "-Mode",
-        "dry-run",
-        "-PrHead",
-        tip,
-        "-TestSyntheticDatabaseUrl",
-        PROJECT_URL,
-      ],
+    const envOverride = runAuthenticatedBootstrap(
+      ["-Mode", "dry-run", "-PrHead", tip, "-TestSyntheticDatabaseUrl", PROJECT_URL],
       {
         RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
-        RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_PATH: "C:\\evil\\ceremony.ps1",
+        RA_PRO_ACCOUNTING_AUTOMATION_SUPERVISOR_PATH: "C:\\evil\\supervise.ps1",
       },
     );
     expect(envOverride.run.status).toBe(1);
     expect(String(envOverride.payload.reason || "")).toMatch(/BLOCKED_INPUT_INVALID/);
   });
 
-  it("direct ceremony and direct enter execution are rejected", () => {
+  it("direct bootstrap/supervisor/ceremony/enter-apply execution are rejected", () => {
     const tip = tipSha();
+    const directBoot = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        BOOTSTRAP_REL,
+        "-PrHead",
+        tip,
+      ],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true, env: { ...process.env } },
+    );
+    expect(directBoot.status).toBe(1);
+    expect(String(lastJson(`${directBoot.stdout || ""}${directBoot.stderr || ""}`).reason || "")).toMatch(
+      /BOOTSTRAP_DIRECT_EXEC_FORBIDDEN/,
+    );
+
+    const directSup = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+        "-PrHead",
+        tip,
+      ],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true, env: { ...process.env } },
+    );
+    expect(directSup.status).toBe(1);
+    expect(String(lastJson(`${directSup.stdout || ""}${directSup.stderr || ""}`).reason || "")).toMatch(
+      /SUPERVISOR_DIRECT_EXEC_FORBIDDEN/,
+    );
+
     const directCer = spawnSync(
       "powershell.exe",
       [
@@ -252,9 +338,10 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       ],
       { cwd: ROOT, encoding: "utf8", windowsHide: true, env: { ...process.env } },
     );
-    const cerPayload = lastJson(`${directCer.stdout || ""}${directCer.stderr || ""}`);
     expect(directCer.status).toBe(1);
-    expect(String(cerPayload.reason || "")).toMatch(/CEREMONY_DIRECT_EXEC_FORBIDDEN/);
+    expect(String(lastJson(`${directCer.stdout || ""}${directCer.stderr || ""}`).reason || "")).toMatch(
+      /CEREMONY_DIRECT_EXEC_FORBIDDEN/,
+    );
 
     const directEnter = spawnSync(
       "powershell.exe",
@@ -272,14 +359,15 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       ],
       { cwd: ROOT, encoding: "utf8", windowsHide: true, env: { ...process.env } },
     );
-    const enterPayload = lastJson(`${directEnter.stdout || ""}${directEnter.stderr || ""}`);
     expect(directEnter.status).toBe(1);
-    expect(String(enterPayload.reason || "")).toMatch(/ENTRY_DIRECT_EXEC_FORBIDDEN/);
+    expect(String(lastJson(`${directEnter.stdout || ""}${directEnter.stderr || ""}`).reason || "")).toMatch(
+      /ENTRY_DIRECT_EXEC_FORBIDDEN/,
+    );
   });
 
-  it("apply remains blocked by unpublished later pins via sealed supervise path", () => {
+  it("apply remains blocked by unpublished later pins via authenticated bootstrap path", () => {
     const tip = tipSha();
-    const { run, payload } = runSupervise(["-Mode", "apply", "-PrHead", tip]);
+    const { run, payload } = runAuthenticatedBootstrap(["-Mode", "apply", "-PrHead", tip]);
     expect(run.status).toBe(1);
     expect(String(payload.reason || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
     expect(payload.productionContact).toBe(false);

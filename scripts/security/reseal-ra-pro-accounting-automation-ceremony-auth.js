@@ -7,10 +7,7 @@
  *
  * Usage:
  *   node scripts/security/reseal-ra-pro-accounting-automation-ceremony-auth.js \
- *     --freeze <40hex> --source <40hex>
- *
- * Seal bytes are measured from --source commit blobs (git show), not mutable tip worktree
- * unless --from-worktree is passed (pre-commit staging only).
+ *     --freeze <40hex> --bootstrap-source <40hex> --ceremony-source <40hex>
  */
 "use strict";
 
@@ -23,10 +20,19 @@ const ROOT = path.resolve(__dirname, "../..");
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
 const AUTH_PATH = path.join(ROOT, AUTH_REL);
 
-const ARTIFACTS = {
-  visible_ceremony_supervisor: "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+const BOOTSTRAP_ARTIFACTS = {
+  visible_ceremony_bootstrap:
+    "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1",
+  visible_ceremony_native_entry:
+    "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1",
+};
+
+const CEREMONY_ARTIFACTS = {
+  visible_ceremony_supervisor:
+    "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
   visible_ceremony_entry: "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-  operator_ceremony: "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
+  operator_ceremony:
+    "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
 };
 
 function sha256(buf) {
@@ -51,22 +57,19 @@ function gitEnv() {
   return env;
 }
 
-function git(args, input) {
-  return execFileSync("git", args, {
-    cwd: ROOT,
-    env: gitEnv(),
-    input,
-    encoding: input ? undefined : "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  });
-}
-
 function parseArgs(argv) {
-  const out = { freeze: null, source: null, fromWorktree: false };
+  const out = {
+    freeze: null,
+    bootstrapSource: null,
+    ceremonySource: null,
+    fromWorktree: false,
+  };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--freeze") out.freeze = argv[++i];
-    else if (a === "--source") out.source = argv[++i];
+    else if (a === "--bootstrap-source") out.bootstrapSource = argv[++i];
+    else if (a === "--ceremony-source") out.ceremonySource = argv[++i];
+    else if (a === "--source") out.ceremonySource = argv[++i]; // back-compat alias
     else if (a === "--from-worktree") out.fromWorktree = true;
     else throw new Error(`unknown arg: ${a}`);
   }
@@ -110,47 +113,59 @@ function sealFromBytes(rel, buf, sourceCommit) {
   };
 }
 
-function main() {
-  const args = parseArgs(process.argv);
-  const freeze = assertHex40(args.freeze, "--freeze");
-  const source = assertHex40(args.source, "--source");
-  if (freeze === source) throw new Error("freeze must not equal source");
-
-  // Ensure worktree scripts are LF before optional worktree seal.
-  for (const rel of Object.values(ARTIFACTS)) {
-    const abs = path.join(ROOT, rel);
-    writeLf(abs, fs.readFileSync(abs, "utf8"));
-  }
-
-  const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
-  auth.authorized_pr_head = freeze;
-  auth.ceremony_source_commit = source;
-
-  for (const [key, rel] of Object.entries(ARTIFACTS)) {
+function sealGroup(artifacts, source, fromWorktree) {
+  const out = {};
+  for (const [key, rel] of Object.entries(artifacts)) {
     let buf;
-    if (args.fromWorktree) {
+    if (fromWorktree) {
       buf = fs.readFileSync(path.join(ROOT, rel));
     } else {
       buf = loadBlobFromCommit(source, rel);
     }
     if (buf.includes(0x0d)) {
-      // Normalize and require commit of LF bytes before final tip seal.
       const text = lf(buf.toString("utf8"));
       buf = Buffer.from(text.endsWith("\n") ? text : `${text}\n`, "utf8");
-      if (!args.fromWorktree) {
+      if (!fromWorktree) {
         throw new Error(`${rel} at source ${source} contains CR; commit LF-normalized bytes first`);
       }
       fs.writeFileSync(path.join(ROOT, rel), buf);
     }
-    auth[key] = sealFromBytes(rel, buf, source);
+    out[key] = sealFromBytes(rel, buf, source);
   }
+  return out;
+}
+
+function main() {
+  const args = parseArgs(process.argv);
+  const freeze = assertHex40(args.freeze, "--freeze");
+  const bootstrapSource = assertHex40(args.bootstrapSource, "--bootstrap-source");
+  const ceremonySource = assertHex40(args.ceremonySource, "--ceremony-source");
+  const ids = [freeze, bootstrapSource, ceremonySource];
+  if (new Set(ids).size !== 3) {
+    throw new Error("freeze, bootstrap-source, and ceremony-source must be pairwise distinct");
+  }
+
+  for (const rel of [
+    ...Object.values(BOOTSTRAP_ARTIFACTS),
+    ...Object.values(CEREMONY_ARTIFACTS),
+  ]) {
+    const abs = path.join(ROOT, rel);
+    if (fs.existsSync(abs)) writeLf(abs, fs.readFileSync(abs, "utf8"));
+  }
+
+  const auth = JSON.parse(fs.readFileSync(AUTH_PATH, "utf8"));
+  auth.authorized_pr_head = freeze;
+  auth.bootstrap_source_commit = bootstrapSource;
+  auth.ceremony_source_commit = ceremonySource;
+
+  Object.assign(auth, sealGroup(BOOTSTRAP_ARTIFACTS, bootstrapSource, args.fromWorktree));
+  Object.assign(auth, sealGroup(CEREMONY_ARTIFACTS, ceremonySource, args.fromWorktree));
 
   if (!auth.notes || !Array.isArray(auth.notes)) auth.notes = [];
   const note =
-    "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.";
+    "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.";
   if (!auth.notes.includes(note)) auth.notes.push(note);
 
-  // Keep apply pins unpublished.
   if (!auth.publication) auth.publication = {};
   auth.publication.status = "UNPUBLISHED";
   auth.publication.required_prior_dry_run_evidence_sha256 = null;
@@ -166,9 +181,12 @@ function main() {
       {
         verdict: "CEREMONY_AUTH_RESEALED",
         freeze,
-        source,
+        bootstrapSource,
+        ceremonySource,
         fromWorktree: args.fromWorktree,
         seals: {
+          visible_ceremony_bootstrap: auth.visible_ceremony_bootstrap,
+          visible_ceremony_native_entry: auth.visible_ceremony_native_entry,
           visible_ceremony_supervisor: auth.visible_ceremony_supervisor,
           visible_ceremony_entry: auth.visible_ceremony_entry,
           operator_ceremony: auth.operator_ceremony,

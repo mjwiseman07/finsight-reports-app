@@ -38,7 +38,11 @@ param(
   [switch]$TestForceCleanupFailure,
 
   [Parameter(Mandatory = $false)]
-  [switch]$TestForceTerminateFailure
+  [switch]$TestForceTerminateFailure,
+
+  # Set only by sealed bootstrap after tip/source blob materialize. Direct worktree launch is forbidden.
+  [Parameter(Mandatory = $false)]
+  [switch]$SealedMaterialInvocation
 )
 
 Set-StrictMode -Version Latest
@@ -143,27 +147,25 @@ function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [s
   return @{ oid = $oid; sha256 = $sha; bytes = $bytes.Length; commit = $Commit.ToLowerInvariant() }
 }
 
-function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze, [string]$Source, [string]$WorkDir) {
+function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze, [string]$BootstrapSource, [string]$CeremonySource, [string]$WorkDir) {
   if (-not ($PublicationTip -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: tip must be exact 40-hex" }
   if (-not ($Freeze -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: freeze must be exact 40-hex" }
-  if (-not ($Source -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: source must be exact 40-hex" }
+  if (-not ($BootstrapSource -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: bootstrap_source must be exact 40-hex" }
+  if (-not ($CeremonySource -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source must be exact 40-hex" }
   $tipResolved = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($PublicationTip + "^{commit}")) -WorkDir $WorkDir
   if ($tipResolved.ToLowerInvariant() -ne $PublicationTip.ToLowerInvariant()) {
     throw "BLOCKED_PUBLICATION_TIP: tip did not resolve to itself"
   }
-  if ($PublicationTip.ToLowerInvariant() -eq $Freeze.ToLowerInvariant()) {
-    throw "BLOCKED_PUBLICATION_TIP: publication tip must not equal executable freeze"
+  $ids = @($PublicationTip, $Freeze, $BootstrapSource, $CeremonySource) | ForEach-Object { $_.ToLowerInvariant() }
+  if (($ids | Select-Object -Unique).Count -ne 4) {
+    throw "BLOCKED_PUBLICATION_TIP: freeze, bootstrap_source, ceremony_source, and tip must be pairwise distinct"
   }
-  if ($PublicationTip.ToLowerInvariant() -eq $Source.ToLowerInvariant()) {
-    throw "BLOCKED_PUBLICATION_TIP: publication tip must not equal ceremony_source_commit"
-  }
-  if ($Freeze.ToLowerInvariant() -eq $Source.ToLowerInvariant()) {
-    throw "BLOCKED_PUBLICATION_TIP: freeze must not equal ceremony_source_commit"
-  }
-  $p1 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$Freeze,$Source) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
-  if ($p1.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source is not a descendant of freeze" }
-  $p2 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$Source,$PublicationTip) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
-  if ($p2.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: publication tip is not a descendant of ceremony_source" }
+  $p1 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$Freeze,$BootstrapSource) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p1.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: bootstrap_source is not a descendant of freeze" }
+  $p2 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$BootstrapSource,$CeremonySource) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p2.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source is not a descendant of bootstrap_source" }
+  $p3 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$CeremonySource,$PublicationTip) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p3.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: publication tip is not a descendant of ceremony_source" }
 }
 
 function Clear-MaterialRoot {
@@ -184,10 +186,17 @@ function Write-Blocked([string]$Reason) {
 }
 
 try {
+  if (-not $SealedMaterialInvocation) {
+    throw "SUPERVISOR_DIRECT_EXEC_FORBIDDEN: launch only via sealed bootstrap materialize path"
+  }
+
   foreach ($forbiddenEnv in @(
+      "RA_PRO_ACCOUNTING_AUTOMATION_BOOTSTRAP_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_ENTRY_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_SUPERVISOR_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_SOURCE_COMMIT",
+      "RA_PRO_ACCOUNTING_AUTOMATION_BOOTSTRAP_SOURCE_COMMIT",
       "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_TIP",
       "RA_PRO_ACCOUNTING_AUTOMATION_BUNDLE_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_PATH",
@@ -214,14 +223,15 @@ try {
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
 
   $freeze = [string]$auth.authorized_pr_head
+  $bootSrc = [string]$auth.bootstrap_source_commit
   $source = [string]$auth.ceremony_source_commit
-  if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($source)) {
-    throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / ceremony_source_commit missing"
+  if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
+    throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
   }
   if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
     throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
   }
-  Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -Source $source.ToLowerInvariant() -WorkDir $script:RepoRoot
+  Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $script:RepoRoot
 
   $ve = $auth.visible_ceremony_entry
   if (-not $ve) { throw "missing visible_ceremony_entry seals" }

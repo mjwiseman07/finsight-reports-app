@@ -119,7 +119,47 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       },
     });
     const tipSha = (tip.stdout || "").trim();
+    const authRaw = spawnSync(
+      "git",
+      ["show", `HEAD:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json`],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          ...process.env,
+          GIT_CONFIG_COUNT: "1",
+          GIT_CONFIG_KEY_0: "safe.directory",
+          GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+        },
+      },
+    );
+    const auth = JSON.parse(authRaw.stdout || "{}") as {
+      bootstrap_source_commit?: string;
+      visible_ceremony_bootstrap?: {
+        path?: string;
+        oid?: string;
+        sha256?: string;
+        bytes?: number;
+      };
+    };
+    const bootSrc = String(auth.bootstrap_source_commit || "");
+    const seal = auth.visible_ceremony_bootstrap;
+    const blob = spawnSync("git", ["cat-file", "blob", `${bootSrc}:${seal?.path}`], {
+      cwd: process.cwd(),
+      windowsHide: true,
+      env: {
+        ...process.env,
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "safe.directory",
+        GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+      },
+    });
+    const bytes = Buffer.isBuffer(blob.stdout) ? blob.stdout : Buffer.from(blob.stdout || "");
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-pin-"));
+    const matDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-mat-"));
+    const bootFile = path.join(matDir, "bootstrap.ps1");
+    fs.writeFileSync(bootFile, bytes);
     const run = spawnSync(
       "powershell.exe",
       [
@@ -128,16 +168,24 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+        bootFile,
         "-Mode",
         "apply",
         "-PrHead",
         tipSha,
+        "-RepoRoot",
+        process.cwd(),
         "-EvidenceOutDir",
         outDir,
+        "-SealedMaterialInvocation",
       ],
       { cwd: process.cwd(), encoding: "utf8", windowsHide: true },
     );
+    try {
+      fs.rmSync(matDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
     expect(run.status).toBe(1);
     const lines = `${run.stdout || ""}${run.stderr || ""}`.trim().split(/\r?\n/).filter(Boolean);
     let payload: Record<string, unknown> = {};
