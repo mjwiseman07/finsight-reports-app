@@ -41,15 +41,15 @@
     "required_pre_apply_live_evidence_bytes": null
   },
   "precondition_publication": {
-    "status": "UNPUBLISHED",
+    "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
-    "evidence_path": null,
-    "evidence_source_commit": null,
-    "evidence_blob_oid": null,
-    "evidence_sha256": null,
-    "evidence_bytes": null,
-    "valid_from_utc": null,
-    "valid_until_utc": null
+    "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json",
+    "evidence_source_commit": "3fe3fb0fbe8506672956fdfdbf3ffc47ab74cf99",
+    "evidence_blob_oid": "ab69f5cea7cabc14cb11201d1463b935d09a9a01",
+    "evidence_sha256": "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8",
+    "evidence_bytes": 2112,
+    "valid_from_utc": "2026-09-18T01:00:07Z",
+    "valid_until_utc": "2026-09-19T01:00:07Z"
   },
   "feature_flag": {
     "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
@@ -63,9 +63,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "3b0401c7adeb4a0c5e629997bda1c3f94d53a0a3",
-    "sha256": "10b9f7498afd66514d66eb627636f73b1d692fb02e3cfcff38ca7f0065bf1c59",
-    "bytes": 215934,
+    "oid": "5041ad18c24989a84f78ac197d9952fca3c6f880",
+    "sha256": "7c399668c270f4a36e9f040effefc5a311b687857cf25116fc011e5da37f2d88",
+    "bytes": 224787,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

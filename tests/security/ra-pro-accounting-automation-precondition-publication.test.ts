@@ -14,12 +14,23 @@ const FIXTURE = "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNT
 const REVIEWED_SHA = "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8";
 const REVIEWED_BYTES = 2112;
 
+type MutableEvidence = {
+  valid_from_utc: string;
+  valid_until_utc: string;
+  collected_at_utc: string;
+  automation_gate: { production_presence: string };
+  database: { migration_history_count: number; authorizing_inventory: { total: number } };
+  safety: { production_writes: number };
+};
+
 function sha256(buffer: Buffer) {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
 function fixture() {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, FIXTURE), "utf8"));
+  return JSON.parse(
+    fs.readFileSync(path.join(ROOT, FIXTURE), "utf8"),
+  ) as MutableEvidence;
 }
 
 describe("RA Pro accounting-automation precondition publication", () => {
@@ -46,10 +57,10 @@ describe("RA Pro accounting-automation precondition publication", () => {
   });
 
   it.each([
-    ["open gate", (e: any) => (e.automation_gate.production_presence = "present")],
-    ["history drift", (e: any) => (e.database.migration_history_count = 189)],
-    ["inventory drift", (e: any) => (e.database.authorizing_inventory.total = 5)],
-    ["write claim", (e: any) => (e.safety.production_writes = 1)],
+    ["open gate", (e: MutableEvidence) => (e.automation_gate.production_presence = "present")],
+    ["history drift", (e: MutableEvidence) => (e.database.migration_history_count = 189)],
+    ["inventory drift", (e: MutableEvidence) => (e.database.authorizing_inventory.total = 5)],
+    ["write claim", (e: MutableEvidence) => (e.safety.production_writes = 1)],
   ])("rejects %s", (_name, mutate) => {
     const evidence = fixture();
     mutate(evidence);
@@ -63,9 +74,9 @@ describe("RA Pro accounting-automation precondition publication", () => {
     expect(() => assertPreconditionEvidencePublished({ auth, cwd: ROOT, env: { RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_PATH: "x" } })).toThrow(/ENV_OVERRIDE_FORBIDDEN/);
   });
 
-  it("rejects tampered, substituted, or CRLF authorities", () => {
-    const source = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
-    const oid = execFileSync("git", ["hash-object", FIXTURE], { cwd: ROOT, encoding: "utf8" }).trim();
+  it("accepts the source-commit blob and rejects tampered or substituted authorities", () => {
+    const source = "3fe3fb0fbe8506672956fdfdbf3ffc47ab74cf99";
+    const oid = execFileSync("git", ["rev-parse", `${source}:${FIXTURE}`], { cwd: ROOT, encoding: "utf8" }).trim();
     const base = {
       precondition_publication: {
         status: "PUBLISHED",
@@ -76,7 +87,11 @@ describe("RA Pro accounting-automation precondition publication", () => {
         evidence_bytes: REVIEWED_BYTES,
       },
     };
-    expect(() => assertPreconditionEvidencePublished({ auth: base, cwd: ROOT, now: new Date("2026-09-18T12:00:00Z") })).toThrow(/GIT_BLOB_LOAD_FAILED|PIN_MISMATCH/);
+    expect(assertPreconditionEvidencePublished({ auth: base, cwd: ROOT, now: new Date("2026-09-18T12:00:00Z") })).toMatchObject({
+      oid,
+      sha256: REVIEWED_SHA,
+      bytes: REVIEWED_BYTES,
+    });
     for (const patch of [
       { evidence_sha256: "0".repeat(64) },
       { evidence_path: "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json" },
