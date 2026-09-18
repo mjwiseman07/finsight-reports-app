@@ -1,21 +1,21 @@
 {
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
   "schema_version": 1,
-  "collected_at_utc": "2026-09-18T01:00:07Z",
-  "valid_from_utc": "2026-09-18T01:00:07Z",
-  "valid_until_utc": "2026-09-19T01:00:07Z",
+  "collected_at_utc": "2026-09-18T22:23:36Z",
+  "valid_from_utc": "2026-09-18T22:23:36Z",
+  "valid_until_utc": "2026-09-19T22:23:36Z",
   "authorization": {
     "pr_number": 324,
-    "pr_head": "25e12cc5412275e9a922d7add344c5074a7c1e7a",
+    "pr_head": "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5",
     "scope": "read_only_production_precondition_collection"
   },
   "deployment": {
     "production_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
     "production_state": "READY",
     "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
-    "preview_deployment_id": "dpl_7skSoUBKk9NY9cwdXuG6wxf6siMV",
+    "preview_deployment_id": "dpl_6EdHdeSgnSTQj8dVAtea5ES6xzDh",
     "preview_state": "READY",
-    "preview_commit": "25e12cc5412275e9a922d7add344c5074a7c1e7a"
+    "preview_commit": "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5"
   },
   "automation_gate": {
     "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
@@ -56,6 +56,7 @@
   },
   "limitations": [
     "Environment evidence records only exact-key absence; no environment values were read.",
-    "This artifact is local and unpinned. It does not authorize a dry run, migration apply, merge, deployment, or automation enablement."
+    "This artifact is local and unpinned. It does not authorize a dry run, migration apply, merge, deployment, or automation enablement.",
+    "The committed precondition gate still pins pr_head 25e12cc5412275e9a922d7add344c5074a7c1e7a. This collection is bound to the authorized head 21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5 and was not published."
   ]
 }
