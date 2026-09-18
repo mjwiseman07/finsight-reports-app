@@ -42,6 +42,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestForceTerminateFailure,
 
+  # Harness-only: open the ceremony as a visible interactive prompt probe. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe,
+
   # Set only by sealed supervisor (or authority harness) after tip-blob materialize of this entry.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -265,8 +269,28 @@ try {
   [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $CeremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
 
   $psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
-  $ceremonyArgs = @(
-    "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+  if ($TestVisiblePromptProbe) {
+    $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    if (
+      -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or
+      -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -or
+      -not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex) -or
+      $TestForceCleanupFailure -or
+      $TestForceTerminateFailure
+    ) {
+      throw "PROMPT_PROBE_REJECTS_HARNESS_INPUT"
+    }
+  }
+  $harnessLaunch = (
+    -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or
+    -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -or
+    -not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex) -or
+    $TestForceCleanupFailure -or
+    $TestForceTerminateFailure
+  )
+  $visiblePrompt = $TestVisiblePromptProbe -or -not $harnessLaunch
+  $ceremonyTail = @(
     "-File", $ceremonyDest,
     "-PrHead", $PrHead,
     "-RepoRoot", $RepoRoot,
@@ -274,19 +298,50 @@ try {
     "-SealedMaterialInvocation"
   )
   if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    $ceremonyArgs += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
+    $ceremonyTail += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
   }
   if (-not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
-    $ceremonyArgs += @("-TestHarnessChildStub", $TestHarnessChildStub)
+    $ceremonyTail += @("-TestHarnessChildStub", $TestHarnessChildStub)
   }
   if ($ChildTimeoutMs -ne 120000) {
-    $ceremonyArgs += @("-ChildTimeoutMs", "$ChildTimeoutMs")
+    $ceremonyTail += @("-ChildTimeoutMs", "$ChildTimeoutMs")
   }
   if (-not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex)) {
-    $ceremonyArgs += @("-TestForcePrePromptNullIndex", $TestForcePrePromptNullIndex)
+    $ceremonyTail += @("-TestForcePrePromptNullIndex", $TestForcePrePromptNullIndex)
   }
-  if ($TestForceCleanupFailure) { $ceremonyArgs += "-TestForceCleanupFailure" }
-  if ($TestForceTerminateFailure) { $ceremonyArgs += "-TestForceTerminateFailure" }
+  if ($TestForceCleanupFailure) { $ceremonyTail += "-TestForceCleanupFailure" }
+  if ($TestForceTerminateFailure) { $ceremonyTail += "-TestForceTerminateFailure" }
+  if ($TestVisiblePromptProbe) { $ceremonyTail += "-TestVisiblePromptProbe" }
+  if ($visiblePrompt) {
+    $ceremonyArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass") + $ceremonyTail
+  } else {
+    $ceremonyArgs = @("-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass") + $ceremonyTail
+  }
+
+  if ($visiblePrompt) {
+    $visible = New-Object Diagnostics.ProcessStartInfo
+    $visible.FileName = $psExe
+    $visible.Arguments = ($ceremonyArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+    $visible.WorkingDirectory = $RepoRoot
+    $visible.UseShellExecute = $true
+    $visible.WindowStyle = [Diagnostics.ProcessWindowStyle]::Normal
+    $p = [Diagnostics.Process]::Start($visible)
+    if ($null -eq $p) { throw "VISIBLE_PROMPT_LAUNCH_FAILED" }
+    $waitMs = [Math]::Max(60000, $ChildTimeoutMs + 60000)
+    if (-not $p.WaitForExit($waitMs)) {
+      try {
+        Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") -ArgumentList @("/PID", "$($p.Id)", "/T", "/F") -Wait -WindowStyle Hidden | Out-Null
+      } catch {
+        try { $p.Kill() } catch {}
+      }
+      throw "sealed ceremony child timed out"
+    }
+    $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+    if (Test-Path -LiteralPath $evidenceFile) {
+      Write-Output ([IO.File]::ReadAllText($evidenceFile).TrimEnd())
+    }
+    exit $p.ExitCode
+  }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe

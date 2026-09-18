@@ -43,6 +43,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestForceTerminateFailure,
 
+  # Harness-only: forwarded to entry for the visible prompt probe.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe,
+
   # Set only by sealed bootstrap after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -274,6 +278,7 @@ try {
   }
   if ($TestForceCleanupFailure) { $entryArgs += "-TestForceCleanupFailure" }
   if ($TestForceTerminateFailure) { $entryArgs += "-TestForceTerminateFailure" }
+  if ($TestVisiblePromptProbe) { $entryArgs += "-TestVisiblePromptProbe" }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe

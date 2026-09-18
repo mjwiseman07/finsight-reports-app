@@ -46,6 +46,15 @@ param(
   [ValidateSet("", "empty_blob_index", "envvars_null", "pub_null_index")]
   [string]$TestForcePrePromptNullIndex = "",
 
+  # Harness-only: prove the prompt-owning host is visible and interactive, then stop before credentials.
+  # Requires ALLOW_SYNTHETIC=1. Never accepts a database URL.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe,
+
+  # Harness-only: simulate operator cancel before a credential exists. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptCancel,
+
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -72,12 +81,61 @@ if (-not $SealedMaterialInvocation) {
   }
 }
 
+function Test-PromptOwningHost {
+  $nonInteractive = $false
+  foreach ($arg in @([Environment]::GetCommandLineArgs())) {
+    if ($arg -eq "-NonInteractive") { $nonInteractive = $true }
+  }
+  $visible = $false
+  try {
+    if (-not ("RaAcctPromptConsole" -as [type])) {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class RaAcctPromptConsole {
+  [DllImport("kernel32.dll")]
+  public static extern IntPtr GetConsoleWindow();
+}
+'@
+    }
+    $hwnd = [RaAcctPromptConsole]::GetConsoleWindow()
+    $visible = ($hwnd -ne [IntPtr]::Zero)
+  } catch {
+    $visible = $false
+  }
+  $script:PromptHostNonInteractive = $nonInteractive
+  $script:PromptHostVisible = $visible
+  if ($nonInteractive) { return $false }
+  if (-not [Environment]::UserInteractive) { return $false }
+  if (-not $visible) { return $false }
+  return $true
+}
+
+function New-AttemptMarkerAtomic([string]$Dir, [string]$Head) {
+  $name = "attempt-" + $Head.Substring(0, 12) + "-" + [guid]::NewGuid().ToString("N") + ".marker"
+  $markerPath = Join-Path $Dir $name
+  $stream = $null
+  try {
+    $stream = [IO.File]::Open($markerPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $body = [Text.Encoding]::UTF8.GetBytes(("dry-run`n{0}`n{1}`n" -f $Head, (Get-Date).ToUniversalTime().ToString("o")))
+    $stream.Write($body, 0, $body.Length)
+  } catch {
+    throw "ATTEMPT_MARKER_COLLISION: $name"
+  } finally {
+    if ($null -ne $stream) { $stream.Dispose() }
+  }
+  return $markerPath
+}
+
 $DatabaseUrlEnv = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL"
 $ExpectedProjectRef = "jzmdgwwiestcmmeuhhkr"
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
 $script:PrePromptPhase = "init"
 $script:PrePromptError = $null
+$script:PromptHostNonInteractive = $null
+$script:PromptHostVisible = $null
+$script:MarkerBeforeChild = $false
 $ForbiddenUrlEnvs = @(
   "DATABASE_URL",
   "RA_PRO_CUTOVER_APPLY_DATABASE_URL",
@@ -410,15 +468,24 @@ try {
     throw "BUNDLE_CRLF_FORBIDDEN"
   }
 
-  Set-PrePromptPhase "attempt_marker"
-  # One authorization → one attempt marker (no automatic retry).
-  $attemptMarker = Join-Path $EvidenceOutDir ("attempt-" + $PrHead.Substring(0, 12) + "-" + [guid]::NewGuid().ToString("N") + ".marker")
-  if (Test-Path -LiteralPath $attemptMarker) {
-    throw "ATTEMPT_MARKER_COLLISION"
-  }
-  [IO.File]::WriteAllText($attemptMarker, ("dry-run`n{0}`n{1}`n" -f $PrHead, (Get-Date).ToUniversalTime().ToString("o")))
-
   Set-PrePromptPhase "credential_boundary"
+  if ($TestVisiblePromptProbe) {
+    Set-PrePromptPhase "visible_prompt_probe"
+    $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
+      throw "PROMPT_PROBE_REJECTS_CREDENTIALS"
+    }
+    if (-not (Test-PromptOwningHost)) {
+      throw "PROMPT_HOST_NOT_INTERACTIVE: prompt owner is hidden or noninteractive"
+    }
+    $resultCode = "VISIBLE_PROMPT_READY"
+  } else {
+  if ($TestForcePromptCancel) {
+    $allowCancel = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowCancel -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    throw "BLOCKED_CREDENTIAL_UNAVAILABLE: operator cancel"
+  }
   $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
   if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
     if ($allowSynthetic -ne "1") {
@@ -426,17 +493,27 @@ try {
     }
   }
 
-  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
-  } else {
+  $usingSynthetic = -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)
+  if (-not $usingSynthetic) {
+    Set-PrePromptPhase "prompt_host"
+    if (-not (Test-PromptOwningHost)) {
+      throw "PROMPT_HOST_NOT_INTERACTIVE: prompt owner is hidden or noninteractive"
+    }
+    Set-PrePromptPhase "credential_boundary"
     if (-not [string]::IsNullOrWhiteSpace($allowSynthetic)) {
       throw "BLOCKED_HARNESS_ENV_CONTAMINATION: interactive path forbids synthetic harness env without TestSyntheticDatabaseUrl"
     }
     $secure = Read-Host -Prompt $DatabaseUrlEnv -AsSecureString
+  } else {
+    $secure = ConvertTo-SecureString -String $TestSyntheticDatabaseUrl -AsPlainText -Force
   }
   if ($null -eq $secure -or $secure.Length -le 0) {
     throw "BLOCKED_CREDENTIAL_UNAVAILABLE: No URL provided by operator"
   }
+
+  Set-PrePromptPhase "attempt_marker"
+  $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
+  $script:MarkerBeforeChild = $true
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   if ([string]::IsNullOrWhiteSpace($plain)) {
@@ -574,6 +651,7 @@ process.exit(0);
   if ($child.ExitCode -ne 0 -and $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
     $resultCode = "CEREMONY_CHILD_EXIT_MISMATCH"
   }
+  }
 }
 catch {
   $msg = Sanitize-Text ([string]$_.Exception.Message)
@@ -592,7 +670,7 @@ catch {
     exception_type = [string]$_.Exception.GetType().FullName
   }
   if ($resultCode -eq "CEREMONY_FAILED" -or $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
-    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS|CEREMONY_PROCESS_|CEREMONY_BLOB_|CEREMONY_GIT_)') {
+    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS|PROMPT_|CEREMONY_PROCESS_|CEREMONY_BLOB_|CEREMONY_GIT_)') {
       $resultCode = ($msg -split ":")[0]
     } else {
       $resultCode = "BLOCKED"
@@ -708,6 +786,7 @@ finally {
     "BLOCKED_CREDENTIAL_UNAVAILABLE", "PROHIBITED_CREDENTIAL_CHANNEL", "PRECONDITION_PINS_UNPUBLISHED",
     "PRECONDITION_EVIDENCE_ENV_OVERRIDE_FORBIDDEN", "BUNDLE_AUTHORITY_MISMATCH", "BUNDLE_AUTHORITY_UNPUBLISHED",
     "BUNDLE_CRLF_FORBIDDEN", "ATTEMPT_MARKER_COLLISION", "BLOCKED_HARNESS_ENV_CONTAMINATION",
+    "PROMPT_HOST_NOT_INTERACTIVE", "PROMPT_PROBE_REJECTS_CREDENTIALS",
     "DRY_RUN_BLOCKED", "HARNESS_CHILD_FAIL", "CEREMONY_CHILD_EXIT_MISMATCH", "BLOCKED"
   )
   if ($resultCode -notin $primaryCodes -and $resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
@@ -757,6 +836,9 @@ finally {
     pr_tip = $PrHead
     mode = "dry-run"
     attempt_marker = $(if ($attemptMarker) { [IO.Path]::GetFileName($attemptMarker) } else { $null })
+    marker_before_child = [bool]$script:MarkerBeforeChild
+    prompt_host_noninteractive = $script:PromptHostNonInteractive
+    prompt_host_visible = $script:PromptHostVisible
     precondition_sha256 = $(if ($pre) { [string]$pre.evidence_sha256 } else { $null })
     precondition_source_commit = $(if ($pre) { [string]$pre.evidence_source_commit } else { $null })
     bundle_oid = $(if ($bundleSeal) { [string]$bundleSeal.oid } else { $null })
@@ -790,7 +872,10 @@ finally {
 }
 
 if (
-  $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -and
+  (
+    $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or
+    $resultCode -eq "VISIBLE_PROMPT_READY"
+  ) -and
   $cleanupCompleted
 ) {
   exit 0
