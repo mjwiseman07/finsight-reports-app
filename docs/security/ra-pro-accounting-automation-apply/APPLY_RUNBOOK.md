@@ -22,9 +22,9 @@ Prior-dry-run / pre-apply pins remain **UNPUBLISHED/null** until a separately re
 
 | Identity | Auth field | Role |
 |---|---|---|
-| **Freeze** | `authorized_pr_head` | Executable freeze; `-PrHead` must match exactly |
+| **Freeze** | `authorized_pr_head` | Executable freeze; must be a strict ancestor of source and tip |
 | **Source** | `ceremony_source_commit` | Holds reviewed supervise / enter / operator ceremony bytes |
-| **Tip** | `HEAD` publication tip | Publishes OID/SHA-256/byte/LF seals; must be a descendant of source; tip ≠ freeze ≠ source |
+| **Tip** | `HEAD` publication tip | Exact `-PrHead` / PR tip; publishes OID/SHA-256/byte/LF seals; tip ≠ freeze ≠ source |
 
 Sealed artifacts (each with `path`, `source_commit`, `oid`, `sha256`, `bytes`, `line_endings=LF`):
 
@@ -60,10 +60,10 @@ Gate order (fail-closed):
 
 ```powershell
 # Interactive SecureString prompt (production DB URL). Does NOT apply migrations.
-# Requires HEAD = publication tip with seals; -PrHead = authorized_pr_head (freeze).
+# Requires HEAD = publication tip with seals; -PrHead must equal that exact tip (not freeze).
 powershell -NoProfile -File scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1 `
   -Mode dry-run `
-  -PrHead <exact-40-hex-freeze>
+  -PrHead <exact-40-hex-publication-tip>
 ```
 
 **Forbidden:** direct execution of the operator ceremony or entry script from the worktree:
@@ -79,7 +79,7 @@ Apply mode remains refuse-closed while prior/pre-apply pins are unpublished:
 ```powershell
 powershell -NoProfile -File scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1 `
   -Mode apply `
-  -PrHead <exact-40-hex-freeze>
+  -PrHead <exact-40-hex-publication-tip>
 # → AUTHORIZATION_PINS_UNPUBLISHED
 ```
 

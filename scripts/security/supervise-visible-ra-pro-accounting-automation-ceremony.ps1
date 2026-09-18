@@ -218,8 +218,8 @@ try {
   if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($source)) {
     throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / ceremony_source_commit missing"
   }
-  if ($PrHead.ToLowerInvariant() -ne $freeze.ToLowerInvariant()) {
-    throw "BLOCKED_PIN_MISMATCH: -PrHead must equal authorized_pr_head (freeze)"
+  if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
   }
   Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -Source $source.ToLowerInvariant() -WorkDir $script:RepoRoot
 

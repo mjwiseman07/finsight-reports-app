@@ -39,6 +39,15 @@ function tipSha() {
   return git(["rev-parse", "HEAD"]);
 }
 
+type AuthSeal = {
+  path?: string;
+  source_commit?: string;
+  oid?: string;
+  sha256?: string;
+  bytes?: number;
+  line_endings?: string;
+};
+
 function loadAuth() {
   const tip = tipSha();
   const raw = spawnSync("git", ["show", `${tip}:${AUTH_REL}`], {
@@ -48,7 +57,19 @@ function loadAuth() {
     env: gitEnv(),
   });
   if (raw.status !== 0) throw new Error(raw.stderr || "auth load failed");
-  return JSON.parse(raw.stdout || "{}") as Record<string, any>;
+  return JSON.parse(raw.stdout || "{}") as {
+    authorized_pr_head?: string;
+    ceremony_source_commit?: string;
+    visible_ceremony_supervisor?: AuthSeal;
+    visible_ceremony_entry?: AuthSeal;
+    operator_ceremony?: AuthSeal;
+    publication?: {
+      status?: string;
+      required_prior_dry_run_evidence_sha256?: string | null;
+      required_pre_apply_live_evidence_sha256?: string | null;
+    };
+    precondition_publication?: { status?: string; evidence_sha256?: string };
+  };
 }
 
 function lastJson(text: string): Record<string, unknown> {
@@ -112,7 +133,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       "visible_ceremony_entry",
       "operator_ceremony",
     ] as const) {
-      const seal = auth[key];
+      const seal = auth[key] as AuthSeal;
       expect(seal?.path).toBeTruthy();
       expect(String(seal.source_commit).toLowerCase()).toBe(source);
       expect(seal.line_endings).toBe("LF");
@@ -142,8 +163,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
   });
 
   it("worktree-poisoned enter+ceremony still executes only sealed source blobs", () => {
-    const auth = loadAuth();
-    const freeze = String(auth.authorized_pr_head);
+    const tip = tipSha();
     const enterPath = path.join(ROOT, "scripts/security/enter-ra-pro-accounting-automation-apply.ps1");
     const ceremonyPath = path.join(
       ROOT,
@@ -167,7 +187,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
           "-Mode",
           "dry-run",
           "-PrHead",
-          freeze,
+          tip,
           "-TestSyntheticDatabaseUrl",
           PROJECT_URL,
           "-TestHarnessChildStub",
@@ -188,8 +208,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
   });
 
   it("wrong PrHead / forbidden env overrides fail before credentials", () => {
-    const auth = loadAuth();
-    const freeze = String(auth.authorized_pr_head);
+    const tip = tipSha();
     const wrong = runSupervise(
       ["-Mode", "dry-run", "-PrHead", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
@@ -202,7 +221,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
         "-Mode",
         "dry-run",
         "-PrHead",
-        freeze,
+        tip,
         "-TestSyntheticDatabaseUrl",
         PROJECT_URL,
       ],
@@ -259,9 +278,8 @@ describe("RA Pro accounting-automation ceremony authority", () => {
   });
 
   it("apply remains blocked by unpublished later pins via sealed supervise path", () => {
-    const auth = loadAuth();
-    const freeze = String(auth.authorized_pr_head);
-    const { run, payload } = runSupervise(["-Mode", "apply", "-PrHead", freeze]);
+    const tip = tipSha();
+    const { run, payload } = runSupervise(["-Mode", "apply", "-PrHead", tip]);
     expect(run.status).toBe(1);
     expect(String(payload.reason || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
     expect(payload.productionContact).toBe(false);

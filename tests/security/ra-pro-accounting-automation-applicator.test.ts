@@ -107,23 +107,18 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   });
 
   it("apply ceremony entry refuses unpublished prior/pre-apply pins without credentials", () => {
-    const authRaw = spawnSync(
-      "git",
-      ["show", "HEAD:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"],
-      {
-        cwd: process.cwd(),
-        encoding: "utf8",
-        windowsHide: true,
-        env: {
-          ...process.env,
-          GIT_CONFIG_COUNT: "1",
-          GIT_CONFIG_KEY_0: "safe.directory",
-          GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
-        },
+    const tip = spawnSync("git", ["rev-parse", "HEAD"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      windowsHide: true,
+      env: {
+        ...process.env,
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "safe.directory",
+        GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
       },
-    );
-    const auth = JSON.parse(authRaw.stdout || "{}") as { authorized_pr_head?: string };
-    const freeze = String(auth.authorized_pr_head || "");
+    });
+    const tipSha = (tip.stdout || "").trim();
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-pin-"));
     const run = spawnSync(
       "powershell.exe",
@@ -137,7 +132,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         "-Mode",
         "apply",
         "-PrHead",
-        freeze,
+        tipSha,
         "-EvidenceOutDir",
         outDir,
       ],
