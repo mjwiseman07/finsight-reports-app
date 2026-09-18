@@ -118,7 +118,26 @@ function publishSeals(seals) {
   writeLf(CONSTANTS, constants);
 }
 
+function resetSealPlaceholders() {
+  let constants = lf(fs.readFileSync(CONSTANTS, "utf8"));
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_OID =\n {2}"[^"]+";/,
+    `const STANDALONE_BUNDLE_OID =\n  "PENDING_BUNDLE_OID_PLACEHOLDER_000000000000";`,
+  );
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_SHA256 =\n {2}"[^"]+";/,
+    `const STANDALONE_BUNDLE_SHA256 =\n  "PENDING_BUNDLE_SHA256_PLACEHOLDER_00000000000000000000000000000000";`,
+  );
+  constants = constants.replace(
+    /const STANDALONE_BUNDLE_BYTES = \d+;/,
+    `const STANDALONE_BUNDLE_BYTES = 0;`,
+  );
+  writeLf(CONSTANTS, constants);
+}
+
 function main() {
+  // Keep published seals out of the packed artifact (non-circular): embed PENDING only.
+  resetSealPlaceholders();
   runEsbuild();
   const seals = measureLfBundle();
   publishSeals(seals);

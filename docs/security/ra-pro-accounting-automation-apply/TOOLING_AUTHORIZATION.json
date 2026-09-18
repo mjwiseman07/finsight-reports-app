@@ -52,8 +52,8 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "7ee255f64abe45ff26883e1b96db626b8a75aaf7",
-    "sha256": "6726a1d94064c648294b6a8a9a90017798d9ddf72cf1f5886aba1626fb5116f3",
+    "oid": "3b0401c7adeb4a0c5e629997bda1c3f94d53a0a3",
+    "sha256": "10b9f7498afd66514d66eb627636f73b1d692fb02e3cfcff38ca7f0065bf1c59",
     "bytes": 215934,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"

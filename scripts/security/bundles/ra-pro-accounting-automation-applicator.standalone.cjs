@@ -49,9 +49,9 @@ var require_ra_pro_accounting_automation_apply_constants = __commonJS({
     var TOOLING_AUTHORIZATION_PATH = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
     var STANDALONE_BUNDLE_PATH = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
     var EXPECTED_STANDALONE_BUNDLE_SHA256 = "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
-    var STANDALONE_BUNDLE_OID = "656bba8c952a44e6c7c6628707d2f4c63f02b835";
-    var STANDALONE_BUNDLE_SHA256 = "fcd634afcec8c29291a3a8e6f7240e64abe8f0e65932e0799e02eb18215bc871";
-    var STANDALONE_BUNDLE_BYTES = 215281;
+    var STANDALONE_BUNDLE_OID = "PENDING_BUNDLE_OID_PLACEHOLDER_000000000000";
+    var STANDALONE_BUNDLE_SHA256 = "PENDING_BUNDLE_SHA256_PLACEHOLDER_00000000000000000000000000000000";
+    var STANDALONE_BUNDLE_BYTES = 0;
     var SELF_AUTHORITY_MODULES = Object.freeze([
       "scripts/security/apply-ra-pro-accounting-automation.js",
       "scripts/security/ra-pro-accounting-automation-apply-core.js",
