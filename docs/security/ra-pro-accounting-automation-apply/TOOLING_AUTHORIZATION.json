@@ -40,6 +40,17 @@
     "required_pre_apply_live_evidence_oid": null,
     "required_pre_apply_live_evidence_bytes": null
   },
+  "precondition_publication": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
+    "evidence_path": null,
+    "evidence_source_commit": null,
+    "evidence_blob_oid": null,
+    "evidence_sha256": null,
+    "evidence_bytes": null,
+    "valid_from_utc": null,
+    "valid_until_utc": null
+  },
   "feature_flag": {
     "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
     "must_remain": "absent_or_not_true",

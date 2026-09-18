@@ -17,6 +17,7 @@ History contract: **188 → 190**.
 - Advisory lock: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY`.
 - No automatic retry.
 - Production apply remains **unreachable** while `TOOLING_AUTHORIZATION.json` publication pins are `UNPUBLISHED` / null.
+- The reviewed precondition evidence is independently sealed and checked before the still-unpublished prior-dry-run/apply authority. Publishing it alone cannot authorize production contact.
 
 ## Operator
 

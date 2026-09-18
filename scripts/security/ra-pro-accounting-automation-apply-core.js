@@ -37,6 +37,9 @@ const {
   sha256Buffer,
   ROOT,
 } = require("./git-blob-authority");
+const {
+  assertPreconditionEvidencePublished,
+} = require("./ra-pro-accounting-automation-precondition-gates");
 
 class IndeterminateCommitError extends Error {
   constructor(message, cause) {
@@ -391,6 +394,18 @@ function assertAuthorizationPublished(inputs = {}) {
   return { harness_bypass: false, publication: pub };
 }
 
+function assertPublishedPrecondition(inputs = {}) {
+  const cwd = resolveRepoRoot(inputs);
+  const auth = loadAuthorizationPackage(cwd);
+  return assertPreconditionEvidencePublished({
+    auth,
+    cwd,
+    now: inputs.now,
+    env: inputs.env || process.env,
+    preconditionEvidencePath: inputs.preconditionEvidencePath,
+  });
+}
+
 function assertMigrationOrder(migrations = MIGRATIONS) {
   for (let i = 1; i < migrations.length; i += 1) {
     if (migrations[i].version <= migrations[i - 1].version) {
@@ -576,6 +591,7 @@ async function runDryRun(inputs = {}) {
     evidence.bundle_authority = assertBundleAuthority(inputs);
     evidence.databaseConnectionAttempts = 0;
     evidence.sqlApplicationAttempts = 0;
+    evidence.precondition_evidence = assertPublishedPrecondition(inputs);
     assertAuthorizationPublished(inputs);
     assertFeatureFlagUntouched(inputs.env || process.env);
     const packed = loadSealedMigrations(inputs);
@@ -624,6 +640,7 @@ async function runApply(inputs = {}) {
     evidence.bundle_authority = assertBundleAuthority(inputs);
     evidence.databaseConnectionAttempts = 0;
     evidence.sqlApplicationAttempts = 0;
+    evidence.precondition_evidence = assertPublishedPrecondition(inputs);
     assertAuthorizationPublished(inputs);
     assertFeatureFlagUntouched(inputs.env || process.env);
     if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN) {
@@ -801,6 +818,7 @@ module.exports = {
   assertFeatureFlagUntouched,
   assertMigrationOrder,
   assertNoHarnessEnvOrArgv,
+  assertPublishedPrecondition,
   classifyDatabaseUrl,
   loadSealedMigrations,
   resolveBundleSeals,
