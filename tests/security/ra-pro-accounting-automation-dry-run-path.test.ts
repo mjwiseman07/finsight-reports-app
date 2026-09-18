@@ -325,6 +325,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(cleanup.child_terminated).toBe(true);
     expect(cleanup.orphan_check_completed).toBe(true);
     expect(fs.existsSync(path.join(outDir, "raw-child-stdout.frame.txt"))).toBe(false);
+    expect(fs.existsSync(path.join(outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
     expect(fs.readdirSync(outDir).filter((f) => /^bundle-.*\.cjs$/.test(f))).toEqual([]);
     const supervision = payload.child_supervision as Record<string, unknown>;
     expect(supervision.orphan_free).toBe(true);
@@ -362,6 +363,8 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(payload.attempt_marker).toBeTruthy();
     expect(payload.marker_before_child).toBe(true);
     expect(payload.productionContact).toBe(false);
+    expect(fs.existsSync(path.join(outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
+    expect(fs.existsSync(path.join(outDir, "raw-child-stdout.frame.txt"))).toBe(false);
     expect(fs.readdirSync(outDir).filter((f) => /^bundle-.*\.cjs$/.test(f))).toEqual([]);
   });
 
@@ -444,7 +447,40 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(Number((cancel.payload.child_evidence as Record<string, unknown> | null)?.databaseConnectionAttempts ?? 0)).toBe(0);
     expect(Number((cancel.payload.child_evidence as Record<string, unknown> | null)?.sqlApplicationAttempts ?? 0)).toBe(0);
     expect(fs.readdirSync(cancel.outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+    expect(fs.existsSync(path.join(cancel.outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
+    expect(cancel.payload.securestring_acquired).toBe(false);
+    expect(cancel.payload.termination_reason).toBe("operator_cancel");
     expect(String(JSON.stringify(cancel.payload))).not.toMatch(/postgres:\/\//i);
+
+    const timedOut = runCeremony(["-PrHead", tip, "-TestForcePromptTimeout"], {
+      RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+    });
+    expect(timedOut.run.status).toBe(1);
+    expect(String(timedOut.payload.result_code || "")).toBe("PROMPT_INPUT_TIMEOUT");
+    expect(timedOut.payload.securestring_acquired).toBe(false);
+    expect(timedOut.payload.attempt_marker).toBeNull();
+    expect(timedOut.payload.node_started).toBe(false);
+    expect(timedOut.payload.database_connection_attempts).toBe(0);
+    expect(timedOut.payload.sql_application_attempts).toBe(0);
+    expect(timedOut.payload.productionContact).toBe(false);
+    expect(Number(timedOut.payload.prompt_input_timeout_ms)).toBeGreaterThan(180000);
+    expect(typeof timedOut.payload.prompt_deadline_utc).toBe("string");
+    expect(typeof timedOut.payload.prompt_ready_utc).toBe("string");
+    expect(fs.existsSync(path.join(timedOut.outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
+    expect(fs.existsSync(path.join(timedOut.outDir, "PROMPT_READY.json"))).toBe(false);
+    expect(fs.readdirSync(timedOut.outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+
+    const closed = runCeremony(["-PrHead", tip, "-TestForcePromptWindowClose"], {
+      RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+    });
+    expect(closed.run.status).toBe(1);
+    expect(String(closed.payload.result_code || "")).toBe("PROMPT_WINDOW_CLOSED");
+    expect(closed.payload.securestring_acquired).toBe(false);
+    expect(closed.payload.attempt_marker).toBeNull();
+    expect(closed.payload.database_connection_attempts).toBe(0);
+    expect(closed.payload.sql_application_attempts).toBe(0);
+    expect(fs.existsSync(path.join(closed.outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
+    expect(fs.readdirSync(closed.outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
   });
 
   it("pre-prompt path reaches credential boundary and sealed stub child without production contact", () => {

@@ -416,6 +416,61 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(String(`${run.stdout || ""}${run.stderr || ""}`)).not.toMatch(/postgres:\/\//i);
   });
 
+  it("default prompt window outlives the old 180-second parent kill", () => {
+    const tip = tipSha();
+    const { run, outDir, payload } = runAuthenticatedBootstrap(
+      ["-Mode", "dry-run", "-PrHead", tip, "-TestTimeoutBudgetProbe"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+    expect(payload.result_code).toBe("TIMEOUT_BUDGET_READY");
+    expect(Number(payload.prompt_input_timeout_ms)).toBe(600000);
+    expect(Number(payload.child_runtime_timeout_ms)).toBe(120000);
+    expect(Number(payload.parent_wait_floor_ms)).toBeGreaterThan(180000);
+    expect(Number(payload.parent_wait_floor_ms)).toBeGreaterThan(Number(payload.prompt_input_timeout_ms));
+    expect(payload.securestring_acquired).toBe(false);
+    expect(payload.attempt_marker).toBeNull();
+    expect(payload.node_started).toBe(false);
+    expect(payload.productionContact).toBe(false);
+    expect(fs.existsSync(path.join(outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json"))).toBe(true);
+    expect(fs.readdirSync(outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+  });
+
+  it("forced parent termination retains sanitized fallback evidence and no marker", () => {
+    const tip = tipSha();
+    const { run, outDir, payload } = runAuthenticatedBootstrap(
+      [
+        "-Mode",
+        "dry-run",
+        "-PrHead",
+        tip,
+        "-TestHangBeforeEvidence",
+        "-PromptInputTimeoutMs",
+        "1000",
+        "-ChildTimeoutMs",
+        "1000",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, `${run.stdout}\n${run.stderr}`).not.toBe(0);
+    const evidencePath = path.join(outDir, "PRODUCTION_DRY_RUN_EVIDENCE.json");
+    expect(fs.existsSync(evidencePath)).toBe(true);
+    const onDisk = JSON.parse(fs.readFileSync(evidencePath, "utf8")) as Record<string, unknown>;
+    expect(onDisk.fallback_frame === true || payload.fallback_frame === true).toBe(true);
+    const frame = onDisk.fallback_frame === true ? onDisk : payload;
+    expect(frame.result_code).toBe("PROMPT_PARENT_TERMINATED");
+    expect(frame.securestring_acquired).toBe(false);
+    expect(frame.attempt_marker ?? null).toBeNull();
+    expect(frame.node_started).toBe(false);
+    expect(frame.productionContact).toBe(false);
+    expect(frame.database_connection_attempts).toBe(0);
+    expect(frame.sql_application_attempts).toBe(0);
+    expect(frame.pr_tip).toBe(tip);
+    expect(fs.readdirSync(outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+    expect(fs.readdirSync(outDir).filter((f) => /^bundle-.*\.cjs$/.test(f))).toEqual([]);
+    expect(fs.readFileSync(evidencePath, "utf8")).not.toMatch(/postgres:\/\//i);
+  });
+
   it("apply remains blocked by unpublished later pins via authenticated bootstrap path", () => {
     const tip = tipSha();
     const { run, payload } = runAuthenticatedBootstrap(["-Mode", "apply", "-PrHead", tip]);

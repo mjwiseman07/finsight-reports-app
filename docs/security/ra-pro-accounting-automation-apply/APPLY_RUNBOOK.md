@@ -80,7 +80,7 @@ powershell -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 .
 powershell -File scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1 ...
 ```
 
-Supported launch (Windows PowerShell). `HEAD` must be the publication tip. Paste this block; do not `-File` a worktree script. Bootstrap and supervisor stay noninteractive. The entry opens the ceremony in a normal System32 PowerShell window for the SecureString prompt; that window is the only place to enter the Session Pooler URL.
+Supported launch (Windows PowerShell). `HEAD` must be the publication tip. Paste this block; do not `-File` a worktree script. Bootstrap and supervisor stay noninteractive. The entry opens the ceremony in a normal System32 PowerShell window for the SecureString prompt; that window is the only place to enter the Session Pooler URL. The prompt has its own 600-second input window, prints the UTC deadline and remaining time, and is not closed at 180 seconds. After a credential is acquired, the Node child still has a separate 120-second runtime limit. Parents wait at least 780 seconds so a prompt timeout, cancel, or close can write `PRODUCTION_DRY_RUN_EVIDENCE.json` before any forced termination. Cleanup removes raw output and temporary executables only; it does not delete that evidence file or the attempt marker.
 
 ```powershell
 $ErrorActionPreference = "Stop"
