@@ -261,6 +261,7 @@ try {
     "-File", $supDest,
     "-Mode", $Mode,
     "-PrHead", $PrHead,
+    "-RepoRoot", $RepoRoot,
     "-EvidenceOutDir", $EvidenceOutDir,
     "-SealedMaterialInvocation"
   )
