@@ -212,7 +212,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(String(result.error_code || "")).not.toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
     expect(result.authorization_scope).toBe("dry_run_precondition_only");
     expect(result.precondition_evidence?.sha256).toBe(
-      "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8",
+      "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
     );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
     expect(result.sqlApplicationAttempts ?? 0).toBe(0);

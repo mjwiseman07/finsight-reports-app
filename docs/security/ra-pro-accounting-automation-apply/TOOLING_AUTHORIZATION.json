@@ -44,12 +44,12 @@
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
     "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json",
-    "evidence_source_commit": "3fe3fb0fbe8506672956fdfdbf3ffc47ab74cf99",
-    "evidence_blob_oid": "ab69f5cea7cabc14cb11201d1463b935d09a9a01",
-    "evidence_sha256": "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8",
-    "evidence_bytes": 2112,
-    "valid_from_utc": "2026-09-18T01:00:07Z",
-    "valid_until_utc": "2026-09-19T01:00:07Z"
+    "evidence_source_commit": "f32391f9141cb01424d7185d57a1b41478fdfc82",
+    "evidence_blob_oid": "f05bfa25def88f28037defbbdd3375bd84068604",
+    "evidence_sha256": "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
+    "evidence_bytes": 2324,
+    "valid_from_utc": "2026-09-18T22:23:36Z",
+    "valid_until_utc": "2026-09-19T22:23:36Z"
   },
   "feature_flag": {
     "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
@@ -66,8 +66,8 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "b4f960282e6ca84bd8571efbe4159a4bafecdf84",
-    "sha256": "aef4b35e7fd870570078b19f372bf13a4d2311c92cdfe090160847c4143e44a6",
+    "oid": "202f459a5f5578d26a907b53a4ac62e794b77321",
+    "sha256": "f9339599107cbcff0d8b83d0a978488537be6bbee0ba5c8dcefa34f73bca45d7",
     "bytes": 227546,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"

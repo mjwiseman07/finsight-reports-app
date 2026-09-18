@@ -17,7 +17,7 @@ import {
 import { EXPECTED_PROJECT_REF } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 
 const ROOT = process.cwd();
-const PRECOND_SHA = "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8";
+const PRECOND_SHA = "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288";
 const PROJECT_URL = `postgres://user:pass@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres`;
 const WRONG_PROJECT_URL = "postgres://user:pass@db.otherprojectref000000000000.supabase.co:5432/postgres";
 const LOOPBACK_URL = "postgres://postgres:postgres@127.0.0.1:5432/postgres";
@@ -135,7 +135,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   it("dry-run rejects expired precondition clock without DB contact", async () => {
     const result = await runApplicator({
       mode: "dry-run",
-      now: new Date("2026-09-19T01:00:07Z"),
+      now: new Date("2026-09-19T22:23:36Z"),
       env: { [DATABASE_URL_ENV]: PROJECT_URL },
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");

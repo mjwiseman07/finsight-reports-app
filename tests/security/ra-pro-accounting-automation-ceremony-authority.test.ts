@@ -202,7 +202,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(auth.publication?.required_pre_apply_live_evidence_sha256).toBeNull();
     expect(auth.precondition_publication?.status).toBe("PUBLISHED");
     expect(auth.precondition_publication?.evidence_sha256).toBe(
-      "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8",
+      "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
     );
   });
 

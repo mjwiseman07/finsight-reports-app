@@ -4,7 +4,7 @@
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
 
 const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1";
-const EXPECTED_HEAD = "25e12cc5412275e9a922d7add344c5074a7c1e7a";
+const EXPECTED_HEAD = "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5";
 const EXPECTED_PRODUCTION_COMMIT = "854fd2920cd1c77a411918a617d10a8fb3ce591d";
 const EXPECTED_PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
 
