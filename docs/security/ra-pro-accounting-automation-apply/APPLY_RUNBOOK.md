@@ -84,6 +84,9 @@ Supported launch (Windows PowerShell). `HEAD` must be the publication tip. Paste
 
 ```powershell
 $ErrorActionPreference = "Stop"
+$env:GIT_CONFIG_COUNT = "1"
+$env:GIT_CONFIG_KEY_0 = "safe.directory"
+$env:GIT_CONFIG_VALUE_0 = ((Get-Location).Path -replace '\\','/')
 $ExpectedBootstrapPath = "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1"
 $Repo = [IO.Path]::GetFullPath((git rev-parse --show-toplevel).Trim())
 $Tip = (git -C $Repo rev-parse --verify "HEAD^{commit}").Trim().ToLowerInvariant()
@@ -98,6 +101,9 @@ function Invoke-GitBlob([string]$Spec) {
   $psi.RedirectStandardError = $true
   $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
+  $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
+  $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
+  $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = $env:GIT_CONFIG_VALUE_0
   $p = [Diagnostics.Process]::Start($psi)
   $ms = New-Object IO.MemoryStream
   $p.StandardOutput.BaseStream.CopyTo($ms)

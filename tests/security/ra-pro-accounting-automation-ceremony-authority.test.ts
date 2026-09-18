@@ -406,76 +406,102 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(payload.productionContact).toBe(false);
   });
 
-  it("rejects UTF-8 BOM and reparse destinations before launching the bootstrap", () => {
+  it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {
     const runbook = fs.readFileSync(
       path.join(ROOT, "docs/security/ra-pro-accounting-automation-apply/APPLY_RUNBOOK.md"),
       "utf8",
     );
     expect(runbook).toContain("bootstrap UTF-8 BOM forbidden");
+    expect(runbook).toContain("bootstrap CR/CRLF forbidden");
     expect(runbook).toContain("materialized file is reparse point");
     expect(runbook).toContain("material directory is reparse point");
     expect(runbook).toContain("materialized file is not byte-identical to Git blob");
+    expect(runbook).toContain("materialized path escaped private temp directory");
     expect(runbook).toContain("NATIVE_ENTRY_DIRECT_EXEC_FORBIDDEN");
     expect(runbook).not.toContain("Convenience helper");
+    const launches = runbook.split("```powershell").slice(1).map((block) => block.split("```")[0]);
+    const executable = launches.filter((block) => !block.includes("DO NOT RUN"));
+    expect(executable).toHaveLength(1);
 
-    const checker = `
-param([string]$BytesFile, [string]$Dest, [string]$TempRoot)
-$ErrorActionPreference = "Stop"
-$bytes = [IO.File]::ReadAllBytes($BytesFile)
-if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
-  throw "bootstrap UTF-8 BOM forbidden"
-}
-if ([Array]::IndexOf($bytes, [byte]0x0D) -ge 0) { throw "bootstrap CR/CRLF forbidden" }
-$destFull = [IO.Path]::GetFullPath($Dest)
-$rootFull = [IO.Path]::GetFullPath($TempRoot).TrimEnd('\\') + '\\'
-if (-not $destFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
-  throw "materialized path escaped private temp directory"
-}
-$fileItem = Get-Item -LiteralPath $destFull -Force
-if ($fileItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "materialized file is reparse point" }
-$dirItem = Get-Item -LiteralPath (Split-Path -Parent $destFull) -Force
-if ($dirItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "material directory is reparse point" }
-$readBack = [IO.File]::ReadAllBytes($destFull)
-if ($readBack.Length -ne $bytes.Length) { throw "materialized file is not byte-identical to Git blob" }
-for ($i = 0; $i -lt $bytes.Length; $i++) {
-  if ($readBack[$i] -ne $bytes[$i]) { throw "materialized file is not byte-identical to Git blob" }
-}
-Set-Content -LiteralPath (Join-Path $TempRoot "LAUNCHED.txt") -Value "launched"
-`;
-    const checkerPath = path.join(os.tmpdir(), `ra-acct-preflight-${process.pid}.ps1`);
-    fs.writeFileSync(checkerPath, checker.replace(/\n/g, "\r\n"), "utf8");
-
-    const bomRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-bom-"));
-    const bomBytes = path.join(bomRoot, "bytes.bin");
-    const bomDest = path.join(bomRoot, "bootstrap.ps1");
-    fs.writeFileSync(bomBytes, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("Write-Output LAUNCHED\n")]));
-    fs.writeFileSync(bomDest, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("Write-Output LAUNCHED\n")]));
-    const bomRun = spawnSync(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", checkerPath, "-BytesFile", bomBytes, "-Dest", bomDest, "-TempRoot", bomRoot],
-      { encoding: "utf8", windowsHide: true },
+    const marker = runbook.indexOf("Supported launch");
+    const fence = runbook.indexOf("```powershell\n", marker);
+    const codeStart = fence + "```powershell\n".length;
+    const codeEnd = runbook.indexOf("\n```", codeStart);
+    const launch = runbook.slice(codeStart, codeEnd).replace(/\r\n/g, "\n");
+    const fileLine =
+      '& "$env:SystemRoot\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $resolved -Mode dry-run -PrHead $Tip -RepoRoot $Repo -SealedMaterialInvocation\n  exit $LASTEXITCODE';
+    expect(launch).toContain("-File $resolved");
+    const neutralized = launch.replace(
+      fileLine,
+      'Set-Content -LiteralPath $env:RA_ACCT_LAUNCH_SENTINEL -Value "launched"\n  exit 0',
     );
-    expect(bomRun.status).not.toBe(0);
-    expect(`${bomRun.stdout || ""}${bomRun.stderr || ""}`).toMatch(/bootstrap UTF-8 BOM forbidden/);
-    expect(fs.existsSync(path.join(bomRoot, "LAUNCHED.txt"))).toBe(false);
+    expect(neutralized).not.toContain("-File $resolved");
 
-    const realDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-real-"));
-    const linkDir = path.join(os.tmpdir(), `ra-acct-link-${process.pid}-${Date.now()}`);
-    const link = spawnSync("cmd.exe", ["/c", "mklink", "/J", linkDir, realDir], { encoding: "utf8", windowsHide: true });
-    expect(link.status, `${link.stdout || ""} ${link.stderr || ""}`).toBe(0);
-    const payload = Buffer.from("exit 0\n");
-    const bytesFile = path.join(realDir, "bytes.bin");
-    const throughLink = path.join(linkDir, "bootstrap.ps1");
-    fs.writeFileSync(bytesFile, payload);
-    fs.writeFileSync(throughLink, payload);
-    const reparseRun = spawnSync(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", checkerPath, "-BytesFile", bytesFile, "-Dest", throughLink, "-TempRoot", linkDir],
-      { encoding: "utf8", windowsHide: true },
+    function runSubstituted(script: string) {
+      const sentinel = path.join(
+        os.tmpdir(),
+        `ra-acct-sentinel-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.txt`,
+      );
+      const scriptPath = path.join(os.tmpdir(), `ra-acct-launch-${process.pid}-${Date.now()}.ps1`);
+      fs.writeFileSync(scriptPath, script.replace(/\n/g, "\r\n"), "utf8");
+      const run = spawnSync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath],
+        {
+          cwd: ROOT,
+          encoding: "utf8",
+          windowsHide: true,
+          env: { ...gitEnv(), RA_ACCT_LAUNCH_SENTINEL: sentinel },
+        },
+      );
+      return { run, launched: fs.existsSync(sentinel), text: `${run.stdout || ""}${run.stderr || ""}` };
+    }
+
+    const bytesLine = '$bytes = Invoke-GitBlob "${bootSrc}:${ExpectedBootstrapPath}"\n';
+    const bom = runSubstituted(
+      neutralized.replace(
+        bytesLine,
+        `${bytesLine}$bytes = [byte[]](@(0xEF,0xBB,0xBF) + [byte[]]$bytes)\n`,
+      ),
     );
-    expect(reparseRun.status).not.toBe(0);
-    expect(`${reparseRun.stdout || ""}${reparseRun.stderr || ""}`).toMatch(/reparse point/);
-    expect(fs.existsSync(path.join(linkDir, "LAUNCHED.txt"))).toBe(false);
-    spawnSync("cmd.exe", ["/c", "rmdir", linkDir], { windowsHide: true });
+    expect(bom.run.status).not.toBe(0);
+    expect(bom.text).toMatch(/bootstrap UTF-8 BOM forbidden/);
+    expect(bom.launched).toBe(false);
+
+    const crlf = runSubstituted(
+      neutralized.replace(bytesLine, `${bytesLine}$bytes = [byte[]](@(0x0D) + [byte[]]$bytes)\n`),
+    );
+    expect(crlf.run.status).not.toBe(0);
+    expect(crlf.text).toMatch(/bootstrap CR\/CRLF forbidden/);
+    expect(crlf.launched).toBe(false);
+
+    const dirLine =
+      '$tmpDirFull = [IO.Path]::GetFullPath((New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) ("ra-acct-boot-" + [guid]::NewGuid().ToString("N")))).FullName)\n';
+    const reparse = runSubstituted(
+      neutralized.replace(
+        dirLine,
+        [
+          '$realPrivate = [IO.Path]::GetFullPath((New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) ("ra-acct-real-" + [guid]::NewGuid().ToString("N")))).FullName)',
+          '$linkPrivate = Join-Path ([IO.Path]::GetTempPath()) ("ra-acct-link-" + [guid]::NewGuid().ToString("N"))',
+          'cmd /c mklink /J "$linkPrivate" "$realPrivate" | Out-Null',
+          'if (-not (Test-Path -LiteralPath $linkPrivate)) { throw "junction create failed" }',
+          "$tmpDirFull = [IO.Path]::GetFullPath($linkPrivate)",
+          "",
+        ].join("\n"),
+      ),
+    );
+    expect(reparse.run.status, reparse.text).not.toBe(0);
+    expect(reparse.text).toMatch(/reparse point/);
+    expect(reparse.launched).toBe(false);
+
+    const wrongPath = runSubstituted(
+      neutralized.replace(
+        '$ExpectedBootstrapPath = "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1"\n',
+        '$ExpectedBootstrapPath = "scripts/security/not-the-bootstrap.ps1"\n',
+      ),
+    );
+    expect(wrongPath.run.status).not.toBe(0);
+    expect(wrongPath.text).toMatch(/bootstrap path mismatch/);
+    expect(wrongPath.launched).toBe(false);
   });
 });
