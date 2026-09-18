@@ -398,6 +398,24 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(String(`${directNative.stdout || ""}${directNative.stderr || ""}`)).not.toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
   });
 
+  it("authenticated chain reaches a visible interactive SecureString host without a marker", () => {
+    const tip = tipSha();
+    const { run, outDir, payload } = runAuthenticatedBootstrap(
+      ["-Mode", "dry-run", "-PrHead", tip, "-TestVisiblePromptProbe"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+    expect(payload.result_code).toBe("VISIBLE_PROMPT_READY");
+    expect(payload.productionContact).toBe(false);
+    expect(payload.prompt_host_noninteractive).toBe(false);
+    expect(payload.prompt_host_visible).toBe(true);
+    expect(payload.attempt_marker).toBeNull();
+    expect(payload.marker_before_child).toBe(false);
+    expect(payload.child_evidence ?? null).toBeNull();
+    expect(fs.readdirSync(outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+    expect(String(`${run.stdout || ""}${run.stderr || ""}`)).not.toMatch(/postgres:\/\//i);
+  });
+
   it("apply remains blocked by unpublished later pins via authenticated bootstrap path", () => {
     const tip = tipSha();
     const { run, payload } = runAuthenticatedBootstrap(["-Mode", "apply", "-PrHead", tip]);

@@ -358,6 +358,10 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(supervision.orphan_count).toBe(0);
     expect(cleanup.raw_stdout_removed).toBe(true);
     expect(cleanup.material_removed).toBe(true);
+    expect(cleanup.credential_cleared).toBe(true);
+    expect(payload.attempt_marker).toBeTruthy();
+    expect(payload.marker_before_child).toBe(true);
+    expect(payload.productionContact).toBe(false);
     expect(fs.readdirSync(outDir).filter((f) => /^bundle-.*\.cjs$/.test(f))).toEqual([]);
   });
 
@@ -420,6 +424,29 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     );
   });
 
+  it("noninteractive prompt host and operator cancel create no marker and no database contact", () => {
+    const tip = tipSha();
+    const hidden = runCeremony(["-PrHead", tip]);
+    expect(hidden.run.status).toBe(1);
+    expect(String(hidden.payload.result_code || "")).toMatch(/PROMPT_HOST_NOT_INTERACTIVE/);
+    expect(hidden.payload.attempt_marker).toBeNull();
+    expect(hidden.payload.productionContact).toBe(false);
+    expect(hidden.payload.marker_before_child).toBe(false);
+    expect(fs.readdirSync(hidden.outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+
+    const cancel = runCeremony(["-PrHead", tip, "-TestForcePromptCancel"], {
+      RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1",
+    });
+    expect(cancel.run.status).toBe(1);
+    expect(String(cancel.payload.result_code || "")).toMatch(/BLOCKED_CREDENTIAL_UNAVAILABLE/);
+    expect(cancel.payload.attempt_marker).toBeNull();
+    expect(cancel.payload.productionContact).toBe(false);
+    expect(Number((cancel.payload.child_evidence as Record<string, unknown> | null)?.databaseConnectionAttempts ?? 0)).toBe(0);
+    expect(Number((cancel.payload.child_evidence as Record<string, unknown> | null)?.sqlApplicationAttempts ?? 0)).toBe(0);
+    expect(fs.readdirSync(cancel.outDir).filter((f) => f.startsWith("attempt-"))).toEqual([]);
+    expect(String(JSON.stringify(cancel.payload))).not.toMatch(/postgres:\/\//i);
+  });
+
   it("pre-prompt path reaches credential boundary and sealed stub child without production contact", () => {
     const tip = tipSha();
     const { run, outDir, payload } = runCeremony(
@@ -437,8 +464,9 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(payload.result_code).toBe("DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION");
     expect(payload.productionContact).toBe(false);
     expect(payload.attempt_marker).toBeTruthy();
+    expect(payload.marker_before_child).toBe(true);
     expect(payload.precondition_sha256).toBe(PRECOND_SHA);
-    expect(payload.pre_prompt_phase).toBe("credential_boundary");
+    expect(payload.pre_prompt_phase).toBe("attempt_marker");
     expect(payload.pre_prompt_error).toBeNull();
     const childEv = payload.child_evidence as Record<string, unknown>;
     expect(childEv.databaseConnectionAttempts ?? 0).toBe(0);
