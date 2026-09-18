@@ -58,7 +58,12 @@ function runCeremony(args: string[], envExtra: Record<string, string> = {}) {
       cwd: ROOT,
       encoding: "utf8",
       windowsHide: true,
-      env: { ...process.env, ...envExtra },
+      env: {
+        ...process.env,
+        // Unit tests invoke ceremony directly; production path is supervise→enter→materialize only.
+        RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_DIRECT_HARNESS: "1",
+        ...envExtra,
+      },
     },
   );
   const lines = `${run.stdout || ""}${run.stderr || ""}`.trim().split(/\r?\n/).filter(Boolean);

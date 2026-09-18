@@ -1,23 +1,21 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Sealed entry for RA Pro accounting-automation dry-run / apply.
-  Must be launched via supervise-visible-ra-pro-accounting-automation-ceremony.ps1
-  (or harness with -SealedMaterialInvocation after tip-blob materialize).
-  Materializes operator dry-run ceremony from ceremony_source_commit seals and launches
-  only the temporary materialized ceremony — never the worktree ceremony path.
+  Sealed supervisor for RA Pro accounting-automation dry-run.
+  Tip-loads TOOLING_AUTHORIZATION, validates freeze/source/tip ancestry,
+  materializes visible_ceremony_entry from ceremony_source_commit seals,
+  launches only the temporary materialized enter script.
+  Never executes worktree enter/ceremony paths.
 #>
 [CmdletBinding()]
 param(
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$PrHead,
+
+  [Parameter(Mandatory = $false)]
   [ValidateSet("dry-run", "apply")]
   [string]$Mode = "dry-run",
-
-  [Parameter(Mandatory = $false)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$PrHead = "",
-
-  [Parameter(Mandatory = $false)]
-  [string]$RepoRoot = "",
 
   [Parameter(Mandatory = $false)]
   [string]$EvidenceOutDir = "",
@@ -40,19 +38,16 @@ param(
   [switch]$TestForceCleanupFailure,
 
   [Parameter(Mandatory = $false)]
-  [switch]$TestForceTerminateFailure,
-
-  # Set only by sealed supervisor (or authority harness) after tip-blob materialize of this entry.
-  [Parameter(Mandatory = $false)]
-  [switch]$SealedMaterialInvocation
+  [switch]$TestForceTerminateFailure
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
-$CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
+$EntryRel = "scripts/security/enter-ra-pro-accounting-automation-apply.ps1"
 $script:MaterialRoot = $null
+$script:RepoRoot = $null
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
@@ -157,10 +152,9 @@ function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze,
   if ($Freeze.ToLowerInvariant() -eq $Source.ToLowerInvariant()) {
     throw "BLOCKED_PUBLICATION_TIP: freeze must not equal ceremony_source_commit"
   }
-  $safe = ($WorkDir -replace "\\", "/")
-  $p1 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$safe","merge-base","--is-ancestor",$Freeze,$Source) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  $p1 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$Freeze,$Source) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
   if ($p1.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source is not a descendant of freeze" }
-  $p2 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$safe","merge-base","--is-ancestor",$Source,$PublicationTip) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  $p2 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$($WorkDir -replace '\\','/')","merge-base","--is-ancestor",$Source,$PublicationTip) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
   if ($p2.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: publication tip is not a descendant of ceremony_source" }
 }
 
@@ -182,10 +176,6 @@ function Write-Blocked([string]$Reason) {
 }
 
 try {
-  if (-not $SealedMaterialInvocation) {
-    throw "ENTRY_DIRECT_EXEC_FORBIDDEN: launch only via supervise-visible-ra-pro-accounting-automation-ceremony.ps1"
-  }
-
   foreach ($forbiddenEnv in @(
       "RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_ENTRY_PATH",
@@ -200,85 +190,62 @@ try {
     }
   }
 
-  if (-not $RepoRoot) {
-    $RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
-  }
-  $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
-
+  $script:RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
   if (-not $EvidenceOutDir) {
-    $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-enter-" + [guid]::NewGuid().ToString("N"))
+    $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-supervise-" + [guid]::NewGuid().ToString("N"))
   }
   New-Item -ItemType Directory -Force -Path $EvidenceOutDir | Out-Null
-  $script:MaterialRoot = Join-Path $EvidenceOutDir ("material-enter-" + [guid]::NewGuid().ToString("N"))
+  $script:MaterialRoot = Join-Path $EvidenceOutDir ("material-" + [guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $script:MaterialRoot | Out-Null
 
-  $tip = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot).ToLowerInvariant()
-  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${AuthRel}") -WorkDir $RepoRoot
+  $tip = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $script:RepoRoot).ToLowerInvariant()
+  if (-not ($tip -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: HEAD not 40-hex" }
+
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${AuthRel}") -WorkDir $script:RepoRoot
   Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
-
-  if ($Mode -eq "apply") {
-    $pub = $auth.publication
-    if (
-      $null -eq $pub -or
-      $pub.status -eq "UNPUBLISHED" -or
-      $null -eq $pub.required_prior_dry_run_evidence_sha256 -or
-      $null -eq $pub.required_pre_apply_live_evidence_sha256
-    ) {
-      Write-Blocked "AUTHORIZATION_PINS_UNPUBLISHED"
-      exit 1
-    }
-    Write-Blocked "APPLY_CEREMONY_UNREACHABLE: prior/pre-apply pins published but apply ceremony remains refuse-closed on this tip"
-    exit 1
-  }
-
-  $pre = $auth.precondition_publication
-  if ($null -eq $pre -or [string]$pre.status -ne "PUBLISHED") {
-    Write-Blocked "PRECONDITION_PINS_UNPUBLISHED"
-    exit 1
-  }
 
   $freeze = [string]$auth.authorized_pr_head
   $source = [string]$auth.ceremony_source_commit
   if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($source)) {
     throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / ceremony_source_commit missing"
   }
-  if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $freeze }
   if ($PrHead.ToLowerInvariant() -ne $freeze.ToLowerInvariant()) {
     throw "BLOCKED_PIN_MISMATCH: -PrHead must equal authorized_pr_head (freeze)"
   }
-  Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -Source $source.ToLowerInvariant() -WorkDir $RepoRoot
+  Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -Source $source.ToLowerInvariant() -WorkDir $script:RepoRoot
 
-  $oc = $auth.operator_ceremony
-  if (-not $oc) { throw "missing operator_ceremony seals" }
-  $ceremonyDest = Join-Path $script:MaterialRoot "operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
-  [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $CeremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
+  $ve = $auth.visible_ceremony_entry
+  if (-not $ve) { throw "missing visible_ceremony_entry seals" }
+  $entryDest = Join-Path $script:MaterialRoot "enter-ra-pro-accounting-automation-apply.ps1"
+  [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $EntryRel -Seal $ve -Dest $entryDest -WorkDir $script:RepoRoot)
 
   $psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
-  $ceremonyArgs = @(
+  $entryArgs = @(
     "-NoProfile", "-ExecutionPolicy", "Bypass",
-    "-File", $ceremonyDest,
+    "-File", $entryDest,
+    "-Mode", $Mode,
     "-PrHead", $PrHead,
-    "-RepoRoot", $RepoRoot,
+    "-RepoRoot", $script:RepoRoot,
     "-EvidenceOutDir", $EvidenceOutDir,
     "-SealedMaterialInvocation"
   )
   if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
-    $ceremonyArgs += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
+    $entryArgs += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
   }
   if (-not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
-    $ceremonyArgs += @("-TestHarnessChildStub", $TestHarnessChildStub)
+    $entryArgs += @("-TestHarnessChildStub", $TestHarnessChildStub)
   }
   if ($ChildTimeoutMs -ne 120000) {
-    $ceremonyArgs += @("-ChildTimeoutMs", "$ChildTimeoutMs")
+    $entryArgs += @("-ChildTimeoutMs", "$ChildTimeoutMs")
   }
   if (-not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex)) {
-    $ceremonyArgs += @("-TestForcePrePromptNullIndex", $TestForcePrePromptNullIndex)
+    $entryArgs += @("-TestForcePrePromptNullIndex", $TestForcePrePromptNullIndex)
   }
-  if ($TestForceCleanupFailure) { $ceremonyArgs += "-TestForceCleanupFailure" }
-  if ($TestForceTerminateFailure) { $ceremonyArgs += "-TestForceTerminateFailure" }
+  if ($TestForceCleanupFailure) { $entryArgs += "-TestForceCleanupFailure" }
+  if ($TestForceTerminateFailure) { $entryArgs += "-TestForceTerminateFailure" }
 
-  $p = Start-Process -FilePath $psExe -ArgumentList $ceremonyArgs -Wait -PassThru -NoNewWindow
+  $p = Start-Process -FilePath $psExe -ArgumentList $entryArgs -Wait -PassThru -NoNewWindow
   exit $p.ExitCode
 }
 catch {

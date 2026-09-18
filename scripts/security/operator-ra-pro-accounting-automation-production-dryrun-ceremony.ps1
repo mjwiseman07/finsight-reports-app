@@ -44,13 +44,42 @@ param(
   # Sites: empty_blob_index | envvars_null | pub_null_index
   [Parameter(Mandatory = $false)]
   [ValidateSet("", "empty_blob_index", "envvars_null", "pub_null_index")]
-  [string]$TestForcePrePromptNullIndex = ""
+  [string]$TestForcePrePromptNullIndex = "",
+
+  # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
+  [Parameter(Mandatory = $false)]
+  [switch]$SealedMaterialInvocation
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
+
+# Fail closed on direct worktree/operator ceremony execution unless sealed materialize or harness.
+$allowDirectHarness = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_DIRECT_HARNESS", "Process")
+if (-not $SealedMaterialInvocation) {
+  if ($allowDirectHarness -ne "1") {
+    $blocked = [ordered]@{
+      verdict = "BLOCKED"
+      reason = "CEREMONY_DIRECT_EXEC_FORBIDDEN: launch only via sealed supervise/enter materialize path"
+      mode = "dry-run"
+      productionContact = $false
+    } | ConvertTo-Json -Compress
+    Write-Output $blocked
+    exit 1
+  }
+  if ([Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process") -ne "1") {
+    $blocked = [ordered]@{
+      verdict = "BLOCKED"
+      reason = "CEREMONY_DIRECT_EXEC_FORBIDDEN: harness direct requires ALLOW_SYNTHETIC_URL=1"
+      mode = "dry-run"
+      productionContact = $false
+    } | ConvertTo-Json -Compress
+    Write-Output $blocked
+    exit 1
+  }
+}
 
 $DatabaseUrlEnv = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL"
 $ExpectedProjectRef = "jzmdgwwiestcmmeuhhkr"
