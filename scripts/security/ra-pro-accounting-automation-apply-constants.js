@@ -2,7 +2,8 @@
 
 /**
  * Offline authority for the RA Pro accounting-automation migration applicator.
- * Production apply remains unreachable until prior-dry-run and pre-apply pins publish.
+ * Dry-run: published precondition_publication only.
+ * Apply: remains unreachable until prior-dry-run and pre-apply pins publish.
  * Bundle authority is external (OID/SHA/bytes) — never PENDING self-hash alone.
  */
 const ARTIFACT_COMMIT = "85ae600be8ef8ef3498703bf480f8148d6fe0971";
@@ -64,10 +65,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Filled by assemble script after LF measure; non-circular (constants updated without rebuild). */
 const STANDALONE_BUNDLE_OID =
-  "5041ad18c24989a84f78ac197d9952fca3c6f880";
+  "07f0fb08aac9b363d6d46e179388da1090636c42";
 const STANDALONE_BUNDLE_SHA256 =
-  "7c399668c270f4a36e9f040effefc5a311b687857cf25116fc011e5da37f2d88";
-const STANDALONE_BUNDLE_BYTES = 224787;
+  "15ff5188dcb473608fe2746d6b5370201a39d667f39c91e58bb877fa65ffb311";
+const STANDALONE_BUNDLE_BYTES = 225332;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation.js",

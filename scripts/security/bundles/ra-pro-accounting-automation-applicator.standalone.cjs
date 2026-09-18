@@ -5799,7 +5799,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       const unpublished = auth.publication?.status === "UNPUBLISHED" || pub.required_prior_dry_run_evidence_sha256 == null || pub.required_pre_apply_live_evidence_sha256 == null;
       if (unpublished) {
         const e = new Error(
-          "AUTHORIZATION_PINS_UNPUBLISHED: prior-dry-run and pre-apply pins are null/UNPUBLISHED; refuse before production contact"
+          "AUTHORIZATION_PINS_UNPUBLISHED: prior-dry-run and pre-apply pins are null/UNPUBLISHED; apply remains unreachable"
         );
         e.code = "AUTHORIZATION_PINS_UNPUBLISHED";
         e.phase = "authorization";
@@ -5807,6 +5807,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       }
       return { harness_bypass: false, publication: pub };
     }
+    var assertApplyAuthorizationPublished = assertAuthorizationPublished;
     function assertPublishedPrecondition(inputs = {}) {
       const cwd = resolveRepoRoot(inputs);
       const auth = loadAuthorizationPackage(cwd);
@@ -5983,12 +5984,13 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
     }
     async function runDryRun(inputs = {}) {
       const evidence = buildEvidenceBase({ ...inputs, mode: "dry-run" });
+      evidence.authorization_scope = "dry_run_precondition_only";
+      evidence.migration_sql_attempts = 0;
       try {
         evidence.bundle_authority = assertBundleAuthority(inputs);
         evidence.databaseConnectionAttempts = 0;
         evidence.sqlApplicationAttempts = 0;
         evidence.precondition_evidence = assertPublishedPrecondition(inputs);
-        assertAuthorizationPublished(inputs);
         assertFeatureFlagUntouched(inputs.env || process.env);
         const packed = loadSealedMigrations(inputs);
         evidence.source_authority = packed.map((p) => ({
@@ -6000,18 +6002,25 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         const { url, uri_diagnostics } = resolveDatabaseUrlFromEnv(inputs.env || process.env);
         evidence.uri_diagnostics = uri_diagnostics;
         evidence.databaseConnectionAttempts = 1;
+        evidence.productionContact = true;
+        const versionsAbsent = [];
         await withClient(url, async (client) => {
           await client.query("BEGIN");
           await tryAdvisoryLock(client, inputs);
           evidence.advisory_lock_acquired = true;
           await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-          for (const p of packed) await assertVersionAbsent(client, p.migration.version);
+          for (const p of packed) {
+            await assertVersionAbsent(client, p.migration.version);
+            versionsAbsent.push(p.migration.version);
+          }
           evidence.prior_history_count = PRIOR_HISTORY_COUNT;
+          evidence.versions_absent = versionsAbsent;
           await client.query("ROLLBACK");
         });
         evidence.verdict = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
         evidence.result_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
         evidence.sqlApplicationAttempts = 0;
+        evidence.migration_sql_attempts = 0;
         return finalizeEvidence(evidence);
       } catch (err) {
         evidence.verdict = "DRY_RUN_BLOCKED";
@@ -6033,8 +6042,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         evidence.bundle_authority = assertBundleAuthority(inputs);
         evidence.databaseConnectionAttempts = 0;
         evidence.sqlApplicationAttempts = 0;
+        evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
         evidence.precondition_evidence = assertPublishedPrecondition(inputs);
-        assertAuthorizationPublished(inputs);
+        evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);
         assertFeatureFlagUntouched(inputs.env || process.env);
         if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN2) {
           const e = new Error("APPLY_AUTHORIZATION_TOKEN_MISMATCH");
@@ -6187,6 +6197,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
       FEATURE_FLAG_ENV,
       IndeterminateCommitError,
+      assertApplyAuthorizationPublished,
       assertAuthorizationPublished,
       assertBundleAuthority,
       assertFeatureFlagUntouched,

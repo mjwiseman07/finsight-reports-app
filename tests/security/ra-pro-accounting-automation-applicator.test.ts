@@ -87,7 +87,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(s.message).not.toMatch(/secret/);
   });
 
-  it("ceremony entry refuses unpublished pins without credentials", () => {
+  it("apply ceremony entry refuses unpublished prior/pre-apply pins without credentials", () => {
     const run = spawnSync(
       "powershell.exe",
       [
@@ -98,14 +98,44 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         "-File",
         "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
         "-Mode",
-        "dry-run",
+        "apply",
       ],
       { cwd: process.cwd(), encoding: "utf8", windowsHide: true },
     );
     expect(run.status).toBe(1);
     const payload = JSON.parse(run.stdout.trim().split(/\r?\n/).pop() || "{}");
     expect(payload.reason).toBe("AUTHORIZATION_PINS_UNPUBLISHED");
+    expect(payload.mode).toBe("apply");
     expect(payload.productionContact).toBe(false);
+  });
+
+  it("dry-run accepts published precondition without prior/apply pins (fails closed only on missing URL)", async () => {
+    const result = await runApplicator({
+      mode: "dry-run",
+      env: {}, // no database URL
+    });
+    expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+    expect(String(result.error_code || result.result_code || "")).toMatch(/MISSING_INPUT|MALFORMED_DATABASE_URL/);
+    expect(String(result.error_code || "")).not.toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(result.authorization_scope).toBe("dry_run_precondition_only");
+    expect(result.precondition_evidence?.sha256).toBe(
+      "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8",
+    );
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(result.migration_sql_attempts ?? 0).toBe(0);
+  });
+
+  it("apply still rejects unpublished prior/pre-apply pins before credentials", async () => {
+    const result = await runApplicator({
+      mode: "apply",
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      env: { [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db" },
+    });
+    expect(result.verdict).toBe("APPLY_BLOCKED");
+    expect(String(result.error_code || result.result_code || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
   });
 
   it("standalone bundle executes under Node and fails closed without packaging errors", () => {
@@ -128,7 +158,10 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     const payload = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop() || "{}");
     expect(
       String(payload.reason || payload.result_code || payload.error_code || payload.error || ""),
-    ).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/);
+    ).toMatch(/MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_/);
+    expect(String(payload.error_code || payload.result_code || "")).not.toMatch(
+      /AUTHORIZATION_PINS_UNPUBLISHED/,
+    );
     expect(payload.databaseConnectionAttempts ?? 0).toBe(0);
     expect(payload.sqlApplicationAttempts ?? 0).toBe(0);
   });
@@ -185,7 +218,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     ).toThrow(/BUNDLE_AUTHORITY_UNPUBLISHED/);
   });
 
-  it("refuses harness activation via env or argv; CLI never bypasses unpublished pins", () => {
+  it("refuses harness activation via env or argv; CLI dry-run never bypasses missing URL", () => {
     expect(() =>
       assertBundleAuthority({
         env: { RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_HARNESS: "1" },
@@ -205,26 +238,12 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(cli.status).toBe(1);
     const payload = JSON.parse(`${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}");
     expect(String(payload.reason || payload.result_code || payload.error_code || "")).toMatch(
-      /AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/,
+      /MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_/,
+    );
+    expect(String(payload.error_code || payload.result_code || "")).not.toMatch(
+      /AUTHORIZATION_PINS_UNPUBLISHED/,
     );
     expect(payload.databaseConnectionAttempts ?? 0).toBe(0);
-  });
-
-  it("dry-run without harness never reaches credentials when pins unpublished", async () => {
-    const result = await runApplicator({
-      mode: "dry-run",
-      env: {}, // no database URL
-    });
-    expect(result.verdict).toMatch(/BLOCKED|DRY_RUN_BLOCKED/);
-    expect(String(result.error_code || result.result_code || "")).toMatch(
-      /AUTHORIZATION_PINS_UNPUBLISHED|BUNDLE_/,
-    );
-    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
-    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
-    // Bundle gate must run first when seals are published.
-    if (result.bundle_authority) {
-      expect(result.phase || result.error_code).toMatch(/authorization|AUTHORIZATION/i);
-    }
   });
 });
 
@@ -386,13 +405,18 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   it("dry-run is ready with zero SQL attempts when history is 188", async () => {
     const result = await runApplicator({
       mode: "dry-run",
-      allowUnpublishedForHarness: true,
       env: { [DATABASE_URL_ENV]: url },
     });
     expect(result, JSON.stringify(result)).toMatchObject({
       verdict: "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
       sqlApplicationAttempts: 0,
+      migration_sql_attempts: 0,
+      databaseConnectionAttempts: 1,
+      authorization_scope: "dry_run_precondition_only",
+      prior_history_count: PRIOR_HISTORY_COUNT,
     });
+    expect(result.versions_absent).toEqual(MIGRATIONS.map((m) => m.version));
+    expect(result.advisory_lock_acquired).toBe(true);
   });
 
   it("applies both sealed migrations atomically and stores exact LF blobs", async () => {

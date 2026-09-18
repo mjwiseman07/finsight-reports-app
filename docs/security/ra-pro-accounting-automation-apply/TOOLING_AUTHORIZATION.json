@@ -57,15 +57,16 @@
     "applicator_may_enable": false
   },
   "notes": [
+    "Dry-run requires published precondition_publication only.",
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "5041ad18c24989a84f78ac197d9952fca3c6f880",
-    "sha256": "7c399668c270f4a36e9f040effefc5a311b687857cf25116fc011e5da37f2d88",
-    "bytes": 224787,
+    "oid": "07f0fb08aac9b363d6d46e179388da1090636c42",
+    "sha256": "15ff5188dcb473608fe2746d6b5370201a39d667f39c91e58bb877fa65ffb311",
+    "bytes": 225332,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

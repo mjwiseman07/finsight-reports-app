@@ -9,21 +9,52 @@ Applies these two sealed migrations **atomically** (one transaction), in order:
 
 History contract: **188 → 190**.
 
+## Authority split
+
+| Mode | Required authority |
+|---|---|
+| **dry-run** | Committed bundle seals + published `precondition_publication` only |
+| **apply** | Bundle + precondition + published prior-dry-run + published pre-apply + sealed apply token |
+
+Prior-dry-run / pre-apply pins remain **UNPUBLISHED/null** until a separately reviewed production dry run is sealed. Apply stays unreachable until then.
+
+Gate order (fail-closed):
+
+1. Mandatory standalone bundle authority (`git cat-file`)
+2. Committed precondition evidence validation
+3. Mode-specific authorization (dry-run skips apply pins; apply requires them)
+4. Credential prompt / `RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL`
+5. Node / database contact
+6. SQL (apply only; dry-run executes **zero** migration SQL)
+
 ## Safety
 
 - Credential channel: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL` only.
 - Forbidden: `DATABASE_URL`, cutover / FRLS / containment apply URL envs.
 - Never sets `ENABLE_RA_PRO_ACCOUNTING_AUTOMATION`.
 - Advisory lock: `RA_PRO_ACCOUNTING_AUTOMATION_APPLY`.
-- No automatic retry.
-- Production apply remains **unreachable** while `TOOLING_AUTHORIZATION.json` publication pins are `UNPUBLISHED` / null.
-- The reviewed precondition evidence is independently sealed and checked before the still-unpublished prior-dry-run/apply authority. Publishing it alone cannot authorize production contact.
+- No automatic retry (one authorization → one attempt marker).
+- Evidence and seals come from committed Git blobs only — never mutable worktree evidence authority.
+- Forbid argv/environment precondition evidence-path overrides.
 
-## Operator
+## Operator (visible dry-run ceremony)
 
 ```powershell
-# Always blocked on this tip (pins unpublished):
-powershell -NoProfile -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 -Mode dry-run
+# Interactive SecureString prompt (production DB URL). Does NOT apply migrations.
+powershell -NoProfile -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 `
+  -Mode dry-run `
+  -PrHead <exact-40-hex-tip>
+
+# Or call the operator ceremony directly:
+powershell -NoProfile -File scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1 `
+  -PrHead <exact-40-hex-tip>
+```
+
+Apply mode remains refuse-closed while prior/pre-apply pins are unpublished:
+
+```powershell
+powershell -NoProfile -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 -Mode apply
+# → AUTHORIZATION_PINS_UNPUBLISHED
 ```
 
 Offline seal verify (no DB):
@@ -34,4 +65,4 @@ node scripts/security/verify-ra-pro-accounting-automation-apply-authority.js
 
 ## Harness only
 
-Disposable Docker rehearsals may pass `allowUnpublishedForHarness: true` to exercise apply logic without publishing production pins.
+Disposable Docker apply rehearsals may pass `allowUnpublishedForHarness: true` to exercise apply SQL without publishing production prior/pre-apply pins. Dry-run Docker rehearsals use the real published precondition pins (no harness bypass required).
