@@ -13,6 +13,7 @@ const ROOT = process.cwd();
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
 const BOOTSTRAP_REL =
   "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1";
+const NATIVE_ENTRY_REL = "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1";
 const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:5432/postgres";
 
 function gitEnv() {
@@ -216,9 +217,11 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
     );
     const bootstrapPath = path.join(ROOT, BOOTSTRAP_REL);
+    const nativeEntryPath = path.join(ROOT, NATIVE_ENTRY_REL);
     const supervisorBackup = fs.readFileSync(supervisorPath);
     const ceremonyBackup = fs.readFileSync(ceremonyPath);
     const bootstrapBackup = fs.readFileSync(bootstrapPath);
+    const nativeEntryBackup = fs.readFileSync(nativeEntryPath);
     try {
       fs.writeFileSync(
         supervisorPath,
@@ -233,6 +236,11 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       fs.writeFileSync(
         bootstrapPath,
         'Write-Output \'{"verdict":"POISONED","reason":"WORKTREE_BOOTSTRAP"}\'; exit 0\n',
+        "utf8",
+      );
+      fs.writeFileSync(
+        nativeEntryPath,
+        'Write-Output \'{"verdict":"POISONED","reason":"WORKTREE_NATIVE_ENTRY"}\'; exit 0\n',
         "utf8",
       );
       const { run, payload } = runAuthenticatedBootstrap(
@@ -259,6 +267,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       fs.writeFileSync(supervisorPath, supervisorBackup);
       fs.writeFileSync(ceremonyPath, ceremonyBackup);
       fs.writeFileSync(bootstrapPath, bootstrapBackup);
+      fs.writeFileSync(nativeEntryPath, nativeEntryBackup);
     }
   });
 
@@ -363,6 +372,30 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(String(lastJson(`${directEnter.stdout || ""}${directEnter.stderr || ""}`).reason || "")).toMatch(
       /ENTRY_DIRECT_EXEC_FORBIDDEN/,
     );
+
+    const directNative = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        NATIVE_ENTRY_REL,
+        "-Mode",
+        "apply",
+        "-PrHead",
+        tip,
+        "-RepoRoot",
+        ROOT,
+      ],
+      { cwd: ROOT, encoding: "utf8", windowsHide: true, env: { ...process.env } },
+    );
+    expect(directNative.status).toBe(1);
+    expect(String(lastJson(`${directNative.stdout || ""}${directNative.stderr || ""}`).reason || "")).toMatch(
+      /NATIVE_ENTRY_DIRECT_EXEC_FORBIDDEN/,
+    );
+    expect(String(`${directNative.stdout || ""}${directNative.stderr || ""}`)).not.toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
   });
 
   it("apply remains blocked by unpublished later pins via authenticated bootstrap path", () => {
@@ -371,5 +404,78 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(run.status).toBe(1);
     expect(String(payload.reason || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
     expect(payload.productionContact).toBe(false);
+  });
+
+  it("rejects UTF-8 BOM and reparse destinations before launching the bootstrap", () => {
+    const runbook = fs.readFileSync(
+      path.join(ROOT, "docs/security/ra-pro-accounting-automation-apply/APPLY_RUNBOOK.md"),
+      "utf8",
+    );
+    expect(runbook).toContain("bootstrap UTF-8 BOM forbidden");
+    expect(runbook).toContain("materialized file is reparse point");
+    expect(runbook).toContain("material directory is reparse point");
+    expect(runbook).toContain("materialized file is not byte-identical to Git blob");
+    expect(runbook).toContain("NATIVE_ENTRY_DIRECT_EXEC_FORBIDDEN");
+    expect(runbook).not.toContain("Convenience helper");
+
+    const checker = `
+param([string]$BytesFile, [string]$Dest, [string]$TempRoot)
+$ErrorActionPreference = "Stop"
+$bytes = [IO.File]::ReadAllBytes($BytesFile)
+if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+  throw "bootstrap UTF-8 BOM forbidden"
+}
+if ([Array]::IndexOf($bytes, [byte]0x0D) -ge 0) { throw "bootstrap CR/CRLF forbidden" }
+$destFull = [IO.Path]::GetFullPath($Dest)
+$rootFull = [IO.Path]::GetFullPath($TempRoot).TrimEnd('\\') + '\\'
+if (-not $destFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "materialized path escaped private temp directory"
+}
+$fileItem = Get-Item -LiteralPath $destFull -Force
+if ($fileItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "materialized file is reparse point" }
+$dirItem = Get-Item -LiteralPath (Split-Path -Parent $destFull) -Force
+if ($dirItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "material directory is reparse point" }
+$readBack = [IO.File]::ReadAllBytes($destFull)
+if ($readBack.Length -ne $bytes.Length) { throw "materialized file is not byte-identical to Git blob" }
+for ($i = 0; $i -lt $bytes.Length; $i++) {
+  if ($readBack[$i] -ne $bytes[$i]) { throw "materialized file is not byte-identical to Git blob" }
+}
+Set-Content -LiteralPath (Join-Path $TempRoot "LAUNCHED.txt") -Value "launched"
+`;
+    const checkerPath = path.join(os.tmpdir(), `ra-acct-preflight-${process.pid}.ps1`);
+    fs.writeFileSync(checkerPath, checker.replace(/\n/g, "\r\n"), "utf8");
+
+    const bomRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-bom-"));
+    const bomBytes = path.join(bomRoot, "bytes.bin");
+    const bomDest = path.join(bomRoot, "bootstrap.ps1");
+    fs.writeFileSync(bomBytes, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("Write-Output LAUNCHED\n")]));
+    fs.writeFileSync(bomDest, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("Write-Output LAUNCHED\n")]));
+    const bomRun = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", checkerPath, "-BytesFile", bomBytes, "-Dest", bomDest, "-TempRoot", bomRoot],
+      { encoding: "utf8", windowsHide: true },
+    );
+    expect(bomRun.status).not.toBe(0);
+    expect(`${bomRun.stdout || ""}${bomRun.stderr || ""}`).toMatch(/bootstrap UTF-8 BOM forbidden/);
+    expect(fs.existsSync(path.join(bomRoot, "LAUNCHED.txt"))).toBe(false);
+
+    const realDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-real-"));
+    const linkDir = path.join(os.tmpdir(), `ra-acct-link-${process.pid}-${Date.now()}`);
+    const link = spawnSync("cmd.exe", ["/c", "mklink", "/J", linkDir, realDir], { encoding: "utf8", windowsHide: true });
+    expect(link.status, `${link.stdout || ""} ${link.stderr || ""}`).toBe(0);
+    const payload = Buffer.from("exit 0\n");
+    const bytesFile = path.join(realDir, "bytes.bin");
+    const throughLink = path.join(linkDir, "bootstrap.ps1");
+    fs.writeFileSync(bytesFile, payload);
+    fs.writeFileSync(throughLink, payload);
+    const reparseRun = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", checkerPath, "-BytesFile", bytesFile, "-Dest", throughLink, "-TempRoot", linkDir],
+      { encoding: "utf8", windowsHide: true },
+    );
+    expect(reparseRun.status).not.toBe(0);
+    expect(`${reparseRun.stdout || ""}${reparseRun.stderr || ""}`).toMatch(/reparse point/);
+    expect(fs.existsSync(path.join(linkDir, "LAUNCHED.txt"))).toBe(false);
+    spawnSync("cmd.exe", ["/c", "rmdir", linkDir], { windowsHide: true });
   });
 });
