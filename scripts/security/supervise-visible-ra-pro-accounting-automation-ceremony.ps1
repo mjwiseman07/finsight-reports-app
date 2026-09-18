@@ -53,8 +53,8 @@ $ErrorActionPreference = "Stop"
 
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $EntryRel = "scripts/security/enter-ra-pro-accounting-automation-apply.ps1"
+# Do not assign $script:RepoRoot = $null — script-scope params share that name and would be wiped.
 $script:MaterialRoot = $null
-$script:RepoRoot = $null
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
@@ -210,10 +210,16 @@ try {
     }
   }
 
+  if ($SealedMaterialInvocation -and [string]::IsNullOrWhiteSpace($RepoRoot)) {
+    throw "BLOCKED_INPUT_INVALID: -RepoRoot required for sealed supervisor invocation"
+  }
   if (-not $RepoRoot) {
     $RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
   }
   $script:RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
+  if (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot ".git"))) {
+    throw "BLOCKED_INPUT_INVALID: RepoRoot is not a git repository"
+  }
   if (-not $EvidenceOutDir) {
     $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-supervise-" + [guid]::NewGuid().ToString("N"))
   }
