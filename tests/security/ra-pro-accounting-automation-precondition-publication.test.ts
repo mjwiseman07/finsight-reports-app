@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,11 +7,29 @@ import { describe, expect, it } from "vitest";
 const { assertPreconditionEvidencePublished, validateEvidence } = require(
   "../../scripts/security/ra-pro-accounting-automation-precondition-gates",
 );
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { assertUtf8LfNoBom } = require("../../scripts/security/git-blob-authority");
 
 const ROOT = process.cwd();
 const FIXTURE = "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json";
 const REVIEWED_SHA = "8714cea78cf04defdc3bfa63555aca507220fb4ec985b3709fdef629a34499b8";
 const REVIEWED_BYTES = 2112;
+const SOURCE_COMMIT = "3fe3fb0fbe8506672956fdfdbf3ffc47ab74cf99";
+const SOURCE_OID = "ab69f5cea7cabc14cb11201d1463b935d09a9a01";
+
+function publishedAuth(patch: Record<string, unknown> = {}) {
+  return {
+    precondition_publication: {
+      status: "PUBLISHED",
+      evidence_path: FIXTURE,
+      evidence_source_commit: SOURCE_COMMIT,
+      evidence_blob_oid: SOURCE_OID,
+      evidence_sha256: REVIEWED_SHA,
+      evidence_bytes: REVIEWED_BYTES,
+      ...patch,
+    },
+  };
+}
 
 type MutableEvidence = {
   valid_from_utc: string;
@@ -75,20 +92,14 @@ describe("RA Pro accounting-automation precondition publication", () => {
   });
 
   it("accepts the source-commit blob and rejects tampered or substituted authorities", () => {
-    const source = "3fe3fb0fbe8506672956fdfdbf3ffc47ab74cf99";
-    const oid = execFileSync("git", ["rev-parse", `${source}:${FIXTURE}`], { cwd: ROOT, encoding: "utf8" }).trim();
-    const base = {
-      precondition_publication: {
-        status: "PUBLISHED",
-        evidence_path: FIXTURE,
-        evidence_source_commit: source,
-        evidence_blob_oid: oid,
-        evidence_sha256: REVIEWED_SHA,
-        evidence_bytes: REVIEWED_BYTES,
-      },
-    };
-    expect(assertPreconditionEvidencePublished({ auth: base, cwd: ROOT, now: new Date("2026-09-18T12:00:00Z") })).toMatchObject({
-      oid,
+    expect(
+      assertPreconditionEvidencePublished({
+        auth: publishedAuth(),
+        cwd: ROOT,
+        now: new Date("2026-09-18T12:00:00Z"),
+      }),
+    ).toMatchObject({
+      oid: SOURCE_OID,
       sha256: REVIEWED_SHA,
       bytes: REVIEWED_BYTES,
     });
@@ -96,9 +107,33 @@ describe("RA Pro accounting-automation precondition publication", () => {
       { evidence_sha256: "0".repeat(64) },
       { evidence_path: "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json" },
       { evidence_bytes: REVIEWED_BYTES + 2 },
+      { evidence_blob_oid: "0".repeat(40) },
     ]) {
-      const auth = { precondition_publication: { ...base.precondition_publication, ...patch } };
-      expect(() => assertPreconditionEvidencePublished({ auth, cwd: ROOT, now: new Date("2026-09-18T12:00:00Z") })).toThrow();
+      expect(() =>
+        assertPreconditionEvidencePublished({
+          auth: publishedAuth(patch),
+          cwd: ROOT,
+          now: new Date("2026-09-18T12:00:00Z"),
+        }),
+      ).toThrow();
     }
+  });
+
+  it("rejects missing evidence blobs before credentials or SQL", () => {
+    expect(() =>
+      assertPreconditionEvidencePublished({
+        auth: publishedAuth({
+          evidence_source_commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        }),
+        cwd: ROOT,
+        now: new Date("2026-09-18T12:00:00Z"),
+      }),
+    ).toThrow(/GIT_BLOB_LOAD_FAILED/);
+  });
+
+  it("rejects CRLF-converted evidence bytes", () => {
+    expect(() => assertUtf8LfNoBom(Buffer.from('{"ok":true}\r\n', "utf8"), "precondition")).toThrow(
+      /CR\/CRLF/,
+    );
   });
 });
