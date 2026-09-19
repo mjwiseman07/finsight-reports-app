@@ -1,0 +1,82 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+  "schema_version": 1,
+  "publication_status": "UNPUBLISHED",
+  "pin_source": "committed_tooling_authorization_only",
+  "operator_path_override": "forbidden",
+  "operator_env_override": "forbidden",
+  "freshness": "valid_from_utc <= UtcNow < valid_until_utc",
+  "validity_window": "exactly_24_hours",
+  "newline": "UTF-8, no BOM, no CR, exactly one trailing LF",
+  "sanitization": [
+    "no database URLs",
+    "no credential material",
+    "no PEM or private keys",
+    "no customer, firm, user, or webhook identifiers",
+    "no hostnames"
+  ],
+  "substitution_forbidden": [
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1",
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1",
+    "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1"
+  ],
+  "self_asserted_fields_are_not_authority": [
+    "validator_result",
+    "committed_pre_apply_pins",
+    "disposable_pin_scope",
+    "bound_to_expected_sha",
+    "pins_published"
+  ],
+  "bindings": {
+    "pr_number": 324,
+    "collection_pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
+    "scope": "read_only_production_pre_apply_live_collection",
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
+    "production_environment": "Production",
+    "production_state": "success",
+    "vercel_deployment_id": "FTe8t7bxyMVV6imEFAatkmBau1R7",
+    "github_production_deployment_id": 6513747695,
+    "github_preview_deployment_id": 6536311942,
+    "pr_head_is_serving_production": false,
+    "automation_gate_key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "automation_gate_presence": "absent",
+    "automation_gate_state": "closed",
+    "prior_dry_run_evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "prior_dry_run_evidence_source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
+    "prior_dry_run_reviewed_tip": "99e6ed195c95b5cdcd27a6690f2441df4e7ae6a9",
+    "history_count": 188,
+    "migrations": [
+      {
+        "version": "20260917044537",
+        "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+        "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+        "bytes": 6952
+      },
+      {
+        "version": "20260917180140",
+        "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+        "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+        "bytes": 3997
+      }
+    ],
+    "weekly_version_count": 0,
+    "month_end_version_count": 0,
+    "target_relation_count": 0,
+    "target_policy_count": 0,
+    "persist_functions_absent": true,
+    "partial_accounting_automation_state": false,
+    "linked_firms_count": 0,
+    "authorizing_inventory": {
+      "predicate": "review_assist_pro_active_and_complimentary",
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "dual_owner": 0
+    },
+    "webhook_non_terminal_count": 0,
+    "webhook_non_terminal_statuses": ["received", "processing", "retryable"],
+    "write_counters": 0
+  }
+}

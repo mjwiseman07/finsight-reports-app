@@ -3,6 +3,7 @@
  * Never reads SQL from the worktree.
  */
 "use strict";
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const { createHash } = require("node:crypto");
 const { execFileSync } = require("node:child_process");
@@ -26,6 +27,17 @@ function assertBinaryBuffer(buf, label) {
  * @param {string} pathRel repo-relative path
  * @param {{ cwd?: string }} [opts]
  */
+function gitEnvForCwd(cwd) {
+  // Trust the repository cwd for blob reads without mutating global git config.
+  // Required when the worktree owner differs from the invoking user.
+  const env = { ...process.env };
+  const n = Number(env.GIT_CONFIG_COUNT || 0);
+  env.GIT_CONFIG_COUNT = String(n + 1);
+  env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+  env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+  return env;
+}
+
 function loadGitBlob(commit, pathRel, opts = {}) {
   if (!commit || !/^[0-9a-f]{7,40}$/i.test(commit)) {
     throw new Error(`invalid commit for git blob load: ${String(commit)}`);
@@ -36,6 +48,7 @@ function loadGitBlob(commit, pathRel, opts = {}) {
   const cwd = opts.cwd || ROOT;
   const buf = execFileSync("git", ["cat-file", "blob", `${commit}:${pathRel}`], {
     cwd,
+    env: gitEnvForCwd(cwd),
     // binary-safe: no encoding
   });
   assertBinaryBuffer(buf, pathRel);
@@ -46,6 +59,7 @@ function gitBlobOid(commit, pathRel, opts = {}) {
   const cwd = opts.cwd || ROOT;
   return execFileSync("git", ["rev-parse", `${commit}:${pathRel}`], {
     cwd,
+    env: gitEnvForCwd(cwd),
     encoding: "utf8",
   }).trim();
 }

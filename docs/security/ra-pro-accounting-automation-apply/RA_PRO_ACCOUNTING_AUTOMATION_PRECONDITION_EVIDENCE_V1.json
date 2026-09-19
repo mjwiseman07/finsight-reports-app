@@ -1,0 +1,62 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
+  "schema_version": 1,
+  "collected_at_utc": "2026-09-18T22:23:36Z",
+  "valid_from_utc": "2026-09-18T22:23:36Z",
+  "valid_until_utc": "2026-09-19T22:23:36Z",
+  "authorization": {
+    "pr_number": 324,
+    "pr_head": "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5",
+    "scope": "read_only_production_precondition_collection"
+  },
+  "deployment": {
+    "production_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
+    "production_state": "READY",
+    "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
+    "preview_deployment_id": "dpl_6EdHdeSgnSTQj8dVAtea5ES6xzDh",
+    "preview_state": "READY",
+    "preview_commit": "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5"
+  },
+  "automation_gate": {
+    "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "production_presence": "absent",
+    "effective_state": "closed"
+  },
+  "database": {
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "migration_history_count": 188,
+    "weekly_version": "20260917044537",
+    "weekly_version_count": 0,
+    "month_end_version": "20260917180140",
+    "month_end_version_count": 0,
+    "weekly_runs_absent": true,
+    "weekly_findings_absent": true,
+    "weekly_persist_rpc_absent": true,
+    "month_end_packages_absent": true,
+    "month_end_persist_rpc_absent": true,
+    "linked_firms_count": 0,
+    "authorizing_inventory": {
+      "predicate": "review_assist_pro_active_and_complimentary",
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "dual_owner": 0
+    },
+    "webhook_non_terminal_count": 0
+  },
+  "safety": {
+    "read_only": true,
+    "production_writes": 0,
+    "sql_application_attempts": 0,
+    "dry_run_attempts": 0,
+    "migration_apply_attempts": 0,
+    "provider_writes": 0,
+    "automation_enabled": false,
+    "merge_or_deploy_performed": false
+  },
+  "limitations": [
+    "Environment evidence records only exact-key absence; no environment values were read.",
+    "This artifact is local and unpinned. It does not authorize a dry run, migration apply, merge, deployment, or automation enablement.",
+    "The committed precondition gate still pins pr_head 25e12cc5412275e9a922d7add344c5074a7c1e7a. This collection is bound to the authorized head 21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5 and was not published."
+  ]
+}

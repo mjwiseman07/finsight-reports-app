@@ -1,0 +1,197 @@
+{
+  "package": "ra-pro-accounting-automation-apply-tooling",
+  "artifact_commit": "85ae600be8ef8ef3498703bf480f8148d6fe0971",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL",
+  "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917",
+  "advisory_lock": {
+    "name": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY",
+    "key1": 1380008257,
+    "key2": 539363607
+  },
+  "history_contract": {
+    "prior": 188,
+    "post": 190
+  },
+  "migrations": [
+    {
+      "version": "20260917044537",
+      "name": "ra_pro_weekly_completeness_findings",
+      "path": "supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql",
+      "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+      "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+      "bytes": 6952
+    },
+    {
+      "version": "20260917180140",
+      "name": "ra_pro_month_end_review_packages",
+      "path": "supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql",
+      "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+      "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+      "bytes": 3997
+    }
+  ],
+  "publication": {
+    "status": "PUBLISHED",
+    "required_prior_dry_run_evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "required_prior_dry_run_evidence_oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
+    "required_prior_dry_run_evidence_bytes": 5100,
+    "required_pre_apply_live_evidence_sha256": "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+    "required_pre_apply_live_evidence_oid": "0f6f480f0bd16df089cd1bb5e3f32b8865feb939",
+    "required_pre_apply_live_evidence_bytes": 4229
+  },
+  "pre_apply_live_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "contract_path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json",
+    "evidence_source_commit": "76775c3b9758d660f53a810df80e469cc0b639b5",
+    "evidence_blob_oid": "0f6f480f0bd16df089cd1bb5e3f32b8865feb939",
+    "evidence_sha256": "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+    "evidence_bytes": 4229,
+    "valid_until_utc": "2026-09-20T03:00:15Z",
+    "collection_pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
+    "apply_authorized": false,
+    "independent_review_visibility_limitations": [
+      "The independent evidence review could not repeat the Production flag-name lookup. The Vercel CLI was not available, and no environment value was read. The observation's statement that the key was checked by exact name only, and that its value was not read, is retained unchanged."
+    ]
+  },
+  "production_apply_authorization": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
+    "apply_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "database_url_env": null,
+    "apply_authorization_token": null,
+    "bundle": null,
+    "migrations": null,
+    "prior_dry_run_evidence": null,
+    "pre_apply_live_evidence": null,
+    "tls_trust_root": null,
+    "publication_role": "later_descendant_commit",
+    "note": "The executable commit is an ancestor named by a later publication commit. This record must not contain that publication commit's own SHA. Evidence publication and the apply token do not authorize apply."
+  },
+  "prior_dry_run_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1.json",
+    "evidence_source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
+    "evidence_blob_oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
+    "evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "evidence_bytes": 5100,
+    "reviewed_tip": "99e6ed195c95b5cdcd27a6690f2441df4e7ae6a9",
+    "attempt_marker": "attempt-99e6ed195c95-aaa974cab7984e13a66e4e1237e211b9.marker",
+    "apply_authorized": false
+  },
+  "precondition_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json",
+    "evidence_source_commit": "f32391f9141cb01424d7185d57a1b41478fdfc82",
+    "evidence_blob_oid": "f05bfa25def88f28037defbbdd3375bd84068604",
+    "evidence_sha256": "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
+    "evidence_bytes": 2324,
+    "valid_from_utc": "2026-09-18T22:23:36Z",
+    "valid_until_utc": "2026-09-19T22:23:36Z"
+  },
+  "feature_flag": {
+    "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "must_remain": "absent_or_not_true",
+    "applicator_may_enable": false
+  },
+  "notes": [
+    "Dry-run requires published precondition_publication only.",
+    "Production apply remains unreachable. Prior-dry-run and pre-apply pins are published, and apply still stops before credentials.",
+    "Prior-dry-run evidence pin is published from the reviewed 99e6ed19 dry run. Pre-apply pins are published from the reviewed observation and still do not authorize apply.",
+    "Pre-apply live evidence pins are published from committed Git blob 76775c3b9758d660f53a810df80e469cc0b639b5. Apply still refuses before credentials. Pin publication does not authorize production apply.",
+    "Independent review visibility limit: the Production flag-name lookup was not repeated. No environment value was read. The observation was not rewritten and its validity was not extended.",
+    "Production apply authorization remains UNPUBLISHED. Evidence pins and the apply token do not authorize apply. A later descendant publication must name authorized_executable_commit as this reviewed ancestor and must not contain its own SHA.",
+    "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
+    "Never uses cutover, FRLS, or containment database credential channels.",
+    "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
+    "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.",
+    "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation.",
+    "Dry-run records catalog probes for target absence, prerequisite shape, and schema drift in the rolled-back transaction. APPLY_COMMITTED requires post-commit history, RLS, grant, browser-write, RPC idempotency, and sentinel checks. Verification failure is not a retry."
+  ],
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
+    "oid": "31c41ab1c351d3264f94f30e2aa1fab5f94689f3",
+    "sha256": "3ee3d807055c9a4b7fc536eb887eabfc49c5cb17427be1bf863b357f7f355065",
+    "bytes": 341372,
+    "line_endings": "LF",
+    "authority": "git_blob_cat_file"
+  },
+  "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
+  "ceremony_source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+  "visible_ceremony_supervisor": {
+    "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+    "oid": "d2e955661f8beff4f5e6df3c45dd00293f5284d2",
+    "sha256": "d3790d6522f8c9a47294d638b6b5f905b2ee5293d758ea304fe953e9661b17b3",
+    "bytes": 20747,
+    "line_endings": "LF"
+  },
+  "visible_ceremony_entry": {
+    "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
+    "source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+    "oid": "818bd49345e7b2ca3d4ca2231417a898bb80ba82",
+    "sha256": "5e2ad175beca7720e9086c62f3f90d527dfaff782daf510bcdf9068a0074bae7",
+    "bytes": 30609,
+    "line_endings": "LF"
+  },
+  "operator_ceremony": {
+    "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
+    "source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+    "oid": "d4b07dff87449e3cac879629613d68a657dc4806",
+    "sha256": "d901ec19a87f79babfd65daca53558c5f2027fb64bdce3de1a197fddd7b680f1",
+    "bytes": 59760,
+    "line_endings": "LF"
+  },
+  "bootstrap_source_commit": "d7212738ddf111407e01c316fb8b05e047e7adc9",
+  "visible_ceremony_bootstrap": {
+    "path": "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "d7212738ddf111407e01c316fb8b05e047e7adc9",
+    "oid": "aa07697d4cb48fa5bd09235a92b9dc1599352ef8",
+    "sha256": "7bbaadbfc727398c8d0063d166bac1b22e7c162ab152b05435e91dffdf382ad0",
+    "bytes": 19804,
+    "line_endings": "LF"
+  },
+  "visible_ceremony_native_entry": {
+    "path": "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1",
+    "source_commit": "d7212738ddf111407e01c316fb8b05e047e7adc9",
+    "oid": "ee67390345a429a8440d166197bf5bd030ec88e7",
+    "sha256": "dcfc4e797ad5caef2be50bef830316d531b3208d5a66f6f61913b70a21d93475",
+    "bytes": 13524,
+    "line_endings": "LF"
+  },
+  "tls_trust_root": {
+    "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+    "source_commit": "753c72fd10ebc335de6bc12295be461c97ed6456",
+    "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+    "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+    "bytes": 1870,
+    "line_endings": "LF",
+    "der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+    "certificate_pem_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "certificate_bytes": 1367,
+    "subject": "Supabase Root 2021 CA"
+  },
+  "pre_apply_live_gates": {
+    "path": "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
+    "source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+    "oid": "7cdfc0d029af5ea72172cfca338640737f416a2d",
+    "sha256": "58fbdaba70b0edafd028c5b7bd5fea4234c468b7b6118954ce4f16135d14f4fe",
+    "bytes": 10174,
+    "line_endings": "LF"
+  },
+  "pre_apply_live_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "source_commit": "a530a60c17ba60b637746d0503d029003bd46ea2",
+    "oid": "76066757625cd7464355732c1459761bf6092e2c",
+    "sha256": "ffc5382219587a8591be1c28d7abd8143695602b3b2274878e05e894fb6f022c",
+    "bytes": 3137,
+    "line_endings": "LF"
+  }
+}
