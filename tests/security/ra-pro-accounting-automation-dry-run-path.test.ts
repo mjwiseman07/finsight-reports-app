@@ -12,7 +12,6 @@ import {
   DATABASE_URL_ENV,
   runApplicator,
   resolveDatabaseUrlFromEnv,
-  classifyDatabaseUrl,
   classificationParity,
   inspectNormalizedClient,
   assertAuthorizationPublished,
