@@ -14,7 +14,7 @@ const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHO
 const BOOTSTRAP_REL =
   "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1";
 const NATIVE_ENTRY_REL = "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1";
-const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:5432/postgres";
+const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:5432/postgres?sslmode=require";
 
 function gitEnv() {
   return {

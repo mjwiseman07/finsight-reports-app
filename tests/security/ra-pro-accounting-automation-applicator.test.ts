@@ -17,6 +17,7 @@ import {
   FEATURE_FLAG_ENV,
   runApplicator,
   resolveDatabaseUrlFromEnv,
+  classifyDatabaseUrl,
   assertAuthorizationPublished,
   assertBundleAuthority,
   sanitizeValue,
@@ -93,10 +94,82 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       }),
     ).toThrow(/DATABASE_PROJECT_REF_MISMATCH/);
     const projectOk = resolveDatabaseUrlFromEnv({
-      [DATABASE_URL_ENV]: `postgres://x@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres`,
+      [DATABASE_URL_ENV]: `postgres://x@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres?sslmode=require`,
     });
-    expect(projectOk.uri_diagnostics.host_class).toBe("expected_project");
+    expect(projectOk.uri_diagnostics.host_class).toBe("direct");
+    expect(projectOk.uri_diagnostics.matches_expected_project_ref).toBe(true);
     expect(projectOk.uri_diagnostics).not.toHaveProperty("host");
+    expect(projectOk.uri_diagnostics).not.toHaveProperty("username");
+  });
+
+  it("binds Supabase session and transaction poolers without retaining the URL", () => {
+    const ref = EXPECTED_PROJECT_REF;
+    const session = `postgres://postgres.${ref}:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`;
+    const transaction = `postgres://postgres.${ref}:secret@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=verify-full`;
+    const sessionOk = resolveDatabaseUrlFromEnv({ [DATABASE_URL_ENV]: session });
+    const transactionOk = resolveDatabaseUrlFromEnv({ [DATABASE_URL_ENV]: transaction });
+    expect(sessionOk.uri_diagnostics.host_class).toBe("session_pooler");
+    expect(sessionOk.uri_diagnostics.username_class).toBe("project_bound");
+    expect(transactionOk.uri_diagnostics.host_class).toBe("transaction_pooler");
+    expect(transactionOk.uri_diagnostics.username_class).toBe("project_bound");
+    for (const diagnostics of [sessionOk.uri_diagnostics, transactionOk.uri_diagnostics]) {
+      const text = JSON.stringify(diagnostics);
+      expect(text).not.toMatch(/secret|postgres:\/\/|aws-0-|pooler\.supabase\.com/);
+      expect(diagnostics).not.toHaveProperty("host");
+      expect(diagnostics).not.toHaveProperty("username");
+    }
+
+    const rejected = [
+      `postgres://postgres.otherprojectref00000000:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+      `postgres://postgres:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+      `postgres://postgres.${ref}.extra:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+      `postgres://postgres.${ref}:secret@aws-0-us-east-1.pooler.supabase.com.evil.example:5432/postgres?sslmode=require`,
+      `postgres://postgres.${ref}:secret@evil.example:5432/postgres?sslmode=require`,
+      `postgres://postgres.${ref}:secret@db.${ref}.supabase.co.evil.example:5432/postgres?sslmode=require`,
+      `postgres://x:secret@db.${ref}.supabase.co:5433/postgres?sslmode=require`,
+      `postgres://x:secret@db.${ref}.supabase.co:5432/template1?sslmode=require`,
+      `postgres://x:secret@db.${ref}.supabase.co:5432/postgres?sslmode=disable`,
+      `postgres://x:secret@db.${ref}.supabase.co:5432/postgres`,
+      "not-a-url",
+      `postgres://postgres.${ref}:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=allow`,
+    ];
+    for (const url of rejected) {
+      expect(() => resolveDatabaseUrlFromEnv({ [DATABASE_URL_ENV]: url })).toThrow(
+        /DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL/,
+      );
+    }
+
+    const wrongUser = classifyDatabaseUrl(
+      `postgres://postgres:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+    );
+    expect(wrongUser.matches_expected_project_ref).toBe(false);
+    expect(wrongUser.username_class).toBe("mismatched");
+    expect(wrongUser.host_class).toBe("session_pooler");
+
+    const lookalike = classifyDatabaseUrl(
+      `postgres://postgres.${ref}:secret@pooler.supabase.com.evil.example:5432/postgres?sslmode=require`,
+    );
+    expect(lookalike.host_class).toBe("mismatched");
+    expect(lookalike.matches_expected_project_ref).toBe(false);
+
+    const arbitrary = classifyDatabaseUrl(
+      `postgres://postgres.${ref}:secret@evil.example:5432/postgres?sslmode=require`,
+    );
+    expect(arbitrary.matches_expected_project_ref).toBe(false);
+    expect(arbitrary.username_class).toBe("mismatched");
+    expect(JSON.stringify(arbitrary)).not.toMatch(/evil\.example|secret/);
+
+    expect(() =>
+      resolveDatabaseUrlFromEnv({
+        [DATABASE_URL_ENV]: "postgres://postgres:secret@[::1]:5432/postgres?sslmode=require",
+      }),
+    ).toThrow(/DATABASE_PROJECT_REF_MISMATCH/);
+    const ipv6 = resolveDatabaseUrlFromEnv(
+      { [DATABASE_URL_ENV]: "postgres://postgres:secret@[::1]:5432/postgres" },
+      { allowLocalhostForHarness: true },
+    );
+    expect(ipv6.uri_diagnostics.host_class).toBe("loopback");
+    expect(ipv6.uri_diagnostics.is_local).toBe(true);
   });
 
   it("redacts database URLs from evidence", () => {

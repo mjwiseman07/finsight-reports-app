@@ -65,10 +65,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Filled by assemble script after LF measure; non-circular (constants updated without rebuild). */
 const STANDALONE_BUNDLE_OID =
-  "202f459a5f5578d26a907b53a4ac62e794b77321";
+  "2c3673b84148f4690e382238c883860b98f5754c";
 const STANDALONE_BUNDLE_SHA256 =
-  "f9339599107cbcff0d8b83d0a978488537be6bbee0ba5c8dcefa34f73bca45d7";
-const STANDALONE_BUNDLE_BYTES = 227546;
+  "3b93aea1e8226b3d43c9f1b5b94bc7749e939e2ebb3417bed3264e0f3e75e830";
+const STANDALONE_BUNDLE_BYTES = 231946;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation.js",

@@ -5575,41 +5575,142 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       if (sanitized && typeof sanitized === "object" && sanitized.message) return sanitized.message;
       return redactString(err && err.message ? err.message : err);
     }
-    function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
-      const url = String(raw || "");
-      let host = null;
+    var HOST_CLASSES = /* @__PURE__ */ new Set([
+      "direct",
+      "session_pooler",
+      "transaction_pooler",
+      "loopback",
+      "mismatched",
+      "malformed"
+    ]);
+    var USERNAME_CLASSES = /* @__PURE__ */ new Set(["project_bound", "not_applicable", "mismatched", "absent"]);
+    function decodePart(value) {
       try {
-        host = new URL(url.replace(/^postgres(ql)?:/i, "http:")).hostname;
+        return decodeURIComponent(String(value || ""));
       } catch {
+        return String(value || "");
+      }
+    }
+    function parsePostgresUrl(raw) {
+      const text = String(raw || "").trim();
+      if (!/^postgres(ql)?:\/\//i.test(text)) return null;
+      let parsed;
+      try {
+        parsed = new URL(text.replace(/^postgres(ql)?:/i, "http:"));
+      } catch {
+        return null;
+      }
+      let host = String(parsed.hostname || "").toLowerCase();
+      if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+      if (!host) return null;
+      const port = parsed.port ? Number(parsed.port) : 5432;
+      if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+      const database = decodePart(String(parsed.pathname || "").replace(/^\/+|\/+$/g, ""));
+      const username = decodePart(parsed.username || "");
+      const sslmode = String(parsed.searchParams.get("sslmode") || "").toLowerCase();
+      return { host, port, database, username, sslmode };
+    }
+    function isLoopbackHost(host) {
+      return host === "127.0.0.1" || host === "localhost" || host === "::1";
+    }
+    function isExactDirectHost(host, ref) {
+      return host === `db.${ref}.supabase.co`;
+    }
+    function isApprovedPoolerHost(host) {
+      return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.pooler\.supabase\.com$/.test(
+        host
+      );
+    }
+    function sslModeAccepted(sslmode) {
+      return sslmode === "require" || sslmode === "verify-full" || sslmode === "verify-ca";
+    }
+    function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
+      const ref = String(expectedProjectRef || "").toLowerCase();
+      const empty = {
+        ok: false,
+        reason: "MALFORMED_DATABASE_URL",
+        host_class: "malformed",
+        username_class: "absent",
+        is_local: false,
+        matches_expected_project_ref: false,
+        database_name_match: false,
+        ssl_requirement_match: false,
+        port_class_match: false,
+        expected_project_ref: expectedProjectRef
+      };
+      const parts = parsePostgresUrl(raw);
+      if (!parts || !ref) return empty;
+      const databaseNameMatch = parts.database === "postgres";
+      const sslRequirementMatch = sslModeAccepted(parts.sslmode);
+      if (isLoopbackHost(parts.host)) {
         return {
-          ok: false,
-          reason: "MALFORMED_DATABASE_URL",
-          host_class: "malformed",
-          is_local: false,
+          ok: true,
+          host_class: "loopback",
+          username_class: "not_applicable",
+          is_local: true,
           matches_expected_project_ref: false,
+          database_name_match: databaseNameMatch,
+          ssl_requirement_match: sslRequirementMatch,
+          port_class_match: parts.port === 5432,
           expected_project_ref: expectedProjectRef
         };
       }
-      const isLocal = host === "127.0.0.1" || host === "localhost";
-      const matchesRef = Boolean(host && host.includes(expectedProjectRef));
-      let hostClass = "mismatched";
-      if (isLocal) hostClass = "loopback";
-      else if (matchesRef) hostClass = "expected_project";
+      if (isExactDirectHost(parts.host, ref)) {
+        const portClassMatch = parts.port === 5432;
+        return {
+          ok: true,
+          host_class: "direct",
+          username_class: "not_applicable",
+          is_local: false,
+          matches_expected_project_ref: portClassMatch && databaseNameMatch && sslRequirementMatch,
+          database_name_match: databaseNameMatch,
+          ssl_requirement_match: sslRequirementMatch,
+          port_class_match: portClassMatch,
+          expected_project_ref: expectedProjectRef
+        };
+      }
+      if (isApprovedPoolerHost(parts.host)) {
+        const session = parts.port === 5432;
+        const transaction = parts.port === 6543;
+        const portClassMatch = session || transaction;
+        const usernameClass = parts.username === `postgres.${ref}` ? "project_bound" : parts.username ? "mismatched" : "absent";
+        return {
+          ok: true,
+          host_class: transaction ? "transaction_pooler" : session ? "session_pooler" : "mismatched",
+          username_class: usernameClass,
+          is_local: false,
+          matches_expected_project_ref: portClassMatch && databaseNameMatch && sslRequirementMatch && usernameClass === "project_bound",
+          database_name_match: databaseNameMatch,
+          ssl_requirement_match: sslRequirementMatch,
+          port_class_match: portClassMatch,
+          expected_project_ref: expectedProjectRef
+        };
+      }
       return {
         ok: true,
-        host_class: hostClass,
-        is_local: isLocal,
-        matches_expected_project_ref: matchesRef,
+        host_class: "mismatched",
+        username_class: parts.username ? "mismatched" : "absent",
+        is_local: false,
+        matches_expected_project_ref: false,
+        database_name_match: databaseNameMatch,
+        ssl_requirement_match: sslRequirementMatch,
+        port_class_match: false,
         expected_project_ref: expectedProjectRef
       };
     }
     function sanitizeUriDiagnostics(diagnostics) {
       if (!diagnostics || typeof diagnostics !== "object") return diagnostics;
+      const hostClass = HOST_CLASSES.has(diagnostics.host_class) ? diagnostics.host_class : diagnostics.ok ? "mismatched" : "malformed";
+      const usernameClass = USERNAME_CLASSES.has(diagnostics.username_class) ? diagnostics.username_class : "absent";
       return {
         ok: Boolean(diagnostics.ok),
-        host_class: diagnostics.host_class || (diagnostics.ok ? "mismatched" : "malformed"),
+        host_class: hostClass,
+        username_class: usernameClass,
         is_local: Boolean(diagnostics.is_local),
         matches_expected_project_ref: Boolean(diagnostics.matches_expected_project_ref),
+        database_name_match: Boolean(diagnostics.database_name_match),
+        ssl_requirement_match: Boolean(diagnostics.ssl_requirement_match),
+        port_class_match: Boolean(diagnostics.port_class_match),
         expected_project_ref: diagnostics.expected_project_ref || EXPECTED_PROJECT_REF,
         reason: diagnostics.reason || void 0
       };
@@ -5662,7 +5763,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         }
       } else if (!diagnostics.matches_expected_project_ref) {
         const e = new Error(
-          `DATABASE_PROJECT_REF_MISMATCH: host is not bound to Supabase project ${EXPECTED_PROJECT_REF}`
+          `DATABASE_PROJECT_REF_MISMATCH: connection is not bound to Supabase project ${EXPECTED_PROJECT_REF}`
         );
         e.code = "DATABASE_PROJECT_REF_MISMATCH";
         e.uri_diagnostics = diagnostics;

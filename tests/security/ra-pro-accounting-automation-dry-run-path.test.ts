@@ -18,7 +18,7 @@ import { EXPECTED_PROJECT_REF } from "../../scripts/security/ra-pro-accounting-a
 
 const ROOT = process.cwd();
 const PRECOND_SHA = "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288";
-const PROJECT_URL = `postgres://user:pass@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres`;
+const PROJECT_URL = `postgres://user:pass@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres?sslmode=require`;
 const WRONG_PROJECT_URL = "postgres://user:pass@db.otherprojectref000000000000.supabase.co:5432/postgres";
 const LOOPBACK_URL = "postgres://postgres:postgres@127.0.0.1:5432/postgres";
 
@@ -301,6 +301,46 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
     );
     expect(String(wrong.payload.result_code || "")).toMatch(/DATABASE_PROJECT_REF_MISMATCH/);
+  });
+
+  it("accepts a synthetic session pooler identity and rejects a matching username on an arbitrary host", () => {
+    const tip = tipSha();
+    const session = `postgres://postgres.${EXPECTED_PROJECT_REF}:pooler-secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`;
+    const ok = runCeremony(
+      ["-PrHead", tip, "-TestSyntheticDatabaseUrl", session, "-TestHarnessChildStub", "success"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(ok.run.status, JSON.stringify(ok.payload)).toBe(0);
+    const diag = ok.payload.uri_diagnostics as Record<string, unknown>;
+    expect(diag.host_class).toBe("session_pooler");
+    expect(diag.username_class).toBe("project_bound");
+    expect(diag.matches_expected_project_ref).toBe(true);
+    expect(JSON.stringify(ok.payload)).not.toMatch(/pooler-secret|aws-0-|pooler\.supabase\.com/);
+
+    const transaction = `postgres://postgres.${EXPECTED_PROJECT_REF}:pooler-secret@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=verify-ca`;
+    const tx = runCeremony(
+      ["-PrHead", tip, "-TestSyntheticDatabaseUrl", transaction, "-TestHarnessChildStub", "success"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(tx.run.status, JSON.stringify(tx.payload)).toBe(0);
+    expect((tx.payload.uri_diagnostics as Record<string, unknown>).host_class).toBe("transaction_pooler");
+
+    const arbitrary = `postgres://postgres.${EXPECTED_PROJECT_REF}:pooler-secret@evil.example:5432/postgres?sslmode=require`;
+    const badHost = runCeremony(
+      ["-PrHead", tip, "-TestSyntheticDatabaseUrl", arbitrary, "-TestHarnessChildStub", "success"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(String(badHost.payload.result_code || "")).toMatch(/DATABASE_PROJECT_REF_MISMATCH/);
+    expect(badHost.payload.node_started).toBe(false);
+
+    const missingSuffix = "postgres://postgres:pooler-secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require";
+    const badUser = runCeremony(
+      ["-PrHead", tip, "-TestSyntheticDatabaseUrl", missingSuffix, "-TestHarnessChildStub", "success"],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(String(badUser.payload.result_code || "")).toMatch(/DATABASE_PROJECT_REF_MISMATCH/);
+    expect((badUser.payload.uri_diagnostics as Record<string, unknown>).username_class).toBe("mismatched");
+    expect(badUser.payload.node_started).toBe(false);
   });
 
   it("success stub cleans raw output and material with truthful cleanup fields", () => {
