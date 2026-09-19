@@ -107,8 +107,8 @@ function assertCleanupTruthful(payload: Record<string, unknown>, expectOk: boole
 }
 
 describe("RA Pro accounting-automation dry-run path authority", () => {
-  it("apply authorization pins remain unpublished and refuse apply", () => {
-    expect(() => assertAuthorizationPublished({})).toThrow(/AUTHORIZATION_PINS_UNPUBLISHED/);
+  it("published pre-apply pins still refuse apply before credentials", () => {
+    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
   });
 
   it("dry-run rejects evidence-path overrides before credentials", async () => {
@@ -238,14 +238,16 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(standPayload.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
-  it("apply remains unreachable with token + URL while prior pins unpublished", async () => {
+  it("apply remains unreachable with token + URL after pre-apply pins publish", async () => {
     const result = await runApplicator({
       mode: "apply",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: PROJECT_URL },
     });
     expect(result.verdict).toBe("APPLY_BLOCKED");
-    expect(String(result.error_code || result.result_code || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(String(result.error_code || result.result_code || "")).toMatch(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
     expect(result.sqlApplicationAttempts ?? 0).toBe(0);
   });

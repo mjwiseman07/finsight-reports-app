@@ -27,15 +27,17 @@ function auth() {
 describe("RA Pro accounting-automation prior dry-run publication", () => {
   it("loads the reviewed git blob and still leaves apply unauthorized", () => {
     const published = auth();
-    expect(published.publication.status).toBe("UNPUBLISHED");
-    expect(published.publication.required_pre_apply_live_evidence_sha256).toBeNull();
+    expect(published.publication.status).toBe("PUBLISHED");
+    expect(published.publication.required_pre_apply_live_evidence_sha256).toBe(
+      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+    );
     expect(published.prior_dry_run_publication.status).toBe("PUBLISHED");
     expect(assertPriorDryRunEvidencePublished({ auth: published, cwd: ROOT })).toMatchObject({
       sha256: "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
       bytes: 5100,
       apply_authorized: false,
     });
-    expect(() => assertAuthorizationPublished({})).toThrow(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
   });
 
   it("rejects path and environment overrides before blob loading", () => {

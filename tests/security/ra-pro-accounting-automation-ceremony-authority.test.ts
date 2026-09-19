@@ -203,11 +203,13 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       expect(crypto.createHash("sha256").update(bytes).digest("hex")).toBe(seal.sha256);
     }
 
-    expect(auth.publication?.status).toBe("UNPUBLISHED");
+    expect(auth.publication?.status).toBe("PUBLISHED");
     expect(auth.publication?.required_prior_dry_run_evidence_sha256).toBe(
       "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
     );
-    expect(auth.publication?.required_pre_apply_live_evidence_sha256).toBeNull();
+    expect(auth.publication?.required_pre_apply_live_evidence_sha256).toBe(
+      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+    );
     expect(auth.precondition_publication?.status).toBe("PUBLISHED");
     expect(auth.precondition_publication?.evidence_sha256).toBe(
       "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
@@ -497,11 +499,13 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(fs.readFileSync(evidencePath, "utf8")).not.toMatch(/postgres:\/\//i);
   });
 
-  it("apply remains blocked by unpublished later pins via authenticated bootstrap path", () => {
+  it("apply remains blocked before credentials after pre-apply pins publish", () => {
     const tip = tipSha();
     const { run, payload } = runAuthenticatedBootstrap(["-Mode", "apply", "-PrHead", tip]);
     expect(run.status).toBe(1);
-    expect(String(payload.reason || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(String(payload.reason || "")).toMatch(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
     expect(payload.productionContact).toBe(false);
   });
 

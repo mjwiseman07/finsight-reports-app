@@ -56,8 +56,8 @@ function sha256(text: string) {
 }
 
 describe("RA Pro accounting-automation applicator (unit)", () => {
-  it("refuses unpublished authorization before any database contact", () => {
-    expect(() => assertAuthorizationPublished({})).toThrow(/AUTHORIZATION_PINS_UNPUBLISHED/);
+  it("refuses published pre-apply evidence before any database contact", () => {
+    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
   });
 
   it("rejects cutover/FRLS/containment/generic credential channels", () => {
@@ -272,7 +272,9 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         // continue
       }
     }
-    expect(payload.reason).toBe("AUTHORIZATION_PINS_UNPUBLISHED");
+    expect(String(payload.reason || "")).toMatch(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
     expect(payload.mode).toBe("apply");
     expect(payload.productionContact).toBe(false);
   });
@@ -294,14 +296,16 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(result.migration_sql_attempts ?? 0).toBe(0);
   });
 
-  it("apply still rejects unpublished prior/pre-apply pins before credentials", async () => {
+  it("apply still rejects published pre-apply evidence before credentials", async () => {
     const result = await runApplicator({
       mode: "apply",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db" },
     });
     expect(result.verdict).toBe("APPLY_BLOCKED");
-    expect(String(result.error_code || result.result_code || "")).toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
+    expect(String(result.error_code || result.result_code || "")).toMatch(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
     expect(result.sqlApplicationAttempts ?? 0).toBe(0);
   });

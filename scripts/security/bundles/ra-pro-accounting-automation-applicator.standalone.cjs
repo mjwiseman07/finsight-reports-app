@@ -7517,7 +7517,12 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         preApplyEvidencePath: inputs.preApplyEvidencePath,
         now: inputs.now
       });
-      return { harness_bypass: false, publication: pub };
+      const blockedApply = new Error(
+        "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: published pre-apply evidence does not authorize production apply"
+      );
+      blockedApply.code = "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS";
+      blockedApply.phase = "authorization";
+      throw blockedApply;
     }
     var assertApplyAuthorizationPublished = assertAuthorizationPublished;
     function assertPublishedPrecondition(inputs = {}) {

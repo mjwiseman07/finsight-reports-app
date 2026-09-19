@@ -3,7 +3,7 @@
  * Reseal RA Pro accounting-automation visible ceremony authority artifacts.
  * Writes LF-normalized OID/SHA-256/bytes seals into TOOLING_AUTHORIZATION.json.
  * Does not rebuild the standalone applicator bundle.
- * Does not publish prior-dry-run / pre-apply pins.
+ * Does not create pre-apply pins. Preserves an already published pin and keeps apply_authorized false.
  *
  * Usage:
  *   node scripts/security/reseal-ra-pro-accounting-automation-ceremony-auth.js \
@@ -206,10 +206,29 @@ function main() {
   if (!auth.notes.includes(probeNote)) auth.notes.push(probeNote);
 
   if (!auth.publication) auth.publication = {};
-  auth.publication.status = "UNPUBLISHED";
-  auth.publication.required_pre_apply_live_evidence_sha256 = null;
-  auth.publication.required_pre_apply_live_evidence_oid = null;
-  auth.publication.required_pre_apply_live_evidence_bytes = null;
+  const existingPre =
+    auth.pre_apply_live_publication && typeof auth.pre_apply_live_publication === "object"
+      ? auth.pre_apply_live_publication
+      : {};
+  const prePinsPublished =
+    existingPre.status === "PUBLISHED" &&
+    typeof existingPre.evidence_sha256 === "string" &&
+    typeof existingPre.evidence_blob_oid === "string" &&
+    Number.isInteger(existingPre.evidence_bytes) &&
+    typeof existingPre.evidence_source_commit === "string" &&
+    typeof existingPre.evidence_path === "string";
+  if (!prePinsPublished) {
+    auth.publication.status = "UNPUBLISHED";
+    auth.publication.required_pre_apply_live_evidence_sha256 = null;
+    auth.publication.required_pre_apply_live_evidence_oid = null;
+    auth.publication.required_pre_apply_live_evidence_bytes = null;
+  } else {
+    auth.publication.status = "PUBLISHED";
+    auth.publication.required_pre_apply_live_evidence_sha256 = existingPre.evidence_sha256;
+    auth.publication.required_pre_apply_live_evidence_oid = existingPre.evidence_blob_oid;
+    auth.publication.required_pre_apply_live_evidence_bytes = existingPre.evidence_bytes;
+    existingPre.apply_authorized = false;
+  }
   if (!Object.prototype.hasOwnProperty.call(auth.publication, "required_prior_dry_run_evidence_sha256")) {
     auth.publication.required_prior_dry_run_evidence_sha256 = null;
     auth.publication.required_prior_dry_run_evidence_oid = null;
@@ -222,17 +241,24 @@ function main() {
     loadBlobFromCommit(ceremonySource, contractRel),
     ceremonySource,
   );
-  auth.pre_apply_live_publication = {
-    status: "UNPUBLISHED",
-    protocol: "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
-    contract_path: contractRel,
-    evidence_path: null,
-    evidence_source_commit: null,
-    evidence_blob_oid: null,
-    evidence_sha256: null,
-    evidence_bytes: null,
-    apply_authorized: false,
-  };
+  if (!prePinsPublished) {
+    auth.pre_apply_live_publication = {
+      status: "UNPUBLISHED",
+      protocol: "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+      contract_path: contractRel,
+      evidence_path: null,
+      evidence_source_commit: null,
+      evidence_blob_oid: null,
+      evidence_sha256: null,
+      evidence_bytes: null,
+      apply_authorized: false,
+    };
+  } else {
+    existingPre.contract_path = contractRel;
+    existingPre.protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1";
+    existingPre.apply_authorized = false;
+    auth.pre_apply_live_publication = existingPre;
+  }
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(

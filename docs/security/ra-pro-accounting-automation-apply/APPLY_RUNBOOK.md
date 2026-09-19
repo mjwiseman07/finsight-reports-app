@@ -16,7 +16,7 @@ History contract: **188 → 190**.
 | **dry-run** | Committed bundle seals + published `precondition_publication` + sealed bootstrap→supervisor→entry→ceremony chain |
 | **apply** | Bundle + precondition + published prior-dry-run + published pre-apply + sealed apply token |
 
-Prior-dry-run / pre-apply pins remain **UNPUBLISHED/null** until a separately reviewed production dry run is sealed. Apply stays unreachable until then.
+Prior-dry-run and pre-apply pins are published. Pin publication does not authorize production apply. Apply still stops before credentials.
 
 ### Four-commit visible ceremony chain
 
@@ -161,7 +161,7 @@ try {
 }
 ```
 
-Apply mode remains refuse-closed while prior/pre-apply pins are unpublished (`AUTHORIZATION_PINS_UNPUBLISHED`).
+Apply mode remains refuse-closed before credentials (`APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS`) after pre-apply pins publish. Expired evidence fails `PRE_APPLY_LIVE_EXPIRED` before credentials.
 
 Offline seal verify (no DB):
 
@@ -169,7 +169,7 @@ Offline seal verify (no DB):
 node scripts/security/verify-ra-pro-accounting-automation-apply-authority.js
 ```
 
-Reseal ceremony authority after reviewing source bytes (does not publish apply pins):
+Reseal ceremony authority after reviewing source bytes (preserves a published pre-apply pin and keeps apply unauthorized):
 
 ```bash
 node scripts/security/reseal-ra-pro-accounting-automation-ceremony-auth.js \

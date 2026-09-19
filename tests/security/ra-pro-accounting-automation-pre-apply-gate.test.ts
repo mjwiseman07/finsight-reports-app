@@ -68,15 +68,30 @@ function psCheck(mutate: string) {
 }
 
 describe("RA Pro accounting-automation pre-apply live gate", () => {
-  it("keeps committed pre-apply pins unpublished and the prior pin unchanged", () => {
+  it("publishes the reviewed pre-apply blob and keeps apply unauthorized", () => {
     const auth = JSON.parse(fs.readFileSync(path.join(ROOT, AUTH), "utf8"));
-    expect(auth.publication.status).toBe("UNPUBLISHED");
-    expect(auth.publication.required_pre_apply_live_evidence_sha256).toBeNull();
-    expect(auth.publication.required_pre_apply_live_evidence_oid).toBeNull();
-    expect(auth.publication.required_pre_apply_live_evidence_bytes).toBeNull();
-    expect(auth.pre_apply_live_publication.status).toBe("UNPUBLISHED");
-    expect(auth.pre_apply_live_publication.evidence_sha256).toBeNull();
+    const evidenceRel =
+      "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json";
+    expect(auth.publication.status).toBe("PUBLISHED");
+    expect(auth.publication.required_pre_apply_live_evidence_sha256).toBe(
+      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+    );
+    expect(auth.publication.required_pre_apply_live_evidence_bytes).toBe(4229);
+    expect(auth.pre_apply_live_publication.status).toBe("PUBLISHED");
+    expect(auth.pre_apply_live_publication.evidence_path).toBe(evidenceRel);
+    expect(auth.pre_apply_live_publication.evidence_sha256).toBe(
+      auth.publication.required_pre_apply_live_evidence_sha256,
+    );
+    expect(auth.pre_apply_live_publication.evidence_blob_oid).toBe(
+      auth.publication.required_pre_apply_live_evidence_oid,
+    );
+    expect(auth.pre_apply_live_publication.evidence_bytes).toBe(4229);
     expect(auth.pre_apply_live_publication.apply_authorized).toBe(false);
+    expect(String(auth.pre_apply_live_publication.independent_review_visibility_limitations.join("\n"))).toMatch(
+      /flag-name lookup/i,
+    );
+    const spec = `${auth.pre_apply_live_publication.evidence_source_commit}:${evidenceRel}`;
+    expect(git(["rev-parse", spec])).toBe(auth.pre_apply_live_publication.evidence_blob_oid);
     expect(auth.publication.required_prior_dry_run_evidence_sha256).toBe(gates.PRIOR_SHA256);
     expect(auth.prior_dry_run_publication.status).toBe("PUBLISHED");
     const contract = JSON.parse(fs.readFileSync(path.join(ROOT, CONTRACT), "utf8"));
@@ -186,8 +201,8 @@ describe("RA Pro accounting-automation pre-apply live gate", () => {
     );
   });
 
-  it("apply authorization still throws before credentials while pins are null", () => {
-    expectCode(() => assertAuthorizationPublished({}), "AUTHORIZATION_PINS_UNPUBLISHED");
+  it("apply authorization still throws before credentials after the pin is published", () => {
+    expectCode(() => assertAuthorizationPublished({}), "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
     const core = fs.readFileSync(
       path.join(ROOT, "scripts/security/ra-pro-accounting-automation-apply-core.js"),
       "utf8",
