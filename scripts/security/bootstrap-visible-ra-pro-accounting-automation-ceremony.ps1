@@ -68,9 +68,15 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
-  # Harness-only one-attempt id. Forwarded only; the entry refuses it unless synthetic URL is allowed.
+  # Harness-only one-attempt id. Forwarded only. The entry rejects it; it is not authorization.
   [Parameter(Mandatory = $false)]
   [string]$TestApplyAttemptId = "",
+
+  [Parameter(Mandatory = $false)]
+  [switch]$EmitAuthorizationMap,
+
+  [Parameter(Mandatory = $false)]
+  [string]$TestPublicationCommit = "",
 
   # Set only after tip-seal materialize of this bootstrap (authenticated operator/harness path).
   [Parameter(Mandatory = $false)]
@@ -408,6 +414,10 @@ try {
   if ($TestHangBeforeEvidence) { $supArgs += "-TestHangBeforeEvidence" }
   if (-not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)) {
     $supArgs += @("-TestApplyAttemptId", $TestApplyAttemptId)
+  }
+  if ($EmitAuthorizationMap) { $supArgs += "-EmitAuthorizationMap" }
+  if (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit)) {
+    $supArgs += @("-TestPublicationCommit", $TestPublicationCommit)
   }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
