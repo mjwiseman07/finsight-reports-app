@@ -77,6 +77,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
+  # Harness-only: classify one URL per line and exit before markers, git, or Node.
+  [Parameter(Mandatory = $false)]
+  [string]$TestHostClassFile = "",
+
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -334,6 +338,22 @@ function Sanitize-Text([string]$Text) {
   return $t
 }
 
+function ConvertFrom-PercentOnce([string]$Value) {
+  if ([string]::IsNullOrEmpty($Value)) { return "" }
+  if ($Value.IndexOf("%") -lt 0) { return $Value }
+  if ($Value -match '%(?![0-9A-Fa-f]{2})') { return $null }
+  try { return [Uri]::UnescapeDataString($Value) } catch { return $null }
+}
+
+function Test-CanonicalPort([string]$Token) {
+  if ($Token -notmatch '^[1-9][0-9]{0,4}$') { return $null }
+  $n = 0
+  if (-not [int]::TryParse($Token, [ref]$n)) { return $null }
+  if ($n -lt 1 -or $n -gt 65535) { return $null }
+  if ([string]$n -ne $Token) { return $null }
+  return $n
+}
+
 function Get-HostClass([string]$Url) {
   $result = @{
     ok = $false
@@ -344,50 +364,95 @@ function Get-HostClass([string]$Url) {
     database_name_match = $false
     ssl_requirement_match = $false
     port_class_match = $false
+    effective_port = 0
   }
   if ([string]::IsNullOrWhiteSpace($Url)) { return $result }
-  if ($Url -notmatch '^(?i)postgres(ql)?://') { return $result }
-  $hostName = ""
-  $port = 5432
-  $db = ""
+  $Url = $Url.Trim()
+  $blocked = $false
+  foreach ($ch in $Url.ToCharArray()) {
+    $code = [int]$ch
+    if (($code -ge 0 -and $code -le 32) -or $code -eq 127 -or $ch -eq "\" -or $ch -eq "#") { $blocked = $true }
+  }
+  if ($blocked) { return $result }
+  if ($Url -notmatch '^(?i)postgres(?:ql)?://([\s\S]*)$') { return $result }
+  $rest = $Matches[1]
+  $qPos = $rest.IndexOf("?")
+  $before = if ($qPos -lt 0) { $rest } else { $rest.Substring(0, $qPos) }
+  $query = if ($qPos -lt 0) { $null } else { $rest.Substring($qPos + 1) }
+  $slash = $before.IndexOf("/")
+  if ($slash -le 0) { return $result }
+  $authority = $before.Substring(0, $slash)
+  $databaseRaw = $before.Substring($slash + 1)
+  if ($databaseRaw.Contains("/")) { return $result }
+  $at = $authority.LastIndexOf("@")
+  $userinfo = if ($at -lt 0) { "" } else { $authority.Substring(0, $at) }
+  $hostport = if ($at -lt 0) { $authority } else { $authority.Substring($at + 1) }
+  $hostRaw = ""
+  $explicitToken = $null
+  if ($hostport.StartsWith("[")) {
+    $end = $hostport.IndexOf("]")
+    if ($end -lt 2) { return $result }
+    $hostRaw = $hostport.Substring(1, $end - 1)
+    $tail = $hostport.Substring($end + 1)
+    if ($tail.Length -gt 0) {
+      if (-not $tail.StartsWith(":") -or $tail.Length -lt 2) { return $result }
+      $explicitToken = $tail.Substring(1)
+    }
+  } else {
+    $colon = $hostport.LastIndexOf(":")
+    if ($colon -lt 0) {
+      $hostRaw = $hostport
+    } else {
+      $token = $hostport.Substring($colon + 1)
+      if ($token -match '^[0-9]+$') {
+        $hostRaw = $hostport.Substring(0, $colon)
+        $explicitToken = $token
+      } else {
+        $hostRaw = $hostport
+      }
+    }
+  }
+  $hostDecoded = ConvertFrom-PercentOnce $hostRaw
+  $database = ConvertFrom-PercentOnce $databaseRaw
+  if ($null -eq $hostDecoded -or $null -eq $database -or [string]::IsNullOrEmpty($hostDecoded)) { return $result }
+  $hostName = $hostDecoded.ToLowerInvariant()
+  if ($hostName.Contains("%")) { return $result }
   $username = ""
-  $ssl = ""
-  try {
-    $rewritten = [regex]::Replace($Url, '^(?i)postgres(ql)?:', 'http:')
-    $u = New-Object System.Uri $rewritten
-    $hostName = ([string]$u.Host).ToLowerInvariant()
-    if ($hostName.StartsWith("[") -and $hostName.EndsWith("]")) {
-      $hostName = $hostName.Substring(1, $hostName.Length - 2)
-    }
-    if (-not $u.IsDefaultPort) { $port = [int]$u.Port }
-    $db = ([string]$u.AbsolutePath).Trim("/")
-    if ($db.Contains("%")) { $db = [Uri]::UnescapeDataString($db) }
-    if (-not [string]::IsNullOrEmpty($u.UserInfo)) {
-      $rawUser = [string]$u.UserInfo
-      $colon = $rawUser.IndexOf(":")
-      if ($colon -ge 0) { $rawUser = $rawUser.Substring(0, $colon) }
-      $username = [Uri]::UnescapeDataString($rawUser)
-    }
-    $query = [string]$u.Query
-    if ($query.StartsWith("?")) { $query = $query.Substring(1) }
-    if (-not [string]::IsNullOrEmpty($query)) {
-      foreach ($pair in $query.Split("&")) {
-        if ([string]::IsNullOrEmpty($pair)) { continue }
-        $eq = $pair.IndexOf("=")
-        $key = if ($eq -ge 0) { $pair.Substring(0, $eq) } else { $pair }
-        $value = if ($eq -ge 0) { $pair.Substring($eq + 1) } else { "" }
-        if ($key.ToLowerInvariant() -eq "sslmode") {
-          $ssl = [Uri]::UnescapeDataString($value).ToLowerInvariant()
+  if (-not [string]::IsNullOrEmpty($userinfo)) {
+    $colon = $userinfo.IndexOf(":")
+    $rawUser = if ($colon -lt 0) { $userinfo } else { $userinfo.Substring(0, $colon) }
+    $username = ConvertFrom-PercentOnce $rawUser
+    if ($null -eq $username) { return $result }
+  }
+  $effective = 5432
+  if ($null -ne $explicitToken) {
+    $parsedPort = Test-CanonicalPort $explicitToken
+    if ($null -eq $parsedPort) { return $result }
+    $effective = [int]$parsedPort
+  }
+  $sslOk = $false
+  if ($null -ne $query) {
+    if ($query -eq "" -or $query.Contains("#") -or $query.Contains("+") -or $query.Contains("&")) {
+      $sslOk = $false
+    } else {
+      $eq = $query.IndexOf("=")
+      if ($eq -gt 0) {
+        $rawKey = $query.Substring(0, $eq)
+        $rawValue = $query.Substring($eq + 1)
+        if ([string]::Equals($rawKey, "sslmode", [StringComparison]::Ordinal) -and (
+          [string]::Equals($rawValue, "require", [StringComparison]::Ordinal) -or
+          [string]::Equals($rawValue, "verify-full", [StringComparison]::Ordinal) -or
+          [string]::Equals($rawValue, "verify-ca", [StringComparison]::Ordinal)
+        )) {
+          $sslOk = $true
         }
       }
     }
-  } catch {
-    return $result
   }
-  if ([string]::IsNullOrEmpty($hostName)) { return $result }
   $result.ok = $true
-  $result.database_name_match = ($db -eq "postgres")
-  $result.ssl_requirement_match = ($ssl -eq "require" -or $ssl -eq "verify-full" -or $ssl -eq "verify-ca")
+  $result.effective_port = $effective
+  $result.database_name_match = [string]::Equals($database, "postgres", [StringComparison]::Ordinal)
+  $result.ssl_requirement_match = $sslOk
   $ref = [string]$ExpectedProjectRef
   $directHost = "db.$ref.supabase.co"
   $boundUser = "postgres.$ref"
@@ -397,25 +462,25 @@ function Get-HostClass([string]$Url) {
     $result.username_class = "not_applicable"
     $result.is_local = $true
     $result.matches = $false
-    $result.port_class_match = ($port -eq 5432)
+    $result.port_class_match = ($effective -eq 5432)
     return $result
   }
   if ($hostName -eq $directHost) {
     $result.host_class = "direct"
     $result.username_class = "not_applicable"
-    $result.port_class_match = ($port -eq 5432)
+    $result.port_class_match = ($effective -eq 5432)
     $result.matches = ($result.port_class_match -and $result.database_name_match -and $result.ssl_requirement_match)
     return $result
   }
   if ([regex]::IsMatch($hostName, $poolerPattern)) {
-    $session = ($port -eq 5432)
-    $transaction = ($port -eq 6543)
+    $session = ($effective -eq 5432)
+    $transaction = ($null -ne $explicitToken -and $effective -eq 6543)
     $result.port_class_match = ($session -or $transaction)
     if ($transaction) { $result.host_class = "transaction_pooler" }
     elseif ($session) { $result.host_class = "session_pooler" }
     else { $result.host_class = "mismatched" }
     if ([string]::IsNullOrEmpty($username)) { $result.username_class = "absent" }
-    elseif ($username -eq $boundUser) { $result.username_class = "project_bound" }
+    elseif ([string]::Equals($username, $boundUser, [StringComparison]::Ordinal)) { $result.username_class = "project_bound" }
     else { $result.username_class = "mismatched" }
     $result.matches = ($result.port_class_match -and $result.database_name_match -and $result.ssl_requirement_match -and ($result.username_class -eq "project_bound"))
     return $result
@@ -539,6 +604,28 @@ function Stop-CeremonyChildTree([Diagnostics.Process]$Proc, [string]$Sentinel) {
     } catch {}
   }
   return @{ terminated = $terminated; confirmed = $confirmed; method = "taskkill_tree"; pid = $procId }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($TestHostClassFile)) {
+  if ($allowDirectHarness -ne "1") { throw "BLOCKED_HARNESS" }
+  $rows = @()
+  foreach ($line in (Get-Content -LiteralPath $TestHostClassFile)) {
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    $class = Get-HostClass -Url $line
+    $rows += [ordered]@{
+      ok = [bool]$class.ok
+      host_class = [string]$class.host_class
+      username_class = [string]$class.username_class
+      is_local = [bool]$class.is_local
+      matches_expected_project_ref = [bool]$class.matches
+      database_name_match = [bool]$class.database_name_match
+      ssl_requirement_match = [bool]$class.ssl_requirement_match
+      port_class_match = [bool]$class.port_class_match
+      effective_port = [int]$class.effective_port
+    }
+  }
+  Write-Output (@{ results = $rows } | ConvertTo-Json -Compress -Depth 5)
+  exit 0
 }
 
 if (-not $RepoRoot) {
