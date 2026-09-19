@@ -6326,6 +6326,23 @@ var require_ra_pro_accounting_automation_apply_authorization = __commonJS({
     var BUNDLE_REL = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
     var ATTEMPT_RE = /^apply-[0-9a-f]{12}-[0-9a-f]{32}$/;
     var HEX40 = /^[0-9a-f]{40}$/;
+    var RECORD_KEYS = Object.freeze([
+      "status",
+      "protocol",
+      "apply_authorized",
+      "authorized_executable_commit",
+      "attempt_id",
+      "project_ref",
+      "database_url_env",
+      "apply_authorization_token",
+      "bundle",
+      "migrations",
+      "prior_dry_run_evidence",
+      "pre_apply_live_evidence",
+      "tls_trust_root",
+      "publication_role",
+      "note"
+    ]);
     var ARTIFACT_MAP = Object.freeze({
       authorization_record: "publication_commit",
       ceremony_entry_supervisor_gates_bootstrap: "authorized_executable_commit",
@@ -6529,21 +6546,82 @@ var require_ra_pro_accounting_automation_apply_authorization = __commonJS({
       if (record.status !== "AUTHORIZED" || record.apply_authorized !== true) {
         return { ...base, blocked: "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS" };
       }
+      const extraRecordKeys = Object.keys(record).filter((key) => !RECORD_KEYS.includes(key));
+      if (extraRecordKeys.length) {
+        throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", `extra record field ${extraRecordKeys[0]}`);
+      }
+      for (const key of RECORD_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(record, key)) {
+          throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", key);
+        }
+      }
       const executable = String(record.authorized_executable_commit || "").toLowerCase();
       assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
       assertAllowlist(executable, publication, cwd);
       assertAttemptId(record.attempt_id);
       assertRecordSeals(record, executable, cwd);
-      if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN2) {
-        throw blocked("APPLY_AUTHORIZATION_TOKEN_MISMATCH", "token");
-      }
       return {
         ...base,
         authorized_executable_commit: executable,
         bundle_oid: record.bundle.oid,
+        bundle_sha256: record.bundle.sha256,
+        bundle_bytes: record.bundle.bytes,
         attempt_id: record.attempt_id,
+        prior_evidence: record.prior_dry_run_evidence,
+        pre_apply_evidence: record.pre_apply_live_evidence,
+        tls_der_sha256: record.tls_trust_root.der_sha256,
         blocked: null
       };
+    }
+    function preflightApplyAuthorization2(inputs = {}) {
+      try {
+        const cwd = inputs.cwd || process.cwd();
+        const publication = resolvePublicationCommit(inputs, cwd);
+        const { auth } = loadAuthFromGit(publication, cwd);
+        const { assertPriorDryRunEvidencePublished } = require_ra_pro_accounting_automation_prior_dry_run_gates();
+        const { assertPreApplyLiveEvidencePublished } = require_ra_pro_accounting_automation_pre_apply_gates();
+        const publicationPins = auth.publication || {};
+        if (publicationPins.required_prior_dry_run_evidence_sha256 != null) {
+          assertPriorDryRunEvidencePublished({ auth, cwd, env: {} });
+        }
+        if (publicationPins.required_pre_apply_live_evidence_sha256 != null) {
+          assertPreApplyLiveEvidencePublished({ auth, cwd, env: {}, now: inputs.now });
+        }
+        const map = describeApplyArtifactMap(inputs);
+        if (inputs.authorizationToken != null && inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN2) {
+          throw blocked("APPLY_AUTHORIZATION_TOKEN_MISMATCH", "token");
+        }
+        return map;
+      } catch (err) {
+        return {
+          blocked: err.code || "APPLY_AUTHORIZATION_PREFLIGHT_FAILED",
+          apply_authorized: false,
+          publication_commit: inputs.publicationCommit || null,
+          authorization_blob_oid: null
+        };
+      }
+    }
+    function recheckApplyAuthorizationPin2(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const expectCommit = String(inputs.expectCommit || "").toLowerCase();
+      const expectOid = String(inputs.expectBlobOid || "").toLowerCase();
+      if (!HEX40.test(expectCommit) || !HEX40.test(expectOid)) {
+        throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "pin shape");
+      }
+      const head = gitText(["rev-parse", "HEAD"], cwd);
+      if (head !== expectCommit) throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "HEAD changed after preflight");
+      const { loaded } = loadAuthFromGit(head, cwd);
+      if (loaded.oid !== expectOid) throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "authorization blob changed");
+      const decision = preflightApplyAuthorization2({
+        cwd,
+        now: inputs.now,
+        authorizationToken: inputs.authorizationToken
+      });
+      if (decision.blocked) throw blocked(decision.blocked, "recheck");
+      if (decision.publication_commit !== expectCommit || decision.authorization_blob_oid !== expectOid) {
+        throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "decision changed");
+      }
+      return decision;
     }
     function markerFile(dir, attemptId) {
       assertAttemptId(attemptId);
@@ -6584,6 +6662,9 @@ ${attemptId}
     function assertOneAttemptApplyAuthorization(inputs = {}) {
       const map = describeApplyArtifactMap(inputs);
       if (map.blocked) throw blocked(map.blocked, "production apply authorization is unpublished");
+      if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN2) {
+        throw blocked("APPLY_AUTHORIZATION_TOKEN_MISMATCH", "token");
+      }
       const executable = map.authorized_executable_commit;
       const attemptId = map.attempt_id;
       if (inputs.existingMarkerPath) {
@@ -6731,6 +6812,8 @@ ${attemptId}
       createDisposablePublicationCommit,
       commitPublicationTree,
       describeApplyArtifactMap,
+      preflightApplyAuthorization: preflightApplyAuthorization2,
+      recheckApplyAuthorizationPin: recheckApplyAuthorizationPin2,
       verifyExistingMarker
     };
   }
@@ -7318,7 +7401,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       assertPreApplyLiveEvidencePublished
     } = require_ra_pro_accounting_automation_pre_apply_gates();
     var {
-      assertOneAttemptApplyAuthorization
+      assertOneAttemptApplyAuthorization,
+      preflightApplyAuthorization: preflightApplyAuthorization2,
+      recheckApplyAuthorizationPin: recheckApplyAuthorizationPin2
     } = require_ra_pro_accounting_automation_apply_authorization();
     var {
       captureSentinelCounts,
@@ -8249,6 +8334,29 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         evidence.bundle_authority = assertBundleAuthority(inputs);
         evidence.databaseConnectionAttempts = 0;
         evidence.sqlApplicationAttempts = 0;
+        if (inputs.allowDisposablePublicationCommit !== true) {
+          const pin = String(inputs.authorizationPin || "");
+          const parts = pin.split(":");
+          if (parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && /^[0-9a-f]{40}$/.test(parts[1])) {
+            recheckApplyAuthorizationPin2({
+              cwd: resolveRepoRoot(inputs),
+              expectCommit: parts[0],
+              expectBlobOid: parts[1],
+              now: inputs.now
+            });
+          } else {
+            const probe = preflightApplyAuthorization2({
+              cwd: resolveRepoRoot(inputs),
+              now: inputs.now
+            });
+            if (!probe.blocked) {
+              const pinError = new Error("APPLY_AUTHORIZATION_PIN_MISMATCH: pin required before credentials");
+              pinError.code = "APPLY_AUTHORIZATION_PIN_MISMATCH";
+              pinError.phase = "authorization";
+              throw pinError;
+            }
+          }
+        }
         evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
         evidence.precondition_evidence = assertPublishedPrecondition(inputs);
         evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);
@@ -8468,40 +8576,115 @@ var {
   DATABASE_URL_ENV
 } = require_ra_pro_accounting_automation_apply_constants();
 var { runApplicator } = require_ra_pro_accounting_automation_apply_core();
-async function main() {
-  const raw = process.argv.slice(2);
-  let applyMarker = "";
-  const args = [];
+var {
+  preflightApplyAuthorization,
+  recheckApplyAuthorizationPin
+} = require_ra_pro_accounting_automation_apply_authorization();
+function readFlags(raw) {
+  const flags = {
+    apply: false,
+    dryRun: false,
+    preflight: false,
+    probe: false,
+    recheck: false,
+    applyMarker: "",
+    publicationCommit: "",
+    expectCommit: "",
+    expectBlobOid: "",
+    authorizationPin: "",
+    unknown: false
+  };
   for (let i = 0; i < raw.length; i += 1) {
-    if (raw[i] === "--apply-marker") {
-      applyMarker = raw[i + 1] || "";
+    const arg = raw[i];
+    const value = () => {
+      const next = raw[i + 1] || "";
       i += 1;
-      continue;
-    }
-    args.push(raw[i]);
+      return next;
+    };
+    if (arg === "--apply") flags.apply = true;
+    else if (arg === "--dry-run") flags.dryRun = true;
+    else if (arg === "--preflight") flags.preflight = true;
+    else if (arg === "--credential-free-probe") flags.probe = true;
+    else if (arg === "--recheck") flags.recheck = true;
+    else if (arg === "--apply-marker") flags.applyMarker = value();
+    else if (arg === "--publication-commit") flags.publicationCommit = value();
+    else if (arg === "--expect-commit") flags.expectCommit = value();
+    else if (arg === "--expect-blob-oid") flags.expectBlobOid = value();
+    else if (arg === "--authorization-pin") flags.authorizationPin = value();
+    else flags.unknown = true;
   }
-  const apply = args.includes("--apply");
-  const dryRun = args.includes("--dry-run") || !apply;
-  if (applyMarker && !apply) {
-    process.stderr.write(
-      `${JSON.stringify({ verdict: "BLOCKED", reason: "APPLY_MARKER_REQUIRES_APPLY" })}
-`
-    );
-    process.exitCode = 1;
+  return flags;
+}
+function writeBlocked(reason) {
+  process.stdout.write(`${JSON.stringify({ blocked: reason, apply_authorized: false, verdict: "BLOCKED", reason })}
+`);
+  process.exitCode = 1;
+}
+async function main() {
+  const flags = readFlags(process.argv.slice(2));
+  if (flags.unknown) {
+    writeBlocked("UNKNOWN_ARGV");
     return;
   }
-  if (args.some((a) => a !== "--apply" && a !== "--dry-run")) {
-    process.stderr.write(
-      `${JSON.stringify({ verdict: "BLOCKED", reason: "UNKNOWN_ARGV" })}
-`
-    );
-    process.exitCode = 1;
+  if (flags.preflight || flags.probe || flags.recheck || flags.publicationCommit) {
+    if (flags.apply || flags.applyMarker || flags.authorizationPin) {
+      writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
+      return;
+    }
+    const synthetic = process.env.RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL === "1";
+    if ((flags.probe || flags.publicationCommit) && !synthetic) {
+      writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
+      return;
+    }
+    if (flags.publicationCommit && !flags.probe) {
+      writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
+      return;
+    }
+    let decision;
+    try {
+      if (flags.recheck) {
+        decision = recheckApplyAuthorizationPin({
+          cwd: process.cwd(),
+          expectCommit: flags.expectCommit,
+          expectBlobOid: flags.expectBlobOid
+        });
+      } else {
+        decision = preflightApplyAuthorization({
+          cwd: process.cwd(),
+          ...flags.publicationCommit ? {
+            allowDisposablePublicationCommit: true,
+            publicationCommit: flags.publicationCommit
+          } : {}
+        });
+      }
+    } catch (err) {
+      decision = {
+        blocked: err.code || "APPLY_AUTHORIZATION_PREFLIGHT_FAILED",
+        apply_authorized: false,
+        publication_commit: flags.expectCommit || flags.publicationCommit || null,
+        authorization_blob_oid: flags.expectBlobOid || null
+      };
+    }
+    process.stdout.write(`${JSON.stringify(decision)}
+`);
+    if (decision.blocked) process.exitCode = 1;
+    return;
+  }
+  const apply = flags.apply;
+  const dryRun = flags.dryRun || !apply;
+  if (flags.applyMarker && !apply) {
+    writeBlocked("APPLY_MARKER_REQUIRES_APPLY");
+    return;
+  }
+  if (apply && !/^[0-9a-f]{40}:[0-9a-f]{40}$/.test(flags.authorizationPin)) {
+    writeBlocked("APPLY_AUTHORIZATION_PIN_MISMATCH");
     return;
   }
   const result = await runApplicator({
     mode: apply && !dryRun ? "apply" : "dry-run",
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_APPLY_TOKEN,
-    existingMarkerPath: applyMarker || void 0,
+    existingMarkerPath: flags.applyMarker || void 0,
+    authorizationPin: flags.authorizationPin || void 0,
     env: process.env,
     argv: process.argv
   });
