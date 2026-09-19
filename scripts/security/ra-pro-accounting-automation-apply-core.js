@@ -122,32 +122,110 @@ const HOST_CLASSES = new Set([
 ]);
 const USERNAME_CLASSES = new Set(["project_bound", "not_applicable", "mismatched", "absent"]);
 
-function decodePart(value) {
+function decodeOnce(value) {
+  const text = String(value || "");
+  if (!text.includes("%")) return text;
+  if (/%(?![0-9A-Fa-f]{2})/.test(text)) return null;
   try {
-    return decodeURIComponent(String(value || ""));
+    return decodeURIComponent(text);
   } catch {
-    return String(value || "");
+    return null;
   }
+}
+
+function canonicalPort(token) {
+  if (!/^[1-9][0-9]{0,4}$/.test(token)) return null;
+  const port = Number(token);
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || String(port) !== token) return null;
+  return port;
+}
+
+function parseQueryAllowlist(query) {
+  if (query == null) return { ok: false, sslmode: null };
+  if (query === "" || query.includes("#") || query.includes("+")) return { ok: false, sslmode: null };
+  const segments = query.split("&");
+  if (segments.length !== 1 || segments[0] === "") return { ok: false, sslmode: null };
+  const eq = segments[0].indexOf("=");
+  if (eq <= 0) return { ok: false, sslmode: null };
+  const rawKey = segments[0].slice(0, eq);
+  const rawValue = segments[0].slice(eq + 1);
+  if (rawKey !== "sslmode") return { ok: false, sslmode: null };
+  if (rawValue !== "require" && rawValue !== "verify-full" && rawValue !== "verify-ca") {
+    return { ok: false, sslmode: null };
+  }
+  return { ok: true, sslmode: rawValue };
+}
+
+function splitHostPort(authority) {
+  if (!authority) return null;
+  if (authority.startsWith("[")) {
+    const end = authority.indexOf("]");
+    if (end < 2) return null;
+    const host = authority.slice(1, end);
+    const rest = authority.slice(end + 1);
+    if (rest === "") return { host, explicitPort: null };
+    if (!rest.startsWith(":") || rest.length < 2) return null;
+    return { host, explicitPort: rest.slice(1) };
+  }
+  const colon = authority.lastIndexOf(":");
+  if (colon === -1) return { host: authority, explicitPort: null };
+  const token = authority.slice(colon + 1);
+  if (!/^[0-9]+$/.test(token)) return { host: authority, explicitPort: null };
+  return { host: authority.slice(0, colon), explicitPort: token };
 }
 
 function parsePostgresUrl(raw) {
   const text = String(raw || "").trim();
-  if (!/^postgres(ql)?:\/\//i.test(text)) return null;
-  let parsed;
-  try {
-    parsed = new URL(text.replace(/^postgres(ql)?:/i, "http:"));
-  } catch {
-    return null;
+  if (/[\u0000-\u0020\u007f]/.test(text) || text.includes("\\") || text.includes("#")) return null;
+  const scheme = text.match(/^(postgres(?:ql)?):\/\/([\s\S]*)$/i);
+  if (!scheme) return null;
+  const rest = scheme[2];
+  const qPos = rest.indexOf("?");
+  const beforeQuery = qPos === -1 ? rest : rest.slice(0, qPos);
+  const query = qPos === -1 ? null : rest.slice(qPos + 1);
+  const slash = beforeQuery.indexOf("/");
+  if (slash <= 0) return null;
+  const authority = beforeQuery.slice(0, slash);
+  const databaseRaw = beforeQuery.slice(slash + 1);
+  if (databaseRaw.includes("/")) return null;
+  const at = authority.lastIndexOf("@");
+  const userinfo = at === -1 ? "" : authority.slice(0, at);
+  const hostport = at === -1 ? authority : authority.slice(at + 1);
+  const split = splitHostPort(hostport);
+  if (!split || !split.host) return null;
+  const hostDecoded = decodeOnce(split.host);
+  const database = decodeOnce(databaseRaw);
+  if (hostDecoded == null || database == null) return null;
+  const host = hostDecoded.toLowerCase();
+  if (!host || host.includes("%")) return null;
+  let username = "";
+  let password = "";
+  if (userinfo) {
+    const colon = userinfo.indexOf(":");
+    const rawUser = colon === -1 ? userinfo : userinfo.slice(0, colon);
+    const rawPass = colon === -1 ? "" : userinfo.slice(colon + 1);
+    username = decodeOnce(rawUser);
+    password = decodeOnce(rawPass);
+    if (username == null || password == null) return null;
   }
-  let host = String(parsed.hostname || "").toLowerCase();
-  if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
-  if (!host) return null;
-  const port = parsed.port ? Number(parsed.port) : 5432;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
-  const database = decodePart(String(parsed.pathname || "").replace(/^\/+|\/+$/g, ""));
-  const username = decodePart(parsed.username || "");
-  const sslmode = String(parsed.searchParams.get("sslmode") || "").toLowerCase();
-  return { host, port, database, username, sslmode };
+  let explicitPort = null;
+  let effectivePort = 5432;
+  if (split.explicitPort != null) {
+    explicitPort = canonicalPort(split.explicitPort);
+    if (explicitPort == null) return null;
+    effectivePort = explicitPort;
+  }
+  const queryParsed = parseQueryAllowlist(query);
+  return {
+    host,
+    explicitPort,
+    effectivePort,
+    database,
+    username,
+    password,
+    sslmode: queryParsed.sslmode,
+    sslOk: queryParsed.ok,
+  };
 }
 
 function isLoopbackHost(host) {
@@ -162,10 +240,6 @@ function isApprovedPoolerHost(host) {
   return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.pooler\.supabase\.com$/.test(
     host,
   );
-}
-
-function sslModeAccepted(sslmode) {
-  return sslmode === "require" || sslmode === "verify-full" || sslmode === "verify-ca";
 }
 
 function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
@@ -185,7 +259,7 @@ function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
   const parts = parsePostgresUrl(raw);
   if (!parts || !ref) return empty;
   const databaseNameMatch = parts.database === "postgres";
-  const sslRequirementMatch = sslModeAccepted(parts.sslmode);
+  const sslRequirementMatch = parts.sslOk === true;
   if (isLoopbackHost(parts.host)) {
     return {
       ok: true,
@@ -195,12 +269,12 @@ function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
       matches_expected_project_ref: false,
       database_name_match: databaseNameMatch,
       ssl_requirement_match: sslRequirementMatch,
-      port_class_match: parts.port === 5432,
+      port_class_match: parts.effectivePort === 5432,
       expected_project_ref: expectedProjectRef,
     };
   }
   if (isExactDirectHost(parts.host, ref)) {
-    const portClassMatch = parts.port === 5432;
+    const portClassMatch = parts.effectivePort === 5432;
     return {
       ok: true,
       host_class: "direct",
@@ -214,8 +288,8 @@ function classifyDatabaseUrl(raw, expectedProjectRef = EXPECTED_PROJECT_REF) {
     };
   }
   if (isApprovedPoolerHost(parts.host)) {
-    const session = parts.port === 5432;
-    const transaction = parts.port === 6543;
+    const session = parts.effectivePort === 5432;
+    const transaction = parts.explicitPort === 6543;
     const portClassMatch = session || transaction;
     const usernameClass =
       parts.username === `postgres.${ref}` ? "project_bound" : parts.username ? "mismatched" : "absent";
@@ -266,6 +340,62 @@ function sanitizeUriDiagnostics(diagnostics) {
     port_class_match: Boolean(diagnostics.port_class_match),
     expected_project_ref: diagnostics.expected_project_ref || EXPECTED_PROJECT_REF,
     reason: diagnostics.reason || undefined,
+  };
+}
+
+function buildPgClientConfig(raw) {
+  const parts = parsePostgresUrl(raw);
+  if (!parts) {
+    const e = new Error("MALFORMED_DATABASE_URL");
+    e.code = "MALFORMED_DATABASE_URL";
+    throw e;
+  }
+  const config = {
+    host: parts.host,
+    port: parts.effectivePort,
+    user: parts.username,
+    password: parts.password,
+    database: parts.database,
+  };
+  if (!isLoopbackHost(parts.host)) {
+    config.ssl = { rejectUnauthorized: true };
+  }
+  return config;
+}
+
+function classificationParity(raw) {
+  const diagnostics = classifyDatabaseUrl(raw);
+  const parts = parsePostgresUrl(raw);
+  return {
+    ok: Boolean(diagnostics.ok),
+    host_class: diagnostics.host_class || "malformed",
+    username_class: diagnostics.username_class || "absent",
+    is_local: Boolean(diagnostics.is_local),
+    matches_expected_project_ref: Boolean(diagnostics.matches_expected_project_ref),
+    database_name_match: Boolean(diagnostics.database_name_match),
+    ssl_requirement_match: Boolean(diagnostics.ssl_requirement_match),
+    port_class_match: Boolean(diagnostics.port_class_match),
+    effective_port: parts && parts.effectivePort ? parts.effectivePort : 0,
+  };
+}
+
+function inspectNormalizedClient(raw) {
+  const diagnostics = sanitizeUriDiagnostics(classifyDatabaseUrl(raw));
+  const accepted = Boolean(
+    diagnostics && diagnostics.ok && (diagnostics.matches_expected_project_ref || diagnostics.is_local),
+  );
+  if (!accepted) return { accepted: false, uri_diagnostics: diagnostics };
+  const config = buildPgClientConfig(raw);
+  return {
+    accepted: true,
+    uri_diagnostics: diagnostics,
+    client: {
+      host: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.user,
+      ssl: config.ssl ? { rejectUnauthorized: config.ssl.rejectUnauthorized === true } : null,
+    },
   };
 }
 
@@ -325,7 +455,7 @@ function resolveDatabaseUrlFromEnv(env = process.env, options = {}) {
     e.phase = "uri_validate";
     throw e;
   }
-  return { url: raw, uri_diagnostics: diagnostics };
+  return { clientConfig: buildPgClientConfig(raw), uri_diagnostics: diagnostics };
 }
 
 function resolveRepoRoot(inputs = {}) {
@@ -610,8 +740,20 @@ function loadSealedMigrations(inputs = {}) {
   });
 }
 
-async function withClient(databaseUrl, fn) {
-  const client = new Client({ connectionString: databaseUrl });
+async function withClient(clientConfig, fn) {
+  if (!clientConfig || typeof clientConfig !== "object" || clientConfig.connectionString) {
+    const e = new Error("MALFORMED_DATABASE_URL");
+    e.code = "MALFORMED_DATABASE_URL";
+    throw e;
+  }
+  const client = new Client({
+    host: clientConfig.host,
+    port: clientConfig.port,
+    user: clientConfig.user,
+    password: clientConfig.password,
+    database: clientConfig.database,
+    ssl: clientConfig.ssl,
+  });
   await client.connect();
   try {
     return await fn(client);
@@ -770,14 +912,14 @@ async function runDryRun(inputs = {}) {
       sha256: p.loaded.sha256,
       bytes: p.loaded.bytes,
     }));
-    const { url, uri_diagnostics } = resolveDatabaseUrlFromEnv(inputs.env || process.env, {
+    const resolved = resolveDatabaseUrlFromEnv(inputs.env || process.env, {
       allowLocalhostForHarness: inputs.allowLocalhostForHarness === true,
     });
-    evidence.uri_diagnostics = uri_diagnostics;
+    evidence.uri_diagnostics = resolved.uri_diagnostics;
     evidence.databaseConnectionAttempts = 1;
     evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
     const versionsAbsent = [];
-    await withClient(url, async (client) => {
+    await withClient(resolved.clientConfig, async (client) => {
       await client.query("BEGIN");
       await tryAdvisoryLock(client, inputs);
       evidence.advisory_lock_acquired = true;
@@ -808,7 +950,7 @@ async function runDryRun(inputs = {}) {
 
 async function runApply(inputs = {}) {
   const evidence = buildEvidenceBase({ ...inputs, mode: "apply" });
-  let databaseUrl;
+  let clientConfig;
   let packed;
   let priorManifest = null;
   let commitPhase = "pre_commit";
@@ -830,7 +972,7 @@ async function runApply(inputs = {}) {
     const resolved = resolveDatabaseUrlFromEnv(inputs.env || process.env, {
       allowLocalhostForHarness: inputs.allowLocalhostForHarness === true,
     });
-    databaseUrl = resolved.url;
+    clientConfig = resolved.clientConfig;
     evidence.uri_diagnostics = resolved.uri_diagnostics;
     packed = loadSealedMigrations(inputs);
     evidence.source_authority = packed.map((p) => ({
@@ -852,7 +994,7 @@ async function runApply(inputs = {}) {
 
   try {
     evidence.databaseConnectionAttempts = 1;
-    await withClient(databaseUrl, async (client) => {
+    await withClient(clientConfig, async (client) => {
       await client.query("BEGIN");
       await client.query("SET LOCAL statement_timeout = '30s'");
       await tryAdvisoryLock(client, inputs);
@@ -926,7 +1068,7 @@ async function runApply(inputs = {}) {
       evidence.error_code = "INDETERMINATE_OUTCOME";
       evidence.commit_phase = commitPhase;
       evidence.reconciliation = await reconcileAfterIndeterminate(
-        databaseUrl,
+        clientConfig,
         packed,
         priorManifest,
       );
@@ -943,9 +1085,9 @@ async function runApply(inputs = {}) {
   return finalizeEvidence(evidence);
 }
 
-async function reconcileAfterIndeterminate(databaseUrl, packed, priorManifest) {
+async function reconcileAfterIndeterminate(clientConfig, packed, priorManifest) {
   try {
-    return await withClient(databaseUrl, async (client) => {
+    return await withClient(clientConfig, async (client) => {
       const versions = packed.map((p) => p.migration.version);
       const { rows } = await client.query(
         `SELECT version, statements FROM supabase_migrations.schema_migrations
@@ -1002,6 +1144,8 @@ module.exports = {
   assertNoHarnessEnvOrArgv,
   assertPublishedPrecondition,
   classifyDatabaseUrl,
+  classificationParity,
+  inspectNormalizedClient,
   loadSealedMigrations,
   resolveBundleSeals,
   resolveDatabaseUrlFromEnv,

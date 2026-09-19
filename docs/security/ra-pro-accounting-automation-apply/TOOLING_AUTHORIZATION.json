@@ -66,17 +66,17 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "2c3673b84148f4690e382238c883860b98f5754c",
-    "sha256": "3b93aea1e8226b3d43c9f1b5b94bc7749e939e2ebb3417bed3264e0f3e75e830",
-    "bytes": 231946,
+    "oid": "0ee8cd395b43dd3e17c32fe3ecdb368fbdb5913e",
+    "sha256": "3e031325b09e421c5bcf3f21d52312d109d2c62dfaa0b3b78bcfed5120f4f0c6",
+    "bytes": 237666,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "ce44ac6ba3e7f9e5a1339fed2f963c29f0f8611a",
+  "ceremony_source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "ce44ac6ba3e7f9e5a1339fed2f963c29f0f8611a",
+    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
     "oid": "86b29ad792f043a10c837e0c5efe44fba4e4cc17",
     "sha256": "e5eb1f221f474360d383a4719e0766a73878588c9904e1da8da321264c84debe",
     "bytes": 20094,
@@ -84,7 +84,7 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "ce44ac6ba3e7f9e5a1339fed2f963c29f0f8611a",
+    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
     "oid": "2a722dc6ff71012d3e7f6946a7ad9ea579ca49bf",
     "sha256": "77dbfc1bcd5e47c499fb3d4c641aabee8ffc4f9bab37d576d76553a59cdc20d7",
     "bytes": 23280,
@@ -92,10 +92,10 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "ce44ac6ba3e7f9e5a1339fed2f963c29f0f8611a",
-    "oid": "bca3e095d51c5e4769385db46644b309284af8ea",
-    "sha256": "2bc20fee6a177d2ca7e1e993919a22a69b8c4718f873dab375c1c98961886096",
-    "bytes": 45759,
+    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
+    "oid": "7c04a372f998888c314196949d3326399881ef12",
+    "sha256": "916c7d763c7de0c08ff96a3564df34390d3248970a21ced7a471d8eeb423a513",
+    "bytes": 49163,
     "line_endings": "LF"
   },
   "bootstrap_source_commit": "5ce221cb6b43c04773685397d482bb72c5597700",

@@ -12,6 +12,9 @@ import {
   DATABASE_URL_ENV,
   runApplicator,
   resolveDatabaseUrlFromEnv,
+  classifyDatabaseUrl,
+  classificationParity,
+  inspectNormalizedClient,
   assertAuthorizationPublished,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-core.js";
 import { EXPECTED_PROJECT_REF } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
@@ -341,6 +344,108 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(String(badUser.payload.result_code || "")).toMatch(/DATABASE_PROJECT_REF_MISMATCH/);
     expect((badUser.payload.uri_diagnostics as Record<string, unknown>).username_class).toBe("mismatched");
     expect(badUser.payload.node_started).toBe(false);
+  });
+
+  it("parses port and sslmode the same way in PowerShell and JavaScript", () => {
+    const ref = EXPECTED_PROJECT_REF;
+    const direct = (port: string, query: string) =>
+      `postgres://user:pass@db.${ref}.supabase.co${port}/postgres${query}`;
+    const pooled = (port: string, user: string, query: string) =>
+      `postgres://${user}:pass@aws-0-us-east-1.pooler.supabase.com${port}/postgres${query}`;
+    const urls = [
+      direct("", "?sslmode=require"),
+      direct(":5432", "?sslmode=require"),
+      direct(":6543", "?sslmode=require"),
+      direct(":80", "?sslmode=require"),
+      direct(":443", "?sslmode=require"),
+      direct(":5433", "?sslmode=require"),
+      direct(":6544", "?sslmode=require"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=require"),
+      pooled("", `postgres.${ref}`, "?sslmode=verify-full"),
+      pooled(":6543", `postgres.${ref}`, "?sslmode=verify-ca"),
+      pooled(":80", `postgres.${ref}`, "?sslmode=require"),
+      pooled(":443", `postgres.${ref}`, "?sslmode=require"),
+      pooled(":5433", `postgres.${ref}`, "?sslmode=require"),
+      pooled(":6544", `postgres.${ref}`, "?sslmode=require"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=require&sslmode=require"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=require&sslmode=disable"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=disable&sslmode=require"),
+      pooled(":5432", `postgres.${ref}`, "?SSLMODE=require"),
+      pooled(":5432", `postgres.${ref}`, "?%73slmode=require"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode="),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=require&"),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=require&host=evil.example"),
+      pooled(":5432", `postgres.${ref}`, ""),
+      pooled(":5432", `postgres.${ref}`, "?sslmode=disable"),
+      pooled(":5432", `postgres%2E${ref}`, "?sslmode=require"),
+      pooled(":5432", `postgres%252E${ref}`, "?sslmode=require"),
+      pooled(":5432", `Postgres.${ref}`, "?sslmode=require"),
+      "postgres://postgres:postgres@[::1]:5432/postgres?sslmode=require",
+      "not-a-url",
+    ];
+    const file = path.join(os.tmpdir(), `ra-acct-parse-${process.pid}.txt`);
+    fs.writeFileSync(file, `${urls.join("\n")}\n`, "utf8");
+    const run = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
+        "-PrHead",
+        tipSha(),
+        "-TestHostClassFile",
+        file,
+      ],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          ...process.env,
+          RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_DIRECT_HARNESS: "1",
+        },
+      },
+    );
+    fs.rmSync(file, { force: true });
+    expect(run.status, run.stderr || run.stdout).toBe(0);
+    const payload = JSON.parse(
+      `${run.stdout || ""}`.trim().split(/\r?\n/).filter(Boolean).pop() || "{}",
+    ) as { results?: Array<Record<string, unknown>> };
+    expect(payload.results).toHaveLength(urls.length);
+    urls.forEach((url, index) => {
+      expect(payload.results?.[index]).toEqual(classificationParity(url));
+    });
+
+    const accepted = inspectNormalizedClient(direct("", "?sslmode=require"));
+    expect(accepted.accepted).toBe(true);
+    expect(accepted.client).toEqual({
+      host: `db.${ref}.supabase.co`,
+      port: 5432,
+      database: "postgres",
+      user: "user",
+      ssl: { rejectUnauthorized: true },
+    });
+    expect(accepted.client).not.toHaveProperty("password");
+    expect(accepted.client).not.toHaveProperty("connectionString");
+    expect(JSON.stringify(accepted.uri_diagnostics)).not.toMatch(/pass@|aws-0-|connectionString/);
+
+    const session = inspectNormalizedClient(pooled(":5432", `postgres.${ref}`, "?sslmode=require"));
+    expect(session.client).toMatchObject({
+      host: "aws-0-us-east-1.pooler.supabase.com",
+      port: 5432,
+      database: "postgres",
+      user: `postgres.${ref}`,
+      ssl: { rejectUnauthorized: true },
+    });
+    const transaction = inspectNormalizedClient(pooled(":6543", `postgres.${ref}`, "?sslmode=verify-ca"));
+    expect(transaction.client).toMatchObject({ port: 6543, ssl: { rejectUnauthorized: true } });
+    expect(transaction.uri_diagnostics.host_class).toBe("transaction_pooler");
+    expect(inspectNormalizedClient(direct(":80", "?sslmode=require")).accepted).toBe(false);
+    expect(inspectNormalizedClient(pooled(":5432", `postgres.${ref}`, "?sslmode=require&sslmode=disable")).accepted).toBe(false);
+    expect(inspectNormalizedClient(pooled(":5432", `postgres.${ref}`, "?sslmode=disable&sslmode=require")).accepted).toBe(false);
   });
 
   it("success stub cleans raw output and material with truthful cleanup fields", () => {
