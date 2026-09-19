@@ -5,10 +5,11 @@
  * mutate process or machine trust stores, and never disables verification.
  */
 "use strict";
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const crypto = require("node:crypto");
 const tls = require("node:tls");
-const { X509Certificate } = require("node:crypto");
+const { X509Certificate } = crypto;
 const {
   OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
   OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,

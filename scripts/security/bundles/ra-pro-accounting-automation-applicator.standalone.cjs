@@ -5360,7 +5360,7 @@ var require_ra_pro_accounting_automation_tls_ca = __commonJS({
     "use strict";
     var crypto = require("node:crypto");
     var tls = require("node:tls");
-    var { X509Certificate } = require("node:crypto");
+    var { X509Certificate } = crypto;
     var {
       OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
       OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
