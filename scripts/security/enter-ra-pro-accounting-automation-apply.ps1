@@ -149,6 +149,13 @@ function Invoke-GitExit([string[]]$GitArgs, [string]$WorkDir) {
   return [int]$p.ExitCode
 }
 
+function Get-NoteProperty($Object, [string]$Name) {
+  if ($null -eq $Object) { return $null }
+  $prop = $Object.PSObject.Properties[$Name]
+  if ($null -eq $prop) { return $null }
+  return $prop.Value
+}
+
 function ConvertTo-CanonicalJson($Value) {
   if ($null -eq $Value) { return "null" }
   if ($Value -is [string] -or $Value -is [bool] -or $Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal]) {
@@ -198,13 +205,18 @@ function Assert-PublicationDelta([string]$Executable, [string]$Publication, [str
   if ($null -eq $prior -or [string]$prior.status -ne "UNPUBLISHED" -or [bool]$prior.apply_authorized -or $prior.authorized_executable_commit) {
     throw "APPLY_AUTHORIZATION_ALLOWLIST: executable record is not unpublished"
   }
-  if ($null -eq $right.standalone_bundle -or -not $right.standalone_bundle.oid -or -not $right.standalone_bundle.sha256 -or -not $right.standalone_bundle.bytes) {
+  $bundleSeal = Get-NoteProperty $right "standalone_bundle"
+  $sealOid = Get-NoteProperty $bundleSeal "oid"
+  $sealSha = Get-NoteProperty $bundleSeal "sha256"
+  $sealBytes = Get-NoteProperty $bundleSeal "bytes"
+  $sealPath = Get-NoteProperty $bundleSeal "path"
+  if (-not $sealOid -or -not $sealSha -or -not $sealBytes) {
     throw "APPLY_AUTHORIZATION_SEAL_MISSING: standalone bundle"
   }
-  if ([string]$right.standalone_bundle.path -ne $BundleRel) {
+  if ([string]$sealPath -ne $BundleRel) {
     throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle path"
   }
-  if (([string]$right.standalone_bundle.oid).ToLowerInvariant() -ne $execOid) {
+  if (([string]$sealOid).ToLowerInvariant() -ne $execOid) {
     throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication seal is not the executable blob"
   }
   $record = $right.production_apply_authorization
