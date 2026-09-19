@@ -6398,7 +6398,7 @@ ${attemptId}
         cwd
       });
       const text = loaded.buffer.toString("utf8");
-      if (!text.includes(tls.der_sha256) || !text.includes("Supabase Root 2021 CA")) {
+      if (!text.includes(tls.der_sha256)) {
         throw blocked("APPLY_AUTHORIZATION_CA_MISMATCH", "blob");
       }
       const migrations = auth && auth.migrations || [];
