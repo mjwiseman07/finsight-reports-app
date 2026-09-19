@@ -96,6 +96,9 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$AuthorizationBlobOid = "",
 
+  [Parameter(Mandatory = $false)]
+  [string]$ExecutableBundleOid = "",
+
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -825,12 +828,25 @@ try {
 
   Set-PrePromptPhase "tip_rev_parse"
   $tip = Invoke-GitTextLocal @("rev-parse", "HEAD")
-  if ($tip.ToLowerInvariant() -ne $PrHead.ToLowerInvariant()) {
-    throw "WRONG_TIP: HEAD $tip does not match -PrHead $PrHead"
+  $bundleCommit = $PrHead.ToLowerInvariant()
+  if ($Mode -ne "apply") {
+    if ($tip.ToLowerInvariant() -ne $PrHead.ToLowerInvariant()) {
+      throw "WRONG_TIP: HEAD $tip does not match -PrHead $PrHead"
+    }
+  } else {
+    if ($bundleCommit -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: executable" }
+    $resolvedExec = (Invoke-GitTextLocal @("rev-parse", "--verify", "${bundleCommit}^{commit}")).ToLowerInvariant()
+    if ($resolvedExec -ne $bundleCommit) { throw "BLOCKED_PIN_MISMATCH: ambiguous executable" }
+    if ($bundleCommit -ne $tip.ToLowerInvariant()) {
+      $safe = ($RepoRoot -replace "\\", "/")
+      $anc = Start-Process -FilePath "git" -ArgumentList @("-c", "safe.directory=$safe", "merge-base", "--is-ancestor", $bundleCommit, $tip.ToLowerInvariant()) -WorkingDirectory $RepoRoot -Wait -PassThru -WindowStyle Hidden
+      if ($anc.ExitCode -ne 0) { throw "APPLY_AUTHORIZATION_ANCESTRY: executable is not an ancestor of HEAD" }
+    }
+    if ($ExecutableBundleOid -notmatch '^[0-9a-f]{40}$') { throw "APPLY_AUTHORIZATION_PIN_MISMATCH: executable bundle oid" }
   }
 
   Set-PrePromptPhase "auth_blob"
-  $authBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $tip -Rel $AuthRel) "auth_blob"
+  $authBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $bundleCommit -Rel $AuthRel) "auth_blob"
   Set-PrePromptPhase "auth_parse"
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
   Set-PrePromptPhase "precondition"
@@ -860,12 +876,12 @@ try {
     throw "BUNDLE_AUTHORITY_UNPUBLISHED: standalone_bundle seals missing"
   }
   Set-PrePromptPhase "bundle_oid"
-  $bundleOid = Invoke-GitTextLocal @("rev-parse", "${tip}:${BundleRel}")
+  $bundleOid = Invoke-GitTextLocal @("rev-parse", "${bundleCommit}:${BundleRel}")
   if ($bundleOid -ne [string]$bundleSeal.oid) {
     throw "BUNDLE_AUTHORITY_MISMATCH: tip bundle OID mismatch"
   }
   Set-PrePromptPhase "bundle_blob"
-  $bundleBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $tip -Rel $BundleRel) "bundle_blob"
+  $bundleBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $bundleCommit -Rel $BundleRel) "bundle_blob"
   Set-PrePromptPhase "bundle_sha"
   $bundleSha = Get-Sha256Bytes -Bytes $bundleBytes
   if ($bundleSha -ne ([string]$bundleSeal.sha256).ToLowerInvariant()) {
@@ -907,15 +923,18 @@ try {
     if ([string]$decision.attempt_id -ne $ApplyAttemptId) {
       throw "APPLY_ATTEMPT_ID_INVALID: attempt id does not match preflight"
     }
-    $executable = ([string]$decision.authorized_executable_commit).ToLowerInvariant()
-    $script:ApplyExecutableCommit = $executable
-    $execOid = Invoke-GitTextLocal @("rev-parse", "${executable}:${BundleRel}")
-    $execBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $executable -Rel $BundleRel) "bundle_blob"
-    $execSha = Get-Sha256Bytes -Bytes $execBytes
-    if ($execOid -ne [string]$decision.bundle_oid -or $execSha -ne ([string]$decision.bundle_sha256).ToLowerInvariant() -or $execBytes.Length -ne [int]$decision.bundle_bytes) {
-      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle"
+    if (([string]$decision.authorized_executable_commit).ToLowerInvariant() -ne $bundleCommit) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: preflight executable"
     }
-    $bundleBytes = $execBytes
+    $liveOid = (Invoke-GitTextLocal @("rev-parse", "${bundleCommit}:${BundleRel}")).ToLowerInvariant()
+    if ($liveOid -ne $ExecutableBundleOid.ToLowerInvariant() -or $liveOid -ne $bundleOid.ToLowerInvariant()) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle changed before prompt"
+    }
+    if ($bundleCommit -ne $tip.ToLowerInvariant()) {
+      $headOid = (Invoke-GitTextLocal @("rev-parse", "${tip}:${BundleRel}")).ToLowerInvariant()
+      if ($headOid -ne $liveOid) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication bundle" }
+    }
+    $script:ApplyExecutableCommit = $bundleCommit
     $existingApply = Join-Path $EvidenceOutDir ($ApplyAttemptId + ".marker")
     if (Test-Path -LiteralPath $existingApply) {
       throw "APPLY_ATTEMPT_CONSUMED: marker exists before prompt"
@@ -1000,10 +1019,16 @@ try {
 
   Set-PrePromptPhase "attempt_marker"
   if ($Mode -eq "apply") {
+    $headNow = (Invoke-GitTextLocal @("rev-parse", "HEAD")).ToLowerInvariant()
+    if ($headNow -ne $tip.ToLowerInvariant()) { throw "APPLY_AUTHORIZATION_PIN_MISMATCH: HEAD moved after preflight" }
+    $oidNow = (Invoke-GitTextLocal @("rev-parse", "${bundleCommit}:${BundleRel}")).ToLowerInvariant()
+    if ($oidNow -ne $ExecutableBundleOid.ToLowerInvariant()) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle moved after preflight" }
     $recheck = Invoke-BundlePreflight -BundleBytes $bundleBytes -ExtraArgs @(
       "--preflight", "--recheck",
       "--expect-commit", $AuthorizationPublicationCommit.ToLowerInvariant(),
-      "--expect-blob-oid", $AuthorizationBlobOid.ToLowerInvariant()
+      "--expect-blob-oid", $AuthorizationBlobOid.ToLowerInvariant(),
+      "--expect-executable", $bundleCommit,
+      "--expect-bundle-oid", $ExecutableBundleOid.ToLowerInvariant()
     )
     if ($recheck.exit -ne 0 -or $recheck.decision.blocked) {
       $code = [string]$recheck.decision.blocked
@@ -1089,7 +1114,7 @@ process.exit(0);
     if ([string]::IsNullOrWhiteSpace($exactToken)) {
       throw "APPLY_AUTHORIZATION_TOKEN_MISMATCH: missing token"
     }
-    $authorizationPin = "{0}:{1}" -f $AuthorizationPublicationCommit.ToLowerInvariant(), $AuthorizationBlobOid.ToLowerInvariant()
+    $authorizationPin = "{0}:{1}:{2}:{3}" -f $bundleCommit, $AuthorizationPublicationCommit.ToLowerInvariant(), $AuthorizationBlobOid.ToLowerInvariant(), $ExecutableBundleOid.ToLowerInvariant()
     $psi.Arguments = ('"{0}" --apply --apply-marker "{1}" --authorization-pin "{2}"' -f $bundleTemp, $attemptMarker, $authorizationPin)
   } else {
     $psi.Arguments = "`"$bundleTemp`""

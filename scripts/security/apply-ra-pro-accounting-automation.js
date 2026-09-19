@@ -28,6 +28,8 @@ function readFlags(raw) {
     publicationCommit: "",
     expectCommit: "",
     expectBlobOid: "",
+    expectExecutable: "",
+    expectBundleOid: "",
     authorizationPin: "",
     unknown: false,
   };
@@ -47,6 +49,8 @@ function readFlags(raw) {
     else if (arg === "--publication-commit") flags.publicationCommit = value();
     else if (arg === "--expect-commit") flags.expectCommit = value();
     else if (arg === "--expect-blob-oid") flags.expectBlobOid = value();
+    else if (arg === "--expect-executable") flags.expectExecutable = value();
+    else if (arg === "--expect-bundle-oid") flags.expectBundleOid = value();
     else if (arg === "--authorization-pin") flags.authorizationPin = value();
     else flags.unknown = true;
   }
@@ -85,6 +89,8 @@ async function main() {
           cwd: process.cwd(),
           expectCommit: flags.expectCommit,
           expectBlobOid: flags.expectBlobOid,
+          expectExecutable: flags.expectExecutable,
+          expectBundleOid: flags.expectBundleOid,
         });
       } else {
         decision = preflightApplyAuthorization({
@@ -115,7 +121,7 @@ async function main() {
     writeBlocked("APPLY_MARKER_REQUIRES_APPLY");
     return;
   }
-  if (apply && !/^[0-9a-f]{40}:[0-9a-f]{40}$/.test(flags.authorizationPin)) {
+  if (apply && !/^[0-9a-f]{40}(?::[0-9a-f]{40}){3}$/.test(flags.authorizationPin)) {
     writeBlocked("APPLY_AUTHORIZATION_PIN_MISMATCH");
     return;
   }

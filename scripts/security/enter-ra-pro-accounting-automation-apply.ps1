@@ -86,10 +86,13 @@ $ErrorActionPreference = "Stop"
 
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
+$BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
 $script:MaterialRoot = $null
 $script:ApplyLaunch = $false
 $script:AuthorizationPublicationCommit = ""
 $script:AuthorizationBlobOid = ""
+$script:ImmutableExecutable = ""
+$script:ExecutableBundleOid = ""
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
@@ -146,21 +149,119 @@ function Invoke-GitExit([string[]]$GitArgs, [string]$WorkDir) {
   return [int]$p.ExitCode
 }
 
+function ConvertTo-CanonicalJson($Value) {
+  if ($null -eq $Value) { return "null" }
+  if ($Value -is [string] -or $Value -is [bool] -or $Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal]) {
+    return ($Value | ConvertTo-Json -Compress)
+  }
+  if ($Value -is [System.Collections.IList]) {
+    $items = @($Value | ForEach-Object { ConvertTo-CanonicalJson $_ })
+    return "[" + ($items -join ",") + "]"
+  }
+  $parts = @()
+  foreach ($prop in @($Value.PSObject.Properties | Sort-Object Name)) {
+    $parts += ((ConvertTo-CanonicalJson $prop.Name) + ":" + (ConvertTo-CanonicalJson $prop.Value))
+  }
+  return "{" + ($parts -join ",") + "}"
+}
+
+function Get-GitBlobOid([string]$Commit, [string]$Rel, [string]$WorkDir) {
+  try {
+    return (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${Commit}:${Rel}") -WorkDir $WorkDir).ToLowerInvariant()
+  } catch {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle path is not the immutable executable blob"
+  }
+}
+
+function Assert-PublicationDelta([string]$Executable, [string]$Publication, [string]$WorkDir) {
+  if ($Publication -eq $Executable) { return }
+  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $Executable, $Publication) -WorkDir $WorkDir) -ne 0) {
+    throw "APPLY_AUTHORIZATION_ANCESTRY: executable is not a strict ancestor"
+  }
+  $execOid = Get-GitBlobOid -Commit $Executable -Rel $BundleRel -WorkDir $WorkDir
+  $pubOid = Get-GitBlobOid -Commit $Publication -Rel $BundleRel -WorkDir $WorkDir
+  if ($execOid -ne $pubOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication replaced the executable bundle"
+  }
+  $rawNames = Invoke-GitText -GitArgs @("diff", "--name-only", $Executable, $Publication) -WorkDir $WorkDir
+  $names = @($rawNames -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($names.Count -ne 1 -or $names[0] -ne $AuthRel) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: publication tree delta"
+  }
+  $leftBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Executable}:${AuthRel}") -WorkDir $WorkDir
+  $rightBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Publication}:${AuthRel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $leftBytes -Label $AuthRel
+  Assert-Utf8LfNoBom -Bytes $rightBytes -Label $AuthRel
+  $left = ([Text.Encoding]::UTF8.GetString($leftBytes)) | ConvertFrom-Json
+  $right = ([Text.Encoding]::UTF8.GetString($rightBytes)) | ConvertFrom-Json
+  $prior = $left.production_apply_authorization
+  if ($null -eq $prior -or [string]$prior.status -ne "UNPUBLISHED" -or [bool]$prior.apply_authorized -or $prior.authorized_executable_commit) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: executable record is not unpublished"
+  }
+  if ($null -eq $right.standalone_bundle -or -not $right.standalone_bundle.oid -or -not $right.standalone_bundle.sha256 -or -not $right.standalone_bundle.bytes) {
+    throw "APPLY_AUTHORIZATION_SEAL_MISSING: standalone bundle"
+  }
+  if ([string]$right.standalone_bundle.path -ne $BundleRel) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle path"
+  }
+  if (([string]$right.standalone_bundle.oid).ToLowerInvariant() -ne $execOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication seal is not the executable blob"
+  }
+  $record = $right.production_apply_authorization
+  if ($null -eq $record -or ([string]$record.authorized_executable_commit).ToLowerInvariant() -ne $Executable) {
+    throw "APPLY_AUTHORIZATION_ANCESTRY: publication does not name the executable tip"
+  }
+  $left.PSObject.Properties.Remove("production_apply_authorization")
+  $right.PSObject.Properties.Remove("production_apply_authorization")
+  if ((ConvertTo-CanonicalJson $left) -ne (ConvertTo-CanonicalJson $right)) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: non-authorization json changed"
+  }
+}
+
+function Resolve-ImmutableExecutable([string]$Asserted, [string]$Head, [string]$WorkDir) {
+  $asserted = $Asserted.ToLowerInvariant()
+  $head = $Head.ToLowerInvariant()
+  if ($asserted -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: -PrHead must be an exact commit" }
+  $resolved = ""
+  try {
+    $resolved = (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${asserted}^{commit}") -WorkDir $WorkDir).ToLowerInvariant()
+  } catch {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead did not resolve"
+  }
+  if ($resolved -ne $asserted) { throw "BLOCKED_PIN_MISMATCH: ambiguous executable ref" }
+  if ($asserted -eq $head) { return $asserted }
+  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $asserted, $head) -WorkDir $WorkDir) -ne 0) {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead is not HEAD or an ancestor"
+  }
+  Assert-PublicationDelta -Executable $asserted -Publication $head -WorkDir $WorkDir
+  return $asserted
+}
+
 function Invoke-SealedBundlePreflight([string]$WorkDir, [string]$PublicationCommit) {
-  $head = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
-  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${head}:${AuthRel}") -WorkDir $WorkDir
+  $executable = ([string]$script:ImmutableExecutable).ToLowerInvariant()
+  if ($executable -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: executable tip is not established" }
+  $publication = $PublicationCommit.ToLowerInvariant()
+  if ([string]::IsNullOrWhiteSpace($publication)) {
+    $publication = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
+  }
+  Assert-PublicationDelta -Executable $executable -Publication $publication -WorkDir $WorkDir
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${executable}:${AuthRel}") -WorkDir $WorkDir
   Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
-  $headAuth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
-  $bundleRel = [string]$headAuth.standalone_bundle.path
-  if ([string]::IsNullOrWhiteSpace($bundleRel)) { throw "BUNDLE_AUTHORITY_UNPUBLISHED" }
+  $execAuth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
+  if ([string]$execAuth.standalone_bundle.path -ne $BundleRel) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle path" }
+  $execOid = (Invoke-GitText -GitArgs @("rev-parse", "${executable}:${BundleRel}") -WorkDir $WorkDir).ToLowerInvariant()
+  if (([string]$execAuth.standalone_bundle.oid).ToLowerInvariant() -ne $execOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable seal"
+  }
   $dest = Join-Path $script:MaterialRoot "preflight-bundle.cjs"
-  [void](Assert-BlobSeal -Commit $head -Rel $bundleRel -Seal $headAuth.standalone_bundle -Dest $dest -WorkDir $WorkDir)
+  [void](Assert-BlobSeal -Commit $executable -Rel $BundleRel -Seal $execAuth.standalone_bundle -Dest $dest -WorkDir $WorkDir)
+  $script:ExecutableBundleOid = $execOid
   $node = (Get-Command node.exe).Source
   $nodeArgs = @($dest, "--preflight")
-  if (-not [string]::IsNullOrWhiteSpace($PublicationCommit) -and $PublicationCommit.ToLowerInvariant() -ne $head) {
+  if ($publication -ne $executable) {
     $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
     if ($allowSynthetic -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
-    $nodeArgs += @("--credential-free-probe", "--publication-commit", $PublicationCommit.ToLowerInvariant())
+    $nodeArgs += @("--credential-free-probe", "--publication-commit", $publication)
   }
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $node
@@ -406,7 +507,13 @@ try {
   New-Item -ItemType Directory -Force -Path $script:MaterialRoot | Out-Null
 
   $tip = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot).ToLowerInvariant()
-  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${AuthRel}") -WorkDir $RepoRoot
+  if ($Mode -eq "apply") {
+    if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
+    $script:ImmutableExecutable = Resolve-ImmutableExecutable -Asserted $PrHead -Head $tip -WorkDir $RepoRoot
+    $PrHead = $script:ImmutableExecutable
+  }
+  $authCommit = if ($script:ImmutableExecutable) { $script:ImmutableExecutable } else { $tip }
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${authCommit}:${AuthRel}") -WorkDir $RepoRoot
   Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
 
@@ -416,10 +523,6 @@ try {
     $source = [string]$auth.ceremony_source_commit
     if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
       throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
-    }
-    if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
-    if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
-      throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
     }
     Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
     $gateRel = "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1"
@@ -478,9 +581,18 @@ try {
       exit 1
     }
     $TestApplyAttemptId = [string]$decision.attempt_id
-    $script:AuthorizedExecutableCommit = [string]$decision.authorized_executable_commit
-    $script:AuthorizationPublicationCommit = [string]$decision.publication_commit
+    if (([string]$decision.authorized_executable_commit).ToLowerInvariant() -ne $script:ImmutableExecutable) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: preflight executable mismatch"
+    }
+    if (([string]$decision.publication_commit).ToLowerInvariant() -ne $publicationCommit) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: preflight publication mismatch"
+    }
+    $script:AuthorizedExecutableCommit = $script:ImmutableExecutable
+    $script:AuthorizationPublicationCommit = $publicationCommit
     $script:AuthorizationBlobOid = [string]$decision.authorization_blob_oid
+    if ($script:ExecutableBundleOid -notmatch '^[0-9a-f]{40}$' -or ([string]$decision.bundle_oid).ToLowerInvariant() -ne $script:ExecutableBundleOid) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle oid"
+    }
     $script:ApplyLaunch = $true
   }
 
@@ -497,7 +609,11 @@ try {
     throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
   }
   if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
-  if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
+  if ($Mode -eq "apply") {
+    if ($PrHead.ToLowerInvariant() -ne $script:ImmutableExecutable) {
+      throw "BLOCKED_PIN_MISMATCH: -PrHead is not the immutable executable"
+    }
+  } elseif ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
     throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
   }
   Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
@@ -579,7 +695,8 @@ try {
       "-Mode", "apply",
       "-ApplyAttemptId", $TestApplyAttemptId,
       "-AuthorizationPublicationCommit", $script:AuthorizationPublicationCommit,
-      "-AuthorizationBlobOid", $script:AuthorizationBlobOid
+      "-AuthorizationBlobOid", $script:AuthorizationBlobOid,
+      "-ExecutableBundleOid", $script:ExecutableBundleOid
     )
   }
   if ($visiblePrompt) {

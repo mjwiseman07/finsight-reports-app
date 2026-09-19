@@ -1099,11 +1099,20 @@ async function runApply(inputs = {}) {
     if (inputs.allowDisposablePublicationCommit !== true) {
       const pin = String(inputs.authorizationPin || "");
       const parts = pin.split(":");
-      if (parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && /^[0-9a-f]{40}$/.test(parts[1])) {
+      const pinShape = parts.length === 4 && parts.every((part) => /^[0-9a-f]{40}$/.test(part));
+      if (pin && !pinShape) {
+        const pinError = new Error("APPLY_AUTHORIZATION_PIN_MISMATCH: pin shape");
+        pinError.code = "APPLY_AUTHORIZATION_PIN_MISMATCH";
+        pinError.phase = "authorization";
+        throw pinError;
+      }
+      if (pinShape) {
         recheckApplyAuthorizationPin({
           cwd: resolveRepoRoot(inputs),
-          expectCommit: parts[0],
-          expectBlobOid: parts[1],
+          expectExecutable: parts[0],
+          expectCommit: parts[1],
+          expectBlobOid: parts[2],
+          expectBundleOid: parts[3],
           now: inputs.now,
         });
       } else {

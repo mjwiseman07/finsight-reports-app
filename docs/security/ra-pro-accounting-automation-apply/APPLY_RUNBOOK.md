@@ -80,7 +80,7 @@ powershell -File scripts/security/enter-ra-pro-accounting-automation-apply.ps1 .
 powershell -File scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1 ...
 ```
 
-Supported launch (Windows PowerShell). `HEAD` must be the publication tip. The sealed applicator bundle runs `--preflight` and must accept the committed authorization, including every mandatory seal, before the SecureString prompt, attempt marker, or database client. Paste this block; do not `-File` a worktree script. Bootstrap and supervisor stay noninteractive. The entry opens the ceremony in a normal System32 PowerShell window for the SecureString prompt; that window is the only place to enter the Session Pooler URL. The prompt has its own 600-second input window, prints the UTC deadline and remaining time, and is not closed at 180 seconds. After a credential is acquired, the Node child still has a separate 120-second runtime limit. Parents wait at least 780 seconds so a prompt timeout, cancel, or close can write `PRODUCTION_DRY_RUN_EVIDENCE.json` before any forced termination. Cleanup removes raw output and temporary executables only; it does not delete that evidence file or the attempt marker. A direct URL is accepted only when the host is exactly `db.<project-ref>.supabase.co`, the effective port is 5432, the database is `postgres`, and the query is exactly one `sslmode` parameter whose value is `require`, `verify-full`, or `verify-ca`. An omitted port means PostgreSQL 5432; explicit 80, 443, or any other unauthorized port is rejected. A Session Pooler URL uses port 5432, and a Transaction Pooler URL uses explicit port 6543, only on an approved `*.pooler.supabase.com` host whose username is exactly `postgres.<project-ref>`. Duplicate, mixed-case, encoded, or extra query parameters are rejected. The Node client is built from those normalized fields and is not given the raw URL. Non-loopback TLS keeps certificate verification on, pins the freeze-sealed Supabase Root 2021 CA, and checks the validated hostname. A matching username on any other host is rejected, and evidence keeps only the sanitized class and booleans.
+Supported launch (Windows PowerShell). `HEAD` is the candidate publication. Before any Node process, this paste binds the immutable reviewed executable tip and materializes bootstrap only from that tip's Git blob, never from a publication self-seal or a worktree file. The sealed applicator bundle that runs `--preflight` is that same executable blob. It must accept the committed authorization, including every mandatory seal, before the SecureString prompt, attempt marker, or database client. Paste this block; do not `-File` a worktree script. Bootstrap and supervisor stay noninteractive. The entry opens the ceremony in a normal System32 PowerShell window for the SecureString prompt; that window is the only place to enter the Session Pooler URL. The prompt has its own 600-second input window, prints the UTC deadline and remaining time, and is not closed at 180 seconds. After a credential is acquired, the Node child still has a separate 120-second runtime limit. Parents wait at least 780 seconds so a prompt timeout, cancel, or close can write `PRODUCTION_DRY_RUN_EVIDENCE.json` before any forced termination. Cleanup removes raw output and temporary executables only; it does not delete that evidence file or the attempt marker. A direct URL is accepted only when the host is exactly `db.<project-ref>.supabase.co`, the effective port is 5432, the database is `postgres`, and the query is exactly one `sslmode` parameter whose value is `require`, `verify-full`, or `verify-ca`. An omitted port means PostgreSQL 5432; explicit 80, 443, or any other unauthorized port is rejected. A Session Pooler URL uses port 5432, and a Transaction Pooler URL uses explicit port 6543, only on an approved `*.pooler.supabase.com` host whose username is exactly `postgres.<project-ref>`. Duplicate, mixed-case, encoded, or extra query parameters are rejected. The Node client is built from those normalized fields and is not given the raw URL. Non-loopback TLS keeps certificate verification on, pins the freeze-sealed Supabase Root 2021 CA, and checks the validated hostname. A matching username on any other host is rejected, and evidence keeps only the sanitized class and booleans.
 
 ```powershell
 $ErrorActionPreference = "Stop"
@@ -115,6 +115,35 @@ function Invoke-GitBlob([string]$Spec) {
 $authBytes = Invoke-GitBlob "${Tip}:${AuthRel}"
 if ($authBytes.Length -ge 3 -and $authBytes[0] -eq 0xEF -and $authBytes[1] -eq 0xBB -and $authBytes[2] -eq 0xBF) { throw "auth UTF-8 BOM forbidden" }
 $auth = [Text.Encoding]::UTF8.GetString($authBytes) | ConvertFrom-Json
+$Publication = $Tip
+$applyRecord = $auth.production_apply_authorization
+if ($null -ne $applyRecord -and [string]$applyRecord.status -eq "AUTHORIZED" -and [bool]$applyRecord.apply_authorized) {
+  $Executable = ([string]$applyRecord.authorized_executable_commit).ToLowerInvariant()
+  if ($Executable -notmatch '^[0-9a-f]{40}$') { throw "APPLY_AUTHORIZATION_ANCESTRY: executable" }
+  $resolvedExec = (git -C $Repo rev-parse --verify "${Executable}^{commit}").Trim().ToLowerInvariant()
+  if ($LASTEXITCODE -ne 0 -or $resolvedExec -ne $Executable) { throw "BLOCKED_PIN_MISMATCH: ambiguous executable" }
+  & git -C $Repo merge-base --is-ancestor $Executable $Publication
+  if ($LASTEXITCODE -ne 0 -or $Executable -eq $Publication) { throw "APPLY_AUTHORIZATION_ANCESTRY" }
+  $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+  $execBundle = (git -C $Repo rev-parse --verify "${Executable}:${BundleRel}").Trim().ToLowerInvariant()
+  if ($LASTEXITCODE -ne 0 -or $execBundle -notmatch '^[0-9a-f]{40}$') { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle" }
+  $pubBundle = (git -C $Repo rev-parse --verify "${Publication}:${BundleRel}").Trim().ToLowerInvariant()
+  if ($LASTEXITCODE -ne 0 -or $pubBundle -ne $execBundle) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication replaced the executable bundle" }
+  $delta = @(git -C $Repo diff --name-only $Executable $Publication)
+  $delta = @($delta | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($delta.Count -ne 1 -or $delta[0] -ne $AuthRel) { throw "APPLY_AUTHORIZATION_ALLOWLIST: publication tree delta" }
+  $execAuthBytes = Invoke-GitBlob "${Executable}:${AuthRel}"
+  $execAuth = [Text.Encoding]::UTF8.GetString($execAuthBytes) | ConvertFrom-Json
+  if ($null -eq $auth.visible_ceremony_bootstrap -or $null -eq $execAuth.visible_ceremony_bootstrap) { throw "APPLY_AUTHORIZATION_SEAL_MISSING: bootstrap" }
+  if ([string]$auth.visible_ceremony_bootstrap.path -ne [string]$execAuth.visible_ceremony_bootstrap.path -or [string]$auth.visible_ceremony_bootstrap.oid -ne [string]$execAuth.visible_ceremony_bootstrap.oid -or [string]$auth.visible_ceremony_bootstrap.sha256 -ne [string]$execAuth.visible_ceremony_bootstrap.sha256) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: publication bootstrap seal"
+  }
+  if ($null -eq $auth.standalone_bundle -or [string]$auth.standalone_bundle.path -ne $BundleRel -or ([string]$auth.standalone_bundle.oid).ToLowerInvariant() -ne $execBundle) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication bundle seal"
+  }
+  $auth = $execAuth
+  $Tip = $Executable
+}
 $freeze = ([string]$auth.authorized_pr_head).ToLowerInvariant()
 $bootSrc = ([string]$auth.bootstrap_source_commit).ToLowerInvariant()
 $cerSrc = ([string]$auth.ceremony_source_commit).ToLowerInvariant()

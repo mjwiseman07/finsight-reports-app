@@ -332,13 +332,28 @@ function preflightApplyAuthorization(inputs = {}) {
 
 function recheckApplyAuthorizationPin(inputs = {}) {
   const cwd = inputs.cwd || process.cwd();
+  const expectExecutable = String(inputs.expectExecutable || "").toLowerCase();
   const expectCommit = String(inputs.expectCommit || "").toLowerCase();
   const expectOid = String(inputs.expectBlobOid || "").toLowerCase();
-  if (!HEX40.test(expectCommit) || !HEX40.test(expectOid)) {
+  const expectBundle = String(inputs.expectBundleOid || "").toLowerCase();
+  if (![expectExecutable, expectCommit, expectOid, expectBundle].every((value) => HEX40.test(value))) {
     throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "pin shape");
   }
   const head = gitText(["rev-parse", "HEAD"], cwd);
   if (head !== expectCommit) throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "HEAD changed after preflight");
+  if (!isAncestor(expectExecutable, head, cwd) || expectExecutable === head) {
+    throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable moved after preflight");
+  }
+  const bundleAtExecutable = gitText(["rev-parse", `${expectExecutable}:${BUNDLE_REL}`], cwd).toLowerCase();
+  let bundleAtHead = "";
+  try {
+    bundleAtHead = gitText(["rev-parse", `${head}:${BUNDLE_REL}`], cwd).toLowerCase();
+  } catch (err) {
+    throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", err && err.message ? err.message : "publication bundle");
+  }
+  if (bundleAtExecutable !== expectBundle || bundleAtHead !== expectBundle) {
+    throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", "bundle moved after preflight");
+  }
   const { loaded } = loadAuthFromGit(head, cwd);
   if (loaded.oid !== expectOid) throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "authorization blob changed");
   const decision = preflightApplyAuthorization({
@@ -347,7 +362,12 @@ function recheckApplyAuthorizationPin(inputs = {}) {
     authorizationToken: inputs.authorizationToken,
   });
   if (decision.blocked) throw blocked(decision.blocked, "recheck");
-  if (decision.publication_commit !== expectCommit || decision.authorization_blob_oid !== expectOid) {
+  if (
+    decision.publication_commit !== expectCommit ||
+    decision.authorization_blob_oid !== expectOid ||
+    decision.authorized_executable_commit !== expectExecutable ||
+    String(decision.bundle_oid || "").toLowerCase() !== expectBundle
+  ) {
     throw blocked("APPLY_AUTHORIZATION_PIN_MISMATCH", "decision changed");
   }
   return decision;

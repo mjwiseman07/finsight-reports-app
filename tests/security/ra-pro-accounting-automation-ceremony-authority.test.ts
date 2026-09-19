@@ -13,6 +13,7 @@ import { APPLY_AUTHORIZATION_TOKEN } from "../../scripts/security/ra-pro-account
 
 const ROOT = process.cwd();
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
+const BUNDLE_REL = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
 const BOOTSTRAP_REL =
   "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1";
 const NATIVE_ENTRY_REL = "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1";
@@ -21,13 +22,15 @@ const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:54
 type MutableAuth = {
   project_ref?: string;
   extra_field?: string;
+  standalone_bundle?: { path?: string; oid?: string; sha256?: string; bytes?: number };
+  visible_ceremony_bootstrap?: { path?: string; oid?: string; sha256?: string; bytes?: number };
   production_apply_authorization: {
     attempt_id?: string;
     authorized_executable_commit?: string;
     pre_apply_live_evidence: { sha256: string; oid: string; bytes: number };
     prior_dry_run_evidence: { sha256: string; oid: string; bytes: number };
     migrations: Array<{ oid: string }>;
-    bundle: { oid: string; sha256: string };
+    bundle: { path?: string; oid: string; sha256: string; bytes?: number };
     tls_trust_root?: { der_sha256: string };
   };
 };
@@ -52,6 +55,37 @@ function git(args: string[]) {
     throw new Error(`git ${args.join(" ")} failed: ${r.stderr || r.stdout}`);
   }
   return (r.stdout || "").trim();
+}
+
+function hashBlob(bytes: Buffer) {
+  const hashed = spawnSync("git", ["hash-object", "-w", "--stdin"], {
+    cwd: ROOT,
+    env: gitEnv(),
+    input: bytes,
+    windowsHide: true,
+  });
+  if (hashed.status !== 0) throw new Error(String(hashed.stderr || "hash-object failed"));
+  return hashed.stdout.toString("utf8").trim();
+}
+
+function commitReplacing(parent: string, files: Array<{ path: string; bytes: Buffer }>) {
+  const index = path.join(os.tmpdir(), `ra-acct-idx-${crypto.randomBytes(6).toString("hex")}`);
+  const env = { ...gitEnv(), GIT_INDEX_FILE: index };
+  const text = (args: string[]) => {
+    const r = spawnSync("git", args, { cwd: ROOT, env, encoding: "utf8", windowsHide: true });
+    if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr || r.stdout}`);
+    return (r.stdout || "").trim();
+  };
+  try {
+    text(["read-tree", parent]);
+    for (const file of files) {
+      text(["update-index", "--add", "--cacheinfo", `100644,${hashBlob(file.bytes)},${file.path}`]);
+    }
+    const tree = text(["write-tree"]);
+    return text(["commit-tree", tree, "-p", parent, "-m", "disposable publication probe"]);
+  } finally {
+    fs.rmSync(index, { force: true });
+  }
 }
 
 function tipSha() {
@@ -603,23 +637,27 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       attemptId: attempt,
     });
     const base = JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`]));
-    const cases: Array<{ code: RegExp; mutate: (auth: MutableAuth) => void }> = [
-      { code: /APPLY_AUTHORIZATION_ALLOWLIST/, mutate: (auth) => { auth.extra_field = "not-allowed"; } },
-      { code: /PRE_APPLY_LIVE_PROJECT_MISMATCH/, mutate: (auth) => { auth.project_ref = "not-the-project"; } },
+    const cases: Array<{ code: RegExp; beforeNode: boolean; mutate: (auth: MutableAuth) => void }> = [
+      { code: /APPLY_AUTHORIZATION_ALLOWLIST/, beforeNode: true, mutate: (auth) => { auth.extra_field = "not-allowed"; } },
+      { code: /APPLY_AUTHORIZATION_ALLOWLIST/, beforeNode: true, mutate: (auth) => { auth.project_ref = "not-the-project"; } },
       {
         code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        beforeNode: false,
         mutate: (auth) => { auth.production_apply_authorization.pre_apply_live_evidence.sha256 = "a".repeat(64); },
       },
       {
         code: /APPLY_AUTHORIZATION_BUNDLE_MISMATCH/,
+        beforeNode: false,
         mutate: (auth) => { auth.production_apply_authorization.bundle.oid = "b".repeat(40); },
       },
       {
         code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        beforeNode: false,
         mutate: (auth) => { delete auth.production_apply_authorization.tls_trust_root; },
       },
       {
-        code: /APPLY_AUTHORIZATION_ANCESTRY|APPLY_AUTHORIZATION_CIRCULAR_TIP/,
+        code: /APPLY_AUTHORIZATION_ANCESTRY/,
+        beforeNode: true,
         mutate: (auth) => { auth.production_apply_authorization.authorized_executable_commit = "c".repeat(40); },
       },
     ];
@@ -639,12 +677,133 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       );
       expect(visible.run.status, `${item.code} ${visible.run.stdout}\n${visible.run.stderr}`).not.toBe(0);
       const psMap = JSON.parse(visible.run.stdout.trim());
-      expect(String(psMap.blocked || "")).toMatch(item.code);
-      expect(psMap.blocked).toBe(js.blocked);
+      if (item.beforeNode) {
+        expect(psMap.verdict).toBe("BLOCKED");
+        expect(String(psMap.reason || "")).toMatch(item.code);
+        expect(psMap.blocked).toBeUndefined();
+        expect(visible.run.stdout).not.toMatch(/"protocol"/);
+      } else {
+        expect(String(psMap.blocked || "")).toMatch(item.code);
+        expect(psMap.blocked).toBe(js.blocked);
+      }
       expect(fs.readdirSync(visible.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
       expect(`${visible.run.stdout}\n${visible.run.stderr}`).not.toMatch(/SecureString/);
       expect(tipSha()).toBe(executable);
     }
+  });
+
+  it("rejects a substituted bundle and a publication-selected first hop before Node", () => {
+    const executable = tipSha();
+    const attempt = `apply-${executable.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
+    const auth = JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`])) as MutableAuth;
+    const stub = Buffer.from(
+      'console.log(JSON.stringify({blocked:null,substituted:"SUBSTITUTED_BUNDLE_EXECUTED",protocol:"SUBSTITUTED"}))\n',
+      "utf8",
+    );
+    const stubOid = hashBlob(stub);
+    auth.standalone_bundle = {
+      ...(auth.standalone_bundle || {}),
+      path: BUNDLE_REL,
+      oid: stubOid,
+      sha256: crypto.createHash("sha256").update(stub).digest("hex"),
+      bytes: stub.length,
+    };
+    auth.production_apply_authorization.bundle = {
+      path: BUNDLE_REL,
+      oid: stubOid,
+      sha256: auth.standalone_bundle.sha256,
+      bytes: stub.length,
+    };
+    const replaced = commitReplacing(executable, [
+      { path: AUTH_REL, bytes: Buffer.from(`${JSON.stringify(auth, null, 2)}\n`, "utf8") },
+      { path: BUNDLE_REL, bytes: stub },
+    ]);
+    const attack = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", replaced],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(attack.run.status, `${attack.run.stdout}\n${attack.run.stderr}`).not.toBe(0);
+    const attackMap = JSON.parse(attack.run.stdout.trim());
+    expect(attackMap.verdict).toBe("BLOCKED");
+    expect(String(attackMap.reason || "")).toMatch(/APPLY_AUTHORIZATION_BUNDLE_MISMATCH/);
+    expect(attackMap.blocked).toBeUndefined();
+    expect(`${attack.run.stdout}\n${attack.run.stderr}`).not.toMatch(/SUBSTITUTED_BUNDLE_EXECUTED|SecureString|"protocol"/);
+    expect(fs.readdirSync(attack.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+
+    const changedPath = JSON.parse(JSON.stringify(JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`])))) as MutableAuth;
+    changedPath.standalone_bundle = { ...(changedPath.standalone_bundle || {}), path: "scripts/security/bundles/not-the-bundle.cjs" };
+    const pathCommit = commitPublicationTree(ROOT, executable, changedPath);
+    const pathRun = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", pathCommit],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(JSON.parse(pathRun.run.stdout.trim()).reason).toMatch(/APPLY_AUTHORIZATION_BUNDLE_MISMATCH/);
+    expect(pathRun.run.stdout).not.toMatch(/"protocol"/);
+
+    const missing = JSON.parse(JSON.stringify(JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`])))) as MutableAuth;
+    delete missing.standalone_bundle;
+    const missingCommit = commitPublicationTree(ROOT, executable, missing);
+    const missingRun = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", missingCommit],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(JSON.parse(missingRun.run.stdout.trim()).reason).toMatch(/APPLY_AUTHORIZATION_SEAL_MISSING/);
+    expect(missingRun.run.stdout).not.toMatch(/"protocol"/);
+
+    const extra = commitReplacing(published.publicationCommit, [
+      { path: "docs/security/ra-pro-accounting-automation-apply/EXTRA_PUBLICATION.txt", bytes: Buffer.from("extra\n", "utf8") },
+    ]);
+    const extraRun = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", extra],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(JSON.parse(extraRun.run.stdout.trim()).reason).toMatch(/APPLY_AUTHORIZATION_ALLOWLIST/);
+    expect(extraRun.run.stdout).not.toMatch(/"protocol"/);
+
+    const wrongTip = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "-EmitAuthorizationMap", "-TestPublicationCommit", published.publicationCommit],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(String(wrongTip.payload.reason || "")).toMatch(/BLOCKED_PIN_MISMATCH/);
+    expect(wrongTip.run.stdout).not.toMatch(/"protocol"|SUBSTITUTED_BUNDLE_EXECUTED/);
+
+    const freeze = String(loadAuth().authorized_pr_head || "");
+    const swapped = commitReplacing(freeze, [
+      {
+        path: AUTH_REL,
+        bytes: Buffer.from(`${JSON.stringify(JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`])), null, 2)}\n`, "utf8"),
+      },
+    ]);
+    const swapRun = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", swapped],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(JSON.parse(swapRun.run.stdout.trim()).reason).toMatch(/APPLY_AUTHORIZATION_ANCESTRY/);
+    expect(swapRun.run.stdout).not.toMatch(/"protocol"/);
+
+    const bundlePath = path.join(ROOT, BUNDLE_REL);
+    const originalBundle = fs.readFileSync(bundlePath);
+    try {
+      fs.writeFileSync(bundlePath, Buffer.from("POISONED_WORKTREE_BUNDLE\n", "utf8"));
+      const poisoned = runAuthenticatedBootstrap(
+        ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", published.publicationCommit],
+        { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+      );
+      expect(poisoned.run.status, `${poisoned.run.stdout}\n${poisoned.run.stderr}`).toBe(0);
+      const ok = JSON.parse(poisoned.run.stdout.trim());
+      expect(ok.blocked).toBeNull();
+      expect(ok.protocol).toBe("RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1");
+      expect(poisoned.run.stdout).not.toMatch(/POISONED_WORKTREE_BUNDLE/);
+      expect(fs.readdirSync(poisoned.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+    } finally {
+      fs.writeFileSync(bundlePath, originalBundle);
+    }
+    expect(tipSha()).toBe(executable);
   });
 
   it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {
@@ -744,5 +903,41 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(wrongPath.run.status).not.toBe(0);
     expect(wrongPath.text).toMatch(/bootstrap path mismatch/);
     expect(wrongPath.launched).toBe(false);
+    expect(launch).not.toMatch(/Get-Content[^\n]*ExpectedBootstrapPath/);
+    expect(launch).toContain("publication bootstrap seal");
+    expect(launch).toContain('Invoke-GitBlob "${bootSrc}:${ExpectedBootstrapPath}"');
+
+    const bootstrapPath = path.join(ROOT, BOOTSTRAP_REL);
+    const bootstrapBytes = fs.readFileSync(bootstrapPath);
+    try {
+      fs.writeFileSync(bootstrapPath, Buffer.from("POISONED_WORKTREE_BOOTSTRAP\n", "utf8"));
+      const poisoned = runSubstituted(neutralized);
+      expect(poisoned.run.status, poisoned.text).toBe(0);
+      expect(poisoned.launched).toBe(true);
+      expect(poisoned.text).not.toMatch(/POISONED_WORKTREE_BOOTSTRAP/);
+    } finally {
+      fs.writeFileSync(bootstrapPath, bootstrapBytes);
+    }
+
+    const executableTip = tipSha();
+    const attempt = `apply-${executableTip.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executableTip,
+      attemptId: attempt,
+    });
+    const sealed = JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`])) as MutableAuth;
+    sealed.visible_ceremony_bootstrap = {
+      ...(sealed.visible_ceremony_bootstrap || {}),
+      oid: "a".repeat(40),
+      sha256: "b".repeat(64),
+    };
+    const selected = commitPublicationTree(ROOT, executableTip, sealed);
+    const tipLine = '$Tip = (git -C $Repo rev-parse --verify "HEAD^{commit}").Trim().ToLowerInvariant()\n';
+    const declared = runSubstituted(neutralized.replace(tipLine, `$Tip = "${selected}"\n`));
+    expect(declared.run.status, declared.text).not.toBe(0);
+    expect(declared.text).toMatch(/APPLY_AUTHORIZATION_ALLOWLIST: publication bootstrap seal/);
+    expect(declared.launched).toBe(false);
+    expect(tipSha()).toBe(executableTip);
   });
 });

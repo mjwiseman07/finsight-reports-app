@@ -355,8 +355,22 @@ try {
 
   $tip = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $script:RepoRoot).ToLowerInvariant()
   if (-not ($tip -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: HEAD not 40-hex" }
+  $asserted = $PrHead.ToLowerInvariant()
+  if ($asserted -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: -PrHead must be an exact commit" }
+  $resolved = ""
+  try {
+    $resolved = (Invoke-GitText -GitArgs @("rev-parse", "--verify", ($asserted + "^{commit}")) -WorkDir $script:RepoRoot).ToLowerInvariant()
+  } catch {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead did not resolve"
+  }
+  if ($resolved -ne $asserted) { throw "BLOCKED_PIN_MISMATCH: ambiguous executable ref" }
+  if ($asserted -ne $tip) {
+    $safe = ($script:RepoRoot -replace "\\", "/")
+    $anc = Start-Process -FilePath "git" -ArgumentList @("-c", "safe.directory=$safe", "merge-base", "--is-ancestor", $asserted, $tip) -WorkingDirectory $script:RepoRoot -Wait -PassThru -WindowStyle Hidden
+    if ($anc.ExitCode -ne 0) { throw "BLOCKED_PIN_MISMATCH: -PrHead is not HEAD or an ancestor" }
+  }
 
-  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${AuthRel}") -WorkDir $script:RepoRoot
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${asserted}:${AuthRel}") -WorkDir $script:RepoRoot
   Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
 
@@ -366,10 +380,19 @@ try {
   if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
     throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
   }
-  if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
-    throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
-  }
   Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $script:RepoRoot
+
+  if ($asserted -ne $tip) {
+    $pubBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${tip}:${AuthRel}") -WorkDir $script:RepoRoot
+    $pubAuth = ([Text.Encoding]::UTF8.GetString($pubBytes)) | ConvertFrom-Json
+    $bundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+    $execBundle = (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${asserted}:${bundleRel}") -WorkDir $script:RepoRoot).ToLowerInvariant()
+    $pubBundle = (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${tip}:${bundleRel}") -WorkDir $script:RepoRoot).ToLowerInvariant()
+    if ($execBundle -ne $pubBundle) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication replaced the executable bundle" }
+    if ([string]$pubAuth.visible_ceremony_entry.oid -ne [string]$auth.visible_ceremony_entry.oid -or [string]$pubAuth.visible_ceremony_entry.path -ne [string]$auth.visible_ceremony_entry.path) {
+      throw "APPLY_AUTHORIZATION_ALLOWLIST: publication entry seal"
+    }
+  }
 
   $ve = $auth.visible_ceremony_entry
   if (-not $ve) { throw "missing visible_ceremony_entry seals" }
