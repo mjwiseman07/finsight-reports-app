@@ -68,6 +68,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
+  # Harness-only one-attempt id. Forwarded only; the entry refuses it unless synthetic URL is allowed.
+  [Parameter(Mandatory = $false)]
+  [string]$TestApplyAttemptId = "",
+
   # Set only after tip-seal materialize of this bootstrap (authenticated operator/harness path).
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -402,6 +406,9 @@ try {
   if ($TestForcePromptWindowClose) { $supArgs += "-TestForcePromptWindowClose" }
   if ($TestForcePromptCancel) { $supArgs += "-TestForcePromptCancel" }
   if ($TestHangBeforeEvidence) { $supArgs += "-TestHangBeforeEvidence" }
+  if (-not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)) {
+    $supArgs += @("-TestApplyAttemptId", $TestApplyAttemptId)
+  }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe
