@@ -533,7 +533,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(head.blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
     expect(head.apply_authorized).toBe(false);
     const unpublished = runAuthenticatedBootstrap(
-      ["-Mode", "apply", "-EmitAuthorizationMap", "-TestPublicationCommit", executable],
+      ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", executable],
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
     );
     expect(unpublished.run.status, `${unpublished.run.stdout}\n${unpublished.run.stderr}`).not.toBe(0);
@@ -560,6 +560,8 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       [
         "-Mode",
         "apply",
+        "-PrHead",
+        executable,
         "-EmitAuthorizationMap",
         "-TestPublicationCommit",
         published.publicationCommit,
