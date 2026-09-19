@@ -15,6 +15,7 @@ import {
   APPLY_AUTHORIZATION_TOKEN,
   DATABASE_URL_ENV,
   FEATURE_FLAG_ENV,
+  loadSealedMigrations,
   runApplicator,
   resolveDatabaseUrlFromEnv,
   classifyDatabaseUrl,
@@ -34,6 +35,7 @@ import {
   STANDALONE_BUNDLE_SHA256,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 import { loadAndVerifyGitBlob } from "../../scripts/security/git-blob-authority.js";
+import { verifyPostCommit, captureSentinelCounts } from "../../scripts/security/ra-pro-accounting-automation-schema-probes.js";
 
 type PgClient = {
   query: (text: string, values?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
@@ -586,6 +588,20 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     });
     expect(result.versions_absent).toEqual(MIGRATIONS.map((m) => m.version));
     expect(result.advisory_lock_acquired).toBe(true);
+    expect(result.read_only).toBe(true);
+    expect(result.transaction_mutation).toBe(false);
+    expect(result.schema_probes).toMatchObject({
+      read_only: true,
+      history_count: PRIOR_HISTORY_COUNT,
+      history_contract: { prior: PRIOR_HISTORY_COUNT, post: POST_HISTORY_COUNT },
+      target_versions_absent: true,
+      target_tables_absent: true,
+      target_functions_absent: true,
+      prerequisites_present: true,
+      schema_drift_detected: false,
+      failed_checks: [],
+    });
+    expect(JSON.stringify(result.schema_probes)).not.toMatch(/postgres:\/\/|password|SELECT |INSERT /);
     expect(result.uri_diagnostics?.host_class).toBe("loopback");
     expect(result.uri_diagnostics).not.toHaveProperty("host");
   });
@@ -595,6 +611,27 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     expect(result, JSON.stringify(result)).toMatchObject({
       verdict: "APPLY_COMMITTED",
       sqlApplicationAttempts: 2,
+      retry_attempted: false,
+    });
+    expect(result.post_commit_verification).toMatchObject({
+      ok: true,
+      history_count: POST_HISTORY_COUNT,
+      tables_present: true,
+      functions_present: true,
+      rls_enabled: true,
+      policies_present: true,
+      grants_match: true,
+      browser_write_denied: true,
+      service_role_rpc_ok: true,
+      idempotent_reuse: true,
+      sentinel_unchanged: true,
+      automation_enabled: false,
+      verification_rows_rolled_back: true,
+      failed_checks: [],
+    });
+    expect(result.post_commit_verification.version_counts).toEqual({
+      [MIGRATIONS[0].version]: 1,
+      [MIGRATIONS[1].version]: 1,
     });
 
     const db = await client();
@@ -1116,6 +1153,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
       expect(during, JSON.stringify(during)).toMatchObject({
         verdict: "INDETERMINATE_OUTCOME",
       });
+      expect(during.verdict).not.toBe("APPLY_COMMITTED");
       expect(String(during.reconciliation?.outcome || "")).toMatch(
         /NOT_APPLIED_CONFIRMED|APPLIED_CONFIRMED_AFTER_RECONCILIATION|INDETERMINATE/,
       );
@@ -1132,8 +1170,255 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
         }),
       });
       expect(["APPLY_ROLLED_BACK", "INDETERMINATE_OUTCOME"]).toContain(afterAck.verdict);
+      expect(afterAck.verdict).not.toBe("APPLY_COMMITTED");
     } finally {
       spawnSync("docker", ["rm", "-f", name], { windowsHide: true });
+    }
+  });
+
+  const prereqBoot = `
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE SCHEMA supabase_migrations;
+    CREATE TABLE supabase_migrations.schema_migrations (
+      version text PRIMARY KEY, name text, statements text[]
+    );
+    CREATE ROLE anon NOLOGIN;
+    CREATE ROLE authenticated NOLOGIN;
+    CREATE ROLE service_role NOLOGIN BYPASSRLS;
+    CREATE SCHEMA auth;
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+      SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid
+    $$;
+    CREATE TABLE public.firms (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.companies (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.firm_clients (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      firm_id uuid NOT NULL REFERENCES public.firms(id),
+      company_id uuid REFERENCES public.companies(id)
+    );
+    CREATE TABLE public.accounting_connections (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.accounting_syncs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      connection_id uuid NOT NULL REFERENCES public.accounting_connections(id)
+    );
+    CREATE TABLE public.firm_memberships (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      firm_id uuid NOT NULL REFERENCES public.firms(id),
+      user_id uuid NOT NULL,
+      status text NOT NULL
+    );
+    CREATE TABLE public.provider_write_attempts (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.invoices (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.bills (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.payments (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    CREATE TABLE public.journal_entries (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+    GRANT USAGE ON SCHEMA public, auth TO anon, authenticated, service_role;
+    INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
+    SELECT (20000000000000 + g)::text, 'seed', ARRAY['-- seed']::text[]
+    FROM generate_series(0, 187) AS g;
+  `;
+
+  async function startDisposable(label, bootSql) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const name = `ra-acct-${label}-${randomBytes(3).toString("hex")}`;
+      const port = 59_200 + Math.floor(Math.random() * 600);
+      const localUrl = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`;
+      try {
+        docker([
+          "run", "-d", "--rm", "--name", name,
+          "-e", "POSTGRES_PASSWORD=postgres",
+          "-p", `${port}:5432`,
+          "postgres:16-alpine",
+        ]);
+        const deadline = Date.now() + 90_000;
+        let ready = false;
+        while (Date.now() < deadline) {
+          const probe = spawnSync("docker", ["exec", name, "pg_isready", "-U", "postgres"], {
+            windowsHide: true,
+          });
+          if (probe.status === 0) {
+            ready = true;
+            break;
+          }
+          sleep(400);
+        }
+        if (!ready) throw new Error(`${label} postgres readiness timeout`);
+        sleep(400);
+        docker(["exec", "-i", name, "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1"], bootSql);
+        return {
+          name,
+          localUrl,
+          stop() {
+            spawnSync("docker", ["rm", "-f", name], { windowsHide: true });
+          },
+        };
+      } catch (err) {
+        spawnSync("docker", ["rm", "-f", name], { windowsHide: true });
+        lastError = err;
+        if (!/ports are not available|bind:|address already in use/i.test(String(err && err.message))) {
+          throw err;
+        }
+      }
+    }
+    throw lastError || new Error("no free docker port");
+  }
+
+  it("dry-run blocks when prerequisite shape is missing", async () => {
+    const world = await startDisposable(
+      "noprereq",
+      `
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+      CREATE SCHEMA supabase_migrations;
+      CREATE TABLE supabase_migrations.schema_migrations (
+        version text PRIMARY KEY, name text, statements text[]
+      );
+      CREATE ROLE anon NOLOGIN;
+      CREATE ROLE authenticated NOLOGIN;
+      CREATE ROLE service_role NOLOGIN BYPASSRLS;
+      CREATE SCHEMA auth;
+      CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+        SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid
+      $$;
+      INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
+      SELECT (20000000000000 + g)::text, 'seed', ARRAY['-- seed']::text[]
+      FROM generate_series(0, 187) AS g;
+      `,
+    );
+    try {
+      const result = await runApplicator({
+        mode: "dry-run",
+        allowLocalhostForHarness: true,
+        env: { [DATABASE_URL_ENV]: world.localUrl },
+      });
+      expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+      expect(result.error_code).toBe("SCHEMA_PROBE_FAILED");
+      expect(result.schema_probes.prerequisites_present).toBe(false);
+      expect(result.schema_probes.failed_checks).toContain("firms_id_uuid_key");
+      expect(result.sqlApplicationAttempts).toBe(0);
+    } finally {
+      world.stop();
+    }
+  });
+
+  it("dry-run blocks on target-object drift", async () => {
+    const world = await startDisposable(
+      "drift",
+      `${prereqBoot}
+       CREATE TABLE public.ra_pro_weekly_completeness_runs (id uuid PRIMARY KEY);`,
+    );
+    try {
+      const result = await runApplicator({
+        mode: "dry-run",
+        allowLocalhostForHarness: true,
+        env: { [DATABASE_URL_ENV]: world.localUrl },
+      });
+      expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+      expect(result.error_code).toBe("SCHEMA_PROBE_FAILED");
+      expect(result.schema_probes.target_tables_absent).toBe(false);
+      expect(result.schema_probes.schema_drift_detected).toBe(true);
+      expect(result.schema_probes.checks.weekly_runs_absent).toBe(false);
+    } finally {
+      world.stop();
+    }
+  });
+
+  it("dry-run blocks on partial migration state", async () => {
+    const world = await startDisposable(
+      "partial",
+      `${prereqBoot}
+       CREATE TABLE public.ra_pro_weekly_completeness_runs (id uuid PRIMARY KEY);
+       INSERT INTO supabase_migrations.schema_migrations(version, name, statements)
+       VALUES ('${MIGRATIONS[0].version}', 'partial', ARRAY['-- partial']::text[]);`,
+    );
+    try {
+      const result = await runApplicator({
+        mode: "dry-run",
+        allowLocalhostForHarness: true,
+        env: { [DATABASE_URL_ENV]: world.localUrl },
+      });
+      expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+      expect(result.error_code).toBe("VERSION_ALREADY_PRESENT");
+      expect(result.schema_probes.checks.weekly_runs_absent).toBe(false);
+      expect(result.schema_probes.target_versions_absent).toBe(false);
+      expect(result.sqlApplicationAttempts).toBe(0);
+    } finally {
+      world.stop();
+    }
+  });
+
+  it("post-commit verification fails closed on RLS and RPC sabotage without retrying", async () => {
+    const world = await startDisposable("verify", prereqBoot);
+    try {
+      const applied = await runApplicator(
+        applyInputs({ env: { [DATABASE_URL_ENV]: world.localUrl } }),
+      );
+      expect(applied.verdict, JSON.stringify(applied.post_commit_verification)).toBe(
+        "APPLY_COMMITTED",
+      );
+      const db = new Client({ connectionString: world.localUrl }) as PgClient;
+      await db.connect();
+      try {
+        await db.query(
+          "DROP POLICY ra_pro_weekly_runs_firm_member_select ON public.ra_pro_weekly_completeness_runs",
+        );
+        await db.query(
+          "REVOKE EXECUTE ON FUNCTION public.persist_ra_pro_weekly_completeness(jsonb, jsonb) FROM service_role",
+        );
+        const packed = loadSealedMigrations({ artifactCommit: ARTIFACT_COMMIT });
+        const verification = await verifyPostCommit(db, {
+          packed,
+          sentinelBefore: await captureSentinelCounts(db),
+          env: {},
+        });
+        expect(verification.ok).toBe(false);
+        expect(verification.view.policies_present).toBe(false);
+        expect(verification.view.service_role_rpc_ok).toBe(false);
+        expect(verification.view.failed_checks).toEqual(
+          expect.arrayContaining(["policies_present", "service_role_rpc"]),
+        );
+      } finally {
+        await db.end();
+      }
+      const again = await runApplicator(
+        applyInputs({ env: { [DATABASE_URL_ENV]: world.localUrl } }),
+      );
+      expect(again.verdict).not.toBe("APPLY_COMMITTED");
+      expect(again.retry_attempted ?? false).toBe(false);
+    } finally {
+      world.stop();
+    }
+  });
+
+  it("verification timeout after commit is not APPLY_COMMITTED and does not reapply", async () => {
+    const world = await startDisposable("timeout", prereqBoot);
+    try {
+      const timed = await runApplicator(
+        applyInputs({
+          injectFailure: "verification_timeout",
+          env: { [DATABASE_URL_ENV]: world.localUrl },
+        }),
+      );
+      expect(timed.verdict).toBe("POST_COMMIT_VERIFICATION_FAILED");
+      expect(timed.error_code).toBe("VERIFICATION_TIMEOUT");
+      expect(timed.retry_attempted).toBe(false);
+      const db = new Client({ connectionString: world.localUrl }) as PgClient;
+      await db.connect();
+      try {
+        const hist = await db.query(
+          `SELECT count(*)::int AS c FROM supabase_migrations.schema_migrations`,
+        );
+        expect(hist.rows[0].c).toBe(POST_HISTORY_COUNT);
+      } finally {
+        await db.end();
+      }
+      const again = await runApplicator(
+        applyInputs({ env: { [DATABASE_URL_ENV]: world.localUrl } }),
+      );
+      expect(again.verdict).toBe("APPLY_ROLLED_BACK");
+      expect(again.error_code).toBe("VERSION_ALREADY_PRESENT");
+    } finally {
+      world.stop();
     }
   });
 });

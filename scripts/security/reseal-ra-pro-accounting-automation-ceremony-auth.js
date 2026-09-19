@@ -199,6 +199,9 @@ function main() {
   const tlsNote =
     "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation.";
   if (!auth.notes.includes(tlsNote)) auth.notes.push(tlsNote);
+  const probeNote =
+    "Dry-run records catalog probes for target absence, prerequisite shape, and schema drift in the rolled-back transaction. APPLY_COMMITTED requires post-commit history, RLS, grant, browser-write, RPC idempotency, and sentinel checks. Verification failure is not a retry.";
+  if (!auth.notes.includes(probeNote)) auth.notes.push(probeNote);
 
   if (!auth.publication) auth.publication = {};
   auth.publication.status = "UNPUBLISHED";

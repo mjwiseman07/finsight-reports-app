@@ -46,6 +46,11 @@ const {
 const {
   assertPreconditionEvidencePublished,
 } = require("./ra-pro-accounting-automation-precondition-gates");
+const {
+  captureSentinelCounts,
+  collectDryRunSchemaProbes,
+  verifyPostCommit,
+} = require("./ra-pro-accounting-automation-schema-probes");
 
 class IndeterminateCommitError extends Error {
   constructor(message, cause) {
@@ -980,19 +985,31 @@ async function runDryRun(inputs = {}) {
     evidence.uri_diagnostics = resolved.uri_diagnostics;
     evidence.databaseConnectionAttempts = 1;
     evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
-    const versionsAbsent = [];
+    evidence.read_only = true;
+    evidence.transaction_mutation = false;
     await withClient(resolved.clientConfig, async (client) => {
       await client.query("BEGIN");
-      await tryAdvisoryLock(client, inputs);
-      evidence.advisory_lock_acquired = true;
-      await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
-      for (const p of packed) {
-        await assertVersionAbsent(client, p.migration.version);
-        versionsAbsent.push(p.migration.version);
+      try {
+        await tryAdvisoryLock(client, inputs);
+        evidence.advisory_lock_acquired = true;
+        const probes = await collectDryRunSchemaProbes(client);
+        evidence.schema_probes = probes.view;
+        evidence.prior_history_count = probes.view.history_count;
+        evidence.versions_absent = probes.versionsAbsent;
+        if (probes.failed.includes("versions_absent")) {
+          throw Object.assign(new Error("VERSION_ALREADY_PRESENT"), { code: "VERSION_ALREADY_PRESENT" });
+        }
+        if (probes.failed.includes("history_count")) {
+          throw Object.assign(new Error("HISTORY_COUNT_MISMATCH"), { code: "HISTORY_COUNT_MISMATCH" });
+        }
+        if (!probes.ok) {
+          throw Object.assign(new Error("SCHEMA_PROBE_FAILED"), { code: "SCHEMA_PROBE_FAILED" });
+        }
+        await client.query("ROLLBACK");
+      } catch (err) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw err;
       }
-      evidence.prior_history_count = PRIOR_HISTORY_COUNT;
-      evidence.versions_absent = versionsAbsent;
-      await client.query("ROLLBACK");
     });
     evidence.verdict = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
     evidence.result_code = "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION";
@@ -1066,6 +1083,7 @@ async function runApply(inputs = {}) {
       await assertHistoryCount(client, PRIOR_HISTORY_COUNT);
       priorManifest = await captureHistoryManifest(client);
       evidence.prior_history_count = priorManifest.length;
+      const sentinelBefore = await captureSentinelCounts(client);
 
       if (inputs.injectFailure === "before_sql") {
         throw new Error("INJECTED_FAILURE_BEFORE_SQL");
@@ -1109,6 +1127,24 @@ async function runApply(inputs = {}) {
         throw new IndeterminateCommitError("INJECTED_CONNECTION_LOSS_AFTER_COMMIT_ACK");
       }
 
+      commitPhase = "verifying";
+      const verification = await verifyPostCommit(client, {
+        packed,
+        sentinelBefore,
+        env: inputs.env || process.env,
+        injectFailure: inputs.injectFailure,
+      });
+      evidence.post_commit_verification = verification.view;
+      if (!verification.ok) {
+        const failed = Object.assign(new Error("POST_COMMIT_VERIFICATION_FAILED"), {
+          code: verification.failed[0] || "POST_COMMIT_VERIFICATION_FAILED",
+          verificationFailed: true,
+        });
+        throw failed;
+      }
+      assertFeatureFlagUntouched(inputs.env || process.env);
+      evidence.feature_flag_touched = false;
+      evidence.retry_attempted = false;
       evidence.verdict = "APPLY_COMMITTED";
       evidence.result_code = "APPLY_COMMITTED";
       evidence.phase = "apply_committed";
@@ -1119,6 +1155,15 @@ async function runApply(inputs = {}) {
       }));
     });
   } catch (err) {
+    if (err.verificationFailed || commitPhase === "verifying") {
+      evidence.verdict = "POST_COMMIT_VERIFICATION_FAILED";
+      evidence.result_code = err.code || "POST_COMMIT_VERIFICATION_FAILED";
+      evidence.error = sanitizeError(err);
+      evidence.error_code = err.code || "POST_COMMIT_VERIFICATION_FAILED";
+      evidence.phase = "post_commit_verification";
+      evidence.retry_attempted = false;
+      return finalizeEvidence(evidence);
+    }
     const uncertain =
       commitPhase === "committing" ||
       commitPhase === "committed" ||

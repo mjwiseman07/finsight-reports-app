@@ -63,13 +63,14 @@
     "Never uses cutover, FRLS, or containment database credential channels.",
     "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
     "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.",
-    "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation."
+    "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation.",
+    "Dry-run records catalog probes for target absence, prerequisite shape, and schema drift in the rolled-back transaction. APPLY_COMMITTED requires post-commit history, RLS, grant, browser-write, RPC idempotency, and sentinel checks. Verification failure is not a retry."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "d359ddb0461ca8bb6cf811131230fd6d742bf009",
-    "sha256": "cbbc9d7b01dc430ba49262fe39c2116b07ba04c6715cf95a3f83f79257333f4d",
-    "bytes": 248595,
+    "oid": "2e42488b4888f8fe1a1cd25fdbcaa5d72594d84e",
+    "sha256": "6061df5e2689d8658169485beb0f66f3b73591de0161b4f47f65beb9eb8d4614",
+    "bytes": 277613,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
