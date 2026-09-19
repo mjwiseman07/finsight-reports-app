@@ -335,19 +335,95 @@ function Sanitize-Text([string]$Text) {
 }
 
 function Get-HostClass([string]$Url) {
-  try {
-    $u = [Uri]($Url -replace '^postgres(ql)?:', 'http:')
-    $hostName = $u.Host
-    if ($hostName -eq "127.0.0.1" -or $hostName -eq "localhost") {
-      return @{ ok = $true; host_class = "loopback"; is_local = $true; matches = $false }
-    }
-    if ($hostName -and $hostName.Contains($ExpectedProjectRef)) {
-      return @{ ok = $true; host_class = "expected_project"; is_local = $false; matches = $true }
-    }
-    return @{ ok = $true; host_class = "mismatched"; is_local = $false; matches = $false }
-  } catch {
-    return @{ ok = $false; host_class = "malformed"; is_local = $false; matches = $false }
+  $result = @{
+    ok = $false
+    host_class = "malformed"
+    username_class = "absent"
+    is_local = $false
+    matches = $false
+    database_name_match = $false
+    ssl_requirement_match = $false
+    port_class_match = $false
   }
+  if ([string]::IsNullOrWhiteSpace($Url)) { return $result }
+  if ($Url -notmatch '^(?i)postgres(ql)?://') { return $result }
+  $hostName = ""
+  $port = 5432
+  $db = ""
+  $username = ""
+  $ssl = ""
+  try {
+    $rewritten = [regex]::Replace($Url, '^(?i)postgres(ql)?:', 'http:')
+    $u = New-Object System.Uri $rewritten
+    $hostName = ([string]$u.Host).ToLowerInvariant()
+    if ($hostName.StartsWith("[") -and $hostName.EndsWith("]")) {
+      $hostName = $hostName.Substring(1, $hostName.Length - 2)
+    }
+    if (-not $u.IsDefaultPort) { $port = [int]$u.Port }
+    $db = ([string]$u.AbsolutePath).Trim("/")
+    if ($db.Contains("%")) { $db = [Uri]::UnescapeDataString($db) }
+    if (-not [string]::IsNullOrEmpty($u.UserInfo)) {
+      $rawUser = [string]$u.UserInfo
+      $colon = $rawUser.IndexOf(":")
+      if ($colon -ge 0) { $rawUser = $rawUser.Substring(0, $colon) }
+      $username = [Uri]::UnescapeDataString($rawUser)
+    }
+    $query = [string]$u.Query
+    if ($query.StartsWith("?")) { $query = $query.Substring(1) }
+    if (-not [string]::IsNullOrEmpty($query)) {
+      foreach ($pair in $query.Split("&")) {
+        if ([string]::IsNullOrEmpty($pair)) { continue }
+        $eq = $pair.IndexOf("=")
+        $key = if ($eq -ge 0) { $pair.Substring(0, $eq) } else { $pair }
+        $value = if ($eq -ge 0) { $pair.Substring($eq + 1) } else { "" }
+        if ($key.ToLowerInvariant() -eq "sslmode") {
+          $ssl = [Uri]::UnescapeDataString($value).ToLowerInvariant()
+        }
+      }
+    }
+  } catch {
+    return $result
+  }
+  if ([string]::IsNullOrEmpty($hostName)) { return $result }
+  $result.ok = $true
+  $result.database_name_match = ($db -eq "postgres")
+  $result.ssl_requirement_match = ($ssl -eq "require" -or $ssl -eq "verify-full" -or $ssl -eq "verify-ca")
+  $ref = [string]$ExpectedProjectRef
+  $directHost = "db.$ref.supabase.co"
+  $boundUser = "postgres.$ref"
+  $poolerPattern = '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.pooler\.supabase\.com$'
+  if ($hostName -eq "127.0.0.1" -or $hostName -eq "localhost" -or $hostName -eq "::1") {
+    $result.host_class = "loopback"
+    $result.username_class = "not_applicable"
+    $result.is_local = $true
+    $result.matches = $false
+    $result.port_class_match = ($port -eq 5432)
+    return $result
+  }
+  if ($hostName -eq $directHost) {
+    $result.host_class = "direct"
+    $result.username_class = "not_applicable"
+    $result.port_class_match = ($port -eq 5432)
+    $result.matches = ($result.port_class_match -and $result.database_name_match -and $result.ssl_requirement_match)
+    return $result
+  }
+  if ([regex]::IsMatch($hostName, $poolerPattern)) {
+    $session = ($port -eq 5432)
+    $transaction = ($port -eq 6543)
+    $result.port_class_match = ($session -or $transaction)
+    if ($transaction) { $result.host_class = "transaction_pooler" }
+    elseif ($session) { $result.host_class = "session_pooler" }
+    else { $result.host_class = "mismatched" }
+    if ([string]::IsNullOrEmpty($username)) { $result.username_class = "absent" }
+    elseif ($username -eq $boundUser) { $result.username_class = "project_bound" }
+    else { $result.username_class = "mismatched" }
+    $result.matches = ($result.port_class_match -and $result.database_name_match -and $result.ssl_requirement_match -and ($result.username_class -eq "project_bound"))
+    return $result
+  }
+  $result.host_class = "mismatched"
+  if ([string]::IsNullOrEmpty($username)) { $result.username_class = "absent" } else { $result.username_class = "mismatched" }
+  $result.matches = $false
+  return $result
 }
 
 function Invoke-GitTextLocal([string[]]$GitArgs) {
@@ -678,7 +754,7 @@ try {
     throw "MALFORMED_DATABASE_URL"
   }
   if ($hostClass.is_local -or -not $hostClass.matches) {
-    throw "DATABASE_PROJECT_REF_MISMATCH: host must be bound to Supabase project $ExpectedProjectRef"
+    throw "DATABASE_PROJECT_REF_MISMATCH: connection is not bound to Supabase project $ExpectedProjectRef"
   }
 
   $bundleTemp = Join-Path $EvidenceOutDir ("bundle-" + $ceremonySentinel + ".cjs")
@@ -1040,8 +1116,12 @@ finally {
       [ordered]@{
         ok = [bool]$hostClass.ok
         host_class = [string]$hostClass.host_class
+        username_class = [string]$hostClass.username_class
         is_local = [bool]$hostClass.is_local
         matches_expected_project_ref = [bool]$hostClass.matches
+        database_name_match = [bool]$hostClass.database_name_match
+        ssl_requirement_match = [bool]$hostClass.ssl_requirement_match
+        port_class_match = [bool]$hostClass.port_class_match
         expected_project_ref = $ExpectedProjectRef
       }
     } else { $null })
