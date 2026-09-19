@@ -93,17 +93,17 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "c159d07f1964627ee3e94aef9b68ffe4fc79218d",
-    "sha256": "b14d851ee4625b20fe3de40ec4b1c3560820db9610279245c0fc1c802a691f91",
-    "bytes": 289970,
+    "oid": "4f63bf1881945006a0cbc063645f5766ef58159e",
+    "sha256": "bf10255ac32d8454169f831b6c64a05f8cdd90ec791dcab922a44199bb117f42",
+    "bytes": 312139,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
+  "ceremony_source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
+    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
     "oid": "86b29ad792f043a10c837e0c5efe44fba4e4cc17",
     "sha256": "e5eb1f221f474360d383a4719e0766a73878588c9904e1da8da321264c84debe",
     "bytes": 20094,
@@ -111,15 +111,15 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
-    "oid": "2a722dc6ff71012d3e7f6946a7ad9ea579ca49bf",
-    "sha256": "77dbfc1bcd5e47c499fb3d4c641aabee8ffc4f9bab37d576d76553a59cdc20d7",
-    "bytes": 23280,
+    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+    "oid": "e9c7ce6e824331b1e8e74a660412f5059453c94a",
+    "sha256": "5ac7d7a9581ac41f8f04236fdcfe24701297db5de9e97d1c07bbf68ac5cd4c01",
+    "bytes": 24729,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
+    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
     "oid": "65509f9992315699a18c19d08ef8d726ff13d5b8",
     "sha256": "6f9319c2972ac37f64ae446409bef9ab632cd6bb8c245c00efd560b9c6d3e52a",
     "bytes": 52809,
@@ -153,5 +153,21 @@
     "certificate_pem_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
     "certificate_bytes": 1367,
     "subject": "Supabase Root 2021 CA"
+  },
+  "pre_apply_live_gates": {
+    "path": "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
+    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+    "oid": "7cdfc0d029af5ea72172cfca338640737f416a2d",
+    "sha256": "58fbdaba70b0edafd028c5b7bd5fea4234c468b7b6118954ce4f16135d14f4fe",
+    "bytes": 10174,
+    "line_endings": "LF"
+  },
+  "pre_apply_live_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+    "oid": "76066757625cd7464355732c1459761bf6092e2c",
+    "sha256": "ffc5382219587a8591be1c28d7abd8143695602b3b2274878e05e894fb6f022c",
+    "bytes": 3137,
+    "line_endings": "LF"
   }
 }
