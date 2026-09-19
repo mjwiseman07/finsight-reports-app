@@ -62,21 +62,22 @@
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels.",
     "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
-    "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify."
+    "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.",
+    "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "0ee8cd395b43dd3e17c32fe3ecdb368fbdb5913e",
-    "sha256": "3e031325b09e421c5bcf3f21d52312d109d2c62dfaa0b3b78bcfed5120f4f0c6",
-    "bytes": 237666,
+    "oid": "aac7f09eece0d539ca4fc5279f7ddad278657041",
+    "sha256": "17df68a9a2e45750147d798c0e22d34e0a4893c9f99bf802bdafb4f149c21ea5",
+    "bytes": 248611,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
+  "ceremony_source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
+    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
     "oid": "86b29ad792f043a10c837e0c5efe44fba4e4cc17",
     "sha256": "e5eb1f221f474360d383a4719e0766a73878588c9904e1da8da321264c84debe",
     "bytes": 20094,
@@ -84,7 +85,7 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
+    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
     "oid": "2a722dc6ff71012d3e7f6946a7ad9ea579ca49bf",
     "sha256": "77dbfc1bcd5e47c499fb3d4c641aabee8ffc4f9bab37d576d76553a59cdc20d7",
     "bytes": 23280,
@@ -92,10 +93,10 @@
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "493b5cff4fbd842d51699d37ee528adb3ff0a7d2",
-    "oid": "7c04a372f998888c314196949d3326399881ef12",
-    "sha256": "916c7d763c7de0c08ff96a3564df34390d3248970a21ced7a471d8eeb423a513",
-    "bytes": 49163,
+    "source_commit": "dd89a03132445b530671f969d9296d0b0faf9754",
+    "oid": "65509f9992315699a18c19d08ef8d726ff13d5b8",
+    "sha256": "6f9319c2972ac37f64ae446409bef9ab632cd6bb8c245c00efd560b9c6d3e52a",
+    "bytes": 52809,
     "line_endings": "LF"
   },
   "bootstrap_source_commit": "5ce221cb6b43c04773685397d482bb72c5597700",
@@ -114,5 +115,17 @@
     "sha256": "dcfc4e797ad5caef2be50bef830316d531b3208d5a66f6f61913b70a21d93475",
     "bytes": 13524,
     "line_endings": "LF"
+  },
+  "tls_trust_root": {
+    "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+    "source_commit": "753c72fd10ebc335de6bc12295be461c97ed6456",
+    "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+    "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+    "bytes": 1870,
+    "line_endings": "LF",
+    "der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+    "certificate_pem_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "certificate_bytes": 1367,
+    "subject": "Supabase Root 2021 CA"
   }
 }

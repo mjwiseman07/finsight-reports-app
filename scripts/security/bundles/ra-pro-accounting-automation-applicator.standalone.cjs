@@ -5341,6 +5341,175 @@ var require_git_blob_authority = __commonJS({
   }
 });
 
+// scripts/security/embedded-supabase-prod-ca-2021.js
+var require_embedded_supabase_prod_ca_2021 = __commonJS({
+  "scripts/security/embedded-supabase-prod-ca-2021.js"(exports2, module2) {
+    "use strict";
+    var OFFICIAL_SUPABASE_PROD_CA_2021_PEM = "-----BEGIN CERTIFICATE-----\nMIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL\nBQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l\ndyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh\nc2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow\nazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD\nYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJhc2Ug\nUm9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqQXW\nQyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4Dkx1Q\nDmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3ePS2t2\nGtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnCJLUi\ncvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+Gyb4\nO4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32Uclt\nNaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFKjX\nuXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4yJNUt\naUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn+4VU\ntVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7oneL2b\nVW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgBm5y+6\njB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnSuv/Qx\nCea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDVDB9Y2\nCMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P\no/bKiIz+Fq8=\n-----END CERTIFICATE-----\n";
+    var OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 = "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa";
+    module2.exports = {
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+    };
+  }
+});
+
+// scripts/security/ra-pro-accounting-automation-tls-ca.js
+var require_ra_pro_accounting_automation_tls_ca = __commonJS({
+  "scripts/security/ra-pro-accounting-automation-tls-ca.js"(exports2, module2) {
+    "use strict";
+    var crypto = require("node:crypto");
+    var tls = require("node:tls");
+    var { X509Certificate } = require("node:crypto");
+    var {
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+    } = require_embedded_supabase_prod_ca_2021();
+    var FORBIDDEN_SSLMODES = /* @__PURE__ */ new Set(["disable", "allow", "prefer", "no-verify"]);
+    function tlsPolicyError(code, message) {
+      const e = new Error(message || code);
+      e.code = code;
+      e.phase = "tls_policy";
+      return e;
+    }
+    function assertNoTlsBypass(env = process.env) {
+      const reject = String(env.NODE_TLS_REJECT_UNAUTHORIZED ?? "").trim();
+      if (reject === "0") {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_BYPASS",
+          "BLOCKED_TLS_BYPASS: NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden"
+        );
+      }
+      for (const name of ["NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR"]) {
+        if (env[name] != null && String(env[name]).length > 0) {
+          throw tlsPolicyError(
+            "BLOCKED_TLS_BYPASS",
+            `BLOCKED_TLS_BYPASS: ${name} is forbidden`
+          );
+        }
+      }
+    }
+    function assertNoForbiddenSslMode(sslmode) {
+      const mode = String(sslmode || "");
+      if (FORBIDDEN_SSLMODES.has(mode) || FORBIDDEN_SSLMODES.has(mode.toLowerCase())) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_BYPASS",
+          `BLOCKED_TLS_BYPASS: sslmode=${mode || "(empty)"} is forbidden`
+        );
+      }
+    }
+    function countCertificates(pem) {
+      return (String(pem || "").match(/-----BEGIN CERTIFICATE-----/g) || []).length;
+    }
+    function assertCaValidityWindow(x509) {
+      const now = Date.now();
+      const from = Date.parse(x509.validFrom);
+      const to = Date.parse(x509.validTo);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_INVALID", "BLOCKED_TLS_CA_INVALID: cannot parse CA validity window");
+      }
+      if (now < from) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_NOT_YET_VALID", "BLOCKED_TLS_CA_NOT_YET_VALID: CA not yet valid");
+      }
+      if (now > to) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_EXPIRED", "BLOCKED_TLS_CA_EXPIRED: CA certificate expired");
+      }
+    }
+    function loadPinnedCaFromPem(pemInput, expectedDerSha256 = null) {
+      if (pemInput == null || Array.isArray(pemInput) && pemInput.length !== 1) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_EXTRA", "BLOCKED_TLS_CA_EXTRA: CA material must be exactly one certificate");
+      }
+      const pemText = Buffer.isBuffer(pemInput) ? pemInput.toString("utf8") : String(pemInput);
+      if (countCertificates(pemText) !== 1) {
+        throw tlsPolicyError(
+          countCertificates(pemText) === 0 ? "BLOCKED_TLS_CA_INVALID" : "BLOCKED_TLS_CA_EXTRA",
+          countCertificates(pemText) === 0 ? "BLOCKED_TLS_CA_INVALID: PEM certificate marker missing" : "BLOCKED_TLS_CA_EXTRA: additional unapproved CA is forbidden"
+        );
+      }
+      let x509;
+      try {
+        x509 = new X509Certificate(pemText);
+      } catch {
+        throw tlsPolicyError("BLOCKED_TLS_CA_INVALID", "BLOCKED_TLS_CA_INVALID: X509 parse failed");
+      }
+      assertCaValidityWindow(x509);
+      const derSha = crypto.createHash("sha256").update(x509.raw).digest("hex");
+      if (expectedDerSha256 != null && String(expectedDerSha256).toLowerCase() !== derSha) {
+        throw tlsPolicyError(
+          "BLOCKED_TLS_CA_PIN_MISMATCH",
+          "BLOCKED_TLS_CA_PIN_MISMATCH: embedded/official CA DER fingerprint mismatch"
+        );
+      }
+      const canonical = pemText.endsWith("\n") ? pemText : `${pemText}
+`;
+      return Object.freeze({
+        pem: canonical,
+        der_sha256: derSha,
+        pem_sha256: crypto.createHash("sha256").update(Buffer.from(canonical, "utf8")).digest("hex"),
+        bytes: Buffer.byteLength(canonical),
+        valid_from: x509.validFrom,
+        valid_to: x509.validTo,
+        subject: x509.subject
+      });
+    }
+    function loadOfficialEmbeddedCa() {
+      const loaded = loadPinnedCaFromPem(
+        OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+        OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
+      );
+      if (!String(loaded.subject).includes("Supabase Root 2021 CA")) {
+        throw tlsPolicyError("TLS_CA_SUBJECT_MISMATCH", "TLS_CA_SUBJECT_MISMATCH: official CA subject mismatch");
+      }
+      return loaded;
+    }
+    function buildVerifySsl(hostname, caPem, env = process.env) {
+      assertNoTlsBypass(env);
+      if (!hostname || typeof hostname !== "string") {
+        throw tlsPolicyError("BLOCKED_TLS_CA_INVALID", "BLOCKED_TLS_CA_INVALID: hostname required");
+      }
+      const ca = caPem ? loadPinnedCaFromPem(caPem, null) : loadOfficialEmbeddedCa();
+      return {
+        rejectUnauthorized: true,
+        ca: ca.pem,
+        checkServerIdentity: tls.checkServerIdentity,
+        minVersion: "TLSv1.2",
+        servername: hostname
+      };
+    }
+    function buildProductionSsl(hostname, env = process.env) {
+      return buildVerifySsl(hostname, null, env);
+    }
+    function buildDisposableVerifySsl(opts = {}) {
+      assertNoTlsBypass(opts.env || {});
+      if (opts.rejectUnauthorized === false || opts.sslmode) {
+        if (opts.rejectUnauthorized === false || FORBIDDEN_SSLMODES.has(String(opts.sslmode || "").toLowerCase())) {
+          throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: verification disable is forbidden");
+        }
+      }
+      if (opts.extraCaPem) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_EXTRA", "BLOCKED_TLS_CA_EXTRA: additional unapproved CA is forbidden");
+      }
+      if (!opts.caPem) {
+        throw tlsPolicyError("BLOCKED_TLS_CA_INVALID", "BLOCKED_TLS_CA_INVALID: disposable CA missing");
+      }
+      const loaded = loadPinnedCaFromPem(opts.caPem, opts.expectedDerSha256 || null);
+      return buildVerifySsl(opts.servername, loaded.pem, opts.env || {});
+    }
+    module2.exports = {
+      FORBIDDEN_SSLMODES,
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+      OFFICIAL_SUPABASE_PROD_CA_2021_PEM,
+      assertNoForbiddenSslMode,
+      assertNoTlsBypass,
+      buildDisposableVerifySsl,
+      buildProductionSsl,
+      loadOfficialEmbeddedCa,
+      loadPinnedCaFromPem,
+      tlsPolicyError
+    };
+  }
+});
+
 // scripts/security/ra-pro-accounting-automation-precondition-gates.js
 var require_ra_pro_accounting_automation_precondition_gates = __commonJS({
   "scripts/security/ra-pro-accounting-automation-precondition-gates.js"(exports2, module2) {
@@ -5512,6 +5681,12 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       sha256Buffer,
       ROOT
     } = require_git_blob_authority();
+    var {
+      OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+      assertNoTlsBypass,
+      buildProductionSsl,
+      tlsPolicyError
+    } = require_ra_pro_accounting_automation_tls_ca();
     var {
       assertPreconditionEvidencePublished
     } = require_ra_pro_accounting_automation_precondition_gates();
@@ -5787,7 +5962,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         reason: diagnostics.reason || void 0
       };
     }
-    function buildPgClientConfig(raw) {
+    function buildPgClientConfig(raw, env = process.env) {
       const parts = parsePostgresUrl(raw);
       if (!parts) {
         const e = new Error("MALFORMED_DATABASE_URL");
@@ -5802,7 +5977,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         database: parts.database
       };
       if (!isLoopbackHost(parts.host)) {
-        config.ssl = { rejectUnauthorized: true };
+        config.ssl = buildProductionSsl(parts.host, env);
       }
       return config;
     }
@@ -5836,7 +6011,13 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
           port: config.port,
           database: config.database,
           user: config.user,
-          ssl: config.ssl ? { rejectUnauthorized: config.ssl.rejectUnauthorized === true } : null
+          ssl: config.ssl ? {
+            rejectUnauthorized: config.ssl.rejectUnauthorized === true,
+            servername: config.host,
+            ca_der_sha256: OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+            hostname_verification: "enabled",
+            min_version: "TLSv1.2"
+          } : null
         }
       };
     }
@@ -5850,6 +6031,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       }
     }
     function resolveDatabaseUrlFromEnv(env = process.env, options = {}) {
+      assertNoTlsBypass(env);
       assertFeatureFlagUntouched(env);
       for (const forbidden of FORBIDDEN_DATABASE_URL_ENVS) {
         if (Object.prototype.hasOwnProperty.call(env, forbidden) && env[forbidden]) {
@@ -5895,7 +6077,52 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         e.phase = "uri_validate";
         throw e;
       }
-      return { clientConfig: buildPgClientConfig(raw), uri_diagnostics: diagnostics };
+      return { clientConfig: buildPgClientConfig(raw, env), uri_diagnostics: diagnostics };
+    }
+    function scopedClientOptions(clientConfig, env = process.env) {
+      assertNoTlsBypass(env);
+      if (!clientConfig || typeof clientConfig !== "object" || clientConfig.connectionString) {
+        const e = new Error("MALFORMED_DATABASE_URL");
+        e.code = "MALFORMED_DATABASE_URL";
+        throw e;
+      }
+      if (clientConfig.sslmode || clientConfig.sslrootcert) {
+        throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: sslmode/sslrootcert on the client is forbidden");
+      }
+      const options = {
+        host: clientConfig.host,
+        port: clientConfig.port,
+        user: clientConfig.user,
+        password: clientConfig.password,
+        database: clientConfig.database
+      };
+      if (isLoopbackHost(clientConfig.host)) {
+        if (clientConfig.ssl && clientConfig.ssl.rejectUnauthorized === false) {
+          throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: rejectUnauthorized false is forbidden");
+        }
+        if (clientConfig.ssl) options.ssl = clientConfig.ssl;
+        return options;
+      }
+      const ssl = buildProductionSsl(clientConfig.host, env);
+      if (clientConfig.ssl) {
+        if (clientConfig.ssl.rejectUnauthorized === false) {
+          throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: rejectUnauthorized false is forbidden");
+        }
+        if (Array.isArray(clientConfig.ssl.ca)) {
+          throw tlsPolicyError("BLOCKED_TLS_CA_EXTRA", "BLOCKED_TLS_CA_EXTRA: additional unapproved CA is forbidden");
+        }
+        if (clientConfig.ssl.ca && clientConfig.ssl.ca !== ssl.ca) {
+          throw tlsPolicyError(
+            "BLOCKED_TLS_CA_PIN_MISMATCH",
+            "BLOCKED_TLS_CA_PIN_MISMATCH: client CA does not match the sealed Supabase root"
+          );
+        }
+        if (clientConfig.ssl.servername && clientConfig.ssl.servername !== clientConfig.host) {
+          throw tlsPolicyError("HOSTNAME_MISMATCH", "HOSTNAME_MISMATCH: servername must equal the validated host");
+        }
+      }
+      options.ssl = ssl;
+      return options;
     }
     function resolveRepoRoot(inputs = {}) {
       if (inputs.cwd) return inputs.cwd;
@@ -6125,18 +6352,19 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       });
     }
     async function withClient(clientConfig, fn) {
-      if (!clientConfig || typeof clientConfig !== "object" || clientConfig.connectionString) {
+      const options = scopedClientOptions(clientConfig);
+      if (options.connectionString) {
         const e = new Error("MALFORMED_DATABASE_URL");
         e.code = "MALFORMED_DATABASE_URL";
         throw e;
       }
       const client = new Client({
-        host: clientConfig.host,
-        port: clientConfig.port,
-        user: clientConfig.user,
-        password: clientConfig.password,
-        database: clientConfig.database,
-        ssl: clientConfig.ssl
+        host: options.host,
+        port: options.port,
+        user: options.user,
+        password: options.password,
+        database: options.database,
+        ssl: options.ssl
       });
       await client.connect();
       try {
@@ -6492,7 +6720,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       assertPublishedPrecondition,
       classifyDatabaseUrl,
       classificationParity,
+      buildPgClientConfig,
       inspectNormalizedClient,
+      scopedClientOptions,
       loadSealedMigrations,
       resolveBundleSeals,
       resolveDatabaseUrlFromEnv,
