@@ -40,6 +40,17 @@
     "required_pre_apply_live_evidence_oid": null,
     "required_pre_apply_live_evidence_bytes": null
   },
+  "pre_apply_live_publication": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "contract_path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "evidence_path": null,
+    "evidence_source_commit": null,
+    "evidence_blob_oid": null,
+    "evidence_sha256": null,
+    "evidence_bytes": null,
+    "apply_authorized": false
+  },
   "prior_dry_run_publication": {
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1",
@@ -72,6 +83,7 @@
     "Dry-run requires published precondition_publication only.",
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
     "Prior-dry-run evidence pin is published from the reviewed 99e6ed19 dry run. Pre-apply pins stay null, so apply remains unauthorized.",
+    "Pre-apply live evidence contract is sealed. Its pins stay UNPUBLISHED/null. Apply still refuses before credentials.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels.",
     "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",

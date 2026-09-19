@@ -33,6 +33,8 @@ const CEREMONY_ARTIFACTS = {
   visible_ceremony_entry: "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
   operator_ceremony:
     "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
+  pre_apply_live_gates:
+    "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
 };
 
 function sha256(buf) {
@@ -213,6 +215,24 @@ function main() {
     auth.publication.required_prior_dry_run_evidence_oid = null;
     auth.publication.required_prior_dry_run_evidence_bytes = null;
   }
+  const contractRel =
+    "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json";
+  auth.pre_apply_live_contract = sealFromBytes(
+    contractRel,
+    loadBlobFromCommit(ceremonySource, contractRel),
+    ceremonySource,
+  );
+  auth.pre_apply_live_publication = {
+    status: "UNPUBLISHED",
+    protocol: "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+    contract_path: contractRel,
+    evidence_path: null,
+    evidence_source_commit: null,
+    evidence_blob_oid: null,
+    evidence_sha256: null,
+    evidence_bytes: null,
+    apply_authorized: false,
+  };
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(

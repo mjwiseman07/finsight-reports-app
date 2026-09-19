@@ -50,6 +50,9 @@ const {
   assertPriorDryRunEvidencePublished,
 } = require("./ra-pro-accounting-automation-prior-dry-run-gates");
 const {
+  assertPreApplyLiveEvidencePublished,
+} = require("./ra-pro-accounting-automation-pre-apply-gates");
+const {
   captureSentinelCounts,
   collectDryRunSchemaProbes,
   verifyPostCommit,
@@ -752,11 +755,7 @@ function assertAuthorizationPublished(inputs = {}) {
       priorDryRunEvidencePath: inputs.priorDryRunEvidencePath,
     });
   }
-  const unpublished =
-    auth.publication?.status === "UNPUBLISHED" ||
-    pub.required_prior_dry_run_evidence_sha256 == null ||
-    pub.required_pre_apply_live_evidence_sha256 == null;
-  if (unpublished) {
+  if (pub.required_prior_dry_run_evidence_sha256 == null) {
     const e = new Error(
       "AUTHORIZATION_PINS_UNPUBLISHED: prior-dry-run and pre-apply pins are null/UNPUBLISHED; apply remains unreachable",
     );
@@ -764,6 +763,13 @@ function assertAuthorizationPublished(inputs = {}) {
     e.phase = "authorization";
     throw e;
   }
+  assertPreApplyLiveEvidencePublished({
+    auth,
+    cwd,
+    env: inputs.env || process.env,
+    preApplyEvidencePath: inputs.preApplyEvidencePath,
+    now: inputs.now,
+  });
   return { harness_bypass: false, publication: pub };
 }
 

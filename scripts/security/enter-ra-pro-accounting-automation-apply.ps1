@@ -318,7 +318,9 @@ try {
       "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_TIP",
       "RA_PRO_ACCOUNTING_AUTOMATION_BUNDLE_PATH",
       "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_PATH",
-      "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_SHA256"
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_SHA256",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_SHA256"
     )) {
     if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($forbiddenEnv, "Process"))) {
       throw "BLOCKED_INPUT_INVALID: forbidden env $forbiddenEnv"
@@ -343,17 +345,38 @@ try {
   $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
 
   if ($Mode -eq "apply") {
-    $pub = $auth.publication
-    if (
-      $null -eq $pub -or
-      $pub.status -eq "UNPUBLISHED" -or
-      $null -eq $pub.required_prior_dry_run_evidence_sha256 -or
-      $null -eq $pub.required_pre_apply_live_evidence_sha256
-    ) {
-      Write-Blocked "AUTHORIZATION_PINS_UNPUBLISHED"
+    $freeze = [string]$auth.authorized_pr_head
+    $bootSrc = [string]$auth.bootstrap_source_commit
+    $source = [string]$auth.ceremony_source_commit
+    if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
+      throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
+    }
+    if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
+    if ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
+      throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
+    }
+    Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
+    $gateRel = "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1"
+    $gateSeal = $auth.pre_apply_live_gates
+    if (-not $gateSeal) {
+      Write-Blocked "PRE_APPLY_LIVE_GATE_UNSEALED"
       exit 1
     }
-    Write-Blocked "APPLY_CEREMONY_UNREACHABLE: prior/pre-apply pins published but apply ceremony remains refuse-closed on this tip"
+    $gateDest = Join-Path $script:MaterialRoot "ra-pro-accounting-automation-pre-apply-gates.ps1"
+    [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $gateRel -Seal $gateSeal -Dest $gateDest -WorkDir $RepoRoot)
+    . $gateDest
+    try {
+      Assert-AccountingPreApplyLiveEvidence -Auth $auth -RepoRoot $RepoRoot
+    } catch {
+      $gateMessage = [string]$_.Exception.Message
+      if ($gateMessage -eq "AUTHORIZATION_PINS_UNPUBLISHED" -or $gateMessage.StartsWith("AUTHORIZATION_PINS_UNPUBLISHED")) {
+        Write-Blocked "AUTHORIZATION_PINS_UNPUBLISHED"
+      } else {
+        Write-Blocked $gateMessage
+      }
+      exit 1
+    }
+    Write-Blocked "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
     exit 1
   }
 
