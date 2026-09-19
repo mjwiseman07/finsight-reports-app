@@ -84,10 +84,9 @@ function parseUtc(value, code) {
 }
 
 function assertSanitized(text) {
-  const live = "sk_" + "live_";
   if (
     /postgres(?:ql)?:\/\//i.test(text) ||
-    text.includes(live) ||
+    /sk_[a-z]+_/i.test(text) ||
     text.includes("BEGIN CERTIFICATE") ||
     text.includes("BEGIN RSA") ||
     /supabase\.co/i.test(text) ||

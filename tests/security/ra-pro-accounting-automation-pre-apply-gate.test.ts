@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
@@ -32,7 +31,7 @@ function git(args: string[]) {
 }
 
 function loadFixture() {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, FIXTURE), "utf8")) as Record<string, any>;
+  return JSON.parse(fs.readFileSync(path.join(ROOT, FIXTURE), "utf8"));
 }
 
 function codeOf(err: unknown) {

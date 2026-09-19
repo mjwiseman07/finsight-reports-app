@@ -5932,8 +5932,7 @@ var require_ra_pro_accounting_automation_pre_apply_gates = __commonJS({
       return ms;
     }
     function assertSanitized(text) {
-      const live = "sk_live_";
-      if (/postgres(?:ql)?:\/\//i.test(text) || text.includes(live) || text.includes("BEGIN CERTIFICATE") || text.includes("BEGIN RSA") || /supabase\.co/i.test(text) || /https?:\/\//i.test(text) || text.includes("@") || /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(text)) {
+      if (/postgres(?:ql)?:\/\//i.test(text) || /sk_[a-z]+_/i.test(text) || text.includes("BEGIN CERTIFICATE") || text.includes("BEGIN RSA") || /supabase\.co/i.test(text) || /https?:\/\//i.test(text) || text.includes("@") || /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(text)) {
         throw blocked("PRE_APPLY_LIVE_SANITIZATION", "forbidden material");
       }
     }
