@@ -853,13 +853,31 @@ try {
       throw "APPLY_ATTEMPT_ID_INVALID: attempt id"
     }
     $allowSyntheticApply = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
-    if ($allowSyntheticApply -ne "1") {
-      $prod = $auth.production_apply_authorization
-      $prodOk = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and ([string]$prod.authorized_tip).ToLowerInvariant() -eq $tip.ToLowerInvariant() -and [string]$prod.attempt_id -eq $ApplyAttemptId
-      if (-not $prodOk) {
-        throw "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production apply authorization is unpublished"
-      }
+    if ($allowSyntheticApply -eq "1" -and [string]::IsNullOrWhiteSpace($ApplyAttemptId)) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: synthetic env is not authorization"
     }
+    $prod = $auth.production_apply_authorization
+    $executable = ""
+    if ($null -ne $prod) { $executable = ([string]$prod.authorized_executable_commit).ToLowerInvariant() }
+    $prodOk = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and $executable -match '^[0-9a-f]{40}$' -and $executable -ne $tip.ToLowerInvariant() -and [string]$prod.attempt_id -eq $ApplyAttemptId
+    if (-not $prodOk) {
+      throw "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production apply authorization is unpublished"
+    }
+    $bundleCommit = $executable
+    $script:ApplyExecutableCommit = $executable
+    if ($null -eq $prod.bundle -or [string]::IsNullOrWhiteSpace([string]$prod.bundle.oid)) {
+      throw "APPLY_AUTHORIZATION_SEAL_MISSING: bundle"
+    }
+    $execOid = Invoke-GitTextLocal @("rev-parse", "${executable}:${BundleRel}")
+    if ($execOid -ne [string]$prod.bundle.oid) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle oid"
+    }
+    $execBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $executable -Rel $BundleRel) "bundle_blob"
+    $execSha = Get-Sha256Bytes -Bytes $execBytes
+    if ($execSha -ne ([string]$prod.bundle.sha256).ToLowerInvariant() -or $execBytes.Length -ne [int]$prod.bundle.bytes) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle bytes"
+    }
+    $bundleBytes = $execBytes
     $existingApply = Join-Path $EvidenceOutDir ($ApplyAttemptId + ".marker")
     if (Test-Path -LiteralPath $existingApply) {
       throw "APPLY_ATTEMPT_CONSUMED: marker exists before prompt"
@@ -944,7 +962,7 @@ try {
 
   Set-PrePromptPhase "attempt_marker"
   if ($Mode -eq "apply") {
-    $attemptMarker = New-ApplyMarkerAtomic -Dir $EvidenceOutDir -Tip $PrHead -AttemptId $ApplyAttemptId
+    $attemptMarker = New-ApplyMarkerAtomic -Dir $EvidenceOutDir -Tip $script:ApplyExecutableCommit -AttemptId $ApplyAttemptId
   } else {
     $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
   }

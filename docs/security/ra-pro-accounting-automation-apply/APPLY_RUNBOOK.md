@@ -161,7 +161,7 @@ try {
 }
 ```
 
-Apply mode remains refuse-closed before credentials (`APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS`) while `production_apply_authorization.status` is `UNPUBLISHED`. Published evidence pins are not an apply authorization. A later explicit authorization must name one exact tip and one unused attempt id. Expired evidence fails `PRE_APPLY_LIVE_EXPIRED` before credentials. Do not extend the published evidence artifact; refresh it if `2026-09-20T03:00:15Z` passes before an attempt.
+Apply mode remains refuse-closed before credentials (`APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS`) while `production_apply_authorization.status` is `UNPUBLISHED`. Published evidence pins and the apply token are not an apply authorization. A later publication commit may be a descendant of the reviewed executable commit. That record names `authorized_executable_commit` and must not contain the publication commit's own SHA. Reseal refuses to publish or clear an `AUTHORIZED` record. Expired evidence fails `PRE_APPLY_LIVE_EXPIRED` before credentials. Do not extend the published evidence artifact; if `2026-09-20T03:00:15Z` passes before an attempt, repeat collection, review, and pin publication.
 
 Offline seal verify (no DB):
 
@@ -178,4 +178,4 @@ node scripts/security/reseal-ra-pro-accounting-automation-ceremony-auth.js \
 
 ## Harness only
 
-Disposable Docker apply rehearsals pass an in-process synthetic one-attempt authorization (`allowSyntheticOneAttemptAuthorization`) plus a temp marker directory. That flag cannot be set from the environment or argv. It is not a production authorization. `production_apply_authorization` stays `UNPUBLISHED` and `apply_authorized` stays false. Dry-run Docker rehearsals use the real published precondition pins.
+Disposable Docker apply rehearsals build a dangling descendant publication with `createDisposablePublicationCommit` (`commit-tree` only; HEAD does not move) plus `allowDisposablePublicationCommit`. That flag cannot be set from the environment or argv. It is not a production authorization. `production_apply_authorization` stays `UNPUBLISHED` and `apply_authorized` stays false on the branch. Dry-run Docker rehearsals use the real published precondition pins.

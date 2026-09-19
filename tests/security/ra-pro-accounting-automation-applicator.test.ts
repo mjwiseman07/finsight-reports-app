@@ -35,6 +35,12 @@ import {
   STANDALONE_BUNDLE_SHA256,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 import { loadAndVerifyGitBlob } from "../../scripts/security/git-blob-authority.js";
+import {
+  commitPublicationTree,
+  createDisposablePublicationCommit,
+  describeApplyArtifactMap,
+  assertNotCircularPin,
+} from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
 import { verifyPostCommit, captureSentinelCounts } from "../../scripts/security/ra-pro-accounting-automation-schema-probes.js";
 
 type PgClient = {
@@ -72,14 +78,61 @@ function gitTip() {
   return (tip.stdout || "").trim();
 }
 
-function oneAttempt(tip: string, extra: Record<string, unknown> = {}) {
-  return {
-    status: "AUTHORIZED",
-    apply_authorized: true,
-    authorized_tip: tip,
-    attempt_id: `apply-${tip.slice(0, 12)}-${randomBytes(16).toString("hex")}`,
-    ...extra,
-  };
+function gitText(args: string[]) {
+  const result = spawnSync("git", args, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.directory",
+      GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+    },
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || "git failed");
+  return (result.stdout || "").trim();
+}
+
+function loadAuthAt(commit: string) {
+  return JSON.parse(gitText(["cat-file", "-p", `${commit}:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json`]));
+}
+
+function gitInput(args: string[], input: string) {
+  const result = spawnSync("git", args, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    input,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.directory",
+      GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+      GIT_AUTHOR_NAME: "ra-acct-disposable",
+      GIT_AUTHOR_EMAIL: "ra-acct-disposable@invalid",
+      GIT_COMMITTER_NAME: "ra-acct-disposable",
+      GIT_COMMITTER_EMAIL: "ra-acct-disposable@invalid",
+    },
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || "git failed");
+  return (result.stdout || "").trim();
+}
+
+function replaceTreePath(tree: string, parts: string[], blob: string): string {
+  const lines = gitText(["ls-tree", tree]).split(/\n/).filter(Boolean);
+  const name = parts[0];
+  let found = false;
+  const next = lines.map((line) => {
+    const tab = line.indexOf("\t");
+    if (line.slice(tab + 1) !== name) return line;
+    found = true;
+    if (parts.length === 1) return `100644 blob ${blob}\t${name}`;
+    const old = line.slice(0, tab).split(" ")[2];
+    return `040000 tree ${replaceTreePath(old, parts.slice(1), blob)}\t${name}`;
+  });
+  if (!found) throw new Error(parts.join("/"));
+  return gitInput(["mktree"], `${next.join("\n")}\n`);
 }
 
 describe("RA Pro accounting-automation applicator (unit)", () => {
@@ -91,80 +144,201 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(fs.readdirSync(dir)).toEqual([]);
   });
 
-  it("refuses absent token, wrong tip, substituted bundle, consumed marker, and expired evidence before a marker is reused", () => {
-    const tip = gitTip();
+  it("fails closed on circular pins, ancestry, seals, worktree JSON, and a repeated marker", () => {
+    const cwd = process.cwd();
+    const executable = gitTip();
+    const headBefore = executable;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-auth-"));
-    const record = oneAttempt(tip);
+    const unpublished = describeApplyArtifactMap({
+      cwd,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+    });
+    expect(unpublished.blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+    expect(unpublished.apply_authorized).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    const realRead = fs.readFileSync;
+    fs.readFileSync = ((file: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+      if (String(file).includes("TOOLING_AUTHORIZATION")) throw new Error("WORKTREE_READ");
+      return realRead(file, ...(args as []));
+    }) as typeof fs.readFileSync;
+    try {
+      expect(describeApplyArtifactMap({ cwd }).blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+    } finally {
+      fs.readFileSync = realRead;
+    }
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        auth: { production_apply_authorization: { status: "AUTHORIZED", apply_authorized: true } },
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_WORKTREE_SUBSTITUTE/);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        env: { RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_COMMIT: "a".repeat(40) },
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_ENV_OVERRIDE_FORBIDDEN/);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        tip: executable,
+        allowDisposablePublicationCommit: true,
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN/);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: "a".repeat(40),
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      }),
+    ).toThrow(/GIT_BLOB_LOAD_FAILED|fatal:/);
+    expect(() =>
+      assertAuthorizationPublished({ now: "2026-09-21T00:00:00Z", markerDir: dir }),
+    ).toThrow(/PRE_APPLY_LIVE_EXPIRED/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    expect(published.headUnchanged).toBe(true);
+    expect(gitTip()).toBe(headBefore);
+    expect(published.publicationCommit).not.toBe(executable);
+    const blob = gitText([
+      "cat-file",
+      "-p",
+      `${published.publicationCommit}:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json`,
+    ]);
+    expect(blob.includes(published.publicationCommit)).toBe(false);
+    const map = describeApplyArtifactMap({
+      cwd,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: published.publicationCommit,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+    });
+    expect(map.blocked).toBeNull();
+    expect(map.apply_authorized).toBe(false);
+    expect(map.authorized_executable_commit).toBe(executable);
+    expect(map.bundle_oid).toMatch(/^[0-9a-f]{40}$/);
+
     expect(() =>
       assertAuthorizationPublished({
         now: INSIDE_EVIDENCE_WINDOW,
         markerDir: dir,
-        allowSyntheticOneAttemptAuthorization: true,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: published.publicationCommit,
         authorizationToken: "wrong-token",
-        syntheticApplyAuthorization: record,
       }),
     ).toThrow(/APPLY_AUTHORIZATION_TOKEN_MISMATCH/);
     expect(fs.readdirSync(dir)).toEqual([]);
 
+    const auth = loadAuthAt(published.publicationCommit);
+    auth.production_apply_authorization.authorized_executable_commit = "b".repeat(40);
+    const wrongAncestry = commitPublicationTree(cwd, executable, auth);
     expect(() =>
-      assertAuthorizationPublished({
-        now: INSIDE_EVIDENCE_WINDOW,
-        markerDir: dir,
-        allowSyntheticOneAttemptAuthorization: true,
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: wrongAncestry,
         authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-        syntheticApplyAuthorization: oneAttempt("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
       }),
-    ).toThrow(/APPLY_AUTHORIZATION_TIP_MISMATCH/);
-    expect(fs.readdirSync(dir)).toEqual([]);
+    ).toThrow(/APPLY_AUTHORIZATION_ANCESTRY|APPLY_AUTHORIZATION_CIRCULAR_TIP/);
 
+    const extraBlob = gitInput(["hash-object", "-w", "--stdin"], "changed-after-freeze\n");
+    const extraTree = replaceTreePath(
+      gitText(["rev-parse", `${published.publicationCommit}^{tree}`]),
+      ["docs", "security", "ra-pro-accounting-automation-apply", "APPLY_RUNBOOK.md"],
+      extraBlob,
+    );
+    const changedExecutable = gitInput(
+      ["commit-tree", extraTree, "-p", published.publicationCommit, "-m", "changed executable after freeze"],
+      "",
+    );
     expect(() =>
-      assertAuthorizationPublished({
-        now: INSIDE_EVIDENCE_WINDOW,
-        markerDir: dir,
-        allowSyntheticOneAttemptAuthorization: true,
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: changedExecutable,
         authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-        syntheticApplyAuthorization: oneAttempt(tip, { bundle_oid: "b".repeat(40) }),
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_ALLOWLIST/);
+
+    const missing = loadAuthAt(published.publicationCommit);
+    missing.production_apply_authorization.bundle = null;
+    missing.production_apply_authorization.migrations = null;
+    missing.production_apply_authorization.prior_dry_run_evidence = null;
+    missing.production_apply_authorization.pre_apply_live_evidence = null;
+    const unsealed = commitPublicationTree(cwd, executable, missing);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: unsealed,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_SEAL_MISSING/);
+
+    const swapped = loadAuthAt(published.publicationCommit);
+    swapped.production_apply_authorization.bundle.oid = "c".repeat(40);
+    const substituted = commitPublicationTree(cwd, executable, swapped);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: substituted,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       }),
     ).toThrow(/APPLY_AUTHORIZATION_BUNDLE_MISMATCH/);
-    expect(fs.readdirSync(dir)).toEqual([]);
 
+    const badAttempt = loadAuthAt(published.publicationCommit);
+    badAttempt.production_apply_authorization.attempt_id = `attempt-${executable.slice(0, 12)}-${"d".repeat(32)}`;
+    const wrongAttempt = commitPublicationTree(cwd, executable, badAttempt);
     expect(() =>
-      assertAuthorizationPublished({
-        now: "2026-09-21T00:00:00Z",
-        markerDir: dir,
-        allowSyntheticOneAttemptAuthorization: true,
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: wrongAttempt,
         authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-        syntheticApplyAuthorization: oneAttempt(tip),
       }),
-    ).toThrow(/PRE_APPLY_LIVE_EXPIRED/);
-    expect(fs.readdirSync(dir)).toEqual([]);
+    ).toThrow(/APPLY_ATTEMPT_ID_INVALID/);
 
+    expect(() => assertNotCircularPin(executable, executable, "pin")).toThrow(/APPLY_AUTHORIZATION_CIRCULAR_TIP/);
     expect(() =>
-      assertAuthorizationPublished({
-        now: INSIDE_EVIDENCE_WINDOW,
-        env: { RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID: record.attempt_id },
+      assertNotCircularPin(published.publicationCommit, executable, `${blob}\n${published.publicationCommit}`),
+    ).toThrow(/APPLY_AUTHORIZATION_CIRCULAR_TIP/);
+    const selfNamed = loadAuthAt(published.publicationCommit);
+    selfNamed.production_apply_authorization.authorized_executable_commit = published.publicationCommit;
+    const broadened = commitPublicationTree(cwd, published.publicationCommit, selfNamed);
+    expect(() =>
+      describeApplyArtifactMap({
+        cwd,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: broadened,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       }),
-    ).toThrow(/HARNESS_VIA_ENV_FORBIDDEN/);
+    ).toThrow(/APPLY_AUTHORIZATION_ALLOWLIST|APPLY_AUTHORIZATION_CIRCULAR_TIP/);
 
     const opened = assertAuthorizationPublished({
       now: INSIDE_EVIDENCE_WINDOW,
       markerDir: dir,
-      allowSyntheticOneAttemptAuthorization: true,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: published.publicationCommit,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-      syntheticApplyAuthorization: record,
-    }) as { marker: string; attemptId: string; apply_authorized: boolean };
+    }) as { marker: string; attemptId: string; apply_authorized: boolean; authorized_executable_commit: string };
     expect(opened.apply_authorized).toBe(false);
-    expect(opened.attemptId).toBe(record.attempt_id);
-    expect(fs.existsSync(opened.marker)).toBe(true);
+    expect(opened.attemptId).toBe(attempt);
+    expect(opened.authorized_executable_commit).toBe(executable);
+    expect(fs.readFileSync(opened.marker, "utf8")).toBe(`apply\n${executable}\n${attempt}\n`);
     expect(() =>
       assertAuthorizationPublished({
         now: INSIDE_EVIDENCE_WINDOW,
         markerDir: dir,
-        allowSyntheticOneAttemptAuthorization: true,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: published.publicationCommit,
         authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-        syntheticApplyAuthorization: record,
       }),
     ).toThrow(/APPLY_ATTEMPT_CONSUMED/);
+    expect(gitTip()).toBe(headBefore);
   });
 
   it("rejects cutover/FRLS/containment/generic credential channels", () => {
@@ -557,25 +731,29 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   }
 
   function applyInputs(overrides: Record<string, unknown> = {}) {
-    const tip = gitTipLocal();
-    const attempt = `apply-${tip.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
-    const markerDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-"));
+    const executable = gitTipLocal();
+    const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const markerDir =
+      (overrides.markerDir as string) || fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-"));
+    const publicationCommit =
+      (overrides.publicationCommit as string) ||
+      createDisposablePublicationCommit({
+        cwd: process.cwd(),
+        executableCommit: executable,
+        attemptId: attempt,
+      }).publicationCommit;
     return {
       mode: "apply" as const,
-      allowSyntheticOneAttemptAuthorization: true,
+      allowDisposablePublicationCommit: true,
       allowLocalhostForHarness: true,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
-      artifactCommit: ARTIFACT_COMMIT,
       now: INSIDE_EVIDENCE_WINDOW,
       markerDir,
-      syntheticApplyAuthorization: {
-        status: "AUTHORIZED",
-        apply_authorized: true,
-        authorized_tip: tip,
-        attempt_id: attempt,
-      },
+      publicationCommit,
       env: { [DATABASE_URL_ENV]: url },
       ...overrides,
+      markerDir,
+      publicationCommit,
     };
   }
 
@@ -822,13 +1000,13 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   it("refuses a consumed synthetic attempt before any database contact", async () => {
     const prior = consumedApply as {
       markerDir: string;
-      syntheticApplyAuthorization: Record<string, unknown>;
+      publicationCommit: string;
     };
     expect(prior).toBeTruthy();
     const result = await runApplicator(
       applyInputs({
         markerDir: prior.markerDir,
-        syntheticApplyAuthorization: prior.syntheticApplyAuthorization,
+        publicationCommit: prior.publicationCommit,
       }),
     );
     expect(result.verdict).not.toBe("APPLY_COMMITTED");
@@ -1191,7 +1369,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     );
     expect(blocked.verdict).toBe("APPLY_BLOCKED");
     expect(String(blocked.error_code || blocked.result_code)).toMatch(
-      /GIT_BLOB_LOAD_FAILED|BLOCKED_PIN_MISMATCH|APPLY_BLOCKED|OID|SHA256/,
+      /GIT_BLOB_LOAD_FAILED|BLOCKED_PIN_MISMATCH|APPLY_BLOCKED|APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN|OID|SHA256/,
     );
   });
 

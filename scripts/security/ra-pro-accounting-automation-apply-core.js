@@ -4,7 +4,7 @@
  * Database URL: RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL only.
  * Never enables ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.
  * Published evidence pins are not apply authorization. Production apply stays
- * blocked until a separate one-attempt authorization names one tip.
+ * blocked until a later descendant publication names an ancestor executable.
  */
 "use strict";
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -556,16 +556,25 @@ function resolveRepoRoot(inputs = {}) {
   return process.cwd();
 }
 
-function loadAuthorizationPackage(cwd = ROOT) {
-  const abs = path.join(cwd, TOOLING_AUTHORIZATION_PATH);
-  try {
-    return JSON.parse(fs.readFileSync(abs, "utf8"));
-  } catch (err) {
-    const e = new Error("AUTHORIZATION_PACKAGE_UNREADABLE");
-    e.code = "AUTHORIZATION_PINS_UNPUBLISHED";
-    e.cause = err;
-    throw e;
-  }
+function loadAuthorizationPackage(cwd = ROOT, commit) {
+  const publication = commit || execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd,
+    encoding: "utf8",
+    env: (() => {
+      const env = { ...process.env };
+      const n = Number(env.GIT_CONFIG_COUNT || 0);
+      env.GIT_CONFIG_COUNT = String(n + 1);
+      env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+      return env;
+    })(),
+  }).trim();
+  const loaded = loadAndVerifyGitBlob({
+    commit: publication,
+    path: TOOLING_AUTHORIZATION_PATH,
+    cwd,
+  });
+  return JSON.parse(loaded.buffer.toString("utf8"));
 }
 
 function assertNoHarnessEnvOrArgv(inputs = {}) {
@@ -579,6 +588,8 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
     "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS",
     "RA_PRO_ACCOUNTING_AUTOMATION_SYNTHETIC_APPLY_AUTHORIZATION",
     "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID",
+    "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_COMMIT",
+    "RA_PRO_ACCOUNTING_AUTOMATION_EXECUTABLE_COMMIT",
   ];
   for (const name of forbiddenEnv) {
     if (Object.prototype.hasOwnProperty.call(env, name) && env[name]) {
@@ -589,7 +600,7 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
     }
   }
   const argv = inputs.argv || process.argv || [];
-  if (argv.some((a) => /harness|allow-unpublished|allow-localhost|synthetic-apply|apply-attempt/i.test(String(a)))) {
+  if (argv.some((a) => /harness|allow-unpublished|allow-localhost|synthetic-apply|apply-attempt|publication-commit|executable-commit/i.test(String(a)))) {
     const e = new Error("HARNESS_VIA_ARGV_FORBIDDEN");
     e.code = "HARNESS_VIA_ARGV_FORBIDDEN";
     e.phase = "bundle_authority";
@@ -750,7 +761,9 @@ function assertBundleAuthority(inputs = {}) {
 function assertAuthorizationPublished(inputs = {}) {
   assertNoHarnessEnvOrArgv(inputs);
   const cwd = resolveRepoRoot(inputs);
-  const auth = loadAuthorizationPackage(cwd);
+  const publicationCommit =
+    inputs.allowDisposablePublicationCommit === true ? inputs.publicationCommit : undefined;
+  const auth = loadAuthorizationPackage(cwd, publicationCommit);
   const pub = auth.publication || {};
   if (pub.required_prior_dry_run_evidence_sha256 != null) {
     assertPriorDryRunEvidencePublished({
@@ -775,33 +788,26 @@ function assertAuthorizationPublished(inputs = {}) {
     preApplyEvidencePath: inputs.preApplyEvidencePath,
     now: inputs.now,
   });
-  let tip = inputs.tip;
-  if (!tip) {
-    tip = execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd,
-      encoding: "utf8",
-      env: (() => {
-        const env = { ...(inputs.env || process.env) };
-        const n = Number(env.GIT_CONFIG_COUNT || 0);
-        env.GIT_CONFIG_COUNT = String(n + 1);
-        env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-        env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
-        return env;
-      })(),
-    }).trim();
-  }
-  return assertOneAttemptApplyAuthorization({
-    auth,
+  const decision = assertOneAttemptApplyAuthorization({
+    ...inputs,
     cwd,
-    env: inputs.env || process.env,
-    tip,
-    authorizationToken: inputs.authorizationToken,
-    expectedToken: APPLY_AUTHORIZATION_TOKEN,
-    allowSyntheticOneAttemptAuthorization: inputs.allowSyntheticOneAttemptAuthorization === true,
-    syntheticApplyAuthorization: inputs.syntheticApplyAuthorization,
-    markerDir: inputs.markerDir,
-    existingMarkerPath: inputs.existingMarkerPath,
+    auth,
+    env: inputs.env || {},
   });
+  if (decision.authorized_executable_commit) {
+    const executable = decision.authorized_executable_commit;
+    const requestedArtifact = inputs.artifactCommit ? String(inputs.artifactCommit).toLowerCase() : "";
+    const requestedBundle = inputs.bundleAuthorityCommit ? String(inputs.bundleAuthorityCommit).toLowerCase() : "";
+    if ((requestedArtifact && requestedArtifact !== executable) || (requestedBundle && requestedBundle !== executable)) {
+      const e = new Error("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: executable commit");
+      e.code = "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN";
+      e.phase = "authorization";
+      throw e;
+    }
+    inputs.artifactCommit = executable;
+    inputs.bundleAuthorityCommit = executable;
+  }
+  return decision;
 }
 
 const assertApplyAuthorizationPublished = assertAuthorizationPublished;
@@ -1091,6 +1097,9 @@ async function runApply(inputs = {}) {
     evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
     evidence.precondition_evidence = assertPublishedPrecondition(inputs);
     evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);
+    if (inputs.bundleAuthorityCommit) {
+      evidence.bundle_authority = assertBundleAuthority(inputs);
+    }
     packed = loadSealedMigrations(inputs);
     evidence.source_authority = packed.map((p) => ({
       version: p.migration.version,

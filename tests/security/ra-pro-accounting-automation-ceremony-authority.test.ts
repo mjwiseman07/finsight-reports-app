@@ -8,6 +8,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { describeApplyArtifactMap, createDisposablePublicationCommit } from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
+import { APPLY_AUTHORIZATION_TOKEN } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 
 const ROOT = process.cwd();
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
@@ -513,55 +515,66 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(payload.productionContact).toBe(false);
   });
 
-  it("synthetic one-attempt visible path reaches the stub only after an apply marker", () => {
+  it("operator-supplied attempt ids and publication refs cannot authorize the visible route", () => {
     const tip = tipSha();
     const attempt = `apply-${tip.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
-    const { run, outDir, payload } = runAuthenticatedBootstrap(
-      [
-        "-Mode",
-        "apply",
-        "-PrHead",
-        tip,
-        "-TestApplyAttemptId",
-        attempt,
-        "-TestSyntheticDatabaseUrl",
-        PROJECT_URL,
-        "-TestHarnessChildStub",
-        "success",
-      ],
+    const { run, payload } = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-PrHead", tip, "-TestApplyAttemptId", attempt],
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
     );
-    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
-    expect(payload.result_code).toBe("APPLY_PATH_REACHED");
-    expect(payload.mode).toBe("apply");
+    expect(run.status, `${run.stdout}\n${run.stderr}`).not.toBe(0);
+    expect(String(payload.reason || "")).toMatch(/APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN/);
     expect(payload.productionContact).toBe(false);
-    expect(payload.database_connection_attempts).toBe(0);
-    expect(payload.sql_application_attempts).toBe(0);
-    expect(payload.marker_before_child).toBe(true);
-    const markerName = String(payload.attempt_marker || "");
-    expect(markerName).toBe(`${attempt}.marker`);
-    expect(markerName.startsWith("attempt-")).toBe(false);
-    const markerPath = path.join(outDir, markerName);
-    expect(fs.readFileSync(markerPath, "utf8")).toBe(`apply\n${tip}\n${attempt}\n`);
-    const again = runAuthenticatedBootstrap(
+  });
+
+  it("visible route and applicator agree on the committed authorization map before credentials", () => {
+    const executable = tipSha();
+    const head = describeApplyArtifactMap({ cwd: ROOT });
+    expect(head.blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+    expect(head.apply_authorized).toBe(false);
+    const unpublished = runAuthenticatedBootstrap(
+      ["-Mode", "apply", "-EmitAuthorizationMap", "-TestPublicationCommit", executable],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(unpublished.run.status, `${unpublished.run.stdout}\n${unpublished.run.stderr}`).not.toBe(0);
+    const unpublishedMap = JSON.parse(unpublished.run.stdout.trim());
+    expect(unpublishedMap.blocked).toBe(head.blocked);
+    expect(unpublishedMap.publication_commit).toBe(executable);
+    expect(unpublished.payload.productionContact ?? false).toBe(false);
+
+    const attempt = `apply-${executable.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
+    expect(published.headUnchanged).toBe(true);
+    expect(tipSha()).toBe(executable);
+    const jsMap = describeApplyArtifactMap({
+      cwd: ROOT,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: published.publicationCommit,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+    });
+    const visible = runAuthenticatedBootstrap(
       [
         "-Mode",
         "apply",
-        "-PrHead",
-        tip,
-        "-TestApplyAttemptId",
-        attempt,
-        "-TestSyntheticDatabaseUrl",
-        PROJECT_URL,
-        "-TestHarnessChildStub",
-        "success",
+        "-EmitAuthorizationMap",
+        "-TestPublicationCommit",
+        published.publicationCommit,
       ],
       { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
-      outDir,
     );
-    expect(again.run.status).not.toBe(0);
-    expect(String(again.payload.result_code || again.payload.reason || "")).toMatch(/APPLY_ATTEMPT_CONSUMED/);
-    expect(String(`${run.stdout || ""}${run.stderr || ""}`)).not.toMatch(/postgres:\/\//i);
+    expect(visible.run.status, `${visible.run.stdout}\n${visible.run.stderr}`).toBe(0);
+    const psMap = JSON.parse(visible.run.stdout.trim());
+    expect(psMap.blocked).toBeNull();
+    expect(psMap.publication_commit).toBe(jsMap.publication_commit);
+    expect(psMap.authorized_executable_commit).toBe(jsMap.authorized_executable_commit);
+    expect(psMap.bundle_oid).toBe(jsMap.bundle_oid);
+    expect(psMap.apply_authorized).toBe(false);
+    expect(String(visible.run.stdout)).not.toMatch(/SecureString|postgres:\/\//i);
+    expect(tipSha()).toBe(executable);
   });
 
   it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {

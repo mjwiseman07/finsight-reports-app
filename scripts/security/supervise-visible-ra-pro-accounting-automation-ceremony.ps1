@@ -66,9 +66,15 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
-  # Harness-only one-attempt id. Forwarded only; the entry refuses it unless synthetic URL is allowed.
+  # Harness-only one-attempt id. Forwarded only. The entry rejects it; it is not authorization.
   [Parameter(Mandatory = $false)]
   [string]$TestApplyAttemptId = "",
+
+  [Parameter(Mandatory = $false)]
+  [switch]$EmitAuthorizationMap,
+
+  [Parameter(Mandatory = $false)]
+  [string]$TestPublicationCommit = "",
 
   # Set only by sealed bootstrap after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
@@ -403,6 +409,10 @@ try {
   if ($TestHangBeforeEvidence) { $entryArgs += "-TestHangBeforeEvidence" }
   if (-not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)) {
     $entryArgs += @("-TestApplyAttemptId", $TestApplyAttemptId)
+  }
+  if ($EmitAuthorizationMap) { $entryArgs += "-EmitAuthorizationMap" }
+  if (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit)) {
+    $entryArgs += @("-TestPublicationCommit", $TestPublicationCommit)
   }
 
   $psi = New-Object Diagnostics.ProcessStartInfo

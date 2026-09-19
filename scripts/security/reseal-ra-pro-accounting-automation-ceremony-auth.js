@@ -15,6 +15,10 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const {
+  canonicalUnpublishedAuthorization,
+  assertResealPreservesAuthorization,
+} = require("./ra-pro-accounting-automation-apply-authorization");
 
 const ROOT = path.resolve(__dirname, "../..");
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
@@ -259,14 +263,8 @@ function main() {
     existingPre.apply_authorized = false;
     auth.pre_apply_live_publication = existingPre;
   }
-  auth.production_apply_authorization = {
-    status: "UNPUBLISHED",
-    protocol: "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
-    authorized_tip: null,
-    attempt_id: null,
-    apply_authorized: false,
-    note: "Evidence publication is not apply authorization. Reseal does not publish a production apply attempt.",
-  };
+  assertResealPreservesAuthorization(auth.production_apply_authorization);
+  auth.production_apply_authorization = canonicalUnpublishedAuthorization();
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(

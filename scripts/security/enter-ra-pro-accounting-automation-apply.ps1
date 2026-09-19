@@ -65,9 +65,16 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
-  # Harness-only one-attempt id. Requires the synthetic ceremony env. Never a production authorization.
+  # Harness-only one-attempt id. Operator-supplied attempt ids are not authorization.
   [Parameter(Mandatory = $false)]
   [string]$TestApplyAttemptId = "",
+
+  # Read-only map probe. Requires the synthetic ceremony env and does not launch apply.
+  [Parameter(Mandatory = $false)]
+  [switch]$EmitAuthorizationMap,
+
+  [Parameter(Mandatory = $false)]
+  [string]$TestPublicationCommit = "",
 
   # Set only by sealed supervisor (or authority harness) after tip-blob materialize of this entry.
   [Parameter(Mandatory = $false)]
@@ -117,6 +124,83 @@ function Invoke-GitBytes([string[]]$GitArgs, [string]$WorkDir) {
   if (-not $p.WaitForExit(120000)) { try { $p.Kill() } catch {}; throw "git timed out" }
   if ($p.ExitCode -ne 0) { throw "git failed: $err" }
   return , $ms.ToArray()
+}
+
+function Invoke-GitExit([string[]]$GitArgs, [string]$WorkDir) {
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = ($GitArgs | ForEach-Object {
+      if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+    }) -join " "
+  $psi.WorkingDirectory = $WorkDir
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  Set-GitSafeDirectoryEnv -Psi $psi -Root $WorkDir
+  $p = [Diagnostics.Process]::Start($psi)
+  $null = $p.StandardOutput.ReadToEnd()
+  $null = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) { try { $p.Kill() } catch {}; return 124 }
+  return [int]$p.ExitCode
+}
+
+function Get-ApplyAuthorizationDecision([string]$PublicationCommit, [string]$WorkDir) {
+  $authRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
+  $bundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+  $bytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${PublicationCommit}:${authRel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $bytes -Label $authRel
+  $text = [Text.Encoding]::UTF8.GetString($bytes)
+  if ($text.Contains($PublicationCommit)) {
+    return [ordered]@{ blocked = "APPLY_AUTHORIZATION_CIRCULAR_TIP"; apply_authorized = $false; publication_commit = $PublicationCommit }
+  }
+  $auth = $text | ConvertFrom-Json
+  $record = $auth.production_apply_authorization
+  $map = [ordered]@{
+    publication_commit = $PublicationCommit
+    authorized_executable_commit = $null
+    bundle_oid = $null
+    apply_authorized = $false
+    attempt_id = $null
+    blocked = $null
+    artifact_map = [ordered]@{
+      authorization_record = "publication_commit"
+      ceremony_entry_supervisor_gates_bootstrap = "authorized_executable_commit"
+      bundle_migrations_ca = "authorized_executable_commit"
+    }
+  }
+  if ($null -eq $record -or [string]$record.status -ne "AUTHORIZED" -or -not [bool]$record.apply_authorized) {
+    $map.blocked = "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
+    return $map
+  }
+  $executable = ([string]$record.authorized_executable_commit).ToLowerInvariant()
+  if ($executable -notmatch '^[0-9a-f]{40}$' -or $executable -eq $PublicationCommit) {
+    $map.blocked = "APPLY_AUTHORIZATION_CIRCULAR_TIP"
+    return $map
+  }
+  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $executable, $PublicationCommit) -WorkDir $WorkDir) -ne 0) {
+    $map.blocked = "APPLY_AUTHORIZATION_ANCESTRY"
+    return $map
+  }
+  $names = @(Invoke-GitText -GitArgs @("diff", "--name-only", $executable, $PublicationCommit) -WorkDir $WorkDir)
+  $names = @($names | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($names.Count -ne 1 -or $names[0] -ne $authRel) {
+    $map.blocked = "APPLY_AUTHORIZATION_ALLOWLIST"
+    return $map
+  }
+  if ($null -eq $record.bundle -or [string]::IsNullOrWhiteSpace([string]$record.bundle.oid) -or $null -eq $record.migrations -or $null -eq $record.prior_dry_run_evidence -or $null -eq $record.pre_apply_live_evidence) {
+    $map.blocked = "APPLY_AUTHORIZATION_SEAL_MISSING"
+    return $map
+  }
+  $oid = Invoke-GitText -GitArgs @("rev-parse", "${executable}:${bundleRel}") -WorkDir $WorkDir
+  if ($oid -ne [string]$record.bundle.oid) {
+    $map.blocked = "APPLY_AUTHORIZATION_BUNDLE_MISMATCH"
+    return $map
+  }
+  $map.authorized_executable_commit = $executable
+  $map.bundle_oid = [string]$record.bundle.oid
+  $map.attempt_id = [string]$record.attempt_id
+  $map.blocked = $null
+  return $map
 }
 
 function Invoke-GitText([string[]]$GitArgs, [string]$WorkDir) {
@@ -382,27 +466,36 @@ try {
       exit 1
     }
     $syntheticAttempt = -not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)
-    if ($syntheticAttempt) {
+    if ($syntheticAttempt -or (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit) -and -not $EmitAuthorizationMap)) {
+      Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
+      exit 1
+    }
+    $publicationCommit = $tip
+    if ($EmitAuthorizationMap) {
       $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
       if ($allowSynthetic -ne "1") {
         Write-Blocked "SYNTHETIC_URL_NOT_ALLOWED"
         exit 1
       }
-      if ($TestApplyAttemptId -notmatch '^apply-[0-9a-f]{12}-[0-9a-f]{32}$') {
-        Write-Blocked "APPLY_ATTEMPT_ID_INVALID"
+      if ($TestPublicationCommit -notmatch '^[0-9a-f]{40}$') {
+        Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
         exit 1
       }
-      $script:ApplyLaunch = $true
-    } else {
-      $prod = $auth.production_apply_authorization
-      $authorized = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and -not [string]::IsNullOrWhiteSpace([string]$prod.authorized_tip) -and -not [string]::IsNullOrWhiteSpace([string]$prod.attempt_id)
-      if (-not $authorized -or [string]$prod.authorized_tip -ne $tip) {
-        Write-Blocked "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
-        exit 1
-      }
-      $TestApplyAttemptId = [string]$prod.attempt_id
-      $script:ApplyLaunch = $true
+      $publicationCommit = $TestPublicationCommit.ToLowerInvariant()
     }
+    $decision = Get-ApplyAuthorizationDecision -PublicationCommit $publicationCommit -WorkDir $RepoRoot
+    if ($EmitAuthorizationMap) {
+      Write-Output ($decision | ConvertTo-Json -Compress -Depth 6)
+      if ($decision.blocked) { exit 1 }
+      exit 0
+    }
+    if ($decision.blocked) {
+      Write-Blocked ([string]$decision.blocked)
+      exit 1
+    }
+    $TestApplyAttemptId = [string]$decision.attempt_id
+    $script:AuthorizedExecutableCommit = [string]$decision.authorized_executable_commit
+    $script:ApplyLaunch = $true
   }
 
   $pre = $auth.precondition_publication
@@ -425,6 +518,18 @@ try {
 
   $oc = $auth.operator_ceremony
   if (-not $oc) { throw "missing operator_ceremony seals" }
+  if ($script:ApplyLaunch) {
+    $exec = [string]$script:AuthorizedExecutableCommit
+    $cerOid = Invoke-GitText -GitArgs @("rev-parse", "${exec}:${CeremonyRel}") -WorkDir $RepoRoot
+    if ($cerOid -ne [string]$oc.oid) {
+      throw "APPLY_AUTHORIZATION_ALLOWLIST: ceremony blob at executable commit"
+    }
+    $bundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+    $bundleOid = Invoke-GitText -GitArgs @("rev-parse", "${exec}:${bundleRel}") -WorkDir $RepoRoot
+    if ($bundleOid -ne [string]$auth.standalone_bundle.oid) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle"
+    }
+  }
   $ceremonyDest = Join-Path $script:MaterialRoot "operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
   [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $CeremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
 
