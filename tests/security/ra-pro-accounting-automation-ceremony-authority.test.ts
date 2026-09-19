@@ -204,7 +204,9 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     }
 
     expect(auth.publication?.status).toBe("UNPUBLISHED");
-    expect(auth.publication?.required_prior_dry_run_evidence_sha256).toBeNull();
+    expect(auth.publication?.required_prior_dry_run_evidence_sha256).toBe(
+      "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    );
     expect(auth.publication?.required_pre_apply_live_evidence_sha256).toBeNull();
     expect(auth.precondition_publication?.status).toBe("PUBLISHED");
     expect(auth.precondition_publication?.evidence_sha256).toBe(

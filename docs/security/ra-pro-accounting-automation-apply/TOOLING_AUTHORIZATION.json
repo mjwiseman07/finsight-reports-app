@@ -33,12 +33,24 @@
   ],
   "publication": {
     "status": "UNPUBLISHED",
-    "required_prior_dry_run_evidence_sha256": null,
-    "required_prior_dry_run_evidence_oid": null,
-    "required_prior_dry_run_evidence_bytes": null,
+    "required_prior_dry_run_evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "required_prior_dry_run_evidence_oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
+    "required_prior_dry_run_evidence_bytes": 5100,
     "required_pre_apply_live_evidence_sha256": null,
     "required_pre_apply_live_evidence_oid": null,
     "required_pre_apply_live_evidence_bytes": null
+  },
+  "prior_dry_run_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1.json",
+    "evidence_source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
+    "evidence_blob_oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
+    "evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "evidence_bytes": 5100,
+    "reviewed_tip": "99e6ed195c95b5cdcd27a6690f2441df4e7ae6a9",
+    "attempt_marker": "attempt-99e6ed195c95-aaa974cab7984e13a66e4e1237e211b9.marker",
+    "apply_authorized": false
   },
   "precondition_publication": {
     "status": "PUBLISHED",
@@ -59,6 +71,7 @@
   "notes": [
     "Dry-run requires published precondition_publication only.",
     "Production apply remains unreachable until prior-dry-run and pre-apply pins publish.",
+    "Prior-dry-run evidence pin is published from the reviewed 99e6ed19 dry run. Pre-apply pins stay null, so apply remains unauthorized.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels.",
     "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
@@ -68,9 +81,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "2e42488b4888f8fe1a1cd25fdbcaa5d72594d84e",
-    "sha256": "6061df5e2689d8658169485beb0f66f3b73591de0161b4f47f65beb9eb8d4614",
-    "bytes": 277613,
+    "oid": "c159d07f1964627ee3e94aef9b68ffe4fc79218d",
+    "sha256": "b14d851ee4625b20fe3de40ec4b1c3560820db9610279245c0fc1c802a691f91",
+    "bytes": 289970,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },

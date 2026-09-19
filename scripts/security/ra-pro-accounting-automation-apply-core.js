@@ -47,6 +47,9 @@ const {
   assertPreconditionEvidencePublished,
 } = require("./ra-pro-accounting-automation-precondition-gates");
 const {
+  assertPriorDryRunEvidencePublished,
+} = require("./ra-pro-accounting-automation-prior-dry-run-gates");
+const {
   captureSentinelCounts,
   collectDryRunSchemaProbes,
   verifyPostCommit,
@@ -738,8 +741,17 @@ function assertBundleAuthority(inputs = {}) {
 function assertAuthorizationPublished(inputs = {}) {
   assertNoHarnessEnvOrArgv(inputs);
   if (inputs.allowUnpublishedForHarness === true) return { harness_bypass: true };
-  const auth = loadAuthorizationPackage(resolveRepoRoot(inputs));
+  const cwd = resolveRepoRoot(inputs);
+  const auth = loadAuthorizationPackage(cwd);
   const pub = auth.publication || {};
+  if (pub.required_prior_dry_run_evidence_sha256 != null) {
+    assertPriorDryRunEvidencePublished({
+      auth,
+      cwd,
+      env: inputs.env || process.env,
+      priorDryRunEvidencePath: inputs.priorDryRunEvidencePath,
+    });
+  }
   const unpublished =
     auth.publication?.status === "UNPUBLISHED" ||
     pub.required_prior_dry_run_evidence_sha256 == null ||

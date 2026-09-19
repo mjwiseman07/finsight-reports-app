@@ -205,12 +205,14 @@ function main() {
 
   if (!auth.publication) auth.publication = {};
   auth.publication.status = "UNPUBLISHED";
-  auth.publication.required_prior_dry_run_evidence_sha256 = null;
-  auth.publication.required_prior_dry_run_evidence_oid = null;
-  auth.publication.required_prior_dry_run_evidence_bytes = null;
   auth.publication.required_pre_apply_live_evidence_sha256 = null;
   auth.publication.required_pre_apply_live_evidence_oid = null;
   auth.publication.required_pre_apply_live_evidence_bytes = null;
+  if (!Object.prototype.hasOwnProperty.call(auth.publication, "required_prior_dry_run_evidence_sha256")) {
+    auth.publication.required_prior_dry_run_evidence_sha256 = null;
+    auth.publication.required_prior_dry_run_evidence_oid = null;
+    auth.publication.required_prior_dry_run_evidence_bytes = null;
+  }
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(
