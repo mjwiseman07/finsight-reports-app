@@ -6310,83 +6310,181 @@ var require_ra_pro_accounting_automation_apply_authorization = __commonJS({
     "use strict";
     var fs = require("node:fs");
     var path = require("node:path");
-    var { MIGRATIONS } = require_ra_pro_accounting_automation_apply_constants();
+    var { execFileSync } = require("node:child_process");
+    var {
+      APPLY_AUTHORIZATION_TOKEN: APPLY_AUTHORIZATION_TOKEN2,
+      DATABASE_URL_ENV: DATABASE_URL_ENV2,
+      EXPECTED_PROJECT_REF,
+      MIGRATIONS
+    } = require_ra_pro_accounting_automation_apply_constants();
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
     var {
       OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256
     } = require_ra_pro_accounting_automation_tls_ca();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1";
+    var AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
+    var BUNDLE_REL = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
     var ATTEMPT_RE = /^apply-[0-9a-f]{12}-[0-9a-f]{32}$/;
+    var HEX40 = /^[0-9a-f]{40}$/;
+    var ARTIFACT_MAP = Object.freeze({
+      authorization_record: "publication_commit",
+      ceremony_entry_supervisor_gates_bootstrap: "authorized_executable_commit",
+      bundle_migrations_ca: "authorized_executable_commit"
+    });
     function blocked(code, message) {
       const error = new Error(`${code}: ${message}`);
       error.code = code;
       error.phase = "authorization";
       return error;
     }
+    function gitEnv(cwd) {
+      const env = { ...process.env };
+      const n = Number(env.GIT_CONFIG_COUNT || 0);
+      env.GIT_CONFIG_COUNT = String(n + 1);
+      env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+      env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-disposable";
+      env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-disposable@invalid";
+      env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-disposable";
+      env.GIT_COMMITTER_EMAIL = env.GIT_COMMITTER_EMAIL || "ra-acct-disposable@invalid";
+      return env;
+    }
+    function gitText(args, cwd) {
+      return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
+    }
+    function assertNotCircularPin(publication, executable, blobText) {
+      if (!HEX40.test(String(executable || "")) || executable === publication || String(blobText || "").includes(publication)) {
+        throw blocked("APPLY_AUTHORIZATION_CIRCULAR_TIP", "publication commit must not name itself");
+      }
+    }
+    function canonicalUnpublishedAuthorization() {
+      return {
+        status: "UNPUBLISHED",
+        protocol: PROTOCOL,
+        apply_authorized: false,
+        authorized_executable_commit: null,
+        attempt_id: null,
+        project_ref: null,
+        database_url_env: null,
+        apply_authorization_token: null,
+        bundle: null,
+        migrations: null,
+        prior_dry_run_evidence: null,
+        pre_apply_live_evidence: null,
+        tls_trust_root: null,
+        publication_role: "later_descendant_commit",
+        note: "The executable commit is an ancestor named by a later publication commit. This record must not contain that publication commit's own SHA. Evidence publication and the apply token do not authorize apply."
+      };
+    }
     function assertNoAuthorizationEnv(env) {
       for (const key of [
         "RA_PRO_ACCOUNTING_AUTOMATION_SYNTHETIC_APPLY_AUTHORIZATION",
         "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID",
-        "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_MARKER_DIR"
+        "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_MARKER_DIR",
+        "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_COMMIT",
+        "RA_PRO_ACCOUNTING_AUTOMATION_EXECUTABLE_COMMIT"
       ]) {
         if (env && Object.prototype.hasOwnProperty.call(env, key) && env[key]) {
           throw blocked("APPLY_AUTHORIZATION_ENV_OVERRIDE_FORBIDDEN", key);
         }
       }
     }
-    function assertAttemptId(attemptId) {
-      if (!ATTEMPT_RE.test(String(attemptId || ""))) {
-        throw blocked("APPLY_ATTEMPT_ID_INVALID", "attempt id");
-      }
-      if (String(attemptId).startsWith("attempt-")) {
-        throw blocked("APPLY_MARKER_DRY_RUN_REUSE_FORBIDDEN", "dry-run prefix");
-      }
-    }
-    function markerFile(dir, attemptId) {
-      assertAttemptId(attemptId);
-      if (!dir || typeof dir !== "string") throw blocked("APPLY_MARKER_DIR_REQUIRED", "dir");
-      return path.join(dir, `${attemptId}.marker`);
-    }
-    function assertNotConsumed(dir, attemptId) {
-      const file = markerFile(dir, attemptId);
-      if (fs.existsSync(file)) throw blocked("APPLY_ATTEMPT_CONSUMED", file);
-      return file;
-    }
-    function createApplyMarkerAtomic(dir, tip, attemptId) {
-      const file = assertNotConsumed(dir, attemptId);
-      fs.mkdirSync(dir, { recursive: true });
-      const body = `apply
-${tip}
-${attemptId}
-`;
-      let fd;
-      try {
-        fd = fs.openSync(file, "wx");
-        fs.writeFileSync(fd, body);
-      } catch (err) {
-        if (err && (err.code === "EEXIST" || err.code === "APPLY_ATTEMPT_CONSUMED")) {
-          throw blocked("APPLY_ATTEMPT_CONSUMED", "create collision");
+    function resolvePublicationCommit(inputs, cwd) {
+      if (inputs.publicationCommit || inputs.tip) {
+        if (inputs.allowDisposablePublicationCommit !== true || inputs.tip) {
+          throw blocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN", "publication commit");
         }
-        throw blocked("APPLY_MARKER_CREATE_FAILED", err && err.message ? err.message : "create");
-      } finally {
-        if (fd != null) fs.closeSync(fd);
+        const commit = String(inputs.publicationCommit || "").toLowerCase();
+        if (!HEX40.test(commit)) throw blocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN", "shape");
+        return commit;
       }
-      return file;
+      return gitText(["rev-parse", "HEAD"], cwd);
     }
-    function verifyExistingMarker(file, tip, attemptId) {
-      assertAttemptId(attemptId);
-      if (!file || !fs.existsSync(file)) throw blocked("APPLY_MARKER_MISSING", "before credentials");
-      const text = fs.readFileSync(file, "utf8");
-      if (text.startsWith("dry-run")) throw blocked("APPLY_MARKER_DRY_RUN_REUSE_FORBIDDEN", "body");
-      const lines = text.split(/\n/);
-      if (lines[0] !== "apply" || lines[1] !== tip || lines[2] !== attemptId) {
-        throw blocked("APPLY_MARKER_MISMATCH", "body");
+    function loadAuthFromGit(commit, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: AUTH_REL, cwd });
+      return { auth: JSON.parse(loaded.buffer.toString("utf8")), loaded };
+    }
+    function isAncestor(ancestor, descendant, cwd) {
+      try {
+        execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+          cwd,
+          env: gitEnv(cwd),
+          stdio: "ignore"
+        });
+        return true;
+      } catch {
+        return false;
       }
-      return file;
     }
-    function assertIdentities(auth, cwd) {
-      const tls = auth && auth.tls_trust_root;
-      if (!tls || tls.der_sha256 !== OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256) {
+    function assertAllowlist(executable, publication, cwd) {
+      if (!isAncestor(executable, publication, cwd) || executable === publication) {
+        throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable must be a strict ancestor");
+      }
+      const names = gitText(["diff", "--name-only", executable, publication], cwd).split(/\n/).filter(Boolean);
+      if (names.length !== 1 || names[0] !== AUTH_REL) {
+        throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", names.join(",") || "empty");
+      }
+      const left = loadAuthFromGit(executable, cwd).auth;
+      const right = loadAuthFromGit(publication, cwd).auth;
+      const prior = left.production_apply_authorization || {};
+      if (prior.status !== "UNPUBLISHED" || prior.apply_authorized !== false || prior.authorized_executable_commit) {
+        throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "executable record is not unpublished");
+      }
+      left.production_apply_authorization = null;
+      right.production_apply_authorization = null;
+      if (JSON.stringify(left) !== JSON.stringify(right)) {
+        throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "non-authorization json changed");
+      }
+    }
+    function requireSeal(seal, label) {
+      if (!seal || !HEX40.test(String(seal.oid || "")) || !/^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) || !Number.isInteger(seal.bytes)) {
+        throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", label);
+      }
+    }
+    function assertBlob(commit, rel, seal, cwd, code) {
+      requireSeal(seal, rel);
+      try {
+        loadAndVerifyGitBlob({
+          commit,
+          path: rel,
+          expectedOid: seal.oid,
+          expectedSha256: seal.sha256,
+          expectedBytes: seal.bytes,
+          cwd
+        });
+      } catch (err) {
+        throw blocked(code, err && err.message ? err.message : rel);
+      }
+    }
+    function assertRecordSeals(record, executable, cwd) {
+      const bundle = record.bundle || {};
+      requireSeal(bundle, "bundle");
+      if (bundle.path !== BUNDLE_REL) throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", "path");
+      assertBlob(executable, BUNDLE_REL, bundle, cwd, "APPLY_AUTHORIZATION_BUNDLE_MISMATCH");
+      if (!Array.isArray(record.migrations) || record.migrations.length !== MIGRATIONS.length) {
+        throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", "migrations");
+      }
+      MIGRATIONS.forEach((expected, index) => {
+        const got = record.migrations[index] || {};
+        if (got.version !== expected.version || got.path !== expected.path) {
+          throw blocked("APPLY_AUTHORIZATION_MIGRATION_MISMATCH", expected.version);
+        }
+        assertBlob(executable, expected.path, got, cwd, "APPLY_AUTHORIZATION_MIGRATION_MISMATCH");
+        if (got.oid !== expected.oid || got.sha256 !== expected.sha256 || got.bytes !== expected.bytes) {
+          throw blocked("APPLY_AUTHORIZATION_MIGRATION_MISMATCH", expected.version);
+        }
+      });
+      for (const key of ["prior_dry_run_evidence", "pre_apply_live_evidence"]) {
+        const seal = record[key] || {};
+        requireSeal(seal, key);
+        if (!seal.path || !HEX40.test(String(seal.source_commit || ""))) {
+          throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", key);
+        }
+        assertBlob(seal.source_commit, seal.path, seal, cwd, "APPLY_AUTHORIZATION_SEAL_MISSING");
+      }
+      const tls = record.tls_trust_root || {};
+      requireSeal(tls, "ca");
+      if (tls.der_sha256 !== OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 || !tls.path || !HEX40.test(String(tls.source_commit || ""))) {
         throw blocked("APPLY_AUTHORIZATION_CA_MISMATCH", "der");
       }
       const loaded = loadAndVerifyGitBlob({
@@ -6397,74 +6495,242 @@ ${attemptId}
         expectedBytes: tls.bytes,
         cwd
       });
-      const text = loaded.buffer.toString("utf8");
-      if (!text.includes(tls.der_sha256)) {
+      if (!loaded.buffer.toString("utf8").includes(tls.der_sha256)) {
         throw blocked("APPLY_AUTHORIZATION_CA_MISMATCH", "blob");
       }
-      const migrations = auth && auth.migrations || [];
-      if (migrations.length !== MIGRATIONS.length) {
-        throw blocked("APPLY_AUTHORIZATION_MIGRATION_MISMATCH", "count");
+      if (record.project_ref !== EXPECTED_PROJECT_REF) throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", "project");
+      if (record.database_url_env !== DATABASE_URL_ENV2) throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", "channel");
+      if (record.apply_authorization_token !== APPLY_AUTHORIZATION_TOKEN2) {
+        throw blocked("APPLY_AUTHORIZATION_TOKEN_MISMATCH", "record token");
       }
-      MIGRATIONS.forEach((expected, index) => {
-        const got = migrations[index] || {};
-        if (got.version !== expected.version || got.oid !== expected.oid || got.sha256 !== expected.sha256 || got.bytes !== expected.bytes) {
-          throw blocked("APPLY_AUTHORIZATION_MIGRATION_MISMATCH", expected.version);
-        }
-      });
-      const bundle = auth.standalone_bundle || {};
-      if (!bundle.oid || !bundle.sha256 || !bundle.bytes) {
-        throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", "missing");
-      }
-      return bundle;
     }
-    function assertOneAttemptApplyAuthorization(inputs = {}) {
-      const env = inputs.env || {};
-      assertNoAuthorizationEnv(env);
-      const auth = inputs.auth;
-      if (!auth || typeof auth !== "object") throw blocked("APPLY_AUTHORIZATION_ABSENT", "auth");
-      const tip = String(inputs.tip || "").toLowerCase();
-      if (!/^[0-9a-f]{40}$/.test(tip)) throw blocked("APPLY_AUTHORIZATION_TIP_MISMATCH", "tip");
-      const synthetic = inputs.allowSyntheticOneAttemptAuthorization === true;
-      if (!synthetic) {
-        const published = auth.production_apply_authorization || {};
-        if (published.status !== "AUTHORIZED" || published.apply_authorized !== true || !published.authorized_tip || !published.attempt_id) {
-          throw blocked(
-            "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS",
-            "production apply authorization is unpublished; evidence publication is not sufficient"
-          );
-        }
+    function assertAttemptId(attemptId) {
+      if (!ATTEMPT_RE.test(String(attemptId || ""))) throw blocked("APPLY_ATTEMPT_ID_INVALID", "attempt id");
+    }
+    function describeApplyArtifactMap(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      assertNoAuthorizationEnv(inputs.env || {});
+      const publication = resolvePublicationCommit(inputs, cwd);
+      const { auth, loaded } = loadAuthFromGit(publication, cwd);
+      if (inputs.auth && JSON.stringify(inputs.auth) !== JSON.stringify(auth)) {
+        throw blocked("APPLY_AUTHORIZATION_WORKTREE_SUBSTITUTE", "auth object");
       }
-      const bundle = assertIdentities(auth, inputs.cwd);
-      if (inputs.authorizationToken !== inputs.expectedToken) {
+      const record = auth.production_apply_authorization || {};
+      const base = {
+        protocol: PROTOCOL,
+        publication_commit: publication,
+        authorization_blob_oid: loaded.oid,
+        authorized_executable_commit: null,
+        bundle_oid: null,
+        apply_authorized: false,
+        artifact_map: ARTIFACT_MAP,
+        blocked: null
+      };
+      if (record.status !== "AUTHORIZED" || record.apply_authorized !== true) {
+        return { ...base, blocked: "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS" };
+      }
+      const executable = String(record.authorized_executable_commit || "").toLowerCase();
+      assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
+      assertAllowlist(executable, publication, cwd);
+      assertAttemptId(record.attempt_id);
+      assertRecordSeals(record, executable, cwd);
+      if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN2) {
         throw blocked("APPLY_AUTHORIZATION_TOKEN_MISMATCH", "token");
       }
-      const record = synthetic ? inputs.syntheticApplyAuthorization : auth.production_apply_authorization;
-      if (!record || typeof record !== "object") throw blocked("APPLY_AUTHORIZATION_ABSENT", "record");
-      const attemptId = String(record.attempt_id || "");
-      const authorizedTip = String(record.authorized_tip || "").toLowerCase();
+      return {
+        ...base,
+        authorized_executable_commit: executable,
+        bundle_oid: record.bundle.oid,
+        attempt_id: record.attempt_id,
+        blocked: null
+      };
+    }
+    function markerFile(dir, attemptId) {
       assertAttemptId(attemptId);
-      if (authorizedTip !== tip) throw blocked("APPLY_AUTHORIZATION_TIP_MISMATCH", "authorized tip");
-      if (record.bundle_oid && record.bundle_oid !== bundle.oid) {
-        throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", "oid");
+      if (!dir || typeof dir !== "string") throw blocked("APPLY_MARKER_DIR_REQUIRED", "dir");
+      return path.join(dir, `${attemptId}.marker`);
+    }
+    function createApplyMarkerAtomic(dir, executable, attemptId) {
+      const file = markerFile(dir, attemptId);
+      if (fs.existsSync(file)) throw blocked("APPLY_ATTEMPT_CONSUMED", "exists");
+      fs.mkdirSync(dir, { recursive: true });
+      let fd;
+      try {
+        fd = fs.openSync(file, "wx");
+        fs.writeFileSync(fd, `apply
+${executable}
+${attemptId}
+`);
+      } catch (err) {
+        if (err && (err.code === "EEXIST" || err.code === "APPLY_ATTEMPT_CONSUMED")) {
+          throw blocked("APPLY_ATTEMPT_CONSUMED", "create collision");
+        }
+        throw blocked("APPLY_MARKER_CREATE_FAILED", err && err.message ? err.message : "create");
+      } finally {
+        if (fd != null) fs.closeSync(fd);
       }
-      if (record.bundle_sha256 && record.bundle_sha256 !== bundle.sha256) {
-        throw blocked("APPLY_AUTHORIZATION_BUNDLE_MISMATCH", "sha");
+      return file;
+    }
+    function verifyExistingMarker(file, executable, attemptId) {
+      assertAttemptId(attemptId);
+      if (!file || !fs.existsSync(file)) throw blocked("APPLY_MARKER_MISSING", "before credentials");
+      const lines = fs.readFileSync(file, "utf8").split(/\n/);
+      if (lines[0] === "dry-run") throw blocked("APPLY_MARKER_DRY_RUN_REUSE_FORBIDDEN", "body");
+      if (lines[0] !== "apply" || lines[1] !== executable || lines[2] !== attemptId) {
+        throw blocked("APPLY_MARKER_MISMATCH", "body");
       }
+      return file;
+    }
+    function assertOneAttemptApplyAuthorization(inputs = {}) {
+      const map = describeApplyArtifactMap(inputs);
+      if (map.blocked) throw blocked(map.blocked, "production apply authorization is unpublished");
+      const executable = map.authorized_executable_commit;
+      const attemptId = map.attempt_id;
       if (inputs.existingMarkerPath) {
         return {
-          marker: verifyExistingMarker(inputs.existingMarkerPath, tip, attemptId),
-          attemptId,
-          synthetic,
-          apply_authorized: false
+          ...map,
+          marker: verifyExistingMarker(inputs.existingMarkerPath, executable, attemptId),
+          attemptId
         };
       }
-      const marker = createApplyMarkerAtomic(inputs.markerDir, tip, attemptId);
-      return { marker, attemptId, synthetic, apply_authorized: false };
+      return {
+        ...map,
+        marker: createApplyMarkerAtomic(inputs.markerDir, executable, attemptId),
+        attemptId
+      };
+    }
+    function buildAuthorizedRecord(auth, executable, attemptId) {
+      const prior = auth.prior_dry_run_publication || {};
+      const pre = auth.pre_apply_live_publication || {};
+      const bundle = auth.standalone_bundle || {};
+      return {
+        status: "AUTHORIZED",
+        protocol: PROTOCOL,
+        apply_authorized: true,
+        authorized_executable_commit: executable,
+        attempt_id: attemptId,
+        project_ref: auth.project_ref,
+        database_url_env: auth.database_url_env,
+        apply_authorization_token: auth.apply_authorization_token,
+        bundle: {
+          path: bundle.path,
+          oid: bundle.oid,
+          sha256: bundle.sha256,
+          bytes: bundle.bytes
+        },
+        migrations: (auth.migrations || []).map((row) => ({
+          version: row.version,
+          path: row.path,
+          oid: row.oid,
+          sha256: row.sha256,
+          bytes: row.bytes
+        })),
+        prior_dry_run_evidence: {
+          path: prior.evidence_path,
+          source_commit: prior.evidence_source_commit,
+          oid: prior.evidence_blob_oid,
+          sha256: prior.evidence_sha256,
+          bytes: prior.evidence_bytes
+        },
+        pre_apply_live_evidence: {
+          path: pre.evidence_path,
+          source_commit: pre.evidence_source_commit,
+          oid: pre.evidence_blob_oid,
+          sha256: pre.evidence_sha256,
+          bytes: pre.evidence_bytes
+        },
+        tls_trust_root: {
+          path: auth.tls_trust_root && auth.tls_trust_root.path,
+          source_commit: auth.tls_trust_root && auth.tls_trust_root.source_commit,
+          oid: auth.tls_trust_root && auth.tls_trust_root.oid,
+          sha256: auth.tls_trust_root && auth.tls_trust_root.sha256,
+          bytes: auth.tls_trust_root && auth.tls_trust_root.bytes,
+          der_sha256: auth.tls_trust_root && auth.tls_trust_root.der_sha256
+        },
+        publication_role: "later_descendant_commit",
+        note: "Disposable or later publication. The publication commit SHA is not stored here."
+      };
+    }
+    function mktree(lines, cwd) {
+      return execFileSync("git", ["mktree"], {
+        cwd,
+        env: gitEnv(cwd),
+        input: `${lines.join("\n")}
+`,
+        encoding: "utf8"
+      }).trim();
+    }
+    function replacePathInTree(tree, parts, blob, cwd) {
+      const lines = gitText(["ls-tree", tree], cwd).split(/\n/).filter(Boolean);
+      const name = parts[0];
+      let found = false;
+      const next = lines.map((line) => {
+        const tab = line.indexOf("	");
+        if (line.slice(tab + 1) !== name) return line;
+        found = true;
+        if (parts.length === 1) return `100644 blob ${blob}	${name}`;
+        const old = line.slice(0, tab).split(" ")[2];
+        const child = replacePathInTree(old, parts.slice(1), blob, cwd);
+        return `040000 tree ${child}	${name}`;
+      });
+      if (!found) throw blocked("GIT_BLOB_LOAD_FAILED", parts.join("/"));
+      return mktree(next, cwd);
+    }
+    function commitPublicationTree(cwd, parent, authObject) {
+      const text = `${JSON.stringify(authObject, null, 2)}
+`;
+      if (text.includes("\r")) throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "crlf");
+      const executable = String((authObject.production_apply_authorization || {}).authorized_executable_commit || "");
+      const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd,
+        env: gitEnv(cwd),
+        input: text,
+        encoding: "utf8"
+      }).trim();
+      const tree = gitText(["rev-parse", `${parent}^{tree}`], cwd);
+      const newTree = replacePathInTree(tree, AUTH_REL.split("/"), blob, cwd);
+      const publication = execFileSync(
+        "git",
+        ["commit-tree", newTree, "-p", parent, "-m", "disposable accounting apply authorization"],
+        { cwd, env: gitEnv(cwd), encoding: "utf8" }
+      ).trim();
+      assertNotCircularPin(publication, executable, text);
+      return publication;
+    }
+    function createDisposablePublicationCommit(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const executable = String(inputs.executableCommit || "").toLowerCase();
+      if (!HEX40.test(executable)) throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable");
+      assertAttemptId(inputs.attemptId);
+      const { auth } = loadAuthFromGit(executable, cwd);
+      if ((auth.production_apply_authorization || {}).status === "AUTHORIZED") {
+        throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
+      }
+      auth.production_apply_authorization = buildAuthorizedRecord(auth, executable, inputs.attemptId);
+      const before = gitText(["rev-parse", "HEAD"], cwd);
+      const publication = commitPublicationTree(cwd, executable, auth);
+      const after = gitText(["rev-parse", "HEAD"], cwd);
+      if (before !== after) throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "HEAD moved");
+      return { publicationCommit: publication, executableCommit: executable, headUnchanged: true };
+    }
+    function assertResealPreservesAuthorization(record) {
+      const current = record || {};
+      if (current.status === "AUTHORIZED" || current.apply_authorized === true || current.authorized_executable_commit) {
+        throw blocked("RESEAL_WOULD_RESET_AUTHORIZATION", "reseal cannot publish or clear an authorization");
+      }
     }
     module2.exports = {
+      AUTH_REL,
+      ARTIFACT_MAP,
       PROTOCOL,
       assertOneAttemptApplyAuthorization,
+      assertResealPreservesAuthorization,
+      assertNotCircularPin,
+      canonicalUnpublishedAuthorization,
       createApplyMarkerAtomic,
+      createDisposablePublicationCommit,
+      commitPublicationTree,
+      describeApplyArtifactMap,
       verifyExistingMarker
     };
   }
@@ -7513,16 +7779,25 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
       }
       return process.cwd();
     }
-    function loadAuthorizationPackage(cwd = ROOT) {
-      const abs = path.join(cwd, TOOLING_AUTHORIZATION_PATH);
-      try {
-        return JSON.parse(fs.readFileSync(abs, "utf8"));
-      } catch (err) {
-        const e = new Error("AUTHORIZATION_PACKAGE_UNREADABLE");
-        e.code = "AUTHORIZATION_PINS_UNPUBLISHED";
-        e.cause = err;
-        throw e;
-      }
+    function loadAuthorizationPackage(cwd = ROOT, commit) {
+      const publication = commit || execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd,
+        encoding: "utf8",
+        env: (() => {
+          const env = { ...process.env };
+          const n = Number(env.GIT_CONFIG_COUNT || 0);
+          env.GIT_CONFIG_COUNT = String(n + 1);
+          env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+          env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+          return env;
+        })()
+      }).trim();
+      const loaded = loadAndVerifyGitBlob({
+        commit: publication,
+        path: TOOLING_AUTHORIZATION_PATH,
+        cwd
+      });
+      return JSON.parse(loaded.buffer.toString("utf8"));
     }
     function assertNoHarnessEnvOrArgv(inputs = {}) {
       const env = inputs.env || process.env;
@@ -7534,7 +7809,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         "ALLOW_LOCALHOST_FOR_HARNESS",
         "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS",
         "RA_PRO_ACCOUNTING_AUTOMATION_SYNTHETIC_APPLY_AUTHORIZATION",
-        "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID"
+        "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID",
+        "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_COMMIT",
+        "RA_PRO_ACCOUNTING_AUTOMATION_EXECUTABLE_COMMIT"
       ];
       for (const name of forbiddenEnv) {
         if (Object.prototype.hasOwnProperty.call(env, name) && env[name]) {
@@ -7545,7 +7822,7 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         }
       }
       const argv = inputs.argv || process.argv || [];
-      if (argv.some((a) => /harness|allow-unpublished|allow-localhost|synthetic-apply|apply-attempt/i.test(String(a)))) {
+      if (argv.some((a) => /harness|allow-unpublished|allow-localhost|synthetic-apply|apply-attempt|publication-commit|executable-commit/i.test(String(a)))) {
         const e = new Error("HARNESS_VIA_ARGV_FORBIDDEN");
         e.code = "HARNESS_VIA_ARGV_FORBIDDEN";
         e.phase = "bundle_authority";
@@ -7662,7 +7939,8 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
     function assertAuthorizationPublished(inputs = {}) {
       assertNoHarnessEnvOrArgv(inputs);
       const cwd = resolveRepoRoot(inputs);
-      const auth = loadAuthorizationPackage(cwd);
+      const publicationCommit = inputs.allowDisposablePublicationCommit === true ? inputs.publicationCommit : void 0;
+      const auth = loadAuthorizationPackage(cwd, publicationCommit);
       const pub = auth.publication || {};
       if (pub.required_prior_dry_run_evidence_sha256 != null) {
         assertPriorDryRunEvidencePublished({
@@ -7687,33 +7965,26 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         preApplyEvidencePath: inputs.preApplyEvidencePath,
         now: inputs.now
       });
-      let tip = inputs.tip;
-      if (!tip) {
-        tip = execFileSync("git", ["rev-parse", "HEAD"], {
-          cwd,
-          encoding: "utf8",
-          env: (() => {
-            const env = { ...inputs.env || process.env };
-            const n = Number(env.GIT_CONFIG_COUNT || 0);
-            env.GIT_CONFIG_COUNT = String(n + 1);
-            env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-            env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
-            return env;
-          })()
-        }).trim();
-      }
-      return assertOneAttemptApplyAuthorization({
-        auth,
+      const decision = assertOneAttemptApplyAuthorization({
+        ...inputs,
         cwd,
-        env: inputs.env || process.env,
-        tip,
-        authorizationToken: inputs.authorizationToken,
-        expectedToken: APPLY_AUTHORIZATION_TOKEN2,
-        allowSyntheticOneAttemptAuthorization: inputs.allowSyntheticOneAttemptAuthorization === true,
-        syntheticApplyAuthorization: inputs.syntheticApplyAuthorization,
-        markerDir: inputs.markerDir,
-        existingMarkerPath: inputs.existingMarkerPath
+        auth,
+        env: inputs.env || {}
       });
+      if (decision.authorized_executable_commit) {
+        const executable = decision.authorized_executable_commit;
+        const requestedArtifact = inputs.artifactCommit ? String(inputs.artifactCommit).toLowerCase() : "";
+        const requestedBundle = inputs.bundleAuthorityCommit ? String(inputs.bundleAuthorityCommit).toLowerCase() : "";
+        if (requestedArtifact && requestedArtifact !== executable || requestedBundle && requestedBundle !== executable) {
+          const e = new Error("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: executable commit");
+          e.code = "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN";
+          e.phase = "authorization";
+          throw e;
+        }
+        inputs.artifactCommit = executable;
+        inputs.bundleAuthorityCommit = executable;
+      }
+      return decision;
     }
     var assertApplyAuthorizationPublished = assertAuthorizationPublished;
     function assertPublishedPrecondition(inputs = {}) {
@@ -7981,6 +8252,9 @@ var require_ra_pro_accounting_automation_apply_core = __commonJS({
         evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
         evidence.precondition_evidence = assertPublishedPrecondition(inputs);
         evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);
+        if (inputs.bundleAuthorityCommit) {
+          evidence.bundle_authority = assertBundleAuthority(inputs);
+        }
         packed = loadSealedMigrations(inputs);
         evidence.source_authority = packed.map((p) => ({
           version: p.migration.version,
