@@ -259,6 +259,14 @@ function main() {
     existingPre.apply_authorized = false;
     auth.pre_apply_live_publication = existingPre;
   }
+  auth.production_apply_authorization = {
+    status: "UNPUBLISHED",
+    protocol: "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
+    authorized_tip: null,
+    attempt_id: null,
+    apply_authorized: false,
+    note: "Evidence publication is not apply authorization. Reseal does not publish a production apply attempt.",
+  };
 
   writeLf(AUTH_PATH, `${JSON.stringify(auth, null, 2)}\n`);
   console.log(

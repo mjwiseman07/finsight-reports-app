@@ -66,6 +66,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
+  # Harness-only one-attempt id. Forwarded only; the entry refuses it unless synthetic URL is allowed.
+  [Parameter(Mandatory = $false)]
+  [string]$TestApplyAttemptId = "",
+
   # Set only by sealed bootstrap after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -397,6 +401,9 @@ try {
   if ($TestForcePromptWindowClose) { $entryArgs += "-TestForcePromptWindowClose" }
   if ($TestForcePromptCancel) { $entryArgs += "-TestForcePromptCancel" }
   if ($TestHangBeforeEvidence) { $entryArgs += "-TestHangBeforeEvidence" }
+  if (-not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)) {
+    $entryArgs += @("-TestApplyAttemptId", $TestApplyAttemptId)
+  }
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $psExe

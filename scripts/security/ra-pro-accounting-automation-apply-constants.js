@@ -3,7 +3,8 @@
 /**
  * Offline authority for the RA Pro accounting-automation migration applicator.
  * Dry-run: published precondition_publication only.
- * Apply: remains unreachable until prior-dry-run and pre-apply pins publish.
+ * Apply: one-attempt authorization. Evidence publication is not sufficient.
+ * The committed production_apply_authorization record stays UNPUBLISHED.
  * Bundle authority is external (OID/SHA/bytes) — never PENDING self-hash alone.
  */
 const ARTIFACT_COMMIT = "85ae600be8ef8ef3498703bf480f8148d6fe0971";

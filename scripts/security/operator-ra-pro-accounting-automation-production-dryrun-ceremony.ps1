@@ -81,6 +81,14 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$TestHostClassFile = "",
 
+  # One-attempt apply. Default remains dry-run. Production authorization is a separate record.
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("dry-run", "apply")]
+  [string]$Mode = "dry-run",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ApplyAttemptId = "",
+
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -227,6 +235,30 @@ function Read-BoundedSecureString([string]$Prompt, [int]$TimeoutMs) {
   }
   Write-Host ""
   return $ss
+}
+
+function New-ApplyMarkerAtomic([string]$Dir, [string]$Tip, [string]$AttemptId) {
+  if ($AttemptId -notmatch '^apply-[0-9a-f]{12}-[0-9a-f]{32}$') {
+    throw "APPLY_ATTEMPT_ID_INVALID: attempt id"
+  }
+  if ($AttemptId.StartsWith("attempt-")) {
+    throw "APPLY_MARKER_DRY_RUN_REUSE_FORBIDDEN: dry-run prefix"
+  }
+  $markerPath = Join-Path $Dir ($AttemptId + ".marker")
+  if (Test-Path -LiteralPath $markerPath) {
+    throw "APPLY_ATTEMPT_CONSUMED: marker exists"
+  }
+  $stream = $null
+  try {
+    $stream = [IO.File]::Open($markerPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $body = [Text.Encoding]::UTF8.GetBytes(("apply`n{0}`n{1}`n" -f $Tip, $AttemptId))
+    $stream.Write($body, 0, $body.Length)
+  } catch {
+    throw "APPLY_ATTEMPT_CONSUMED: create collision"
+  } finally {
+    if ($null -ne $stream) { $stream.Dispose() }
+  }
+  return $markerPath
 }
 
 function New-AttemptMarkerAtomic([string]$Dir, [string]$Head) {
@@ -732,7 +764,7 @@ $combined = ""
 Clear-Host
 Write-Host "RA Pro accounting-automation production dry-run ceremony"
 Write-Host "PrHead: $PrHead"
-Write-Host "Mode: dry-run (precondition authority only; apply pins remain unpublished)"
+Write-Host ("Mode: " + $Mode + " (production apply authorization stays unpublished until a later explicit one-attempt record)")
 Write-Host "Paste an already-known URL at the hidden prompt. Do not paste into chat."
 
 try {
@@ -815,6 +847,25 @@ try {
 
   Assert-EmbeddedTlsCaSeal -Auth $auth -Tip $tip
 
+  if ($Mode -eq "apply") {
+    Set-PrePromptPhase "apply_authorization"
+    if ($ApplyAttemptId -notmatch '^apply-[0-9a-f]{12}-[0-9a-f]{32}$') {
+      throw "APPLY_ATTEMPT_ID_INVALID: attempt id"
+    }
+    $allowSyntheticApply = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowSyntheticApply -ne "1") {
+      $prod = $auth.production_apply_authorization
+      $prodOk = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and ([string]$prod.authorized_tip).ToLowerInvariant() -eq $tip.ToLowerInvariant() -and [string]$prod.attempt_id -eq $ApplyAttemptId
+      if (-not $prodOk) {
+        throw "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production apply authorization is unpublished"
+      }
+    }
+    $existingApply = Join-Path $EvidenceOutDir ($ApplyAttemptId + ".marker")
+    if (Test-Path -LiteralPath $existingApply) {
+      throw "APPLY_ATTEMPT_CONSUMED: marker exists before prompt"
+    }
+  }
+
   Set-PrePromptPhase "credential_boundary"
   if ($TestVisiblePromptProbe) {
     Set-PrePromptPhase "visible_prompt_probe"
@@ -892,7 +943,11 @@ try {
   $script:SecureStringAcquired = $true
 
   Set-PrePromptPhase "attempt_marker"
-  $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
+  if ($Mode -eq "apply") {
+    $attemptMarker = New-ApplyMarkerAtomic -Dir $EvidenceOutDir -Tip $PrHead -AttemptId $ApplyAttemptId
+  } else {
+    $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
+  }
   $script:MarkerBeforeChild = $true
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
@@ -912,10 +967,11 @@ try {
   if (-not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -and $allowSynthetic -eq "1") {
     $stubBody = switch ($TestHarnessChildStub) {
       "success" {
+        $successCode = $(if ($Mode -eq "apply") { "APPLY_PATH_REACHED" } else { "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" })
         @"
 console.log(JSON.stringify({
-  verdict: "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
-  result_code: "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+  verdict: "$successCode",
+  result_code: "$successCode",
   databaseConnectionAttempts: 0,
   sqlApplicationAttempts: 0,
   migration_sql_attempts: 0,
@@ -962,7 +1018,15 @@ process.exit(0);
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Command node.exe).Source
-  $psi.Arguments = "`"$bundleTemp`""
+  if ($Mode -eq "apply") {
+    $exactToken = [string]$auth.apply_authorization_token
+    if ([string]::IsNullOrWhiteSpace($exactToken)) {
+      throw "APPLY_AUTHORIZATION_TOKEN_MISMATCH: missing token"
+    }
+    $psi.Arguments = ('"{0}" --apply --apply-marker "{1}"' -f $bundleTemp, $attemptMarker)
+  } else {
+    $psi.Arguments = "`"$bundleTemp`""
+  }
   $psi.WorkingDirectory = $RepoRoot
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -973,6 +1037,9 @@ process.exit(0);
     throw "CEREMONY_PROCESS_ENV_UNAVAILABLE: child EnvironmentVariables is null"
   }
   $childEnv[$DatabaseUrlEnv] = $plain
+  if ($Mode -eq "apply") {
+    $childEnv["RA_PRO_ACCOUNTING_AUTOMATION_APPLY_TOKEN"] = $exactToken
+  }
   foreach ($k in $ForbiddenUrlEnvs) {
     if ($childEnv.ContainsKey($k)) { $childEnv.Remove($k) }
   }
@@ -1029,7 +1096,7 @@ process.exit(0);
   }
   $parsed = $line | ConvertFrom-Json
   $resultCode = [string]$parsed.verdict
-  if ($child.ExitCode -ne 0 -and $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
+  if ($child.ExitCode -ne 0 -and ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "APPLY_PATH_REACHED")) {
     $resultCode = "CEREMONY_CHILD_EXIT_MISMATCH"
   }
   }
@@ -1050,8 +1117,8 @@ catch {
     statement = $failStmt
     exception_type = [string]$_.Exception.GetType().FullName
   }
-  if ($resultCode -eq "CEREMONY_FAILED" -or $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
-    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|BLOCKED_HARNESS|PROMPT_|CEREMONY_PROCESS_|CEREMONY_BLOB_|CEREMONY_GIT_)') {
+  if ($resultCode -eq "CEREMONY_FAILED" -or $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "APPLY_PATH_REACHED") {
+    if ($msg -match '^(WRONG_TIP|SYNTHETIC_URL_NOT_ALLOWED|DATABASE_PROJECT_REF_MISMATCH|MALFORMED_DATABASE_URL|CEREMONY_CHILD_TIMEOUT|CEREMONY_CHILD_TERMINATION_FAILED|CEREMONY_EVIDENCE_DECODE_FAIL|BLOCKED_CREDENTIAL|PROHIBITED_CREDENTIAL|PRECONDITION_|BUNDLE_|ATTEMPT_|APPLY_|BLOCKED_HARNESS|PROMPT_|CEREMONY_PROCESS_|CEREMONY_BLOB_|CEREMONY_GIT_)') {
       $resultCode = ($msg -split ":")[0]
     } else {
       $resultCode = "BLOCKED"
@@ -1178,22 +1245,23 @@ finally {
     "PROMPT_INPUT_TIMEOUT", "PROMPT_WINDOW_CLOSED", "PROMPT_WINDOW_STILL_180S",
     "DRY_RUN_BLOCKED", "HARNESS_CHILD_FAIL", "CEREMONY_CHILD_EXIT_MISMATCH", "BLOCKED"
   )
-  if ($resultCode -notin $primaryCodes -and $resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
+  if ($resultCode -notin $primaryCodes -and $resultCode -ne "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -and $resultCode -ne "APPLY_PATH_REACHED") {
     # keep
   }
   if (-not $terminationConfirmed) {
-    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "CEREMONY_FAILED") {
+    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "APPLY_PATH_REACHED" -or $resultCode -eq "CEREMONY_FAILED") {
       $resultCode = "CEREMONY_CHILD_TERMINATION_FAILED"
     } elseif ($TestForceTerminateFailure) {
       $resultCode = "CEREMONY_CHILD_TERMINATION_FAILED"
     }
   } elseif (-not $orphanFree -or -not $orphanCheckCompleted) {
-    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "CEREMONY_FAILED") {
+    if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "APPLY_PATH_REACHED" -or $resultCode -eq "CEREMONY_FAILED") {
       $resultCode = "CEREMONY_ORPHAN_PROCESSES_REMAIN"
     }
   } elseif (-not $rawStdoutRemoved -or -not $materialRemoved -or -not $cleanupCompleted) {
     if (
       $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or
+      $resultCode -eq "APPLY_PATH_REACHED" -or
       $resultCode -eq "CEREMONY_FAILED" -or
       $TestForceCleanupFailure
     ) {
@@ -1234,9 +1302,9 @@ finally {
 
   $wrapper = [ordered]@{
     protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1"
-    verdict = $(if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "VISIBLE_PROMPT_READY" -or $resultCode -eq "TIMEOUT_BUDGET_READY") { $resultCode } else { "BLOCKED" })
+    verdict = $(if ($resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or $resultCode -eq "APPLY_PATH_REACHED" -or $resultCode -eq "VISIBLE_PROMPT_READY" -or $resultCode -eq "TIMEOUT_BUDGET_READY") { $resultCode } else { "BLOCKED" })
     pr_tip = $PrHead
-    mode = "dry-run"
+    mode = $Mode
     attempt_marker = $(if ($attemptMarker) { [IO.Path]::GetFileName($attemptMarker) } else { $null })
     marker_before_child = [bool]$script:MarkerBeforeChild
     securestring_acquired = [bool]$script:SecureStringAcquired
@@ -1295,6 +1363,7 @@ finally {
 if (
   (
     $resultCode -eq "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION" -or
+    $resultCode -eq "APPLY_PATH_REACHED" -or
     $resultCode -eq "VISIBLE_PROMPT_READY" -or
     $resultCode -eq "TIMEOUT_BUDGET_READY"
   ) -and

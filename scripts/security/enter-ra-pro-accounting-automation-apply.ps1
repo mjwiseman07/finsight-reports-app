@@ -65,6 +65,10 @@ param(
   [Parameter(Mandatory = $false)]
   [switch]$TestHangBeforeEvidence,
 
+  # Harness-only one-attempt id. Requires the synthetic ceremony env. Never a production authorization.
+  [Parameter(Mandatory = $false)]
+  [string]$TestApplyAttemptId = "",
+
   # Set only by sealed supervisor (or authority harness) after tip-blob materialize of this entry.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -76,6 +80,7 @@ $ErrorActionPreference = "Stop"
 $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
 $script:MaterialRoot = $null
+$script:ApplyLaunch = $false
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
@@ -376,8 +381,28 @@ try {
       }
       exit 1
     }
-    Write-Blocked "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
-    exit 1
+    $syntheticAttempt = -not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)
+    if ($syntheticAttempt) {
+      $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+      if ($allowSynthetic -ne "1") {
+        Write-Blocked "SYNTHETIC_URL_NOT_ALLOWED"
+        exit 1
+      }
+      if ($TestApplyAttemptId -notmatch '^apply-[0-9a-f]{12}-[0-9a-f]{32}$') {
+        Write-Blocked "APPLY_ATTEMPT_ID_INVALID"
+        exit 1
+      }
+      $script:ApplyLaunch = $true
+    } else {
+      $prod = $auth.production_apply_authorization
+      $authorized = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and -not [string]::IsNullOrWhiteSpace([string]$prod.authorized_tip) -and -not [string]::IsNullOrWhiteSpace([string]$prod.attempt_id)
+      if (-not $authorized -or [string]$prod.authorized_tip -ne $tip) {
+        Write-Blocked "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
+        exit 1
+      }
+      $TestApplyAttemptId = [string]$prod.attempt_id
+      $script:ApplyLaunch = $true
+    }
   }
 
   $pre = $auth.precondition_publication
@@ -458,6 +483,9 @@ try {
   if ($TestForcePromptWindowClose) { $ceremonyTail += "-TestForcePromptWindowClose" }
   if ($TestForcePromptCancel) { $ceremonyTail += "-TestForcePromptCancel" }
   if ($TestHangBeforeEvidence) { $ceremonyTail += "-TestHangBeforeEvidence" }
+  if ($script:ApplyLaunch) {
+    $ceremonyTail += @("-Mode", "apply", "-ApplyAttemptId", $TestApplyAttemptId)
+  }
   if ($visiblePrompt) {
     $ceremonyArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass") + $ceremonyTail
   } else {

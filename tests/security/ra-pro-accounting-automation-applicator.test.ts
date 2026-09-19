@@ -55,9 +55,116 @@ function sha256(text: string) {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+const INSIDE_EVIDENCE_WINDOW = "2026-09-19T12:00:00Z";
+
+function gitTip() {
+  const tip = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.directory",
+      GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
+    },
+  });
+  return (tip.stdout || "").trim();
+}
+
+function oneAttempt(tip: string, extra: Record<string, unknown> = {}) {
+  return {
+    status: "AUTHORIZED",
+    apply_authorized: true,
+    authorized_tip: tip,
+    attempt_id: `apply-${tip.slice(0, 12)}-${randomBytes(16).toString("hex")}`,
+    ...extra,
+  };
+}
+
 describe("RA Pro accounting-automation applicator (unit)", () => {
   it("refuses published pre-apply evidence before any database contact", () => {
-    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-pub-"));
+    expect(() =>
+      assertAuthorizationPublished({ now: INSIDE_EVIDENCE_WINDOW, markerDir: dir }),
+    ).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
+  it("refuses absent token, wrong tip, substituted bundle, consumed marker, and expired evidence before a marker is reused", () => {
+    const tip = gitTip();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-auth-"));
+    const record = oneAttempt(tip);
+    expect(() =>
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        markerDir: dir,
+        allowSyntheticOneAttemptAuthorization: true,
+        authorizationToken: "wrong-token",
+        syntheticApplyAuthorization: record,
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_TOKEN_MISMATCH/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    expect(() =>
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        markerDir: dir,
+        allowSyntheticOneAttemptAuthorization: true,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+        syntheticApplyAuthorization: oneAttempt("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_TIP_MISMATCH/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    expect(() =>
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        markerDir: dir,
+        allowSyntheticOneAttemptAuthorization: true,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+        syntheticApplyAuthorization: oneAttempt(tip, { bundle_oid: "b".repeat(40) }),
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_BUNDLE_MISMATCH/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    expect(() =>
+      assertAuthorizationPublished({
+        now: "2026-09-21T00:00:00Z",
+        markerDir: dir,
+        allowSyntheticOneAttemptAuthorization: true,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+        syntheticApplyAuthorization: oneAttempt(tip),
+      }),
+    ).toThrow(/PRE_APPLY_LIVE_EXPIRED/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    expect(() =>
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        env: { RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID: record.attempt_id },
+      }),
+    ).toThrow(/HARNESS_VIA_ENV_FORBIDDEN/);
+
+    const opened = assertAuthorizationPublished({
+      now: INSIDE_EVIDENCE_WINDOW,
+      markerDir: dir,
+      allowSyntheticOneAttemptAuthorization: true,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      syntheticApplyAuthorization: record,
+    }) as { marker: string; attemptId: string; apply_authorized: boolean };
+    expect(opened.apply_authorized).toBe(false);
+    expect(opened.attemptId).toBe(record.attempt_id);
+    expect(fs.existsSync(opened.marker)).toBe(true);
+    expect(() =>
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        markerDir: dir,
+        allowSyntheticOneAttemptAuthorization: true,
+        authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+        syntheticApplyAuthorization: record,
+      }),
+    ).toThrow(/APPLY_ATTEMPT_CONSUMED/);
   });
 
   it("rejects cutover/FRLS/containment/generic credential channels", () => {
@@ -443,13 +550,30 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     return db;
   }
 
+  let consumedApply: Record<string, unknown> | null = null;
+
+  function gitTipLocal() {
+    return gitTip();
+  }
+
   function applyInputs(overrides: Record<string, unknown> = {}) {
+    const tip = gitTipLocal();
+    const attempt = `apply-${tip.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const markerDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-apply-"));
     return {
       mode: "apply" as const,
-      allowUnpublishedForHarness: true,
+      allowSyntheticOneAttemptAuthorization: true,
       allowLocalhostForHarness: true,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       artifactCommit: ARTIFACT_COMMIT,
+      now: INSIDE_EVIDENCE_WINDOW,
+      markerDir,
+      syntheticApplyAuthorization: {
+        status: "AUTHORIZED",
+        apply_authorized: true,
+        authorized_tip: tip,
+        attempt_id: attempt,
+      },
       env: { [DATABASE_URL_ENV]: url },
       ...overrides,
     };
@@ -611,7 +735,9 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   });
 
   it("applies both sealed migrations atomically and stores exact LF blobs", async () => {
-    const result = await runApplicator(applyInputs());
+    const inputs = applyInputs();
+    consumedApply = inputs;
+    const result = await runApplicator(inputs);
     expect(result, JSON.stringify(result)).toMatchObject({
       verdict: "APPLY_COMMITTED",
       sqlApplicationAttempts: 2,
@@ -691,6 +817,25 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     } finally {
       await db.end();
     }
+  });
+
+  it("refuses a consumed synthetic attempt before any database contact", async () => {
+    const prior = consumedApply as {
+      markerDir: string;
+      syntheticApplyAuthorization: Record<string, unknown>;
+    };
+    expect(prior).toBeTruthy();
+    const result = await runApplicator(
+      applyInputs({
+        markerDir: prior.markerDir,
+        syntheticApplyAuthorization: prior.syntheticApplyAuthorization,
+      }),
+    );
+    expect(result.verdict).not.toBe("APPLY_COMMITTED");
+    expect(result.error_code).toBe("APPLY_ATTEMPT_CONSUMED");
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(result.retry_attempted).not.toBe(true);
   });
 
   it("refuses repeat apply when versions already present", async () => {

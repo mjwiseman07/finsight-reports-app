@@ -2,8 +2,9 @@
  * Dual-migration sealed applicator for RA Pro accounting automation.
  * Applies weekly then month-end in one transaction. Default path dry-run.
  * Database URL: RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL only.
- * Never enables ENABLE_RA_PRO_ACCOUNTING_AUTOMATION. Never contacts production
- * while prior-dry-run / pre-apply pins remain UNPUBLISHED.
+ * Never enables ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.
+ * Published evidence pins are not apply authorization. Production apply stays
+ * blocked until a separate one-attempt authorization names one tip.
  */
 "use strict";
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -52,6 +53,9 @@ const {
 const {
   assertPreApplyLiveEvidencePublished,
 } = require("./ra-pro-accounting-automation-pre-apply-gates");
+const {
+  assertOneAttemptApplyAuthorization,
+} = require("./ra-pro-accounting-automation-apply-authorization");
 const {
   captureSentinelCounts,
   collectDryRunSchemaProbes,
@@ -573,6 +577,8 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
     "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST",
     "ALLOW_LOCALHOST_FOR_HARNESS",
     "RA_PRO_ACCOUNTING_AUTOMATION_ALLOW_LOCALHOST_FOR_HARNESS",
+    "RA_PRO_ACCOUNTING_AUTOMATION_SYNTHETIC_APPLY_AUTHORIZATION",
+    "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_ID",
   ];
   for (const name of forbiddenEnv) {
     if (Object.prototype.hasOwnProperty.call(env, name) && env[name]) {
@@ -583,7 +589,7 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
     }
   }
   const argv = inputs.argv || process.argv || [];
-  if (argv.some((a) => /harness|allow-unpublished|allow-localhost/i.test(String(a)))) {
+  if (argv.some((a) => /harness|allow-unpublished|allow-localhost|synthetic-apply|apply-attempt/i.test(String(a)))) {
     const e = new Error("HARNESS_VIA_ARGV_FORBIDDEN");
     e.code = "HARNESS_VIA_ARGV_FORBIDDEN";
     e.phase = "bundle_authority";
@@ -743,7 +749,6 @@ function assertBundleAuthority(inputs = {}) {
  */
 function assertAuthorizationPublished(inputs = {}) {
   assertNoHarnessEnvOrArgv(inputs);
-  if (inputs.allowUnpublishedForHarness === true) return { harness_bypass: true };
   const cwd = resolveRepoRoot(inputs);
   const auth = loadAuthorizationPackage(cwd);
   const pub = auth.publication || {};
@@ -770,12 +775,33 @@ function assertAuthorizationPublished(inputs = {}) {
     preApplyEvidencePath: inputs.preApplyEvidencePath,
     now: inputs.now,
   });
-  const blockedApply = new Error(
-    "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: published pre-apply evidence does not authorize production apply",
-  );
-  blockedApply.code = "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS";
-  blockedApply.phase = "authorization";
-  throw blockedApply;
+  let tip = inputs.tip;
+  if (!tip) {
+    tip = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd,
+      encoding: "utf8",
+      env: (() => {
+        const env = { ...(inputs.env || process.env) };
+        const n = Number(env.GIT_CONFIG_COUNT || 0);
+        env.GIT_CONFIG_COUNT = String(n + 1);
+        env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+        env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+        return env;
+      })(),
+    }).trim();
+  }
+  return assertOneAttemptApplyAuthorization({
+    auth,
+    cwd,
+    env: inputs.env || process.env,
+    tip,
+    authorizationToken: inputs.authorizationToken,
+    expectedToken: APPLY_AUTHORIZATION_TOKEN,
+    allowSyntheticOneAttemptAuthorization: inputs.allowSyntheticOneAttemptAuthorization === true,
+    syntheticApplyAuthorization: inputs.syntheticApplyAuthorization,
+    markerDir: inputs.markerDir,
+    existingMarkerPath: inputs.existingMarkerPath,
+  });
 }
 
 const assertApplyAuthorizationPublished = assertAuthorizationPublished;
@@ -1065,6 +1091,13 @@ async function runApply(inputs = {}) {
     evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
     evidence.precondition_evidence = assertPublishedPrecondition(inputs);
     evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);
+    packed = loadSealedMigrations(inputs);
+    evidence.source_authority = packed.map((p) => ({
+      version: p.migration.version,
+      oid: p.loaded.oid,
+      sha256: p.loaded.sha256,
+      bytes: p.loaded.bytes,
+    }));
     assertFeatureFlagUntouched(inputs.env || process.env);
     if (inputs.authorizationToken !== APPLY_AUTHORIZATION_TOKEN) {
       const e = new Error("APPLY_AUTHORIZATION_TOKEN_MISMATCH");
@@ -1076,13 +1109,7 @@ async function runApply(inputs = {}) {
     });
     clientConfig = resolved.clientConfig;
     evidence.uri_diagnostics = resolved.uri_diagnostics;
-    packed = loadSealedMigrations(inputs);
-    evidence.source_authority = packed.map((p) => ({
-      version: p.migration.version,
-      oid: p.loaded.oid,
-      sha256: p.loaded.sha256,
-      bytes: p.loaded.bytes,
-    }));
+    // Migrations were sealed before the credential parse. Reuse that pack.
   } catch (err) {
     evidence.verdict = "APPLY_BLOCKED";
     evidence.result_code = err.code || "APPLY_BLOCKED";

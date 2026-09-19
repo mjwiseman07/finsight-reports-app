@@ -14,9 +14,26 @@ const {
 const { runApplicator } = require("./ra-pro-accounting-automation-apply-core");
 
 async function main() {
-  const args = process.argv.slice(2);
+  const raw = process.argv.slice(2);
+  let applyMarker = "";
+  const args = [];
+  for (let i = 0; i < raw.length; i += 1) {
+    if (raw[i] === "--apply-marker") {
+      applyMarker = raw[i + 1] || "";
+      i += 1;
+      continue;
+    }
+    args.push(raw[i]);
+  }
   const apply = args.includes("--apply");
   const dryRun = args.includes("--dry-run") || !apply;
+  if (applyMarker && !apply) {
+    process.stderr.write(
+      `${JSON.stringify({ verdict: "BLOCKED", reason: "APPLY_MARKER_REQUIRES_APPLY" })}\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   if (args.some((a) => a !== "--apply" && a !== "--dry-run")) {
     process.stderr.write(
       `${JSON.stringify({ verdict: "BLOCKED", reason: "UNKNOWN_ARGV" })}\n`,
@@ -27,6 +44,7 @@ async function main() {
   const result = await runApplicator({
     mode: apply && !dryRun ? "apply" : "dry-run",
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_APPLY_TOKEN,
+    existingMarkerPath: applyMarker || undefined,
     env: process.env,
     argv: process.argv,
   });

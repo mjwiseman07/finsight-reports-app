@@ -97,7 +97,11 @@ function lastJson(text: string): Record<string, unknown> {
 }
 
 /** Authenticated first hop: tip-seal materialize bootstrap, then launch temp only. */
-function runAuthenticatedBootstrap(args: string[], envExtra: Record<string, string> = {}) {
+function runAuthenticatedBootstrap(
+  args: string[],
+  envExtra: Record<string, string> = {},
+  existingOutDir = "",
+) {
   const auth = loadAuth();
   const tip = tipSha();
   const bootSrc = String(auth.bootstrap_source_commit || "");
@@ -120,7 +124,7 @@ function runAuthenticatedBootstrap(args: string[], envExtra: Record<string, stri
   expect(bytes.length).toBe(Number(seal.bytes));
   expect(crypto.createHash("sha256").update(bytes).digest("hex")).toBe(seal.sha256);
 
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-boot-"));
+  const outDir = existingOutDir || fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-boot-"));
   const materialDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-boot-mat-"));
   const bootFile = path.join(materialDir, "bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1");
   fs.writeFileSync(bootFile, bytes);
@@ -507,6 +511,57 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
     );
     expect(payload.productionContact).toBe(false);
+  });
+
+  it("synthetic one-attempt visible path reaches the stub only after an apply marker", () => {
+    const tip = tipSha();
+    const attempt = `apply-${tip.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const { run, outDir, payload } = runAuthenticatedBootstrap(
+      [
+        "-Mode",
+        "apply",
+        "-PrHead",
+        tip,
+        "-TestApplyAttemptId",
+        attempt,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestHarnessChildStub",
+        "success",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+    expect(payload.result_code).toBe("APPLY_PATH_REACHED");
+    expect(payload.mode).toBe("apply");
+    expect(payload.productionContact).toBe(false);
+    expect(payload.database_connection_attempts).toBe(0);
+    expect(payload.sql_application_attempts).toBe(0);
+    expect(payload.marker_before_child).toBe(true);
+    const markerName = String(payload.attempt_marker || "");
+    expect(markerName).toBe(`${attempt}.marker`);
+    expect(markerName.startsWith("attempt-")).toBe(false);
+    const markerPath = path.join(outDir, markerName);
+    expect(fs.readFileSync(markerPath, "utf8")).toBe(`apply\n${tip}\n${attempt}\n`);
+    const again = runAuthenticatedBootstrap(
+      [
+        "-Mode",
+        "apply",
+        "-PrHead",
+        tip,
+        "-TestApplyAttemptId",
+        attempt,
+        "-TestSyntheticDatabaseUrl",
+        PROJECT_URL,
+        "-TestHarnessChildStub",
+        "success",
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+      outDir,
+    );
+    expect(again.run.status).not.toBe(0);
+    expect(String(again.payload.result_code || again.payload.reason || "")).toMatch(/APPLY_ATTEMPT_CONSUMED/);
+    expect(String(`${run.stdout || ""}${run.stderr || ""}`)).not.toMatch(/postgres:\/\//i);
   });
 
   it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {
