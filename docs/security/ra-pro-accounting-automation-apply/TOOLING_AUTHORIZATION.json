@@ -62,7 +62,7 @@
     "authorized_tip": null,
     "attempt_id": null,
     "apply_authorized": false,
-    "note": "Evidence publication is not apply authorization. A later explicit authorization must name one exact tip and one unused attempt id. This delivery leaves that record unpublished and mints no marker."
+    "note": "Evidence publication is not apply authorization. Reseal does not publish a production apply attempt."
   },
   "prior_dry_run_publication": {
     "status": "PUBLISHED",
@@ -108,50 +108,50 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "ba8a13a30f7bc956fc64b36f1177adbb0afc392d",
-    "sha256": "73daadf09c4b9b6dbee78be8f45e1bbff76e5ec4ac302e0c984b180295807939",
-    "bytes": 312359,
+    "oid": "7e5d716eddbd40321d74bf278514fc83af73cce7",
+    "sha256": "d4d8d5f4c73868f43efa3e2c4c2c371677a5cc4aeffeb090fc391d4c1a61e0fb",
+    "bytes": 321022,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+  "ceremony_source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
-    "oid": "86b29ad792f043a10c837e0c5efe44fba4e4cc17",
-    "sha256": "e5eb1f221f474360d383a4719e0766a73878588c9904e1da8da321264c84debe",
-    "bytes": 20094,
+    "source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
+    "oid": "2d739d324360ae94608c77ff0daf6671e42db941",
+    "sha256": "dcc5b5601b41966a5af024a46a86d19f44ee72c4a451e02da8598ff13dba0ffe",
+    "bytes": 20400,
     "line_endings": "LF"
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
-    "oid": "e9c7ce6e824331b1e8e74a660412f5059453c94a",
-    "sha256": "5ac7d7a9581ac41f8f04236fdcfe24701297db5de9e97d1c07bbf68ac5cd4c01",
-    "bytes": 24729,
+    "source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
+    "oid": "da24d805b2c7c56143dfadc258e13bf02bb2e134",
+    "sha256": "792ae21963ea8bfaffa249587cf18ea8a6e0ce886e54ae34adf04edbab8ebaf4",
+    "bytes": 26076,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
-    "oid": "65509f9992315699a18c19d08ef8d726ff13d5b8",
-    "sha256": "6f9319c2972ac37f64ae446409bef9ab632cd6bb8c245c00efd560b9c6d3e52a",
-    "bytes": 52809,
+    "source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
+    "oid": "57b2c4eb93f8cde7184426f33545595038798b5e",
+    "sha256": "f1a6122d6fab2b19f20bc84de9c65bd0cd9c8c69ad4ba4f21cdc4416537d736a",
+    "bytes": 55996,
     "line_endings": "LF"
   },
-  "bootstrap_source_commit": "5ce221cb6b43c04773685397d482bb72c5597700",
+  "bootstrap_source_commit": "d19a5a1c67f7812687b193ebb0aace130ffffb3f",
   "visible_ceremony_bootstrap": {
     "path": "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "5ce221cb6b43c04773685397d482bb72c5597700",
-    "oid": "9223785a722f551daa5e38b8b1141c9324917a88",
-    "sha256": "3db465b91de5d04d8e78e8080e9ef7114771535b4cfc48caa4fc1b28e34b59c2",
-    "bytes": 19157,
+    "source_commit": "d19a5a1c67f7812687b193ebb0aace130ffffb3f",
+    "oid": "4e6dd2b7aa410b60967d1c0202bc27ea2827e622",
+    "sha256": "7c701ff9102da1d59bdb2b43137b0a98b133c59e508d89496ab583d610ec4052",
+    "bytes": 19461,
     "line_endings": "LF"
   },
   "visible_ceremony_native_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "5ce221cb6b43c04773685397d482bb72c5597700",
+    "source_commit": "d19a5a1c67f7812687b193ebb0aace130ffffb3f",
     "oid": "ee67390345a429a8440d166197bf5bd030ec88e7",
     "sha256": "dcfc4e797ad5caef2be50bef830316d531b3208d5a66f6f61913b70a21d93475",
     "bytes": 13524,
@@ -171,7 +171,7 @@
   },
   "pre_apply_live_gates": {
     "path": "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
-    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+    "source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
     "oid": "7cdfc0d029af5ea72172cfca338640737f416a2d",
     "sha256": "58fbdaba70b0edafd028c5b7bd5fea4234c468b7b6118954ce4f16135d14f4fe",
     "bytes": 10174,
@@ -179,7 +179,7 @@
   },
   "pre_apply_live_contract": {
     "path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
-    "source_commit": "7b9549e5202333569a50245413c76cb847eeaa00",
+    "source_commit": "51c6b1fa1d5a16c84b520fcf0f0c0eb248bb3650",
     "oid": "76066757625cd7464355732c1459761bf6092e2c",
     "sha256": "ffc5382219587a8591be1c28d7abd8143695602b3b2274878e05e894fb6f022c",
     "bytes": 3137,
