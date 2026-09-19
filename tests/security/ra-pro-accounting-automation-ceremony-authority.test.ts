@@ -69,6 +69,12 @@ function loadAuth() {
     visible_ceremony_supervisor?: AuthSeal;
     visible_ceremony_entry?: AuthSeal;
     operator_ceremony?: AuthSeal;
+    tls_trust_root?: AuthSeal & {
+      der_sha256?: string;
+      certificate_pem_sha256?: string;
+      certificate_bytes?: number;
+      subject?: string;
+    };
     publication?: {
       status?: string;
       required_prior_dry_run_evidence_sha256?: string | null;
@@ -204,6 +210,24 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(auth.precondition_publication?.evidence_sha256).toBe(
       "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
     );
+    const tls = auth.tls_trust_root;
+    expect(tls?.path).toBe("scripts/security/embedded-supabase-prod-ca-2021.js");
+    expect(String(tls?.source_commit).toLowerCase()).toBe(freeze);
+    expect(tls?.der_sha256).toBe(
+      "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+    );
+    expect(tls?.subject).toBe("Supabase Root 2021 CA");
+    expect(tls?.line_endings).toBe("LF");
+    expect(git(["rev-parse", `${freeze}:${tls?.path}`])).toBe(tls?.oid);
+    const tlsBytes = spawnSync("git", ["show", `${freeze}:${tls?.path}`], {
+      cwd: ROOT,
+      windowsHide: true,
+      env: gitEnv(),
+    }).stdout as Buffer;
+    const tlsBuf = Buffer.isBuffer(tlsBytes) ? tlsBytes : Buffer.from(tlsBytes || "");
+    expect(tlsBuf.includes(0x0d)).toBe(false);
+    expect(tlsBuf.length).toBe(Number(tls?.bytes));
+    expect(crypto.createHash("sha256").update(tlsBuf).digest("hex")).toBe(tls?.sha256);
   });
 
   it("worktree-poisoned supervisor still executes only sealed ceremony-source blobs", () => {

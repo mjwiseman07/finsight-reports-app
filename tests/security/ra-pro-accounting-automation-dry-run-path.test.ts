@@ -17,6 +17,7 @@ import {
   assertAuthorizationPublished,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-core.js";
 import { EXPECTED_PROJECT_REF } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
+import { OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 } from "../../scripts/security/ra-pro-accounting-automation-tls-ca.js";
 
 const ROOT = process.cwd();
 const PRECOND_SHA = "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288";
@@ -425,7 +426,13 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       port: 5432,
       database: "postgres",
       user: "user",
-      ssl: { rejectUnauthorized: true },
+      ssl: {
+        rejectUnauthorized: true,
+        servername: `db.${ref}.supabase.co`,
+        ca_der_sha256: OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+        hostname_verification: "enabled",
+        min_version: "TLSv1.2",
+      },
     });
     expect(accepted.client).not.toHaveProperty("password");
     expect(accepted.client).not.toHaveProperty("connectionString");
@@ -437,10 +444,13 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       port: 5432,
       database: "postgres",
       user: `postgres.${ref}`,
-      ssl: { rejectUnauthorized: true },
+      ssl: { rejectUnauthorized: true, servername: "aws-0-us-east-1.pooler.supabase.com" },
     });
     const transaction = inspectNormalizedClient(pooled(":6543", `postgres.${ref}`, "?sslmode=verify-ca"));
-    expect(transaction.client).toMatchObject({ port: 6543, ssl: { rejectUnauthorized: true } });
+    expect(transaction.client).toMatchObject({
+      port: 6543,
+      ssl: { rejectUnauthorized: true, servername: "aws-0-us-east-1.pooler.supabase.com" },
+    });
     expect(transaction.uri_diagnostics.host_class).toBe("transaction_pooler");
     expect(inspectNormalizedClient(direct(":80", "?sslmode=require")).accepted).toBe(false);
     expect(inspectNormalizedClient(pooled(":5432", `postgres.${ref}`, "?sslmode=require&sslmode=disable")).accepted).toBe(false);

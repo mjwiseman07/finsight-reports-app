@@ -135,6 +135,36 @@ function sealGroup(artifacts, source, fromWorktree) {
   return out;
 }
 
+function sealTlsTrustRoot(freezeCommit) {
+  const rel = "scripts/security/embedded-supabase-prod-ca-2021.js";
+  const buf = loadBlobFromCommit(freezeCommit, rel);
+  if (buf.includes(0x0d)) throw new Error(`CRLF forbidden in ${rel}`);
+  const text = buf.toString("utf8");
+  const begins = text.match(/-----BEGIN CERTIFICATE-----/g) || [];
+  if (begins.length !== 1) throw new Error("TLS_CA_EXTRA_OR_MISSING");
+  const assign = text.match(/OFFICIAL_SUPABASE_PROD_CA_2021_PEM = "([^"]+)"/);
+  const pinMatch = text.match(/OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 =\n\s*"([0-9a-f]{64})"/);
+  if (!assign || !pinMatch) throw new Error("TLS_CA_PEM_ABSENT");
+  if (text.split(pinMatch[1]).length - 1 !== 1) throw new Error("TLS_CA_PIN_ABSENT");
+  let pem = assign[1].replace(/\\n/g, "\n");
+  if (!pem.endsWith("\n")) pem += "\n";
+  const x509 = new crypto.X509Certificate(pem);
+  const der = crypto.createHash("sha256").update(x509.raw).digest("hex");
+  if (der !== pinMatch[1]) throw new Error("TLS_CA_PIN_MISMATCH");
+  if (!String(x509.subject).includes("Supabase Root 2021 CA")) throw new Error("TLS_CA_SUBJECT_MISMATCH");
+  const now = Date.now();
+  if (now < Date.parse(x509.validFrom) || now > Date.parse(x509.validTo)) {
+    throw new Error("TLS_CA_VALIDITY");
+  }
+  const pemBuf = Buffer.from(pem, "utf8");
+  const seal = sealFromBytes(rel, buf, freezeCommit);
+  seal.der_sha256 = der;
+  seal.certificate_pem_sha256 = sha256(pemBuf);
+  seal.certificate_bytes = pemBuf.length;
+  seal.subject = "Supabase Root 2021 CA";
+  return seal;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const freeze = assertHex40(args.freeze, "--freeze");
@@ -160,11 +190,15 @@ function main() {
 
   Object.assign(auth, sealGroup(BOOTSTRAP_ARTIFACTS, bootstrapSource, args.fromWorktree));
   Object.assign(auth, sealGroup(CEREMONY_ARTIFACTS, ceremonySource, args.fromWorktree));
+  auth.tls_trust_root = sealTlsTrustRoot(freeze);
 
   if (!auth.notes || !Array.isArray(auth.notes)) auth.notes = [];
   const note =
     "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.";
   if (!auth.notes.includes(note)) auth.notes.push(note);
+  const tlsNote =
+    "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation.";
+  if (!auth.notes.includes(tlsNote)) auth.notes.push(tlsNote);
 
   if (!auth.publication) auth.publication = {};
   auth.publication.status = "UNPUBLISHED";
@@ -190,6 +224,7 @@ function main() {
           visible_ceremony_supervisor: auth.visible_ceremony_supervisor,
           visible_ceremony_entry: auth.visible_ceremony_entry,
           operator_ceremony: auth.operator_ceremony,
+          tls_trust_root: auth.tls_trust_root,
         },
         productionContact: false,
       },

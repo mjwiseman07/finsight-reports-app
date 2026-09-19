@@ -38,6 +38,12 @@ const {
   ROOT,
 } = require("./git-blob-authority");
 const {
+  OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+  assertNoTlsBypass,
+  buildProductionSsl,
+  tlsPolicyError,
+} = require("./ra-pro-accounting-automation-tls-ca");
+const {
   assertPreconditionEvidencePublished,
 } = require("./ra-pro-accounting-automation-precondition-gates");
 
@@ -343,7 +349,7 @@ function sanitizeUriDiagnostics(diagnostics) {
   };
 }
 
-function buildPgClientConfig(raw) {
+function buildPgClientConfig(raw, env = process.env) {
   const parts = parsePostgresUrl(raw);
   if (!parts) {
     const e = new Error("MALFORMED_DATABASE_URL");
@@ -358,7 +364,7 @@ function buildPgClientConfig(raw) {
     database: parts.database,
   };
   if (!isLoopbackHost(parts.host)) {
-    config.ssl = { rejectUnauthorized: true };
+    config.ssl = buildProductionSsl(parts.host, env);
   }
   return config;
 }
@@ -394,7 +400,15 @@ function inspectNormalizedClient(raw) {
       port: config.port,
       database: config.database,
       user: config.user,
-      ssl: config.ssl ? { rejectUnauthorized: config.ssl.rejectUnauthorized === true } : null,
+      ssl: config.ssl
+        ? {
+            rejectUnauthorized: config.ssl.rejectUnauthorized === true,
+            servername: config.host,
+            ca_der_sha256: OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
+            hostname_verification: "enabled",
+            min_version: "TLSv1.2",
+          }
+        : null,
     },
   };
 }
@@ -410,6 +424,7 @@ function assertFeatureFlagUntouched(env = process.env) {
 }
 
 function resolveDatabaseUrlFromEnv(env = process.env, options = {}) {
+  assertNoTlsBypass(env);
   assertFeatureFlagUntouched(env);
   for (const forbidden of FORBIDDEN_DATABASE_URL_ENVS) {
     if (Object.prototype.hasOwnProperty.call(env, forbidden) && env[forbidden]) {
@@ -455,7 +470,53 @@ function resolveDatabaseUrlFromEnv(env = process.env, options = {}) {
     e.phase = "uri_validate";
     throw e;
   }
-  return { clientConfig: buildPgClientConfig(raw), uri_diagnostics: diagnostics };
+  return { clientConfig: buildPgClientConfig(raw, env), uri_diagnostics: diagnostics };
+}
+
+function scopedClientOptions(clientConfig, env = process.env) {
+  assertNoTlsBypass(env);
+  if (!clientConfig || typeof clientConfig !== "object" || clientConfig.connectionString) {
+    const e = new Error("MALFORMED_DATABASE_URL");
+    e.code = "MALFORMED_DATABASE_URL";
+    throw e;
+  }
+  if (clientConfig.sslmode || clientConfig.sslrootcert) {
+    throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: sslmode/sslrootcert on the client is forbidden");
+  }
+  const options = {
+    host: clientConfig.host,
+    port: clientConfig.port,
+    user: clientConfig.user,
+    password: clientConfig.password,
+    database: clientConfig.database,
+  };
+  if (isLoopbackHost(clientConfig.host)) {
+    if (clientConfig.ssl && clientConfig.ssl.rejectUnauthorized === false) {
+      throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: rejectUnauthorized false is forbidden");
+    }
+    if (clientConfig.ssl) options.ssl = clientConfig.ssl;
+    return options;
+  }
+  const ssl = buildProductionSsl(clientConfig.host, env);
+  if (clientConfig.ssl) {
+    if (clientConfig.ssl.rejectUnauthorized === false) {
+      throw tlsPolicyError("BLOCKED_TLS_BYPASS", "BLOCKED_TLS_BYPASS: rejectUnauthorized false is forbidden");
+    }
+    if (Array.isArray(clientConfig.ssl.ca)) {
+      throw tlsPolicyError("BLOCKED_TLS_CA_EXTRA", "BLOCKED_TLS_CA_EXTRA: additional unapproved CA is forbidden");
+    }
+    if (clientConfig.ssl.ca && clientConfig.ssl.ca !== ssl.ca) {
+      throw tlsPolicyError(
+        "BLOCKED_TLS_CA_PIN_MISMATCH",
+        "BLOCKED_TLS_CA_PIN_MISMATCH: client CA does not match the sealed Supabase root",
+      );
+    }
+    if (clientConfig.ssl.servername && clientConfig.ssl.servername !== clientConfig.host) {
+      throw tlsPolicyError("HOSTNAME_MISMATCH", "HOSTNAME_MISMATCH: servername must equal the validated host");
+    }
+  }
+  options.ssl = ssl;
+  return options;
 }
 
 function resolveRepoRoot(inputs = {}) {
@@ -741,18 +802,19 @@ function loadSealedMigrations(inputs = {}) {
 }
 
 async function withClient(clientConfig, fn) {
-  if (!clientConfig || typeof clientConfig !== "object" || clientConfig.connectionString) {
+  const options = scopedClientOptions(clientConfig);
+  if (options.connectionString) {
     const e = new Error("MALFORMED_DATABASE_URL");
     e.code = "MALFORMED_DATABASE_URL";
     throw e;
   }
   const client = new Client({
-    host: clientConfig.host,
-    port: clientConfig.port,
-    user: clientConfig.user,
-    password: clientConfig.password,
-    database: clientConfig.database,
-    ssl: clientConfig.ssl,
+    host: options.host,
+    port: options.port,
+    user: options.user,
+    password: options.password,
+    database: options.database,
+    ssl: options.ssl,
   });
   await client.connect();
   try {
@@ -1145,7 +1207,9 @@ module.exports = {
   assertPublishedPrecondition,
   classifyDatabaseUrl,
   classificationParity,
+  buildPgClientConfig,
   inspectNormalizedClient,
+  scopedClientOptions,
   loadSealedMigrations,
   resolveBundleSeals,
   resolveDatabaseUrlFromEnv,

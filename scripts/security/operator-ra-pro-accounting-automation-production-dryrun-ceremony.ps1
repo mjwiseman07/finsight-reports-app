@@ -316,6 +316,68 @@ function ConvertTo-ByteArrayStrict($Value, [string]$Label) {
   }
 }
 
+function Assert-EmbeddedTlsCaSeal($Auth, [string]$Tip) {
+  Set-PrePromptPhase "tls_ca_seal"
+  foreach ($name in @("NODE_TLS_REJECT_UNAUTHORIZED", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR")) {
+    $value = [Environment]::GetEnvironmentVariable($name, "Process")
+    if ($name -eq "NODE_TLS_REJECT_UNAUTHORIZED") {
+      if ($value -eq "0") { throw "BLOCKED_TLS_BYPASS: NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden" }
+    } elseif (-not [string]::IsNullOrWhiteSpace($value)) {
+      throw "BLOCKED_TLS_BYPASS: $name is forbidden"
+    }
+  }
+  $seal = $null
+  if ($null -ne $Auth) { $seal = $Auth.tls_trust_root }
+  if ($null -eq $seal) { throw "TLS_CA_SEAL_MISSING" }
+  foreach ($field in @("path", "source_commit", "oid", "sha256", "bytes", "der_sha256", "certificate_pem_sha256", "certificate_bytes")) {
+    if ([string]::IsNullOrWhiteSpace([string]$seal.$field)) { throw "TLS_CA_SEAL_MISSING" }
+  }
+  if ([string]$seal.path -ne "scripts/security/embedded-supabase-prod-ca-2021.js") {
+    throw "TLS_CA_SEAL_PATH_FORBIDDEN"
+  }
+  if ([string]$seal.subject -ne "Supabase Root 2021 CA") { throw "TLS_CA_SUBJECT_MISMATCH" }
+  $src = ([string]$seal.source_commit).ToLowerInvariant()
+  try {
+    Invoke-GitTextLocal @("merge-base", "--is-ancestor", $src, $Tip.ToLowerInvariant()) | Out-Null
+  } catch {
+    throw "TLS_CA_SOURCE_NOT_ANCESTOR"
+  }
+  $oid = Invoke-GitTextLocal @("rev-parse", ($src + ":" + [string]$seal.path))
+  if ($oid.ToLowerInvariant() -ne ([string]$seal.oid).ToLowerInvariant()) { throw "TLS_CA_OID_MISMATCH" }
+  $bytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $src -Rel ([string]$seal.path)) "tls_ca"
+  if ($bytes.Length -ne [int]$seal.bytes) { throw "TLS_CA_BYTES_MISMATCH" }
+  if ((Get-Sha256Bytes -Bytes $bytes) -ne ([string]$seal.sha256).ToLowerInvariant()) { throw "TLS_CA_SHA_MISMATCH" }
+  if (Test-BundleBytesContainCR -Bytes $bytes) { throw "TLS_CA_CRLF_FORBIDDEN" }
+  $text = [Text.Encoding]::UTF8.GetString($bytes)
+  if (([regex]::Matches($text, "-----BEGIN CERTIFICATE-----")).Count -ne 1) { throw "TLS_CA_EXTRA_OR_MISSING" }
+  $pin = ([string]$seal.der_sha256).ToLowerInvariant()
+  if (([regex]::Matches($text, [regex]::Escape($pin))).Count -ne 1) { throw "TLS_CA_PIN_ABSENT" }
+  $assign = [regex]::Match($text, 'OFFICIAL_SUPABASE_PROD_CA_2021_PEM = "([^"]+)"')
+  if (-not $assign.Success) { throw "TLS_CA_PEM_ABSENT" }
+  $pem = $assign.Groups[1].Value.Replace('\n', "`n")
+  if (-not $pem.EndsWith("`n")) { $pem = $pem + "`n" }
+  $pemBytes = [Text.Encoding]::UTF8.GetBytes($pem)
+  if ($pemBytes.Length -ne [int]$seal.certificate_bytes) { throw "TLS_CA_PEM_BYTES_MISMATCH" }
+  if ((Get-Sha256Bytes -Bytes $pemBytes) -ne ([string]$seal.certificate_pem_sha256).ToLowerInvariant()) {
+    throw "TLS_CA_PEM_SHA_MISMATCH"
+  }
+  $body = ($pem -replace "-----BEGIN CERTIFICATE-----", "" -replace "-----END CERTIFICATE-----", "" -replace "\s", "")
+  $der = [Convert]::FromBase64String($body)
+  if ((Get-Sha256Bytes -Bytes $der) -ne $pin) { throw "TLS_CA_PIN_MISMATCH" }
+  $cert = $null
+  try {
+    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @(,$der)
+    if ($cert.Subject.IndexOf("Supabase Root 2021 CA", [StringComparison]::Ordinal) -lt 0) {
+      throw "TLS_CA_SUBJECT_MISMATCH"
+    }
+    $now = [DateTime]::UtcNow
+    if ($now -lt $cert.NotBefore.ToUniversalTime()) { throw "TLS_CA_NOT_YET_VALID" }
+    if ($now -gt $cert.NotAfter.ToUniversalTime()) { throw "TLS_CA_EXPIRED" }
+  } finally {
+    if ($null -ne $cert) { $cert.Reset() }
+  }
+}
+
 function Test-BundleBytesContainCR([byte[]]$Bytes) {
   if ($null -eq $Bytes) {
     throw "CEREMONY_BLOB_BYTES_NULL: CRLF scan received null"
@@ -324,7 +386,7 @@ function Test-BundleBytesContainCR([byte[]]$Bytes) {
 }
 
 function Clear-AccountingCredentialChannels {
-  foreach ($k in (@($DatabaseUrlEnv) + $ForbiddenUrlEnvs + @("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION", "NODE_TLS_REJECT_UNAUTHORIZED"))) {
+  foreach ($k in (@($DatabaseUrlEnv) + $ForbiddenUrlEnvs + @("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION", "NODE_TLS_REJECT_UNAUTHORIZED", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR"))) {
     Remove-Item "Env:$k" -ErrorAction SilentlyContinue
     [Environment]::SetEnvironmentVariable($k, $null, "Process")
   }
@@ -750,6 +812,8 @@ try {
   if (Test-BundleBytesContainCR -Bytes $bundleBytes) {
     throw "BUNDLE_CRLF_FORBIDDEN"
   }
+
+  Assert-EmbeddedTlsCaSeal -Auth $auth -Tip $tip
 
   Set-PrePromptPhase "credential_boundary"
   if ($TestVisiblePromptProbe) {
