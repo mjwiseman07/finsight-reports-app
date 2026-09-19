@@ -55,6 +55,8 @@ const {
 } = require("./ra-pro-accounting-automation-pre-apply-gates");
 const {
   assertOneAttemptApplyAuthorization,
+  preflightApplyAuthorization,
+  recheckApplyAuthorizationPin,
 } = require("./ra-pro-accounting-automation-apply-authorization");
 const {
   captureSentinelCounts,
@@ -1094,6 +1096,29 @@ async function runApply(inputs = {}) {
     evidence.bundle_authority = assertBundleAuthority(inputs);
     evidence.databaseConnectionAttempts = 0;
     evidence.sqlApplicationAttempts = 0;
+    if (inputs.allowDisposablePublicationCommit !== true) {
+      const pin = String(inputs.authorizationPin || "");
+      const parts = pin.split(":");
+      if (parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && /^[0-9a-f]{40}$/.test(parts[1])) {
+        recheckApplyAuthorizationPin({
+          cwd: resolveRepoRoot(inputs),
+          expectCommit: parts[0],
+          expectBlobOid: parts[1],
+          now: inputs.now,
+        });
+      } else {
+        const probe = preflightApplyAuthorization({
+          cwd: resolveRepoRoot(inputs),
+          now: inputs.now,
+        });
+        if (!probe.blocked) {
+          const pinError = new Error("APPLY_AUTHORIZATION_PIN_MISMATCH: pin required before credentials");
+          pinError.code = "APPLY_AUTHORIZATION_PIN_MISMATCH";
+          pinError.phase = "authorization";
+          throw pinError;
+        }
+      }
+    }
     evidence.authorization_scope = "apply_requires_prior_and_pre_apply_pins";
     evidence.precondition_evidence = assertPublishedPrecondition(inputs);
     evidence.apply_authorization = assertApplyAuthorizationPublished(inputs);

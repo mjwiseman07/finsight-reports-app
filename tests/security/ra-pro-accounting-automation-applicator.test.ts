@@ -39,6 +39,8 @@ import {
   commitPublicationTree,
   createDisposablePublicationCommit,
   describeApplyArtifactMap,
+  preflightApplyAuthorization,
+  recheckApplyAuthorizationPin,
   assertNotCircularPin,
 } from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
 import { verifyPostCommit, captureSentinelCounts } from "../../scripts/security/ra-pro-accounting-automation-schema-probes.js";
@@ -62,6 +64,20 @@ function sha256(text: string) {
 }
 
 const INSIDE_EVIDENCE_WINDOW = "2026-09-19T12:00:00Z";
+
+type MutableAuth = {
+  project_ref?: string;
+  extra_field?: string;
+  production_apply_authorization: {
+    attempt_id?: string;
+    authorized_executable_commit?: string;
+    pre_apply_live_evidence: { sha256: string; oid: string; bytes: number };
+    prior_dry_run_evidence: { sha256: string; oid: string; bytes: number };
+    migrations: Array<{ oid: string; sha256: string }>;
+    bundle: { sha256: string; oid: string };
+    tls_trust_root?: { der_sha256: string };
+  };
+};
 
 function gitTip() {
   const tip = spawnSync("git", ["rev-parse", "HEAD"], {
@@ -697,6 +713,218 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       /AUTHORIZATION_PINS_UNPUBLISHED/,
     );
     expect(payload.databaseConnectionAttempts ?? 0).toBe(0);
+  });
+});
+
+describe("preflight rejects a bad publication before credentials", () => {
+  const syntheticUrl = "postgres://user:pass@127.0.0.1:5432/postgres";
+
+  function mutated(mutate: (auth: MutableAuth) => void) {
+    const cwd = process.cwd();
+    const executable = gitTip();
+    const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const auth = loadAuthAt(published.publicationCommit) as MutableAuth;
+    mutate(auth);
+    return {
+      cwd,
+      executable,
+      publicationCommit: commitPublicationTree(cwd, executable, auth),
+    };
+  }
+
+  async function expectRejected(publicationCommit: string, code: RegExp) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-preflight-"));
+    const decision = preflightApplyAuthorization({
+      cwd: process.cwd(),
+      allowDisposablePublicationCommit: true,
+      publicationCommit,
+      now: INSIDE_EVIDENCE_WINDOW,
+    });
+    expect(String(decision.blocked || "")).toMatch(code);
+    expect(fs.readdirSync(dir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+    const result = await runApplicator({
+      mode: "apply",
+      allowDisposablePublicationCommit: true,
+      publicationCommit,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      now: INSIDE_EVIDENCE_WINDOW,
+      markerDir: dir,
+      env: { [DATABASE_URL_ENV]: syntheticUrl },
+    });
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(result.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(result.migration_sql_attempts ?? 0).toBe(0);
+    expect(String(result.error_code || result.result_code || "")).toMatch(code);
+    expect(fs.readdirSync(dir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+  }
+
+  it("accepts one exact authorization object only up to the credential-free boundary", async () => {
+    const cwd = process.cwd();
+    const executable = gitTip();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-preflight-ok-"));
+    const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const decision = preflightApplyAuthorization({
+      cwd,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: published.publicationCommit,
+      now: INSIDE_EVIDENCE_WINDOW,
+    });
+    expect(decision.blocked).toBeNull();
+    expect(decision.authorized_executable_commit).toBe(executable);
+    expect(decision.publication_commit).toBe(published.publicationCommit);
+    expect(fs.readdirSync(dir)).toEqual([]);
+    const cli = spawnSync(
+      process.execPath,
+      [
+        "scripts/security/apply-ra-pro-accounting-automation.js",
+        "--preflight",
+        "--credential-free-probe",
+        "--publication-commit",
+        published.publicationCommit,
+      ],
+      {
+        cwd,
+        encoding: "utf8",
+        windowsHide: true,
+        env: { ...process.env, RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+      },
+    );
+    expect(cli.status, `${cli.stdout}\n${cli.stderr}`).toBe(0);
+    const body = JSON.parse((cli.stdout || "").trim());
+    expect(body.blocked).toBeNull();
+    expect(body.publication_commit).toBe(decision.publication_commit);
+    expect(body.authorization_blob_oid).toBe(decision.authorization_blob_oid);
+    expect(`${cli.stdout}${cli.stderr}`).not.toMatch(/SecureString|postgres:\/\//i);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
+  it("fails every invalid publication before a prompt, marker, or database client", async () => {
+    const cases: Array<{ code: RegExp; mutate: (auth: MutableAuth) => void }> = [
+      { code: /APPLY_AUTHORIZATION_ALLOWLIST/, mutate: (auth) => { auth.extra_field = "not-allowed"; } },
+      { code: /PRE_APPLY_LIVE_PROJECT_MISMATCH/, mutate: (auth) => { auth.project_ref = "not-the-project"; } },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.pre_apply_live_evidence.sha256 = "a".repeat(64); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.pre_apply_live_evidence.oid = "b".repeat(40); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.pre_apply_live_evidence.bytes = 1; },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.prior_dry_run_evidence.sha256 = "c".repeat(64); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.prior_dry_run_evidence.oid = "d".repeat(40); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.prior_dry_run_evidence.bytes = 2; },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_MIGRATION_MISMATCH/,
+        mutate: (auth) => { auth.production_apply_authorization.migrations[0].oid = "e".repeat(40); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_BUNDLE_MISMATCH/,
+        mutate: (auth) => { auth.production_apply_authorization.bundle.sha256 = "f".repeat(64); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_CA_MISMATCH/,
+        mutate: (auth) => { auth.production_apply_authorization.tls_trust_root.der_sha256 = "1".repeat(64); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { delete auth.production_apply_authorization.attempt_id; },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_ANCESTRY|APPLY_AUTHORIZATION_CIRCULAR_TIP/,
+        mutate: (auth) => { auth.production_apply_authorization.authorized_executable_commit = "2".repeat(40); },
+      },
+      {
+        code: /APPLY_ATTEMPT_ID_INVALID/,
+        mutate: (auth) => { auth.production_apply_authorization.attempt_id = `attempt-${"3".repeat(12)}-${"4".repeat(32)}`; },
+      },
+    ];
+    for (const item of cases) {
+      const commit = mutated(item.mutate).publicationCommit;
+      await expectRejected(commit, item.code);
+    }
+
+    const cwd = process.cwd();
+    const executable = gitTip();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-pin-swap-"));
+    const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const accepted = preflightApplyAuthorization({
+      cwd,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: published.publicationCommit,
+      now: INSIDE_EVIDENCE_WINDOW,
+    });
+    expect(accepted.blocked).toBeNull();
+    expect(() =>
+      recheckApplyAuthorizationPin({
+        cwd,
+        expectCommit: accepted.publication_commit,
+        expectBlobOid: "a".repeat(40),
+        now: INSIDE_EVIDENCE_WINDOW,
+      }),
+    ).toThrow(/APPLY_AUTHORIZATION_PIN_MISMATCH/);
+    const swapped = await runApplicator({
+      mode: "apply",
+      authorizationPin: `${accepted.publication_commit}:${"a".repeat(40)}`,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      now: INSIDE_EVIDENCE_WINDOW,
+      markerDir: dir,
+      env: { [DATABASE_URL_ENV]: syntheticUrl },
+    });
+    expect(String(swapped.error_code || swapped.result_code || "")).toMatch(/APPLY_AUTHORIZATION_PIN_MISMATCH/);
+    expect(swapped.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(swapped.sqlApplicationAttempts ?? 0).toBe(0);
+    expect(fs.readdirSync(dir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+    const cliSwap = spawnSync(
+      process.execPath,
+      [
+        "scripts/security/apply-ra-pro-accounting-automation.js",
+        "--preflight",
+        "--recheck",
+        "--expect-commit",
+        String(accepted.publication_commit),
+        "--expect-blob-oid",
+        "a".repeat(40),
+      ],
+      { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env } },
+    );
+    expect(cliSwap.status).toBe(1);
+    expect(JSON.parse((cliSwap.stdout || "").trim()).blocked).toBe("APPLY_AUTHORIZATION_PIN_MISMATCH");
+
+    const realRead = fs.readFileSync;
+    fs.readFileSync = ((file: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+      if (String(file).includes("TOOLING_AUTHORIZATION")) throw new Error("WORKTREE_READ");
+      return realRead(file, ...(args as []));
+    }) as typeof fs.readFileSync;
+    try {
+      expect(
+        preflightApplyAuthorization({ cwd, now: INSIDE_EVIDENCE_WINDOW }).blocked,
+      ).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+      expect(
+        preflightApplyAuthorization({
+          cwd,
+          now: INSIDE_EVIDENCE_WINDOW,
+          auth: { production_apply_authorization: { status: "AUTHORIZED", apply_authorized: true } },
+        }).blocked,
+      ).toBe("APPLY_AUTHORIZATION_WORKTREE_SUBSTITUTE");
+    } finally {
+      fs.readFileSync = realRead;
+    }
   });
 });
 

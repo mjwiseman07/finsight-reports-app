@@ -88,6 +88,8 @@ $AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATI
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
 $script:MaterialRoot = $null
 $script:ApplyLaunch = $false
+$script:AuthorizationPublicationCommit = ""
+$script:AuthorizationBlobOid = ""
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
@@ -144,63 +146,38 @@ function Invoke-GitExit([string[]]$GitArgs, [string]$WorkDir) {
   return [int]$p.ExitCode
 }
 
-function Get-ApplyAuthorizationDecision([string]$PublicationCommit, [string]$WorkDir) {
-  $authRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
-  $bundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
-  $bytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${PublicationCommit}:${authRel}") -WorkDir $WorkDir
-  Assert-Utf8LfNoBom -Bytes $bytes -Label $authRel
-  $text = [Text.Encoding]::UTF8.GetString($bytes)
-  if ($text.Contains($PublicationCommit)) {
-    return [ordered]@{ blocked = "APPLY_AUTHORIZATION_CIRCULAR_TIP"; apply_authorized = $false; publication_commit = $PublicationCommit }
+function Invoke-SealedBundlePreflight([string]$WorkDir, [string]$PublicationCommit) {
+  $head = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${head}:${AuthRel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
+  $headAuth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
+  $bundleRel = [string]$headAuth.standalone_bundle.path
+  if ([string]::IsNullOrWhiteSpace($bundleRel)) { throw "BUNDLE_AUTHORITY_UNPUBLISHED" }
+  $dest = Join-Path $script:MaterialRoot "preflight-bundle.cjs"
+  [void](Assert-BlobSeal -Commit $head -Rel $bundleRel -Seal $headAuth.standalone_bundle -Dest $dest -WorkDir $WorkDir)
+  $node = (Get-Command node.exe).Source
+  $nodeArgs = @($dest, "--preflight")
+  if (-not [string]::IsNullOrWhiteSpace($PublicationCommit) -and $PublicationCommit.ToLowerInvariant() -ne $head) {
+    $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowSynthetic -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    $nodeArgs += @("--credential-free-probe", "--publication-commit", $PublicationCommit.ToLowerInvariant())
   }
-  $auth = $text | ConvertFrom-Json
-  $record = $auth.production_apply_authorization
-  $map = [ordered]@{
-    publication_commit = $PublicationCommit
-    authorized_executable_commit = $null
-    bundle_oid = $null
-    apply_authorized = $false
-    attempt_id = $null
-    blocked = $null
-    artifact_map = [ordered]@{
-      authorization_record = "publication_commit"
-      ceremony_entry_supervisor_gates_bootstrap = "authorized_executable_commit"
-      bundle_migrations_ca = "authorized_executable_commit"
-    }
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = $node
+  $psi.Arguments = ($nodeArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+  $psi.WorkingDirectory = $WorkDir
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) {
+    try { $p.Kill() } catch {}
+    throw "APPLY_AUTHORIZATION_PREFLIGHT_FAILED: timeout"
   }
-  if ($null -eq $record -or [string]$record.status -ne "AUTHORIZED" -or -not [bool]$record.apply_authorized) {
-    $map.blocked = "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS"
-    return $map
-  }
-  $executable = ([string]$record.authorized_executable_commit).ToLowerInvariant()
-  if ($executable -notmatch '^[0-9a-f]{40}$' -or $executable -eq $PublicationCommit) {
-    $map.blocked = "APPLY_AUTHORIZATION_CIRCULAR_TIP"
-    return $map
-  }
-  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $executable, $PublicationCommit) -WorkDir $WorkDir) -ne 0) {
-    $map.blocked = "APPLY_AUTHORIZATION_ANCESTRY"
-    return $map
-  }
-  $names = @(Invoke-GitText -GitArgs @("diff", "--name-only", $executable, $PublicationCommit) -WorkDir $WorkDir)
-  $names = @($names | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-  if ($names.Count -ne 1 -or $names[0] -ne $authRel) {
-    $map.blocked = "APPLY_AUTHORIZATION_ALLOWLIST"
-    return $map
-  }
-  if ($null -eq $record.bundle -or [string]::IsNullOrWhiteSpace([string]$record.bundle.oid) -or $null -eq $record.migrations -or $null -eq $record.prior_dry_run_evidence -or $null -eq $record.pre_apply_live_evidence) {
-    $map.blocked = "APPLY_AUTHORIZATION_SEAL_MISSING"
-    return $map
-  }
-  $oid = Invoke-GitText -GitArgs @("rev-parse", "${executable}:${bundleRel}") -WorkDir $WorkDir
-  if ($oid -ne [string]$record.bundle.oid) {
-    $map.blocked = "APPLY_AUTHORIZATION_BUNDLE_MISMATCH"
-    return $map
-  }
-  $map.authorized_executable_commit = $executable
-  $map.bundle_oid = [string]$record.bundle.oid
-  $map.attempt_id = [string]$record.attempt_id
-  $map.blocked = $null
-  return $map
+  return @{ stdout = ([string]$stdout).Trim(); stderr = ([string]$stderr).Trim(); exit = [int]$p.ExitCode }
 }
 
 function Invoke-GitText([string[]]$GitArgs, [string]$WorkDir) {
@@ -483,18 +460,27 @@ try {
       }
       $publicationCommit = $TestPublicationCommit.ToLowerInvariant()
     }
-    $decision = Get-ApplyAuthorizationDecision -PublicationCommit $publicationCommit -WorkDir $RepoRoot
+    $probe = Invoke-SealedBundlePreflight -WorkDir $RepoRoot -PublicationCommit $publicationCommit
     if ($EmitAuthorizationMap) {
-      Write-Output ($decision | ConvertTo-Json -Compress -Depth 6)
-      if ($decision.blocked) { exit 1 }
+      if (-not [string]::IsNullOrWhiteSpace($probe.stdout)) { Write-Output $probe.stdout }
+      if ($probe.exit -ne 0) { exit 1 }
       exit 0
     }
-    if ($decision.blocked) {
-      Write-Blocked ([string]$decision.blocked)
+    if ([string]::IsNullOrWhiteSpace($probe.stdout)) {
+      Write-Blocked "APPLY_AUTHORIZATION_PREFLIGHT_FAILED"
+      exit 1
+    }
+    $decision = $probe.stdout | ConvertFrom-Json
+    if ($probe.exit -ne 0 -or $decision.blocked) {
+      $blockedCode = [string]$decision.blocked
+      if ([string]::IsNullOrWhiteSpace($blockedCode)) { $blockedCode = "APPLY_AUTHORIZATION_PREFLIGHT_FAILED" }
+      Write-Blocked $blockedCode
       exit 1
     }
     $TestApplyAttemptId = [string]$decision.attempt_id
     $script:AuthorizedExecutableCommit = [string]$decision.authorized_executable_commit
+    $script:AuthorizationPublicationCommit = [string]$decision.publication_commit
+    $script:AuthorizationBlobOid = [string]$decision.authorization_blob_oid
     $script:ApplyLaunch = $true
   }
 
@@ -589,7 +575,12 @@ try {
   if ($TestForcePromptCancel) { $ceremonyTail += "-TestForcePromptCancel" }
   if ($TestHangBeforeEvidence) { $ceremonyTail += "-TestHangBeforeEvidence" }
   if ($script:ApplyLaunch) {
-    $ceremonyTail += @("-Mode", "apply", "-ApplyAttemptId", $TestApplyAttemptId)
+    $ceremonyTail += @(
+      "-Mode", "apply",
+      "-ApplyAttemptId", $TestApplyAttemptId,
+      "-AuthorizationPublicationCommit", $script:AuthorizationPublicationCommit,
+      "-AuthorizationBlobOid", $script:AuthorizationBlobOid
+    )
   }
   if ($visiblePrompt) {
     $ceremonyArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass") + $ceremonyTail

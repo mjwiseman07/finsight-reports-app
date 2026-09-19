@@ -89,6 +89,13 @@ param(
   [Parameter(Mandatory = $false)]
   [string]$ApplyAttemptId = "",
 
+  # Pinned by sealed entry from the credential-free preflight. Required for apply.
+  [Parameter(Mandatory = $false)]
+  [string]$AuthorizationPublicationCommit = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$AuthorizationBlobOid = "",
+
   # Set only by sealed enter after tip/source blob materialize. Direct worktree launch is forbidden.
   [Parameter(Mandatory = $false)]
   [switch]$SealedMaterialInvocation
@@ -615,6 +622,34 @@ function Invoke-GitTextLocal([string[]]$GitArgs) {
   return $out.Trim()
 }
 
+function Invoke-BundlePreflight([byte[]]$BundleBytes, [string[]]$ExtraArgs) {
+  $dest = Join-Path $EvidenceOutDir ("preflight-" + [guid]::NewGuid().ToString("N") + ".cjs")
+  [IO.File]::WriteAllBytes($dest, $BundleBytes)
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = (Get-Command node.exe).Source
+  $quoted = @('"{0}"' -f $dest)
+  foreach ($arg in $ExtraArgs) {
+    if ($arg -match '[\s"]') { $quoted += ('"' + ($arg -replace '"', '\"') + '"') } else { $quoted += $arg }
+  }
+  $psi.Arguments = $quoted -join " "
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) {
+    try { $p.Kill() } catch {}
+    throw "APPLY_AUTHORIZATION_PREFLIGHT_FAILED: timeout"
+  }
+  Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+  $text = (([string]$stdout) -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Last 1)
+  if ([string]::IsNullOrWhiteSpace($text)) { throw "APPLY_AUTHORIZATION_PREFLIGHT_FAILED: empty" }
+  return @{ exit = [int]$p.ExitCode; decision = ($text.Trim() | ConvertFrom-Json); stderr = ([string]$stderr).Trim() }
+}
+
 function Get-GitBlobBytes([string]$Commit, [string]$Rel) {
   if ($TestForcePrePromptNullIndex -eq "empty_blob_index") {
     # Legacy defect: empty `return $ms.ToArray()` unrolls to $null; `$null[0]` throws
@@ -856,26 +891,29 @@ try {
     if ($allowSyntheticApply -eq "1" -and [string]::IsNullOrWhiteSpace($ApplyAttemptId)) {
       throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: synthetic env is not authorization"
     }
-    $prod = $auth.production_apply_authorization
-    $executable = ""
-    if ($null -ne $prod) { $executable = ([string]$prod.authorized_executable_commit).ToLowerInvariant() }
-    $prodOk = $null -ne $prod -and [string]$prod.status -eq "AUTHORIZED" -and [bool]$prod.apply_authorized -and $executable -match '^[0-9a-f]{40}$' -and $executable -ne $tip.ToLowerInvariant() -and [string]$prod.attempt_id -eq $ApplyAttemptId
-    if (-not $prodOk) {
-      throw "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production apply authorization is unpublished"
+    if ($AuthorizationPublicationCommit -notmatch '^[0-9a-f]{40}$' -or $AuthorizationBlobOid -notmatch '^[0-9a-f]{40}$') {
+      throw "APPLY_AUTHORIZATION_PIN_MISMATCH: preflight pin missing"
     }
-    $bundleCommit = $executable
+    $preflight = Invoke-BundlePreflight -BundleBytes $bundleBytes -ExtraArgs @("--preflight")
+    $decision = $preflight.decision
+    if ($preflight.exit -ne 0 -or $decision.blocked) {
+      $code = [string]$decision.blocked
+      if ([string]::IsNullOrWhiteSpace($code)) { $code = "APPLY_AUTHORIZATION_PREFLIGHT_FAILED" }
+      throw ("{0}: sealed preflight rejected the publication before credentials" -f $code)
+    }
+    if ([string]$decision.publication_commit -ne $AuthorizationPublicationCommit.ToLowerInvariant() -or [string]$decision.authorization_blob_oid -ne $AuthorizationBlobOid.ToLowerInvariant()) {
+      throw "APPLY_AUTHORIZATION_PIN_MISMATCH: ceremony pin does not match preflight"
+    }
+    if ([string]$decision.attempt_id -ne $ApplyAttemptId) {
+      throw "APPLY_ATTEMPT_ID_INVALID: attempt id does not match preflight"
+    }
+    $executable = ([string]$decision.authorized_executable_commit).ToLowerInvariant()
     $script:ApplyExecutableCommit = $executable
-    if ($null -eq $prod.bundle -or [string]::IsNullOrWhiteSpace([string]$prod.bundle.oid)) {
-      throw "APPLY_AUTHORIZATION_SEAL_MISSING: bundle"
-    }
     $execOid = Invoke-GitTextLocal @("rev-parse", "${executable}:${BundleRel}")
-    if ($execOid -ne [string]$prod.bundle.oid) {
-      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle oid"
-    }
     $execBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $executable -Rel $BundleRel) "bundle_blob"
     $execSha = Get-Sha256Bytes -Bytes $execBytes
-    if ($execSha -ne ([string]$prod.bundle.sha256).ToLowerInvariant() -or $execBytes.Length -ne [int]$prod.bundle.bytes) {
-      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle bytes"
+    if ($execOid -ne [string]$decision.bundle_oid -or $execSha -ne ([string]$decision.bundle_sha256).ToLowerInvariant() -or $execBytes.Length -ne [int]$decision.bundle_bytes) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle"
     }
     $bundleBytes = $execBytes
     $existingApply = Join-Path $EvidenceOutDir ($ApplyAttemptId + ".marker")
@@ -962,6 +1000,16 @@ try {
 
   Set-PrePromptPhase "attempt_marker"
   if ($Mode -eq "apply") {
+    $recheck = Invoke-BundlePreflight -BundleBytes $bundleBytes -ExtraArgs @(
+      "--preflight", "--recheck",
+      "--expect-commit", $AuthorizationPublicationCommit.ToLowerInvariant(),
+      "--expect-blob-oid", $AuthorizationBlobOid.ToLowerInvariant()
+    )
+    if ($recheck.exit -ne 0 -or $recheck.decision.blocked) {
+      $code = [string]$recheck.decision.blocked
+      if ([string]::IsNullOrWhiteSpace($code)) { $code = "APPLY_AUTHORIZATION_PIN_MISMATCH" }
+      throw ("{0}: publication changed after preflight" -f $code)
+    }
     $attemptMarker = New-ApplyMarkerAtomic -Dir $EvidenceOutDir -Tip $script:ApplyExecutableCommit -AttemptId $ApplyAttemptId
   } else {
     $attemptMarker = New-AttemptMarkerAtomic -Dir $EvidenceOutDir -Head $PrHead
@@ -1041,7 +1089,8 @@ process.exit(0);
     if ([string]::IsNullOrWhiteSpace($exactToken)) {
       throw "APPLY_AUTHORIZATION_TOKEN_MISMATCH: missing token"
     }
-    $psi.Arguments = ('"{0}" --apply --apply-marker "{1}"' -f $bundleTemp, $attemptMarker)
+    $authorizationPin = "{0}:{1}" -f $AuthorizationPublicationCommit.ToLowerInvariant(), $AuthorizationBlobOid.ToLowerInvariant()
+    $psi.Arguments = ('"{0}" --apply --apply-marker "{1}" --authorization-pin "{2}"' -f $bundleTemp, $attemptMarker, $authorizationPin)
   } else {
     $psi.Arguments = "`"$bundleTemp`""
   }

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { describeApplyArtifactMap, createDisposablePublicationCommit } from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
+import { describeApplyArtifactMap, createDisposablePublicationCommit, commitPublicationTree, preflightApplyAuthorization } from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
 import { APPLY_AUTHORIZATION_TOKEN } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
 
 const ROOT = process.cwd();
@@ -17,6 +17,20 @@ const BOOTSTRAP_REL =
   "scripts/security/bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1";
 const NATIVE_ENTRY_REL = "scripts/security/enter-ra-pro-accounting-automation-ceremony.ps1";
 const PROJECT_URL = "postgres://user:pass@db.jzmdgwwiestcmmeuhhkr.supabase.co:5432/postgres?sslmode=require";
+
+type MutableAuth = {
+  project_ref?: string;
+  extra_field?: string;
+  production_apply_authorization: {
+    attempt_id?: string;
+    authorized_executable_commit?: string;
+    pre_apply_live_evidence: { sha256: string; oid: string; bytes: number };
+    prior_dry_run_evidence: { sha256: string; oid: string; bytes: number };
+    migrations: Array<{ oid: string }>;
+    bundle: { oid: string; sha256: string };
+    tls_trust_root?: { der_sha256: string };
+  };
+};
 
 function gitEnv() {
   return {
@@ -576,7 +590,61 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(psMap.bundle_oid).toBe(jsMap.bundle_oid);
     expect(psMap.apply_authorized).toBe(false);
     expect(String(visible.run.stdout)).not.toMatch(/SecureString|postgres:\/\//i);
+    expect(fs.readdirSync(visible.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
     expect(tipSha()).toBe(executable);
+  });
+
+  it("rejects synthetic descendant publications on the visible route before prompt or marker", () => {
+    const executable = tipSha();
+    const attempt = `apply-${executable.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
+    const base = JSON.parse(git(["cat-file", "-p", `${published.publicationCommit}:${AUTH_REL}`]));
+    const cases: Array<{ code: RegExp; mutate: (auth: MutableAuth) => void }> = [
+      { code: /APPLY_AUTHORIZATION_ALLOWLIST/, mutate: (auth) => { auth.extra_field = "not-allowed"; } },
+      { code: /PRE_APPLY_LIVE_PROJECT_MISMATCH/, mutate: (auth) => { auth.project_ref = "not-the-project"; } },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { auth.production_apply_authorization.pre_apply_live_evidence.sha256 = "a".repeat(64); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_BUNDLE_MISMATCH/,
+        mutate: (auth) => { auth.production_apply_authorization.bundle.oid = "b".repeat(40); },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_SEAL_MISSING/,
+        mutate: (auth) => { delete auth.production_apply_authorization.tls_trust_root; },
+      },
+      {
+        code: /APPLY_AUTHORIZATION_ANCESTRY|APPLY_AUTHORIZATION_CIRCULAR_TIP/,
+        mutate: (auth) => { auth.production_apply_authorization.authorized_executable_commit = "c".repeat(40); },
+      },
+    ];
+    for (const item of cases) {
+      const auth = JSON.parse(JSON.stringify(base)) as MutableAuth;
+      item.mutate(auth);
+      const publicationCommit = commitPublicationTree(ROOT, executable, auth);
+      const js = preflightApplyAuthorization({
+        cwd: ROOT,
+        allowDisposablePublicationCommit: true,
+        publicationCommit,
+        now: "2026-09-19T12:00:00Z",
+      });
+      const visible = runAuthenticatedBootstrap(
+        ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", publicationCommit],
+        { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+      );
+      expect(visible.run.status, `${item.code} ${visible.run.stdout}\n${visible.run.stderr}`).not.toBe(0);
+      const psMap = JSON.parse(visible.run.stdout.trim());
+      expect(String(psMap.blocked || "")).toMatch(item.code);
+      expect(psMap.blocked).toBe(js.blocked);
+      expect(fs.readdirSync(visible.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
+      expect(`${visible.run.stdout}\n${visible.run.stderr}`).not.toMatch(/SecureString/);
+      expect(tipSha()).toBe(executable);
+    }
   });
 
   it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {
