@@ -36,24 +36,24 @@
     "required_prior_dry_run_evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
     "required_prior_dry_run_evidence_oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
     "required_prior_dry_run_evidence_bytes": 5100,
-    "required_pre_apply_live_evidence_sha256": "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
-    "required_pre_apply_live_evidence_oid": "0f6f480f0bd16df089cd1bb5e3f32b8865feb939",
-    "required_pre_apply_live_evidence_bytes": 4229
+    "required_pre_apply_live_evidence_sha256": "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
+    "required_pre_apply_live_evidence_oid": "ba94ef76d3b5f214e69c8d7529d76a05ae45d022",
+    "required_pre_apply_live_evidence_bytes": 4059
   },
   "pre_apply_live_publication": {
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
     "contract_path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
     "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json",
-    "evidence_source_commit": "76775c3b9758d660f53a810df80e469cc0b639b5",
-    "evidence_blob_oid": "0f6f480f0bd16df089cd1bb5e3f32b8865feb939",
-    "evidence_sha256": "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
-    "evidence_bytes": 4229,
-    "valid_until_utc": "2026-09-20T03:00:15Z",
-    "collection_pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
+    "evidence_source_commit": "bd79ac0fe2eb82393b2a0715732235e9e509cb23",
+    "evidence_blob_oid": "ba94ef76d3b5f214e69c8d7529d76a05ae45d022",
+    "evidence_sha256": "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
+    "evidence_bytes": 4059,
+    "valid_until_utc": "2026-09-22T04:55:07Z",
+    "collection_pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
     "apply_authorized": false,
     "independent_review_visibility_limitations": [
-      "The independent evidence review could not repeat the Production flag-name lookup. The Vercel CLI was not available, and no environment value was read. The observation's statement that the key was checked by exact name only, and that its value was not read, is retained unchanged."
+      "The independent evidence review repeated the Production flag-name lookup. The key was absent. No environment value was read. The observation was not rewritten and its validity was not extended."
     ]
   },
   "production_apply_authorization": {
@@ -89,12 +89,12 @@
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
     "evidence_path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json",
-    "evidence_source_commit": "f32391f9141cb01424d7185d57a1b41478fdfc82",
-    "evidence_blob_oid": "f05bfa25def88f28037defbbdd3375bd84068604",
-    "evidence_sha256": "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
-    "evidence_bytes": 2324,
-    "valid_from_utc": "2026-09-18T22:23:36Z",
-    "valid_until_utc": "2026-09-19T22:23:36Z"
+    "evidence_source_commit": "bd79ac0fe2eb82393b2a0715732235e9e509cb23",
+    "evidence_blob_oid": "0636c541150a289dceae290b36230cf60a4f530b",
+    "evidence_sha256": "149db26f0fed83d2d1cd1fd03a756fa999e8748f52bd7c5a71336dd43f0e2851",
+    "evidence_bytes": 2375,
+    "valid_from_utc": "2026-09-21T04:32:56Z",
+    "valid_until_utc": "2026-09-22T04:32:56Z"
   },
   "feature_flag": {
     "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
@@ -105,8 +105,8 @@
     "Dry-run requires published precondition_publication only.",
     "Production apply remains unreachable. Prior-dry-run and pre-apply pins are published, and apply still stops before credentials.",
     "Prior-dry-run evidence pin is published from the reviewed 99e6ed19 dry run. Pre-apply pins are published from the reviewed observation and still do not authorize apply.",
-    "Pre-apply live evidence pins are published from committed Git blob 76775c3b9758d660f53a810df80e469cc0b639b5. Apply still refuses before credentials. Pin publication does not authorize production apply.",
-    "Independent review visibility limit: the Production flag-name lookup was not repeated. No environment value was read. The observation was not rewritten and its validity was not extended.",
+    "Pre-apply live evidence pins are published from committed Git blob bd79ac0fe2eb82393b2a0715732235e9e509cb23. Apply still refuses before credentials. Pin publication does not authorize production apply.",
+    "Independent review repeated the Production flag-name lookup. The key was absent. No environment value was read. The observation was not rewritten and its validity was not extended.",
     "Production apply authorization remains UNPUBLISHED. Evidence pins and the apply token do not authorize apply. A later descendant publication must name authorized_executable_commit as this reviewed ancestor and must not contain its own SHA.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Never uses cutover, FRLS, or containment database credential channels.",

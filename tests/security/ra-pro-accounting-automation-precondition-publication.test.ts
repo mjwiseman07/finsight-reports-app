@@ -12,10 +12,10 @@ const { assertUtf8LfNoBom } = require("../../scripts/security/git-blob-authority
 
 const ROOT = process.cwd();
 const FIXTURE = "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1.json";
-const REVIEWED_SHA = "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288";
-const REVIEWED_BYTES = 2324;
-const SOURCE_COMMIT = "f32391f9141cb01424d7185d57a1b41478fdfc82";
-const SOURCE_OID = "f05bfa25def88f28037defbbdd3375bd84068604";
+const REVIEWED_SHA = "149db26f0fed83d2d1cd1fd03a756fa999e8748f52bd7c5a71336dd43f0e2851";
+const REVIEWED_BYTES = 2375;
+const SOURCE_COMMIT = "bd79ac0fe2eb82393b2a0715732235e9e509cb23";
+const SOURCE_OID = "0636c541150a289dceae290b36230cf60a4f530b";
 
 function publishedAuth(patch: Record<string, unknown> = {}) {
   return {
@@ -61,16 +61,16 @@ describe("RA Pro accounting-automation precondition publication", () => {
   });
 
   it("accepts the reviewed facts only inside their validity window", () => {
-    expect(() => validateEvidence(fixture(), new Date("2026-09-19T12:00:00Z"))).not.toThrow();
+    expect(() => validateEvidence(fixture(), new Date("2026-09-21T12:00:00Z"))).not.toThrow();
   });
 
   it("rejects future-start and expired evidence", () => {
     const future = fixture();
-    future.valid_from_utc = "2026-09-19T13:00:00Z";
-    future.valid_until_utc = "2026-09-20T13:00:00Z";
-    future.collected_at_utc = "2026-09-19T13:00:00Z";
-    expect(() => validateEvidence(future, new Date("2026-09-19T12:00:00Z"))).toThrow(/START_NOT_UNEXPIRED/);
-    expect(() => validateEvidence(fixture(), new Date("2026-09-19T22:23:36Z"))).toThrow(/EXPIRED/);
+    future.valid_from_utc = "2026-09-21T13:00:00Z";
+    future.valid_until_utc = "2026-09-22T13:00:00Z";
+    future.collected_at_utc = "2026-09-21T13:00:00Z";
+    expect(() => validateEvidence(future, new Date("2026-09-21T12:00:00Z"))).toThrow(/START_NOT_UNEXPIRED/);
+    expect(() => validateEvidence(fixture(), new Date("2026-09-22T04:32:56Z"))).toThrow(/EXPIRED/);
   });
 
   it.each([
@@ -81,7 +81,7 @@ describe("RA Pro accounting-automation precondition publication", () => {
   ])("rejects %s", (_name, mutate) => {
     const evidence = fixture();
     mutate(evidence);
-    expect(() => validateEvidence(evidence, new Date("2026-09-19T12:00:00Z"))).toThrow(/PRECONDITION_/);
+    expect(() => validateEvidence(evidence, new Date("2026-09-21T12:00:00Z"))).toThrow(/PRECONDITION_/);
   });
 
   it("rejects unpublished pins and all path/env overrides before blob loading", () => {
@@ -96,7 +96,7 @@ describe("RA Pro accounting-automation precondition publication", () => {
       assertPreconditionEvidencePublished({
         auth: publishedAuth(),
         cwd: ROOT,
-        now: new Date("2026-09-19T12:00:00Z"),
+        now: new Date("2026-09-21T12:00:00Z"),
       }),
     ).toMatchObject({
       oid: SOURCE_OID,
@@ -113,7 +113,7 @@ describe("RA Pro accounting-automation precondition publication", () => {
         assertPreconditionEvidencePublished({
           auth: publishedAuth(patch),
           cwd: ROOT,
-          now: new Date("2026-09-19T12:00:00Z"),
+          now: new Date("2026-09-21T12:00:00Z"),
         }),
       ).toThrow();
     }
@@ -126,7 +126,7 @@ describe("RA Pro accounting-automation precondition publication", () => {
           evidence_source_commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         }),
         cwd: ROOT,
-        now: new Date("2026-09-19T12:00:00Z"),
+        now: new Date("2026-09-21T12:00:00Z"),
       }),
     ).toThrow(/GIT_BLOB_LOAD_FAILED/);
   });

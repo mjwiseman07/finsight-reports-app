@@ -74,9 +74,9 @@ describe("RA Pro accounting-automation pre-apply live gate", () => {
       "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json";
     expect(auth.publication.status).toBe("PUBLISHED");
     expect(auth.publication.required_pre_apply_live_evidence_sha256).toBe(
-      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+      "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
     );
-    expect(auth.publication.required_pre_apply_live_evidence_bytes).toBe(4229);
+    expect(auth.publication.required_pre_apply_live_evidence_bytes).toBe(4059);
     expect(auth.pre_apply_live_publication.status).toBe("PUBLISHED");
     expect(auth.pre_apply_live_publication.evidence_path).toBe(evidenceRel);
     expect(auth.pre_apply_live_publication.evidence_sha256).toBe(
@@ -85,7 +85,7 @@ describe("RA Pro accounting-automation pre-apply live gate", () => {
     expect(auth.pre_apply_live_publication.evidence_blob_oid).toBe(
       auth.publication.required_pre_apply_live_evidence_oid,
     );
-    expect(auth.pre_apply_live_publication.evidence_bytes).toBe(4229);
+    expect(auth.pre_apply_live_publication.evidence_bytes).toBe(4059);
     expect(auth.pre_apply_live_publication.apply_authorized).toBe(false);
     expect(String(auth.pre_apply_live_publication.independent_review_visibility_limitations.join("\n"))).toMatch(
       /flag-name lookup/i,

@@ -20,7 +20,7 @@ import { EXPECTED_PROJECT_REF } from "../../scripts/security/ra-pro-accounting-a
 import { OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256 } from "../../scripts/security/ra-pro-accounting-automation-tls-ca.js";
 
 const ROOT = process.cwd();
-const PRECOND_SHA = "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288";
+const PRECOND_SHA = "149db26f0fed83d2d1cd1fd03a756fa999e8748f52bd7c5a71336dd43f0e2851";
 const PROJECT_URL = `postgres://user:pass@db.${EXPECTED_PROJECT_REF}.supabase.co:5432/postgres?sslmode=require`;
 const WRONG_PROJECT_URL = "postgres://user:pass@db.otherprojectref000000000000.supabase.co:5432/postgres";
 const LOOPBACK_URL = "postgres://postgres:postgres@127.0.0.1:5432/postgres";
@@ -167,7 +167,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
 
     const mismatched = await runApplicator({
       mode: "dry-run",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       env: { [DATABASE_URL_ENV]: WRONG_PROJECT_URL },
     });
     expect(mismatched.verdict).toBe("DRY_RUN_BLOCKED");
@@ -178,7 +178,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
 
     const loop = await runApplicator({
       mode: "dry-run",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       env: { [DATABASE_URL_ENV]: LOOPBACK_URL },
     });
     expect(String(loop.error_code || "")).toBe("DATABASE_PROJECT_REF_MISMATCH");
@@ -245,7 +245,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   it("apply remains unreachable with token + URL after pre-apply pins publish", async () => {
     const result = await runApplicator({
       mode: "apply",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: PROJECT_URL },
     });
@@ -789,7 +789,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   });
 
   it("records accepted precondition sha on dry-run blocked before URL", async () => {
-    const result = await runApplicator({ mode: "dry-run", now: "2026-09-19T12:00:00Z", env: {} });
+    const result = await runApplicator({ mode: "dry-run", now: "2026-09-21T12:00:00Z", env: {} });
     expect(result.precondition_evidence?.sha256).toBe(PRECOND_SHA);
     expect(result.authorization_scope).toBe("dry_run_precondition_only");
   });

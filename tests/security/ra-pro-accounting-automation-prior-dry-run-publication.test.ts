@@ -29,7 +29,7 @@ describe("RA Pro accounting-automation prior dry-run publication", () => {
     const published = auth();
     expect(published.publication.status).toBe("PUBLISHED");
     expect(published.publication.required_pre_apply_live_evidence_sha256).toBe(
-      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+      "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
     );
     expect(published.prior_dry_run_publication.status).toBe("PUBLISHED");
     expect(assertPriorDryRunEvidencePublished({ auth: published, cwd: ROOT })).toMatchObject({

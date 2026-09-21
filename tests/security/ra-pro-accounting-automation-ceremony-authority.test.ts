@@ -262,11 +262,11 @@ describe("RA Pro accounting-automation ceremony authority", () => {
       "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
     );
     expect(auth.publication?.required_pre_apply_live_evidence_sha256).toBe(
-      "bf42b0c83b1604d2bb627e97807cc7ed7fa32a172ec0508046c1012c9f0ec6cf",
+      "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
     );
     expect(auth.precondition_publication?.status).toBe("PUBLISHED");
     expect(auth.precondition_publication?.evidence_sha256).toBe(
-      "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
+      "149db26f0fed83d2d1cd1fd03a756fa999e8748f52bd7c5a71336dd43f0e2851",
     );
     const tls = auth.tls_trust_root;
     expect(tls?.path).toBe("scripts/security/embedded-supabase-prod-ca-2021.js");
@@ -669,7 +669,7 @@ describe("RA Pro accounting-automation ceremony authority", () => {
         cwd: ROOT,
         allowDisposablePublicationCommit: true,
         publicationCommit,
-        now: "2026-09-19T12:00:00Z",
+        now: "2026-09-21T12:00:00Z",
       });
       const visible = runAuthenticatedBootstrap(
         ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", publicationCommit],

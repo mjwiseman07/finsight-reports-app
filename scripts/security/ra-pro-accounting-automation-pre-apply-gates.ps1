@@ -89,7 +89,7 @@ function Test-AccountingPreApplyLiveObject($Evidence, [string]$NowUtc) {
   $now = ConvertTo-PreApplyUtc $NowUtc
   if ($now -lt $from) { throw "PRE_APPLY_LIVE_NOT_YET_VALID" }
   if ($now -ge $until) { throw "PRE_APPLY_LIVE_EXPIRED" }
-  if ([string]$Evidence.authorization.pr_head -cne "a49a20a8fae505a7639914326836dc79577600e2") {
+  if ([string]$Evidence.authorization.pr_head -cne "62d58f905729f054a36b771b90721a84ab54c4d6") {
     throw "PRE_APPLY_LIVE_HEAD_MISMATCH"
   }
   if ([string]$Evidence.prior_dry_run_pin.evidence_sha256 -cne "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18") {

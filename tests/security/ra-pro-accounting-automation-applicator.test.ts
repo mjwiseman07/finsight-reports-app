@@ -63,7 +63,7 @@ function sha256(text: string) {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
-const INSIDE_EVIDENCE_WINDOW = "2026-09-19T12:00:00Z";
+const INSIDE_EVIDENCE_WINDOW = "2026-09-21T12:00:00Z";
 
 type MutableAuth = {
   project_ref?: string;
@@ -579,7 +579,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   it("dry-run accepts published precondition without prior/apply pins (fails closed only on missing URL)", async () => {
     const result = await runApplicator({
       mode: "dry-run",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       env: {}, // no database URL
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
@@ -587,7 +587,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(String(result.error_code || "")).not.toMatch(/AUTHORIZATION_PINS_UNPUBLISHED/);
     expect(result.authorization_scope).toBe("dry_run_precondition_only");
     expect(result.precondition_evidence?.sha256).toBe(
-      "d2e47fb6c77501fa6a8b7e29ea728550c23f0daef1713ded7de96c080bcf8288",
+      "149db26f0fed83d2d1cd1fd03a756fa999e8748f52bd7c5a71336dd43f0e2851",
     );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
     expect(result.sqlApplicationAttempts ?? 0).toBe(0);
@@ -597,7 +597,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   it("apply still rejects published pre-apply evidence before credentials", async () => {
     const result = await runApplicator({
       mode: "apply",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db" },
     });
@@ -1113,7 +1113,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   it("dry-run is ready with zero SQL attempts when history is 188", async () => {
     const result = await runApplicator({
       mode: "dry-run",
-      now: "2026-09-19T12:00:00Z",
+      now: "2026-09-21T12:00:00Z",
       allowLocalhostForHarness: true,
       env: { [DATABASE_URL_ENV]: url },
     });
@@ -1848,7 +1848,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
-        now: "2026-09-19T12:00:00Z",
+        now: "2026-09-21T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });
@@ -1871,7 +1871,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
-        now: "2026-09-19T12:00:00Z",
+        now: "2026-09-21T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });
@@ -1896,7 +1896,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
-        now: "2026-09-19T12:00:00Z",
+        now: "2026-09-21T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });

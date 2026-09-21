@@ -8,7 +8,7 @@
   "valid_until_utc": "2026-09-20T03:00:15Z",
   "authorization": {
     "pr_number": 324,
-    "pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
     "scope": "read_only_production_pre_apply_live_collection",
     "committed_pre_apply_pins": "UNPUBLISHED",
     "disposable_pin_scope": "in_memory_file_sha_only"
@@ -31,8 +31,8 @@
   },
   "preview_deployment": {
     "environment": "Preview",
-    "pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
-    "github_deployment_id": 6536311942,
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
+    "github_deployment_id": 6561383976,
     "state": "success",
     "is_production_serving": false
   },
