@@ -2,13 +2,13 @@
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
   "schema_version": 1,
   "source_channel_classification": "fresh_read_only_github_vercel_status_and_supabase_select",
-  "collection_started_at_utc": "2026-09-19T03:00:15Z",
-  "collection_ended_at_utc": "2026-09-19T03:04:57Z",
-  "valid_from_utc": "2026-09-19T03:00:15Z",
-  "valid_until_utc": "2026-09-20T03:00:15Z",
+  "collection_started_at_utc": "2026-09-21T04:55:07Z",
+  "collection_ended_at_utc": "2026-09-21T04:58:32Z",
+  "valid_from_utc": "2026-09-21T04:55:07Z",
+  "valid_until_utc": "2026-09-22T04:55:07Z",
   "authorization": {
     "pr_number": 324,
-    "pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
     "scope": "read_only_production_pre_apply_live_collection",
     "committed_pre_apply_pins": "UNPUBLISHED",
     "disposable_pin_scope": "in_memory_file_sha_only"
@@ -26,13 +26,13 @@
     "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
     "vercel_deployment_id": "FTe8t7bxyMVV6imEFAatkmBau1R7",
     "github_deployment_id": 6513747695,
-    "observed_at_utc": "2026-09-19T03:04:57Z",
+    "observed_at_utc": "2026-09-21T04:58:32Z",
     "pr_head_is_serving_production": false
   },
   "preview_deployment": {
     "environment": "Preview",
-    "pr_head": "a49a20a8fae505a7639914326836dc79577600e2",
-    "github_deployment_id": 6536311942,
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
+    "github_deployment_id": 6561383976,
     "state": "success",
     "is_production_serving": false
   },
@@ -44,7 +44,7 @@
   },
   "database_readonly": {
     "project_ref": "jzmdgwwiestcmmeuhhkr",
-    "observed_at_utc": "2026-09-19T03:00:15Z",
+    "observed_at_utc": "2026-09-21T04:55:07Z",
     "history_count": 188,
     "weekly_version": "20260917044537",
     "weekly_version_count": 0,
@@ -99,9 +99,8 @@
     "Production environment listing was checked by exact key name only. The key value was not read.",
     "Database results are aggregate counts and booleans. No customer, firm, user, or webhook identifiers were retained.",
     "The serving deployment identity is the opaque Vercel path id from the current Production status. Hostnames were not retained.",
-    "This artifact is not the published precondition evidence and not the prior dry-run evidence. Those were not reused as this observation.",
-    "No sealed accounting-automation pre-apply contract file exists in the repository. Facts follow the authorized live check plus the sealed schema-probe prerequisite shape.",
-    "Committed pre-apply pins remain null. The disposable pin is the SHA-256 of this file and is not written into TOOLING_AUTHORIZATION."
+    "This artifact is a new observation. The passed precondition artifact and the rejected pre-apply artifact were not reused as its bytes.",
+    "This collection's pre-apply pins remain null. The disposable pin is the SHA-256 of this file and is not written into TOOLING_AUTHORIZATION."
   ],
   "validator_result": "PASS_DISPOSABLE_PRE_APPLY_LIVE_VALIDATION"
 }
