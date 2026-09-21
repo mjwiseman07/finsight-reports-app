@@ -178,6 +178,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
 
     const loop = await runApplicator({
       mode: "dry-run",
+      now: "2026-09-19T12:00:00Z",
       env: { [DATABASE_URL_ENV]: LOOPBACK_URL },
     });
     expect(String(loop.error_code || "")).toBe("DATABASE_PROJECT_REF_MISMATCH");
