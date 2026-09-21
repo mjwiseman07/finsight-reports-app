@@ -57,60 +57,21 @@
     ]
   },
   "production_apply_authorization": {
-    "status": "AUTHORIZED",
+    "status": "UNPUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
-    "apply_authorized": true,
-    "authorized_executable_commit": "2486e2474a057cae6ccf2ca26d591f5df4678592",
-    "attempt_id": "apply-99e5f830789e-1dd9960c6f98a849c37da3ffe550f3e7",
-    "project_ref": "jzmdgwwiestcmmeuhhkr",
-    "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL",
-    "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917",
-    "bundle": {
-      "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-      "oid": "4edd07953b1e976f8e646637180b9e1755145826",
-      "sha256": "60b2de7990b3cac352b9be0ef16106492e0e77d100d34da46cb7567bcadc3978",
-      "bytes": 343537
-    },
-    "migrations": [
-      {
-        "version": "20260917044537",
-        "path": "supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql",
-        "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
-        "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
-        "bytes": 6952
-      },
-      {
-        "version": "20260917180140",
-        "path": "supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql",
-        "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
-        "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
-        "bytes": 3997
-      }
-    ],
-    "prior_dry_run_evidence": {
-      "path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1.json",
-      "source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
-      "oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
-      "sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
-      "bytes": 5100
-    },
-    "pre_apply_live_evidence": {
-      "path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json",
-      "source_commit": "bd79ac0fe2eb82393b2a0715732235e9e509cb23",
-      "oid": "ba94ef76d3b5f214e69c8d7529d76a05ae45d022",
-      "sha256": "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
-      "bytes": 4059
-    },
-    "tls_trust_root": {
-      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
-      "source_commit": "753c72fd10ebc335de6bc12295be461c97ed6456",
-      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
-      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
-      "bytes": 1870,
-      "der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa"
-    },
+    "apply_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "database_url_env": null,
+    "apply_authorization_token": null,
+    "bundle": null,
+    "migrations": null,
+    "prior_dry_run_evidence": null,
+    "pre_apply_live_evidence": null,
+    "tls_trust_root": null,
     "publication_role": "later_descendant_commit",
-    "note": "Disposable or later publication. The publication commit SHA is not stored here."
+    "note": "The executable commit is an ancestor named by a later publication commit. This record must not contain that publication commit's own SHA. Evidence publication and the apply token do not authorize apply."
   },
   "prior_dry_run_publication": {
     "status": "PUBLISHED",
@@ -152,21 +113,23 @@
     "Visible dry-run authority: freeze=authorized_pr_head; ceremony_source_commit holds sealed supervise/enter/ceremony; tip publishes seals only. Operator launches supervise-visible-*.ps1 only — never worktree ceremony.",
     "First-hop authority: tip-seal materialize visible_ceremony_bootstrap from bootstrap_source_commit (or tip-seal native_entry which does the same). Never -File worktree supervise/entry-apply/ceremony/bootstrap without seal verify.",
     "TLS trust: non-loopback clients use the freeze-sealed embedded Supabase Root 2021 CA with rejectUnauthorized true. No CA path, verification bypass, or trust-store mutation.",
-    "Dry-run records catalog probes for target absence, prerequisite shape, and schema drift in the rolled-back transaction. APPLY_COMMITTED requires post-commit history, RLS, grant, browser-write, RPC idempotency, and sentinel checks. Verification failure is not a retry."
+    "Dry-run records catalog probes for target absence, prerequisite shape, and schema drift in the rolled-back transaction. APPLY_COMMITTED requires post-commit history, RLS, grant, browser-write, RPC idempotency, and sentinel checks. Verification failure is not a retry.",
+    "Consumed apply attempt apply-99e5f830789e-1dd9960c6f98a849c37da3ffe550f3e7 is permanently retired (SYNTHETIC_URL_NOT_ALLOWED; no marker; no production contact). Do not reuse.",
+    "Production apply authorization was revoked to UNPUBLISHED by an explicit retirement transition after the consumed attempt. Reseal did not silently clear AUTHORIZED."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
-    "oid": "4edd07953b1e976f8e646637180b9e1755145826",
-    "sha256": "60b2de7990b3cac352b9be0ef16106492e0e77d100d34da46cb7567bcadc3978",
-    "bytes": 343537,
+    "oid": "9629061432479743bb8241a4673f017f14b048bf",
+    "sha256": "52aabb204135434ded58c4ebe66409f07c0d8a822c5460f9a26f7baaebc6bf67",
+    "bytes": 348644,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
+  "ceremony_source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
+    "source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
     "oid": "7c14997800c5c97b5be1c1f428a11d0b2af52f60",
     "sha256": "dcc4b75bd7c30eb4e826c6b30496f3b4c8ccb019c79e10f2a2232d86c165eb01",
     "bytes": 22475,
@@ -174,18 +137,18 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
-    "oid": "90d0ee72ee0b725125893c44fe8227b717da414a",
-    "sha256": "8e0a55d359fc3402c717e408b8ec21dd10092c270a2c933645dbe66e5ac349b7",
-    "bytes": 38069,
+    "source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
+    "oid": "24f37c6780679de58ed53177f4f29e081c4ce275",
+    "sha256": "fab91ed679900c91251a08f8a710de49412916160605441cb11f41a1a857995e",
+    "bytes": 38740,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
-    "oid": "783b6200622532e499c66ffd0a8d2b3111350421",
-    "sha256": "f0e5c21826f30da988811cc9f6d45392675b1ff991d36ee1748f3bcb08a82171",
-    "bytes": 61582,
+    "source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
+    "oid": "ef849e318f49235900b982224962d547786c25ef",
+    "sha256": "81490aadf110f18cc8cdff3ebe731bd90091bf414380e5f818d4ed5c2e3dfc98",
+    "bytes": 62680,
     "line_endings": "LF"
   },
   "bootstrap_source_commit": "636b7e7490f94215ff938e10b130af791c7a58dd",
@@ -219,7 +182,7 @@
   },
   "pre_apply_live_gates": {
     "path": "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
-    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
+    "source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
     "oid": "2f9a084f5198142fdea69e9e28ba5fe382073fce",
     "sha256": "8323aea2a9c724c441e7428700a2c9bdccb80aefbe8da0ed5c1595e5f50c9d7d",
     "bytes": 10174,
@@ -227,10 +190,30 @@
   },
   "pre_apply_live_contract": {
     "path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
-    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
+    "source_commit": "6fb9e88dd7803cc576a08424855e9f2dfd958b30",
     "oid": "2273572f9f3aa7cc409543a37d090f6870758e16",
     "sha256": "08de22d2f3430ba271094a7c65812e08df3ca166c1c3c4437802828bbfafeb5e",
     "bytes": 3161,
     "line_endings": "LF"
-  }
+  },
+  "production_apply_attempt_retirements": [
+    {
+      "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_RETIREMENT_V1",
+      "status": "RETIRED",
+      "attempt_id": "apply-99e5f830789e-1dd9960c6f98a849c37da3ffe550f3e7",
+      "authorization_publication_commit": "c03329f743e00cac0ec12be4af9133dd03c35a74",
+      "authorized_executable_commit": "2486e2474a057cae6ccf2ca26d591f5df4678592",
+      "authorization_blob_oid": "34393b1e12629f83839632616e9cd8d023c154a0",
+      "authorization_blob_sha256": "e5d7ca9b6dd1d81515dc76de39128eca1a06cde8d554d6baaafda62e5e570a78",
+      "authorization_blob_bytes": 13029,
+      "terminal_reason": "SYNTHETIC_URL_NOT_ALLOWED",
+      "prompt_opened": false,
+      "marker_created": false,
+      "node_db_client": 0,
+      "db_sql": 0,
+      "production_contact": false,
+      "retired_at_utc": "2026-09-21T22:08:00Z",
+      "note": "Consumed without marker at SYNTHETIC_URL_NOT_ALLOWED. Permanently non-reusable; absence of a marker does not restore the attempt."
+    }
+  ]
 }
