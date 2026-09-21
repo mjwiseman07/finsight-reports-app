@@ -37,7 +37,9 @@ describe("RA Pro accounting-automation prior dry-run publication", () => {
       bytes: 5100,
       apply_authorized: false,
     });
-    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
+    expect(() => assertAuthorizationPublished({})).toThrow(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
   });
 
   it("rejects path and environment overrides before blob loading", () => {

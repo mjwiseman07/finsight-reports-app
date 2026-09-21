@@ -275,6 +275,9 @@ function Invoke-SealedBundlePreflight([string]$WorkDir, [string]$PublicationComm
     if ($allowSynthetic -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
     $nodeArgs += @("--credential-free-probe", "--publication-commit", $publication)
   }
+  if (-not [string]::IsNullOrWhiteSpace($script:CredentialFreeAsOf)) {
+    $nodeArgs += @("--as-of", [string]$script:CredentialFreeAsOf)
+  }
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = $node
   $psi.Arguments = ($nodeArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
@@ -537,6 +540,21 @@ try {
       throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
     }
     Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
+    $syntheticAttempt = -not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)
+    if ($syntheticAttempt -or (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit) -and -not $EmitAuthorizationMap)) {
+      Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
+      exit 1
+    }
+    $script:CredentialFreeAsOf = ""
+    if ($EmitAuthorizationMap) {
+      $allowSyntheticMap = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+      if ($allowSyntheticMap -ne "1") {
+        Write-Blocked "SYNTHETIC_URL_NOT_ALLOWED"
+        exit 1
+      }
+      # Credential-free map only. A real apply keeps the wall clock and does not accept this instant.
+      $script:CredentialFreeAsOf = "2026-09-19T12:00:00Z"
+    }
     $gateRel = "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1"
     $gateSeal = $auth.pre_apply_live_gates
     if (-not $gateSeal) {
@@ -547,7 +565,7 @@ try {
     [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $gateRel -Seal $gateSeal -Dest $gateDest -WorkDir $RepoRoot)
     . $gateDest
     try {
-      Assert-AccountingPreApplyLiveEvidence -Auth $auth -RepoRoot $RepoRoot
+      Assert-AccountingPreApplyLiveEvidence -Auth $auth -RepoRoot $RepoRoot -NowUtc $script:CredentialFreeAsOf
     } catch {
       $gateMessage = [string]$_.Exception.Message
       if ($gateMessage -eq "AUTHORIZATION_PINS_UNPUBLISHED" -or $gateMessage.StartsWith("AUTHORIZATION_PINS_UNPUBLISHED")) {
@@ -555,11 +573,6 @@ try {
       } else {
         Write-Blocked $gateMessage
       }
-      exit 1
-    }
-    $syntheticAttempt = -not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)
-    if ($syntheticAttempt -or (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit) -and -not $EmitAuthorizationMap)) {
-      Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
       exit 1
     }
     $publicationCommit = $tip

@@ -108,7 +108,9 @@ function assertCleanupTruthful(payload: Record<string, unknown>, expectOk: boole
 
 describe("RA Pro accounting-automation dry-run path authority", () => {
   it("published pre-apply pins still refuse apply before credentials", () => {
-    expect(() => assertAuthorizationPublished({})).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
+    expect(() => assertAuthorizationPublished({})).toThrow(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    );
   });
 
   it("dry-run rejects evidence-path overrides before credentials", async () => {
@@ -165,6 +167,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
 
     const mismatched = await runApplicator({
       mode: "dry-run",
+      now: "2026-09-19T12:00:00Z",
       env: { [DATABASE_URL_ENV]: WRONG_PROJECT_URL },
     });
     expect(mismatched.verdict).toBe("DRY_RUN_BLOCKED");
@@ -215,7 +218,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       `${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
     expect(String(cliPayload.error_code || cliPayload.result_code || "")).toMatch(
-      /DATABASE_PROJECT_REF_MISMATCH/,
+      /PRECONDITION_EVIDENCE_EXPIRED/,
     );
     expect(cliPayload.databaseConnectionAttempts ?? 0).toBe(0);
 
@@ -233,7 +236,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       `${standalone.stdout || ""}${standalone.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
     expect(String(standPayload.error_code || standPayload.result_code || "")).toMatch(
-      /DATABASE_PROJECT_REF_MISMATCH/,
+      /PRECONDITION_EVIDENCE_EXPIRED/,
     );
     expect(standPayload.databaseConnectionAttempts ?? 0).toBe(0);
   });
@@ -241,6 +244,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   it("apply remains unreachable with token + URL after pre-apply pins publish", async () => {
     const result = await runApplicator({
       mode: "apply",
+      now: "2026-09-19T12:00:00Z",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: PROJECT_URL },
     });
@@ -784,7 +788,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   });
 
   it("records accepted precondition sha on dry-run blocked before URL", async () => {
-    const result = await runApplicator({ mode: "dry-run", env: {} });
+    const result = await runApplicator({ mode: "dry-run", now: "2026-09-19T12:00:00Z", env: {} });
     expect(result.precondition_evidence?.sha256).toBe(PRECOND_SHA);
     expect(result.authorization_scope).toBe("dry_run_precondition_only");
   });

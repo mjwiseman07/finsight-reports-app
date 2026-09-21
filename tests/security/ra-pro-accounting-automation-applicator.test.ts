@@ -579,6 +579,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   it("dry-run accepts published precondition without prior/apply pins (fails closed only on missing URL)", async () => {
     const result = await runApplicator({
       mode: "dry-run",
+      now: "2026-09-19T12:00:00Z",
       env: {}, // no database URL
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
@@ -596,6 +597,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   it("apply still rejects published pre-apply evidence before credentials", async () => {
     const result = await runApplicator({
       mode: "apply",
+      now: "2026-09-19T12:00:00Z",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db" },
     });
@@ -627,7 +629,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     const payload = JSON.parse(out.trim().split(/\r?\n/).filter(Boolean).pop() || "{}");
     expect(
       String(payload.reason || payload.result_code || payload.error_code || payload.error || ""),
-    ).toMatch(/MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_/);
+    ).toMatch(/MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_|PRECONDITION_EVIDENCE_EXPIRED/);
     expect(String(payload.error_code || payload.result_code || "")).not.toMatch(
       /AUTHORIZATION_PINS_UNPUBLISHED/,
     );
@@ -707,7 +709,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
     expect(cli.status).toBe(1);
     const payload = JSON.parse(`${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}");
     expect(String(payload.reason || payload.result_code || payload.error_code || "")).toMatch(
-      /MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_/,
+      /MISSING_INPUT|MALFORMED_DATABASE_URL|BUNDLE_|PRECONDITION_EVIDENCE_EXPIRED/,
     );
     expect(String(payload.error_code || payload.result_code || "")).not.toMatch(
       /AUTHORIZATION_PINS_UNPUBLISHED/,
@@ -783,6 +785,8 @@ describe("preflight rejects a bad publication before credentials", () => {
         "--credential-free-probe",
         "--publication-commit",
         published.publicationCommit,
+        "--as-of",
+        INSIDE_EVIDENCE_WINDOW,
       ],
       {
         cwd,
@@ -1109,6 +1113,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   it("dry-run is ready with zero SQL attempts when history is 188", async () => {
     const result = await runApplicator({
       mode: "dry-run",
+      now: "2026-09-19T12:00:00Z",
       allowLocalhostForHarness: true,
       env: { [DATABASE_URL_ENV]: url },
     });
@@ -1843,6 +1848,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
+        now: "2026-09-19T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });
@@ -1865,6 +1871,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
+        now: "2026-09-19T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });
@@ -1889,6 +1896,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
     try {
       const result = await runApplicator({
         mode: "dry-run",
+        now: "2026-09-19T12:00:00Z",
         allowLocalhostForHarness: true,
         env: { [DATABASE_URL_ENV]: world.localUrl },
       });

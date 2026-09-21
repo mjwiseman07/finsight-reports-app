@@ -30,6 +30,7 @@ function readFlags(raw) {
     expectBlobOid: "",
     expectExecutable: "",
     expectBundleOid: "",
+    asOf: "",
     authorizationPin: "",
     unknown: false,
   };
@@ -51,6 +52,7 @@ function readFlags(raw) {
     else if (arg === "--expect-blob-oid") flags.expectBlobOid = value();
     else if (arg === "--expect-executable") flags.expectExecutable = value();
     else if (arg === "--expect-bundle-oid") flags.expectBundleOid = value();
+    else if (arg === "--as-of") flags.asOf = value();
     else if (arg === "--authorization-pin") flags.authorizationPin = value();
     else flags.unknown = true;
   }
@@ -74,6 +76,10 @@ async function main() {
       return;
     }
     const synthetic = process.env.RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL === "1";
+    if (flags.asOf && !(flags.preflight && synthetic && !flags.apply)) {
+      writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
+      return;
+    }
     if ((flags.probe || flags.publicationCommit) && !synthetic) {
       writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
       return;
@@ -95,6 +101,7 @@ async function main() {
       } else {
         decision = preflightApplyAuthorization({
           cwd: process.cwd(),
+          ...(flags.asOf ? { now: flags.asOf } : {}),
           ...(flags.publicationCommit
             ? {
                 allowDisposablePublicationCommit: true,
@@ -113,6 +120,10 @@ async function main() {
     }
     process.stdout.write(`${JSON.stringify(decision)}\n`);
     if (decision.blocked) process.exitCode = 1;
+    return;
+  }
+  if (flags.asOf) {
+    writeBlocked("APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN");
     return;
   }
   const apply = flags.apply;

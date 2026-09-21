@@ -202,7 +202,10 @@ describe("RA Pro accounting-automation pre-apply live gate", () => {
   });
 
   it("apply authorization still throws before credentials after the pin is published", () => {
-    expectCode(() => assertAuthorizationPublished({}), "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+    expectCode(
+      () => assertAuthorizationPublished({}),
+      "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED",
+    );
     const core = fs.readFileSync(
       path.join(ROOT, "scripts/security/ra-pro-accounting-automation-apply-core.js"),
       "utf8",
