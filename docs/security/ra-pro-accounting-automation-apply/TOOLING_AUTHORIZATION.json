@@ -124,10 +124,10 @@
     "authority": "git_blob_cat_file"
   },
   "authorized_pr_head": "753c72fd10ebc335de6bc12295be461c97ed6456",
-  "ceremony_source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
+  "ceremony_source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
   "visible_ceremony_supervisor": {
     "path": "scripts/security/supervise-visible-ra-pro-accounting-automation-ceremony.ps1",
-    "source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
+    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
     "oid": "7c14997800c5c97b5be1c1f428a11d0b2af52f60",
     "sha256": "dcc4b75bd7c30eb4e826c6b30496f3b4c8ccb019c79e10f2a2232d86c165eb01",
     "bytes": 22475,
@@ -135,15 +135,15 @@
   },
   "visible_ceremony_entry": {
     "path": "scripts/security/enter-ra-pro-accounting-automation-apply.ps1",
-    "source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
-    "oid": "fc621e965d1c47af8c2674c9ed2ed0eb1769b337",
-    "sha256": "eb3d71bd2e464124c2119488ab107399a7b44392eca33d69ab492e2c56169636",
+    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
+    "oid": "90d0ee72ee0b725125893c44fe8227b717da414a",
+    "sha256": "8e0a55d359fc3402c717e408b8ec21dd10092c270a2c933645dbe66e5ac349b7",
     "bytes": 38069,
     "line_endings": "LF"
   },
   "operator_ceremony": {
     "path": "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1",
-    "source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
+    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
     "oid": "783b6200622532e499c66ffd0a8d2b3111350421",
     "sha256": "f0e5c21826f30da988811cc9f6d45392675b1ff991d36ee1748f3bcb08a82171",
     "bytes": 61582,
@@ -180,7 +180,7 @@
   },
   "pre_apply_live_gates": {
     "path": "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1",
-    "source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
+    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
     "oid": "2f9a084f5198142fdea69e9e28ba5fe382073fce",
     "sha256": "8323aea2a9c724c441e7428700a2c9bdccb80aefbe8da0ed5c1595e5f50c9d7d",
     "bytes": 10174,
@@ -188,7 +188,7 @@
   },
   "pre_apply_live_contract": {
     "path": "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
-    "source_commit": "2c01c5a1a6a217e9568026abc9837a44c80c330e",
+    "source_commit": "1bff45b40b04a65f799dfcdeb14e0f40fda89f2c",
     "oid": "2273572f9f3aa7cc409543a37d090f6870758e16",
     "sha256": "08de22d2f3430ba271094a7c65812e08df3ca166c1c3c4437802828bbfafeb5e",
     "bytes": 3161,
