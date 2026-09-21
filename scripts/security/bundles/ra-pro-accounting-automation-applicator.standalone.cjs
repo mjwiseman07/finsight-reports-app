@@ -5516,7 +5516,7 @@ var require_ra_pro_accounting_automation_precondition_gates = __commonJS({
     "use strict";
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1";
-    var EXPECTED_HEAD = "21c48f1a8643ddf7b4f1e2c9b1942a41d92403b5";
+    var EXPECTED_HEAD = "62d58f905729f054a36b771b90721a84ab54c4d6";
     var EXPECTED_PRODUCTION_COMMIT = "854fd2920cd1c77a411918a617d10a8fb3ce591d";
     var EXPECTED_PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
     function blocked(code, message) {
@@ -5859,12 +5859,12 @@ var require_ra_pro_accounting_automation_pre_apply_gates = __commonJS({
     var { loadAndVerifyGitBlob, assertUtf8LfNoBom } = require_git_blob_authority();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1";
     var CONTRACT_PATH = "docs/security/ra-pro-accounting-automation-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json";
-    var COLLECTION_PR_HEAD = "a49a20a8fae505a7639914326836dc79577600e2";
+    var COLLECTION_PR_HEAD = "62d58f905729f054a36b771b90721a84ab54c4d6";
     var PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
     var PRODUCTION_COMMIT = "854fd2920cd1c77a411918a617d10a8fb3ce591d";
     var VERCEL_DEPLOYMENT_ID = "FTe8t7bxyMVV6imEFAatkmBau1R7";
     var GITHUB_PRODUCTION_DEPLOYMENT_ID = 6513747695;
-    var GITHUB_PREVIEW_DEPLOYMENT_ID = 6536311942;
+    var GITHUB_PREVIEW_DEPLOYMENT_ID = 6561383976;
     var PRIOR_SHA256 = "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18";
     var PRIOR_SOURCE = "195c76060f0fc8aa7b81dc4718d7357c3be8eba6";
     var PRIOR_TIP = "99e6ed195c95b5cdcd27a6690f2441df4e7ae6a9";

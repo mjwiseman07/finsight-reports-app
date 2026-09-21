@@ -66,9 +66,9 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Filled by assemble script after LF measure; non-circular (constants updated without rebuild). */
 const STANDALONE_BUNDLE_OID =
-  "29580a545eefb6f4be8f8ac76acef2397e638f98";
+  "4edd07953b1e976f8e646637180b9e1755145826";
 const STANDALONE_BUNDLE_SHA256 =
-  "0e54f89ab600532c0e2d6c2f36923a54c727a660987683e3e4beff3b62fabb34";
+  "60b2de7990b3cac352b9be0ef16106492e0e77d100d34da46cb7567bcadc3978";
 const STANDALONE_BUNDLE_BYTES = 343537;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
