@@ -219,7 +219,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       `${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
     expect(String(cliPayload.error_code || cliPayload.result_code || "")).toMatch(
-      /PRECONDITION_EVIDENCE_EXPIRED/,
+      /DATABASE_PROJECT_REF_MISMATCH/,
     );
     expect(cliPayload.databaseConnectionAttempts ?? 0).toBe(0);
 
@@ -237,7 +237,7 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
       `${standalone.stdout || ""}${standalone.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
     expect(String(standPayload.error_code || standPayload.result_code || "")).toMatch(
-      /PRECONDITION_EVIDENCE_EXPIRED/,
+      /DATABASE_PROJECT_REF_MISMATCH/,
     );
     expect(standPayload.databaseConnectionAttempts ?? 0).toBe(0);
   });

@@ -211,7 +211,7 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       }),
     ).toThrow(/GIT_BLOB_LOAD_FAILED|fatal:/);
     expect(() =>
-      assertAuthorizationPublished({ now: "2026-09-21T00:00:00Z", markerDir: dir }),
+      assertAuthorizationPublished({ now: "2026-09-22T12:00:00Z", markerDir: dir }),
     ).toThrow(/PRE_APPLY_LIVE_EXPIRED/);
     expect(fs.readdirSync(dir)).toEqual([]);
 

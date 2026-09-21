@@ -553,7 +553,7 @@ try {
         exit 1
       }
       # Credential-free map only. A real apply keeps the wall clock and does not accept this instant.
-      $script:CredentialFreeAsOf = "2026-09-19T12:00:00Z"
+      $script:CredentialFreeAsOf = "2026-09-21T12:00:00Z"
     }
     $gateRel = "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1"
     $gateSeal = $auth.pre_apply_live_gates
