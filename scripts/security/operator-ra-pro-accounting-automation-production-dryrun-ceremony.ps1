@@ -903,6 +903,22 @@ try {
     if ($ApplyAttemptId -notmatch '^apply-[0-9a-f]{12}-[0-9a-f]{32}$') {
       throw "APPLY_ATTEMPT_ID_INVALID: attempt id"
     }
+    $retiredRows = @()
+    if ($null -ne $auth.production_apply_attempt_retirements) {
+      $retiredRows += @($auth.production_apply_attempt_retirements)
+    }
+    if ($bundleCommit -ne $tip.ToLowerInvariant()) {
+      $tipAuthBytes = ConvertTo-ByteArrayStrict (Get-GitBlobBytes -Commit $tip.ToLowerInvariant() -Rel $AuthRel) "tip_auth_blob"
+      $tipAuth = ([Text.Encoding]::UTF8.GetString($tipAuthBytes)) | ConvertFrom-Json
+      if ($null -ne $tipAuth.production_apply_attempt_retirements) {
+        $retiredRows += @($tipAuth.production_apply_attempt_retirements)
+      }
+    }
+    foreach ($row in $retiredRows) {
+      if ($null -ne $row -and [string]$row.attempt_id -eq $ApplyAttemptId) {
+        throw ("APPLY_ATTEMPT_RETIRED: " + [string]$row.terminal_reason)
+      }
+    }
     $allowSyntheticApply = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
     if ($allowSyntheticApply -eq "1" -and [string]::IsNullOrWhiteSpace($ApplyAttemptId)) {
       throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: synthetic env is not authorization"
@@ -945,7 +961,13 @@ try {
   if ($TestVisiblePromptProbe) {
     Set-PrePromptPhase "visible_prompt_probe"
     $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
-    if ($allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    $headNowProbe = (Invoke-GitTextLocal @("rev-parse", "HEAD")).ToLowerInvariant()
+    $realApplyAtHead = (
+      $Mode -eq "apply" -and
+      $AuthorizationPublicationCommit -match '^[0-9a-f]{40}$' -and
+      $AuthorizationPublicationCommit.ToLowerInvariant() -eq $headNowProbe
+    )
+    if (-not $realApplyAtHead -and $allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
     if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
       throw "PROMPT_PROBE_REJECTS_CREDENTIALS"
     }

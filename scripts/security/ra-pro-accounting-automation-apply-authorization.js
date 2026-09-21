@@ -27,6 +27,7 @@ const {
 } = require("./ra-pro-accounting-automation-tls-ca");
 
 const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1";
+const RETIREMENT_PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_ATTEMPT_RETIREMENT_V1";
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
 const BUNDLE_REL = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs";
 const ATTEMPT_RE = /^apply-[0-9a-f]{12}-[0-9a-f]{32}$/;
@@ -46,6 +47,24 @@ const RECORD_KEYS = Object.freeze([
   "pre_apply_live_evidence",
   "tls_trust_root",
   "publication_role",
+  "note",
+]);
+const RETIREMENT_KEYS = Object.freeze([
+  "protocol",
+  "status",
+  "attempt_id",
+  "authorization_publication_commit",
+  "authorized_executable_commit",
+  "authorization_blob_oid",
+  "authorization_blob_sha256",
+  "authorization_blob_bytes",
+  "terminal_reason",
+  "prompt_opened",
+  "marker_created",
+  "node_db_client",
+  "db_sql",
+  "production_contact",
+  "retired_at_utc",
   "note",
 ]);
 
@@ -251,6 +270,98 @@ function assertAttemptId(attemptId) {
   if (!ATTEMPT_RE.test(String(attemptId || ""))) throw blocked("APPLY_ATTEMPT_ID_INVALID", "attempt id");
 }
 
+function listRetiredAttempts(auth) {
+  const rows = auth && Array.isArray(auth.production_apply_attempt_retirements)
+    ? auth.production_apply_attempt_retirements
+    : [];
+  return rows;
+}
+
+function assertAttemptNotRetired(auth, attemptId) {
+  assertAttemptId(attemptId);
+  for (const row of listRetiredAttempts(auth)) {
+    if (row && String(row.attempt_id || "") === String(attemptId)) {
+      throw blocked("APPLY_ATTEMPT_RETIRED", String(row.terminal_reason || "retired"));
+    }
+  }
+}
+
+function buildAttemptRetirement(inputs = {}) {
+  const attemptId = String(inputs.attempt_id || "");
+  assertAttemptId(attemptId);
+  const retirement = {
+    protocol: RETIREMENT_PROTOCOL,
+    status: "RETIRED",
+    attempt_id: attemptId,
+    authorization_publication_commit: String(inputs.authorization_publication_commit || "").toLowerCase(),
+    authorized_executable_commit: String(inputs.authorized_executable_commit || "").toLowerCase(),
+    authorization_blob_oid: String(inputs.authorization_blob_oid || "").toLowerCase(),
+    authorization_blob_sha256: String(inputs.authorization_blob_sha256 || "").toLowerCase(),
+    authorization_blob_bytes: inputs.authorization_blob_bytes,
+    terminal_reason: String(inputs.terminal_reason || ""),
+    prompt_opened: inputs.prompt_opened === true,
+    marker_created: inputs.marker_created === true,
+    node_db_client: Number.isInteger(inputs.node_db_client) ? inputs.node_db_client : 0,
+    db_sql: Number.isInteger(inputs.db_sql) ? inputs.db_sql : 0,
+    production_contact: inputs.production_contact === true,
+    retired_at_utc: String(inputs.retired_at_utc || ""),
+    note: String(
+      inputs.note ||
+        "Consumed without marker. Permanently non-reusable; absence of a marker does not restore the attempt.",
+    ),
+  };
+  for (const key of RETIREMENT_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(retirement, key)) {
+      throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", key);
+    }
+  }
+  if (!HEX40.test(retirement.authorization_publication_commit)) {
+    throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", "publication");
+  }
+  if (!HEX40.test(retirement.authorized_executable_commit)) {
+    throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", "executable");
+  }
+  if (!HEX40.test(retirement.authorization_blob_oid) || !/^[0-9a-f]{64}$/.test(retirement.authorization_blob_sha256)) {
+    throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", "blob");
+  }
+  if (!Number.isInteger(retirement.authorization_blob_bytes) || retirement.authorization_blob_bytes <= 0) {
+    throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", "bytes");
+  }
+  if (!retirement.terminal_reason || !/^\d{4}-\d{2}-\d{2}T/.test(retirement.retired_at_utc)) {
+    throw blocked("APPLY_ATTEMPT_RETIREMENT_INVALID", "terminal");
+  }
+  return retirement;
+}
+
+/**
+ * Explicit revocation/retirement transition.
+ * AUTHORIZED -> append immutable retirement -> UNPUBLISHED.
+ * Not a silent reseal reset: reseal still refuses AUTHORIZED records.
+ */
+function revokeProductionApplyAuthorization(auth, retirementInputs = {}) {
+  if (!auth || typeof auth !== "object") throw blocked("APPLY_AUTHORIZATION_SEAL_MISSING", "auth");
+  const record = auth.production_apply_authorization || {};
+  if (record.status !== "AUTHORIZED" || record.apply_authorized !== true) {
+    throw blocked("APPLY_AUTHORIZATION_REVOKE_FORBIDDEN", "record is not AUTHORIZED");
+  }
+  const attemptId = String(retirementInputs.attempt_id || record.attempt_id || "");
+  if (attemptId !== String(record.attempt_id || "")) {
+    throw blocked("APPLY_AUTHORIZATION_REVOKE_FORBIDDEN", "attempt id mismatch");
+  }
+  assertAttemptNotRetired(auth, attemptId);
+  const retirement = buildAttemptRetirement({
+    ...retirementInputs,
+    attempt_id: attemptId,
+    authorized_executable_commit:
+      retirementInputs.authorized_executable_commit || record.authorized_executable_commit,
+  });
+  const prior = listRetiredAttempts(auth).slice();
+  prior.push(retirement);
+  auth.production_apply_attempt_retirements = prior;
+  auth.production_apply_authorization = canonicalUnpublishedAuthorization();
+  return { auth, retirement };
+}
+
 function describeApplyArtifactMap(inputs = {}) {
   const cwd = inputs.cwd || process.cwd();
   assertNoAuthorizationEnv(inputs.env || {});
@@ -286,6 +397,7 @@ function describeApplyArtifactMap(inputs = {}) {
   assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
   assertAllowlist(executable, publication, cwd);
   assertAttemptId(record.attempt_id);
+  assertAttemptNotRetired(auth, record.attempt_id);
   assertRecordSeals(record, executable, cwd);
   return {
     ...base,
@@ -432,6 +544,7 @@ function assertOneAttemptApplyAuthorization(inputs = {}) {
 }
 
 function buildAuthorizedRecord(auth, executable, attemptId) {
+  assertAttemptNotRetired(auth, attemptId);
   const prior = auth.prior_dry_run_publication || {};
   const pre = auth.pre_apply_live_publication || {};
   const bundle = auth.standalone_bundle || {};
@@ -537,6 +650,7 @@ function createDisposablePublicationCommit(inputs = {}) {
   if (!HEX40.test(executable)) throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable");
   assertAttemptId(inputs.attemptId);
   const { auth } = loadAuthFromGit(executable, cwd);
+  assertAttemptNotRetired(auth, inputs.attemptId);
   if ((auth.production_apply_authorization || {}).status === "AUTHORIZED") {
     throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
   }
@@ -559,15 +673,21 @@ module.exports = {
   AUTH_REL,
   ARTIFACT_MAP,
   PROTOCOL,
+  RETIREMENT_PROTOCOL,
   assertOneAttemptApplyAuthorization,
   assertResealPreservesAuthorization,
   assertNotCircularPin,
+  assertAttemptNotRetired,
+  buildAttemptRetirement,
+  buildAuthorizedRecord,
   canonicalUnpublishedAuthorization,
   createApplyMarkerAtomic,
   createDisposablePublicationCommit,
   commitPublicationTree,
   describeApplyArtifactMap,
+  listRetiredAttempts,
   preflightApplyAuthorization,
   recheckApplyAuthorizationPin,
+  revokeProductionApplyAuthorization,
   verifyExistingMarker,
 };

@@ -268,9 +268,13 @@ function Invoke-SealedBundlePreflight([string]$WorkDir, [string]$PublicationComm
   $dest = Join-Path $script:MaterialRoot "preflight-bundle.cjs"
   [void](Assert-BlobSeal -Commit $executable -Rel $BundleRel -Seal $execAuth.standalone_bundle -Dest $dest -WorkDir $WorkDir)
   $script:ExecutableBundleOid = $execOid
+  $head = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
   $node = (Get-Command node.exe).Source
+  # Real interactive descendant publication: HEAD is the AUTHORIZED publication tip and
+  # -PrHead names the immutable executable. --preflight reads HEAD. Synthetic harness
+  # env is only for disposable / non-HEAD credential-free probes.
   $nodeArgs = @($dest, "--preflight")
-  if ($publication -ne $executable) {
+  if ($publication -ne $executable -and $publication -ne $head) {
     $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
     if ($allowSynthetic -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
     $nodeArgs += @("--credential-free-probe", "--publication-commit", $publication)
@@ -663,7 +667,13 @@ try {
   $psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
   if ($TestVisiblePromptProbe) {
     $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
-    if ($allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    $headNow = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot).ToLowerInvariant()
+    $realApplyAtHead = (
+      $Mode -eq "apply" -and
+      $script:ApplyLaunch -and
+      ([string]$script:AuthorizationPublicationCommit).ToLowerInvariant() -eq $headNow
+    )
+    if (-not $realApplyAtHead -and $allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
     if (
       -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or
       -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -or

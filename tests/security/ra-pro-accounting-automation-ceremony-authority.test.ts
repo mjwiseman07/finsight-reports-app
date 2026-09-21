@@ -8,8 +8,19 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { describeApplyArtifactMap, createDisposablePublicationCommit, commitPublicationTree, preflightApplyAuthorization } from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
+import {
+  assertAttemptNotRetired,
+  buildAuthorizedRecord,
+  createDisposablePublicationCommit,
+  commitPublicationTree,
+  describeApplyArtifactMap,
+  listRetiredAttempts,
+  preflightApplyAuthorization,
+  revokeProductionApplyAuthorization,
+} from "../../scripts/security/ra-pro-accounting-automation-apply-authorization.js";
 import { APPLY_AUTHORIZATION_TOKEN } from "../../scripts/security/ra-pro-accounting-automation-apply-constants.js";
+
+const RETIRED_ATTEMPT_ID = "apply-99e5f830789e-1dd9960c6f98a849c37da3ffe550f3e7";
 
 const ROOT = process.cwd();
 const AUTH_REL = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json";
@@ -939,5 +950,260 @@ describe("RA Pro accounting-automation ceremony authority", () => {
     expect(declared.text).toMatch(/APPLY_AUTHORIZATION_ALLOWLIST: publication bootstrap seal/);
     expect(declared.launched).toBe(false);
     expect(tipSha()).toBe(executableTip);
+  });
+
+  it("permanently retires the consumed attempt and keeps authorization UNPUBLISHED", () => {
+    const tip = tipSha();
+    const auth = JSON.parse(git(["cat-file", "-p", `${tip}:${AUTH_REL}`]));
+    expect(auth.production_apply_authorization.status).toBe("UNPUBLISHED");
+    expect(auth.production_apply_authorization.apply_authorized).toBe(false);
+    expect(auth.production_apply_authorization.authorized_executable_commit).toBeNull();
+    expect(auth.production_apply_authorization.attempt_id).toBeNull();
+    const retired = listRetiredAttempts(auth);
+    expect(retired.some((row: { attempt_id?: string }) => row.attempt_id === RETIRED_ATTEMPT_ID)).toBe(true);
+    expect(() => assertAttemptNotRetired(auth, RETIRED_ATTEMPT_ID)).toThrow(/APPLY_ATTEMPT_RETIRED/);
+    expect(() =>
+      createDisposablePublicationCommit({
+        cwd: ROOT,
+        executableCommit: tip,
+        attemptId: RETIRED_ATTEMPT_ID,
+      }),
+    ).toThrow(/APPLY_ATTEMPT_RETIRED/);
+    const fresh = `apply-${tip.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const crafted = JSON.parse(JSON.stringify(auth));
+    crafted.production_apply_authorization = buildAuthorizedRecord(crafted, tip, fresh);
+    crafted.production_apply_authorization.attempt_id = RETIRED_ATTEMPT_ID;
+    const poisoned = commitPublicationTree(ROOT, tip, crafted);
+    const map = preflightApplyAuthorization({
+      cwd: ROOT,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: poisoned,
+      authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      now: "2026-09-21T12:00:00Z",
+    });
+    expect(map.blocked).toMatch(/APPLY_ATTEMPT_RETIRED/);
+    expect(map.apply_authorized).toBe(false);
+    expect(tipSha()).toBe(tip);
+  });
+
+  it("explicit revoke refuses a second retirement of the same attempt id", () => {
+    const tip = tipSha();
+    const auth = JSON.parse(git(["cat-file", "-p", `${tip}:${AUTH_REL}`]));
+    const row = listRetiredAttempts(auth).find(
+      (item: { attempt_id?: string }) => item.attempt_id === RETIRED_ATTEMPT_ID,
+    );
+    expect(row).toBeTruthy();
+    auth.production_apply_authorization = {
+      ...auth.production_apply_authorization,
+      status: "AUTHORIZED",
+      apply_authorized: true,
+      attempt_id: RETIRED_ATTEMPT_ID,
+      authorized_executable_commit: tip,
+    };
+    expect(() =>
+      revokeProductionApplyAuthorization(auth, {
+        attempt_id: RETIRED_ATTEMPT_ID,
+        authorization_publication_commit: String(row.authorization_publication_commit),
+        authorized_executable_commit: String(row.authorized_executable_commit),
+        authorization_blob_oid: String(row.authorization_blob_oid),
+        authorization_blob_sha256: String(row.authorization_blob_sha256),
+        authorization_blob_bytes: Number(row.authorization_blob_bytes),
+        terminal_reason: "SYNTHETIC_URL_NOT_ALLOWED",
+        retired_at_utc: "2026-09-21T23:00:00Z",
+      }),
+    ).toThrow(/APPLY_ATTEMPT_RETIRED/);
+  });
+
+  it("real descendant publication at HEAD reaches the visible prompt without synthetic harness env", () => {
+    const executable = tipSha();
+    const attempt = `apply-${executable.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
+    const worktree = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-desc-wt-"));
+    try {
+      git(["worktree", "add", "--detach", worktree, published.publicationCommit]);
+      const auth = loadAuth();
+      const bootSrc = String(auth.bootstrap_source_commit || "");
+      const seal = auth.visible_ceremony_bootstrap;
+      if (!seal?.path || !seal.oid || !seal.sha256 || !seal.bytes) {
+        throw new Error("missing visible_ceremony_bootstrap seals");
+      }
+      const show = spawnSync("git", ["cat-file", "blob", `${bootSrc}:${seal.path}`], {
+        cwd: ROOT,
+        windowsHide: true,
+        env: gitEnv(),
+      });
+      if (show.status !== 0) throw new Error(String(show.stderr || "cat-file failed"));
+      const bytes = Buffer.isBuffer(show.stdout) ? show.stdout : Buffer.from(show.stdout || "");
+      const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-desc-out-"));
+      const materialDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-desc-mat-"));
+      const bootFile = path.join(materialDir, "bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1");
+      fs.writeFileSync(bootFile, bytes);
+      const cleanEnv = { ...gitEnv() };
+      delete cleanEnv.RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL;
+      const run = spawnSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          bootFile,
+          "-EvidenceOutDir",
+          outDir,
+          "-RepoRoot",
+          worktree,
+          "-SealedMaterialInvocation",
+          "-Mode",
+          "apply",
+          "-PrHead",
+          executable,
+          "-TestVisiblePromptProbe",
+        ],
+        {
+          cwd: worktree,
+          encoding: "utf8",
+          windowsHide: true,
+          env: cleanEnv,
+        },
+      );
+      const payload = lastJson(`${run.stdout || ""}${run.stderr || ""}`);
+      expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+      expect(payload.result_code).toBe("VISIBLE_PROMPT_READY");
+      expect(String(payload.reason || "")).not.toMatch(/SYNTHETIC_URL_NOT_ALLOWED/);
+      expect(payload.productionContact).toBe(false);
+      expect(payload.attempt_marker).toBeNull();
+      expect(payload.node_started ?? false).toBe(false);
+      expect(fs.readdirSync(outDir).filter((f) => f.endsWith(".marker"))).toEqual([]);
+      expect(`${run.stdout || ""}${run.stderr || ""}`).not.toMatch(/postgres:\/\//i);
+
+      const unpublished = spawnSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          bootFile,
+          "-EvidenceOutDir",
+          fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-unpub-")),
+          "-RepoRoot",
+          ROOT,
+          "-SealedMaterialInvocation",
+          "-Mode",
+          "apply",
+          "-PrHead",
+          executable,
+          "-TestVisiblePromptProbe",
+        ],
+        {
+          cwd: ROOT,
+          encoding: "utf8",
+          windowsHide: true,
+          env: cleanEnv,
+        },
+      );
+      const unpublishedPayload = lastJson(`${unpublished.stdout || ""}${unpublished.stderr || ""}`);
+      expect(unpublished.status).not.toBe(0);
+      expect(String(unpublishedPayload.reason || "")).toMatch(
+        /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|AUTHORIZATION_PINS_UNPUBLISHED|PRE_APPLY_LIVE_EXPIRED/,
+      );
+      expect(String(unpublishedPayload.reason || "")).not.toMatch(/SYNTHETIC_URL_NOT_ALLOWED/);
+
+      const harness = spawnSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          bootFile,
+          "-EvidenceOutDir",
+          fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-harness-")),
+          "-RepoRoot",
+          worktree,
+          "-SealedMaterialInvocation",
+          "-Mode",
+          "apply",
+          "-PrHead",
+          executable,
+          "-TestVisiblePromptProbe",
+          "-TestSyntheticDatabaseUrl",
+          PROJECT_URL,
+        ],
+        {
+          cwd: worktree,
+          encoding: "utf8",
+          windowsHide: true,
+          env: cleanEnv,
+        },
+      );
+      const harnessPayload = lastJson(`${harness.stdout || ""}${harness.stderr || ""}`);
+      expect(harness.status).not.toBe(0);
+      expect(String(harnessPayload.reason || harnessPayload.result_code || "")).toMatch(
+        /PROMPT_PROBE_REJECTS|SYNTHETIC_URL_NOT_ALLOWED|BLOCKED_HARNESS/,
+      );
+    } finally {
+      spawnSync("git", ["worktree", "remove", "--force", worktree], {
+        cwd: ROOT,
+        env: gitEnv(),
+        windowsHide: true,
+      });
+      try {
+        fs.rmSync(worktree, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+    expect(tipSha()).toBe(executable);
+  });
+
+  it("credential-free synthetic publication map still requires harness env and never opens a prompt", () => {
+    const executable = tipSha();
+    const attempt = `apply-${executable.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
+    const published = createDisposablePublicationCommit({
+      cwd: ROOT,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
+    const denied = runAuthenticatedBootstrap(
+      [
+        "-Mode",
+        "apply",
+        "-PrHead",
+        executable,
+        "-EmitAuthorizationMap",
+        "-TestPublicationCommit",
+        published.publicationCommit,
+      ],
+      {},
+    );
+    expect(denied.run.status).not.toBe(0);
+    expect(String(denied.payload.reason || "")).toMatch(/SYNTHETIC_URL_NOT_ALLOWED/);
+    const allowed = runAuthenticatedBootstrap(
+      [
+        "-Mode",
+        "apply",
+        "-PrHead",
+        executable,
+        "-EmitAuthorizationMap",
+        "-TestPublicationCommit",
+        published.publicationCommit,
+      ],
+      { RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL: "1" },
+    );
+    expect(allowed.run.status, `${allowed.run.stdout}\n${allowed.run.stderr}`).toBe(0);
+    const map = JSON.parse(allowed.run.stdout.trim());
+    expect(map.blocked).toBeNull();
+    expect(map.attempt_id).toBe(attempt);
+    expect(map.apply_authorized).toBe(false);
+    expect(String(allowed.run.stdout)).not.toMatch(/SecureString|VISIBLE_PROMPT_READY/);
+    expect(fs.readdirSync(allowed.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
   });
 });
