@@ -57,21 +57,60 @@
     ]
   },
   "production_apply_authorization": {
-    "status": "UNPUBLISHED",
+    "status": "AUTHORIZED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
-    "apply_authorized": false,
-    "authorized_executable_commit": null,
-    "attempt_id": null,
-    "project_ref": null,
-    "database_url_env": null,
-    "apply_authorization_token": null,
-    "bundle": null,
-    "migrations": null,
-    "prior_dry_run_evidence": null,
-    "pre_apply_live_evidence": null,
-    "tls_trust_root": null,
+    "apply_authorized": true,
+    "authorized_executable_commit": "b9926961e32c1e55ba90016545f753b58ad6892a",
+    "attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f",
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL",
+    "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_APPLY_20260917",
+    "bundle": {
+      "path": "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs",
+      "oid": "9629061432479743bb8241a4673f017f14b048bf",
+      "sha256": "52aabb204135434ded58c4ebe66409f07c0d8a822c5460f9a26f7baaebc6bf67",
+      "bytes": 348644
+    },
+    "migrations": [
+      {
+        "version": "20260917044537",
+        "path": "supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql",
+        "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+        "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+        "bytes": 6952
+      },
+      {
+        "version": "20260917180140",
+        "path": "supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql",
+        "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+        "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+        "bytes": 3997
+      }
+    ],
+    "prior_dry_run_evidence": {
+      "path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1.json",
+      "source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
+      "oid": "76a75e41c80e1692670ede5d70cec963a1986f92",
+      "sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+      "bytes": 5100
+    },
+    "pre_apply_live_evidence": {
+      "path": "docs/security/ra-pro-accounting-automation-apply/RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1.json",
+      "source_commit": "bd79ac0fe2eb82393b2a0715732235e9e509cb23",
+      "oid": "ba94ef76d3b5f214e69c8d7529d76a05ae45d022",
+      "sha256": "2ed897b17fc964619454a3eb3a40899cd9a08eede5481324f636762528d43c3e",
+      "bytes": 4059
+    },
+    "tls_trust_root": {
+      "path": "scripts/security/embedded-supabase-prod-ca-2021.js",
+      "source_commit": "753c72fd10ebc335de6bc12295be461c97ed6456",
+      "oid": "49755564b920bb0f8ac7bd08d555867dcda8ed2e",
+      "sha256": "cd846054f7d94f32ddc32f600ae3b95678820e2f8986e5ed812f7d40f5ced22c",
+      "bytes": 1870,
+      "der_sha256": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa"
+    },
     "publication_role": "later_descendant_commit",
-    "note": "The executable commit is an ancestor named by a later publication commit. This record must not contain that publication commit's own SHA. Evidence publication and the apply token do not authorize apply."
+    "note": "Disposable or later publication. The publication commit SHA is not stored here."
   },
   "prior_dry_run_publication": {
     "status": "PUBLISHED",
