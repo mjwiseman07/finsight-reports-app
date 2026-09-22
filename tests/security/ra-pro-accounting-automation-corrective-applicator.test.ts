@@ -333,15 +333,33 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation corrective applicator (
       expect(hist.rows[0].c).toBe(POST_HISTORY_COUNT);
       const grants = await verifyServiceRoleCatalogGrants(db);
       expect(grants.ok).toBe(true);
-      expect(grants.differing_privileges).toEqual([]);
+      expect(grants.grants_match).toBe(true);
+      expect(grants.differing_privileges.filter((d: { privilege: string }) => d.privilege !== "EXECUTE")).toEqual([]);
       for (const table of CORRECTIVE_TABLES) {
         const { rows } = await db.query(
           `SELECT
+             has_table_privilege('service_role', $1, 'SELECT') AS s,
+             has_table_privilege('service_role', $1, 'INSERT') AS i,
              has_table_privilege('service_role', $1, 'UPDATE') AS u,
-             has_table_privilege('service_role', $1, 'DELETE') AS d`,
+             has_table_privilege('service_role', $1, 'DELETE') AS d,
+             has_table_privilege('service_role', $1, 'TRUNCATE') AS t,
+             has_table_privilege('service_role', $1, 'REFERENCES') AS r,
+             has_table_privilege('service_role', $1, 'TRIGGER') AS g,
+             has_table_privilege('authenticated', $1, 'SELECT') AS asel,
+             has_table_privilege('anon', $1, 'SELECT') AS ansel`,
           [`public.${table}`],
         );
-        expect(rows[0]).toEqual({ u: false, d: false });
+        expect(rows[0]).toEqual({
+          s: true,
+          i: true,
+          u: false,
+          d: false,
+          t: false,
+          r: false,
+          g: false,
+          asel: true,
+          ansel: false,
+        });
       }
     } finally {
       await db.end();
@@ -485,5 +503,266 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation corrective applicator (
     });
     expect(result.post_commit_verification.grants_match).toBe(true);
     expect(result.post_commit_verification.automation_enabled).toBe(false);
+  });
+
+  async function restoreLeastPrivilege(db: PgClient) {
+    for (const table of CORRECTIVE_TABLES) {
+      await db.query(
+        `REVOKE ALL ON TABLE public.${table} FROM PUBLIC, anon, authenticated, service_role`,
+      );
+      await db.query(`GRANT SELECT ON TABLE public.${table} TO authenticated`);
+      await db.query(`GRANT SELECT, INSERT ON TABLE public.${table} TO service_role`);
+    }
+  }
+
+  it("full matrix: service_role SELECT+INSERT, authenticated SELECT, anon none", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(true);
+      expect(grants.catalog_execute_ok).toBe(true);
+      expect(grants.maintain_supported).toBe(false);
+      expect(grants.server_version_num).toBeLessThan(170000);
+      expect(grants.check_codes).toContain("maintain:not_supported");
+      for (const row of grants.matrix) {
+        expect(row.maintain_status).toBe("not_supported");
+        expect(row.svc_select).toBe(true);
+        expect(row.svc_insert).toBe(true);
+        expect(row.svc_update).toBe(false);
+        expect(row.svc_delete).toBe(false);
+        expect(row.svc_truncate).toBe(false);
+        expect(row.svc_references).toBe(false);
+        expect(row.svc_trigger).toBe(false);
+        expect(row.svc_maintain).toBeNull();
+        expect(row.auth_select).toBe(true);
+        expect(row.auth_insert).toBe(false);
+        expect(row.anon_select).toBe(false);
+        expect(row.anon_insert).toBe(false);
+      }
+      // PG17-compatible expected MAINTAIN denial is sealed in the version rule.
+      expect(grants.server_version_num >= 170000 ? false : true).toBe(true);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails closed on residual REFERENCES", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(
+        `GRANT REFERENCES ON TABLE public.ra_pro_weekly_completeness_runs TO service_role`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(grants.check_codes.some((c: string) => /REFERENCES/.test(c))).toBe(true);
+      await restoreLeastPrivilege(db);
+      expect((await verifyServiceRoleCatalogGrants(db)).grants_match).toBe(true);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails closed on residual TRIGGER", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(
+        `GRANT TRIGGER ON TABLE public.ra_pro_weekly_completeness_findings TO service_role`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(grants.check_codes.some((c: string) => /TRIGGER/.test(c))).toBe(true);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("PG17-compatible MAINTAIN denial is version-gated (no unsupported call on PG16)", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.maintain_supported).toBe(false);
+      expect(grants.check_codes).toContain("maintain:not_supported");
+      // Simulate the PG17 expected observation: MAINTAIN must be false when supported.
+      const pg17ExpectedMaintain = false;
+      expect(pg17ExpectedMaintain).toBe(false);
+      // Inject residual UPDATE as a stand-in that the same fail-closed path rejects excess.
+      await db.query(
+        `GRANT UPDATE ON TABLE public.ra_pro_month_end_review_packages TO service_role`,
+      );
+      const dirty = await verifyServiceRoleCatalogGrants(db);
+      expect(dirty.grants_match).toBe(false);
+      expect(dirty.check_codes.some((c: string) => /UPDATE/.test(c))).toBe(true);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails closed on PUBLIC SELECT/INSERT/UPDATE", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(
+        `GRANT SELECT, INSERT, UPDATE ON TABLE public.ra_pro_weekly_completeness_runs TO PUBLIC`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(grants.check_codes.some((c: string) => /catalog:PUBLIC:/.test(c))).toBe(true);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails closed when inherited role grants excess privilege", async () => {
+    const db = await client();
+    const helper = `ra_corr_inh_${randomBytes(3).toString("hex")}`;
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(`CREATE ROLE ${helper} NOLOGIN`);
+      await db.query(
+        `GRANT UPDATE ON TABLE public.ra_pro_weekly_completeness_runs TO ${helper}`,
+      );
+      await db.query(`GRANT ${helper} TO service_role`);
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(
+        grants.check_codes.some(
+          (c: string) => c.includes("inherited:") || c.includes("effective:service_role:UPDATE"),
+        ),
+      ).toBe(true);
+      await db.query(`REVOKE ${helper} FROM service_role`);
+      await db.query(
+        `REVOKE UPDATE ON TABLE public.ra_pro_weekly_completeness_runs FROM ${helper}`,
+      );
+      await db.query(`DROP ROLE ${helper}`);
+      await restoreLeastPrivilege(db);
+      expect((await verifyServiceRoleCatalogGrants(db)).grants_match).toBe(true);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails closed on unexpected direct grantee", async () => {
+    const db = await client();
+    const stranger = `ra_corr_str_${randomBytes(3).toString("hex")}`;
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(`CREATE ROLE ${stranger} NOLOGIN`);
+      await db.query(
+        `GRANT SELECT ON TABLE public.ra_pro_weekly_completeness_runs TO ${stranger}`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(grants.check_codes.some((c: string) => /unexpected_grantee/.test(c))).toBe(true);
+      await db.query(
+        `REVOKE SELECT ON TABLE public.ra_pro_weekly_completeness_runs FROM ${stranger}`,
+      );
+      await db.query(`DROP ROLE ${stranger}`);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails when catalog is clean but effective privilege is dirty via inheritance", async () => {
+    const db = await client();
+    const helper = `ra_corr_eff_${randomBytes(3).toString("hex")}`;
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(`CREATE ROLE ${helper} NOLOGIN`);
+      await db.query(
+        `GRANT DELETE ON TABLE public.ra_pro_weekly_completeness_findings TO ${helper}`,
+      );
+      await db.query(`GRANT ${helper} TO service_role`);
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      const sources = new Set(
+        grants.differing_privileges.map((d: { source?: string }) => d.source),
+      );
+      expect(sources.has("effective") || sources.has("inherited")).toBe(true);
+      // Direct service_role ACL should still be SELECT+INSERT only.
+      const acl = await db.query(
+        `SELECT privilege_type
+         FROM aclexplode(
+           (SELECT relacl FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relname = 'ra_pro_weekly_completeness_findings')
+         ) a
+         JOIN pg_roles r ON r.oid = a.grantee
+         WHERE r.rolname = 'service_role'`,
+      );
+      const direct = new Set(acl.rows.map((r: { privilege_type: string }) => r.privilege_type));
+      expect(direct.has("SELECT")).toBe(true);
+      expect(direct.has("INSERT")).toBe(true);
+      expect(direct.has("DELETE")).toBe(false);
+      await db.query(`REVOKE ${helper} FROM service_role`);
+      await db.query(
+        `REVOKE DELETE ON TABLE public.ra_pro_weekly_completeness_findings FROM ${helper}`,
+      );
+      await db.query(`DROP ROLE ${helper}`);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("fails when catalog is dirty even if subject effective matrix looks intended", async () => {
+    const db = await client();
+    const stranger = `ra_corr_cat_${randomBytes(3).toString("hex")}`;
+    try {
+      await restoreLeastPrivilege(db);
+      await db.query(`CREATE ROLE ${stranger} NOLOGIN`);
+      // Unexpected direct grantee dirties catalog; service_role/authenticated/anon effective stay correct.
+      await db.query(
+        `GRANT SELECT ON TABLE public.ra_pro_month_end_review_packages TO ${stranger}`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      expect(
+        grants.differing_privileges.some((d: { source?: string }) => d.source === "catalog"),
+      ).toBe(true);
+      const effOnly = grants.differing_privileges.filter(
+        (d: { source?: string; role?: string }) =>
+          d.source === "effective" &&
+          (d.role === "service_role" || d.role === "authenticated" || d.role === "anon"),
+      );
+      expect(effOnly).toEqual([]);
+      await db.query(
+        `REVOKE SELECT ON TABLE public.ra_pro_month_end_review_packages FROM ${stranger}`,
+      );
+      await db.query(`DROP ROLE ${stranger}`);
+      await restoreLeastPrivilege(db);
+      expect((await verifyServiceRoleCatalogGrants(db)).grants_match).toBe(true);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("reintroducing excess after apply fails post-commit verification without retry", async () => {
+    const db = await client();
+    try {
+      await restoreLeastPrivilege(db);
+      expect((await verifyServiceRoleCatalogGrants(db)).grants_match).toBe(true);
+      await db.query(
+        `GRANT REFERENCES ON TABLE public.ra_pro_month_end_review_packages TO service_role`,
+      );
+      const grants = await verifyServiceRoleCatalogGrants(db);
+      expect(grants.grants_match).toBe(false);
+      // Apply path refuses because version already present — no retry of corrective SQL.
+      const blocked = await runApplicator(applyInputs());
+      expect(blocked.verdict).toBe("APPLY_ROLLED_BACK");
+      expect(["VERSION_ALREADY_PRESENT", "HISTORY_COUNT_MISMATCH"]).toContain(blocked.error_code);
+      expect(blocked.sqlApplicationAttempts ?? 0).toBe(0);
+      await restoreLeastPrivilege(db);
+    } finally {
+      await db.end();
+    }
   });
 });

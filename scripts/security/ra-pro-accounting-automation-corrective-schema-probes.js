@@ -55,13 +55,83 @@ const SENTINELS = Object.freeze([
 
 const VERIFICATION_STATEMENT_TIMEOUT = "30s";
 
+const SVC_EFFECTIVE_PRIVILEGES = Object.freeze([
+  ["SELECT", true],
+  ["INSERT", true],
+  ["UPDATE", false],
+  ["DELETE", false],
+  ["TRUNCATE", false],
+  ["REFERENCES", false],
+  ["TRIGGER", false],
+]);
+
+const AUTH_EFFECTIVE_PRIVILEGES = Object.freeze([
+  ["SELECT", true],
+  ["INSERT", false],
+  ["UPDATE", false],
+  ["DELETE", false],
+  ["TRUNCATE", false],
+  ["REFERENCES", false],
+  ["TRIGGER", false],
+]);
+
+const ANON_EFFECTIVE_PRIVILEGES = Object.freeze([
+  ["SELECT", false],
+  ["INSERT", false],
+  ["UPDATE", false],
+  ["DELETE", false],
+  ["TRUNCATE", false],
+  ["REFERENCES", false],
+  ["TRIGGER", false],
+]);
+
+const ALLOWED_DIRECT_ACL = Object.freeze({
+  service_role: Object.freeze(new Set(["SELECT", "INSERT"])),
+  authenticated: Object.freeze(new Set(["SELECT"])),
+  anon: Object.freeze(new Set()),
+});
+
 function probeError(code) {
   const error = new Error(code);
   error.code = code;
   return error;
 }
 
+function sanitizeCheckToken(value) {
+  const cleaned = String(value || "")
+    .replace(/[^a-zA-Z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 64);
+  return cleaned || "unknown";
+}
+
+function pushDiffering(differing, entry) {
+  differing.push({
+    role: entry.role,
+    object: entry.object,
+    privilege: entry.privilege,
+    expected: entry.expected,
+    observed: entry.observed,
+    source: entry.source || "effective",
+    check_code: entry.check_code || null,
+  });
+}
+
+async function getServerVersionNum(client) {
+  const { rows } = await client.query(
+    `SELECT current_setting('server_version_num')::int AS n`,
+  );
+  return rows[0].n;
+}
+
+/**
+ * Effective privilege matrix via has_table_privilege (includes inherited grants).
+ * MAINTAIN is only queried when server_version_num >= 170000.
+ */
 async function tablePrivilegeMatrix(client) {
+  const versionNum = await getServerVersionNum(client);
+  const maintainSupported = versionNum >= 170000;
   const rows = [];
   for (const table of CORRECTIVE_TABLES) {
     const fq = `public.${table}`;
@@ -72,76 +142,384 @@ async function tablePrivilegeMatrix(client) {
          has_table_privilege('service_role', $1, 'UPDATE') AS svc_update,
          has_table_privilege('service_role', $1, 'DELETE') AS svc_delete,
          has_table_privilege('service_role', $1, 'TRUNCATE') AS svc_truncate,
+         has_table_privilege('service_role', $1, 'REFERENCES') AS svc_references,
+         has_table_privilege('service_role', $1, 'TRIGGER') AS svc_trigger,
          has_table_privilege('authenticated', $1, 'SELECT') AS auth_select,
          has_table_privilege('authenticated', $1, 'INSERT') AS auth_insert,
          has_table_privilege('authenticated', $1, 'UPDATE') AS auth_update,
          has_table_privilege('authenticated', $1, 'DELETE') AS auth_delete,
+         has_table_privilege('authenticated', $1, 'TRUNCATE') AS auth_truncate,
+         has_table_privilege('authenticated', $1, 'REFERENCES') AS auth_references,
+         has_table_privilege('authenticated', $1, 'TRIGGER') AS auth_trigger,
          has_table_privilege('anon', $1, 'SELECT') AS anon_select,
          has_table_privilege('anon', $1, 'INSERT') AS anon_insert,
          has_table_privilege('anon', $1, 'UPDATE') AS anon_update,
-         has_table_privilege('anon', $1, 'DELETE') AS anon_delete`,
+         has_table_privilege('anon', $1, 'DELETE') AS anon_delete,
+         has_table_privilege('anon', $1, 'TRUNCATE') AS anon_truncate,
+         has_table_privilege('anon', $1, 'REFERENCES') AS anon_references,
+         has_table_privilege('anon', $1, 'TRIGGER') AS anon_trigger`,
       [fq],
     );
-    rows.push({ table, ...r[0] });
+    let svcMaintain = null;
+    let authMaintain = null;
+    let anonMaintain = null;
+    let maintainStatus = "not_supported";
+    if (maintainSupported) {
+      const m = await client.query(
+        `SELECT
+           has_table_privilege('service_role', $1, 'MAINTAIN') AS svc_maintain,
+           has_table_privilege('authenticated', $1, 'MAINTAIN') AS auth_maintain,
+           has_table_privilege('anon', $1, 'MAINTAIN') AS anon_maintain`,
+        [fq],
+      );
+      svcMaintain = m.rows[0].svc_maintain === true;
+      authMaintain = m.rows[0].auth_maintain === true;
+      anonMaintain = m.rows[0].anon_maintain === true;
+      maintainStatus = "checked";
+    }
+    rows.push({
+      table,
+      maintain_status: maintainStatus,
+      server_version_num: versionNum,
+      ...r[0],
+      svc_maintain: svcMaintain,
+      auth_maintain: authMaintain,
+      anon_maintain: anonMaintain,
+    });
   }
-  return rows;
+  return { rows, maintainSupported, versionNum };
 }
 
 /**
- * Detailed catalog grant check. Returns differing privileges array
- * (role, object, privilege, expected, observed) — not just a boolean.
+ * Direct ACL via aclexplode(pg_class.relacl). Owner (postgres) full rights are
+ * permitted; PUBLIC and unexpected grantees are not.
+ */
+async function catalogAclRows(client) {
+  const { rows } = await client.query(
+    `SELECT
+       c.relname AS table_name,
+       n.nspname AS schema_name,
+       pg_get_userbyid(c.relowner) AS owner_name,
+       CASE
+         WHEN a.grantee = 0 THEN 'PUBLIC'
+         ELSE COALESCE(r.rolname, a.grantee::text)
+       END AS grantee,
+       a.privilege_type,
+       a.grantee AS grantee_oid
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a ON true
+     LEFT JOIN pg_roles r ON r.oid = a.grantee
+     WHERE n.nspname = 'public'
+       AND c.relkind = 'r'
+       AND c.relname = ANY($1::text[])
+     ORDER BY c.relname, grantee, a.privilege_type`,
+    [CORRECTIVE_TABLES],
+  );
+  return rows;
+}
+
+async function recursiveGrantedRoles(client, roleName) {
+  const { rows } = await client.query(
+    `WITH RECURSIVE granted AS (
+       SELECT r.oid AS member_oid, g.oid AS role_oid, g.rolname
+       FROM pg_roles r
+       JOIN pg_auth_members m ON m.member = r.oid
+       JOIN pg_roles g ON g.oid = m.roleid
+       WHERE r.rolname = $1
+       UNION
+       SELECT granted.member_oid, g.oid, g.rolname
+       FROM granted
+       JOIN pg_auth_members m ON m.member = granted.role_oid
+       JOIN pg_roles g ON g.oid = m.roleid
+     )
+     SELECT DISTINCT rolname FROM granted ORDER BY rolname`,
+    [roleName],
+  );
+  return rows.map((row) => row.rolname);
+}
+
+/**
+ * Full privilege verification: catalog ACL + effective has_table_privilege +
+ * inherited-role excess reporting. EXECUTE is collected separately.
  */
 async function verifyServiceRoleCatalogGrants(client) {
   const differing = [];
-  const matrix = await tablePrivilegeMatrix(client);
+  const checkCodes = [];
+  const { rows: matrix, maintainSupported, versionNum } = await tablePrivilegeMatrix(client);
+
   for (const row of matrix) {
     const object = `public.${row.table}`;
-    const expect = [
-      ["service_role", "SELECT", true, row.svc_select],
-      ["service_role", "INSERT", true, row.svc_insert],
-      ["service_role", "UPDATE", false, row.svc_update],
-      ["service_role", "DELETE", false, row.svc_delete],
-      ["service_role", "TRUNCATE", false, row.svc_truncate],
-      ["authenticated", "SELECT", true, row.auth_select],
-      ["authenticated", "INSERT", false, row.auth_insert],
-      ["authenticated", "UPDATE", false, row.auth_update],
-      ["authenticated", "DELETE", false, row.auth_delete],
-      ["anon", "SELECT", false, row.anon_select],
-      ["anon", "INSERT", false, row.anon_insert],
-      ["anon", "UPDATE", false, row.anon_update],
-      ["anon", "DELETE", false, row.anon_delete],
+    const roleSpecs = [
+      ["service_role", SVC_EFFECTIVE_PRIVILEGES, {
+        SELECT: row.svc_select,
+        INSERT: row.svc_insert,
+        UPDATE: row.svc_update,
+        DELETE: row.svc_delete,
+        TRUNCATE: row.svc_truncate,
+        REFERENCES: row.svc_references,
+        TRIGGER: row.svc_trigger,
+        MAINTAIN: row.svc_maintain,
+      }],
+      ["authenticated", AUTH_EFFECTIVE_PRIVILEGES, {
+        SELECT: row.auth_select,
+        INSERT: row.auth_insert,
+        UPDATE: row.auth_update,
+        DELETE: row.auth_delete,
+        TRUNCATE: row.auth_truncate,
+        REFERENCES: row.auth_references,
+        TRIGGER: row.auth_trigger,
+        MAINTAIN: row.auth_maintain,
+      }],
+      ["anon", ANON_EFFECTIVE_PRIVILEGES, {
+        SELECT: row.anon_select,
+        INSERT: row.anon_insert,
+        UPDATE: row.anon_update,
+        DELETE: row.anon_delete,
+        TRUNCATE: row.anon_truncate,
+        REFERENCES: row.anon_references,
+        TRIGGER: row.anon_trigger,
+        MAINTAIN: row.anon_maintain,
+      }],
     ];
-    for (const [role, privilege, expected, observed] of expect) {
-      if (Boolean(observed) !== expected) {
-        differing.push({ role, object, privilege, expected, observed: Boolean(observed) });
+    for (const [role, specs, observedMap] of roleSpecs) {
+      for (const [privilege, expected] of specs) {
+        const observed = Boolean(observedMap[privilege]);
+        if (observed !== expected) {
+          const code = `effective:${sanitizeCheckToken(role)}:${sanitizeCheckToken(privilege)}`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role,
+            object,
+            privilege,
+            expected,
+            observed,
+            source: "effective",
+            check_code: code,
+          });
+        }
+      }
+      if (maintainSupported) {
+        const expectedMaintain = false;
+        const observedMaintain = Boolean(observedMap.MAINTAIN);
+        if (observedMaintain !== expectedMaintain) {
+          const code = `effective:${sanitizeCheckToken(role)}:MAINTAIN`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role,
+            object,
+            privilege: "MAINTAIN",
+            expected: expectedMaintain,
+            observed: observedMaintain,
+            source: "effective",
+            check_code: code,
+          });
+        }
       }
     }
   }
 
+  if (!maintainSupported) {
+    checkCodes.push("maintain:not_supported");
+  }
+
+  const aclRows = await catalogAclRows(client);
+  const byTable = new Map();
+  for (const table of CORRECTIVE_TABLES) byTable.set(table, []);
+  for (const row of aclRows) {
+    if (!byTable.has(row.table_name)) continue;
+    byTable.get(row.table_name).push(row);
+  }
+
+  for (const table of CORRECTIVE_TABLES) {
+    const object = `public.${table}`;
+    const entries = byTable.get(table) || [];
+    const owners = new Set(entries.map((e) => e.owner_name).filter(Boolean));
+    const ownerName = owners.values().next().value || "postgres";
+    const privByGrantee = new Map();
+    for (const entry of entries) {
+      if (!entry.grantee || !entry.privilege_type) continue;
+      if (!privByGrantee.has(entry.grantee)) privByGrantee.set(entry.grantee, new Set());
+      privByGrantee.get(entry.grantee).add(entry.privilege_type);
+    }
+
+    for (const [grantee, privs] of privByGrantee.entries()) {
+      if (grantee === ownerName) continue; // owner ACL permissible
+      if (grantee === "PUBLIC") {
+        for (const privilege of privs) {
+          const code = `catalog:PUBLIC:${sanitizeCheckToken(privilege)}`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role: "PUBLIC",
+            object,
+            privilege,
+            expected: false,
+            observed: true,
+            source: "catalog",
+            check_code: code,
+          });
+        }
+        continue;
+      }
+      const allowed = ALLOWED_DIRECT_ACL[grantee];
+      if (!allowed) {
+        for (const privilege of privs) {
+          const code = `catalog:unexpected_grantee:${sanitizeCheckToken(grantee)}:${sanitizeCheckToken(privilege)}`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role: grantee,
+            object,
+            privilege,
+            expected: false,
+            observed: true,
+            source: "catalog",
+            check_code: code,
+          });
+        }
+        continue;
+      }
+      for (const privilege of privs) {
+        if (!allowed.has(privilege)) {
+          const code = `catalog:${sanitizeCheckToken(grantee)}:${sanitizeCheckToken(privilege)}`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role: grantee,
+            object,
+            privilege,
+            expected: false,
+            observed: true,
+            source: "catalog",
+            check_code: code,
+          });
+        }
+      }
+      for (const privilege of allowed) {
+        if (!privs.has(privilege)) {
+          const code = `catalog_missing:${sanitizeCheckToken(grantee)}:${sanitizeCheckToken(privilege)}`;
+          checkCodes.push(code);
+          pushDiffering(differing, {
+            role: grantee,
+            object,
+            privilege,
+            expected: true,
+            observed: false,
+            source: "catalog",
+            check_code: code,
+          });
+        }
+      }
+    }
+
+    for (const [role, allowed] of Object.entries(ALLOWED_DIRECT_ACL)) {
+      const privs = privByGrantee.get(role) || new Set();
+      for (const privilege of allowed) {
+        if (!privs.has(privilege)) {
+          // already recorded above if we iterated; ensure presence when grantee absent entirely
+          if (!privByGrantee.has(role)) {
+            const code = `catalog_missing:${sanitizeCheckToken(role)}:${sanitizeCheckToken(privilege)}`;
+            checkCodes.push(code);
+            pushDiffering(differing, {
+              role,
+              object,
+              privilege,
+              expected: true,
+              observed: false,
+              source: "catalog",
+              check_code: code,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Inherited-role excess: roles granted TO service_role/authenticated/anon that hold table privs.
+  const subjectRoles = ["service_role", "authenticated", "anon"];
+  const excessPrivs = ["UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"];
+  if (maintainSupported) excessPrivs.push("MAINTAIN");
+  for (const subject of subjectRoles) {
+    const granted = await recursiveGrantedRoles(client, subject);
+    for (const ancestor of granted) {
+      if (subjectRoles.includes(ancestor) || ancestor === "postgres") continue;
+      for (const table of CORRECTIVE_TABLES) {
+        const fq = `public.${table}`;
+        for (const privilege of excessPrivs) {
+          const { rows } = await client.query(
+            `SELECT has_table_privilege($1, $2, $3) AS ok`,
+            [ancestor, fq, privilege],
+          );
+          if (rows[0].ok === true) {
+            // Only fail when the subject also effectively holds it (inheritance path).
+            const { rows: sub } = await client.query(
+              `SELECT has_table_privilege($1, $2, $3) AS ok`,
+              [subject, fq, privilege],
+            );
+            if (sub[0].ok === true) {
+              const allowed =
+                (subject === "service_role" && (privilege === "SELECT" || privilege === "INSERT")) ||
+                (subject === "authenticated" && privilege === "SELECT");
+              if (!allowed) {
+                const code = `inherited:${sanitizeCheckToken(subject)}<=${sanitizeCheckToken(ancestor)}:${sanitizeCheckToken(privilege)}`;
+                checkCodes.push(code);
+                pushDiffering(differing, {
+                  role: subject,
+                  object: fq,
+                  privilege,
+                  expected: false,
+                  observed: true,
+                  source: "inherited",
+                  check_code: code,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const execDiffering = [];
   const execExpect = [
     ["service_role", TARGET_FUNCTIONS[0], true],
     ["authenticated", TARGET_FUNCTIONS[0], false],
     ["anon", TARGET_FUNCTIONS[0], false],
+    ["PUBLIC", TARGET_FUNCTIONS[0], false],
     ["service_role", TARGET_FUNCTIONS[1], true],
     ["authenticated", TARGET_FUNCTIONS[1], false],
     ["anon", TARGET_FUNCTIONS[1], false],
+    ["PUBLIC", TARGET_FUNCTIONS[1], false],
   ];
   for (const [role, object, expected] of execExpect) {
     const { rows } = await client.query(
-      `SELECT has_function_privilege($1, $2::regprocedure, 'EXECUTE') AS ok`,
-      [role, object],
+      role === "PUBLIC"
+        ? `SELECT has_function_privilege(0, $1::regprocedure, 'EXECUTE') AS ok`
+        : `SELECT has_function_privilege($1, $2::regprocedure, 'EXECUTE') AS ok`,
+      role === "PUBLIC" ? [object] : [role, object],
     );
     const observed = rows[0].ok === true;
     if (observed !== expected) {
-      differing.push({ role, object, privilege: "EXECUTE", expected, observed });
+      execDiffering.push({
+        role,
+        object,
+        privilege: "EXECUTE",
+        expected,
+        observed,
+        source: "execute",
+        check_code: `execute:${role}`,
+      });
     }
   }
 
+  const tableDiffering = differing.filter((d) => d.privilege !== "EXECUTE");
   return {
-    ok: differing.length === 0,
-    differing_privileges: differing,
-    grants_match: differing.filter((d) => d.privilege !== "EXECUTE").length === 0,
-    catalog_execute_ok: differing.filter((d) => d.privilege === "EXECUTE").length === 0,
+    ok: tableDiffering.length === 0 && execDiffering.length === 0,
+    differing_privileges: [...tableDiffering, ...execDiffering],
+    grants_match: tableDiffering.length === 0,
+    catalog_execute_ok: execDiffering.length === 0,
+    check_codes: [...new Set(checkCodes)],
+    maintain_supported: maintainSupported,
+    server_version_num: versionNum,
+    matrix,
   };
 }
 
@@ -215,8 +593,14 @@ async function collectCorrectiveDryRunProbes(client, options = {}) {
   let excessServiceRoleDml = false;
   if (tableOk) {
     const grantMatrix = await tablePrivilegeMatrix(client);
-    excessServiceRoleDml = grantMatrix.some(
-      (row) => row.svc_update === true || row.svc_delete === true || row.svc_truncate === true,
+    excessServiceRoleDml = grantMatrix.rows.some(
+      (row) =>
+        row.svc_update === true ||
+        row.svc_delete === true ||
+        row.svc_truncate === true ||
+        row.svc_references === true ||
+        row.svc_trigger === true ||
+        row.svc_maintain === true,
     );
   }
 
@@ -511,6 +895,9 @@ async function verifyPostCorrective(client, options = {}) {
     view.differing_privileges = grants.differing_privileges;
     view.grants_match = grants.grants_match;
     view.service_role_execute_ok = grants.catalog_execute_ok;
+    view.grant_check_codes = grants.check_codes || [];
+    view.maintain_supported = grants.maintain_supported === true;
+    view.server_version_num = grants.server_version_num || null;
     if (!view.grants_match) failed.push("grants_match");
     if (!view.service_role_execute_ok) failed.push("service_role_execute");
 
@@ -561,6 +948,7 @@ module.exports = {
   captureSentinelCounts,
   collectCorrectiveDryRunProbes,
   probeIdempotentPersistenceWithFixtures,
+  tablePrivilegeMatrix,
   verifyCatalogExecutePrivileges,
   verifyPostCorrective,
   verifyServiceRoleCatalogGrants,
