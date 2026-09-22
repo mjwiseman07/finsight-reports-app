@@ -49,6 +49,12 @@ const {
   loadToolingAuthorization,
 } = require("./ra-pro-accounting-automation-corrective-apply-authorization");
 const {
+  assertCorrectivePreconditionEvidencePublished,
+} = require("./ra-pro-accounting-automation-corrective-precondition-gates");
+const {
+  assertCorrectivePreApplyLiveEvidencePublished,
+} = require("./ra-pro-accounting-automation-corrective-pre-apply-gates");
+const {
   captureCorrectiveRowCounts,
   captureSentinelCounts,
   collectCorrectiveDryRunProbes,
@@ -837,6 +843,28 @@ function finalizeEvidence(evidence) {
   return sanitizeValue(evidence);
 }
 
+function enforceCorrectiveEvidenceGates(inputs = {}, mode = "dry-run") {
+  if (inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true) {
+    return { skipped_for_harness: true, phase: "evidence_gates" };
+  }
+  const cwd = resolveRepoRoot(inputs);
+  const auth = loadToolingAuthorization(cwd);
+  const gateInputs = {
+    auth,
+    cwd,
+    now: inputs.now,
+    env: inputs.env || process.env,
+    expected: inputs.expectedEvidencePins,
+  };
+  if (mode === "dry-run" || mode === "apply") {
+    assertCorrectivePreconditionEvidencePublished(gateInputs);
+  }
+  if (mode === "apply") {
+    assertCorrectivePreApplyLiveEvidencePublished(gateInputs);
+  }
+  return { phase: "evidence_gates", mode };
+}
+
 function refuseAuthIfOriginalsTargeted(inputs = {}) {
   try {
     const cwd = resolveRepoRoot(inputs);
@@ -866,8 +894,10 @@ async function runDryRun(inputs = {}) {
   evidence.authorization_scope = "corrective_dry_run";
   evidence.migration_sql_attempts = 0;
   try {
-    evidence.bundle_authority = assertBundleAuthority(inputs);
     refuseAuthIfOriginalsTargeted(inputs);
+    // Evidence pins fail closed before bundle/credentials/DB.
+    evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
+    evidence.bundle_authority = assertBundleAuthority(inputs);
     assertFeatureFlagUntouched(inputs.env || process.env);
     const packed = loadSealedMigrations(inputs);
     assertCorrectiveMigrationsAllowlist(packed);
@@ -931,8 +961,10 @@ async function runApply(inputs = {}) {
   let commitPhase = "pre_commit";
 
   try {
-    evidence.bundle_authority = assertBundleAuthority(inputs);
     refuseAuthIfOriginalsTargeted(inputs);
+    // Evidence pins fail closed before bundle/apply-auth/credentials/DB.
+    evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "apply");
+    evidence.bundle_authority = assertBundleAuthority(inputs);
     if (inputs.allowDisposablePublicationCommit === true) {
       evidence.apply_authorization = assertCorrectiveApplyAuthorized({
         ...inputs,
@@ -1093,6 +1125,7 @@ module.exports = {
   FEATURE_FLAG_ENV,
   IndeterminateCommitError,
   assertBundleAuthority,
+  enforceCorrectiveEvidenceGates,
   assertFeatureFlagUntouched,
   assertMigrationOrder,
   assertNoHarnessEnvOrArgv,

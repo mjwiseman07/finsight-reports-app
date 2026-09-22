@@ -23,8 +23,10 @@ The consumed dual-package attempt id `apply-b9926961e32c-8aecb1bd2f5f17dec0483dd
 
 | Mode | Required authority |
 |---|---|
-| **dry-run** | Bundle seals (when published) + corrective credential channel |
-| **apply** | Published `production_apply_authorization` (AUTHORIZED) + apply token |
+| **dry-run** | Bundle seals (when published) + published corrective **precondition** evidence pins + corrective credential channel |
+| **apply** | Published corrective **precondition** + **pre-apply live** evidence pins + published `production_apply_authorization` (AUTHORIZED) + apply token |
+
+Corrective evidence gates (`RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1` and `RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1`) are sealed by contract JSON under this directory. `precondition_publication` and `pre_apply_live_publication` in `TOOLING_AUTHORIZATION.json` start **UNPUBLISHED** with null evidence pins — dry-run and apply fail closed with `CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED` / `CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED` before any database URL is resolved. Dual-package and cutover evidence protocols are forbidden substitutions.
 
 `production_apply_authorization` starts **UNPUBLISHED** (`apply_authorized: false`, `attempt_id: null`). It stays unpublished until a separate reviewed publication. Evidence pins and the apply token alone do not authorize apply.
 

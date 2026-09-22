@@ -14,6 +14,7 @@ import {
   assertOriginalMigrationStatementsNotSelectable,
   loadSealedMigrations,
   runApplicator,
+  runDryRun,
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-core.js";
 import {
   CONSUMED_ORIGINAL_ATTEMPT_ID,
@@ -100,6 +101,13 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
 
   it("never enables the automation feature flag constant path", () => {
     expect(FEATURE_FLAG_ENV).toBe("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION");
+  });
+
+  it("blocks dry-run when corrective precondition pins are UNPUBLISHED", async () => {
+    const result = await runDryRun({});
+    expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+    expect(result.error_code).toBe("CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED");
+    expect(result.phase).toBe("precondition_evidence");
   });
 });
 

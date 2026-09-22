@@ -48,6 +48,41 @@
     "required_pre_apply_live_evidence_oid": null,
     "required_pre_apply_live_evidence_bytes": null
   },
+  "precondition_publication": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
+    "evidence_path": null,
+    "evidence_source_commit": null,
+    "evidence_blob_oid": null,
+    "evidence_sha256": null,
+    "evidence_bytes": null
+  },
+  "pre_apply_live_publication": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "evidence_path": null,
+    "evidence_source_commit": null,
+    "evidence_blob_oid": null,
+    "evidence_sha256": null,
+    "evidence_bytes": null,
+    "apply_authorized": false
+  },
+  "precondition_evidence_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
+    "source_commit": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "oid": "c62238dee21d3007502fb1fe419a936c761a574b",
+    "sha256": "598376fdb63a28a6ab4070e2103fb8eddaaf385ec0429ce09a25c3d82e204ba2",
+    "bytes": 3754,
+    "line_endings": "LF"
+  },
+  "pre_apply_live_evidence_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "source_commit": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "oid": "08a9bb98fb3874cef0e23ae789a0d2c1e650c7d3",
+    "sha256": "8e0438d086b06cb42fdba2b0a0f2d2587f3b11a2232554a4ef70ccf02ac10997",
+    "bytes": 3859,
+    "line_endings": "LF"
+  },
   "production_apply_authorization": {
     "status": "UNPUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
@@ -78,9 +113,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "de3fa2431a6a97162cc8ef12a01aaff3e1712e79",
-    "sha256": "da4a2adeecf38b50895864aae5914180c42a409d464107230420dec445f4166f",
-    "bytes": 286106,
+    "oid": "3e335195fa093e28d9ee3346f53c2e81669b7480",
+    "sha256": "0abe8b266a89eb3467dba8e2017c222838f654086774f292a4137aeb29fb6326",
+    "bytes": 324377,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

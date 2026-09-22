@@ -1,0 +1,130 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "synthetic_disposable_fixture",
+  "collection_started_at_utc": "2026-09-21T10:00:00Z",
+  "collection_ended_at_utc": "2026-09-21T10:04:00Z",
+  "valid_from_utc": "2026-09-21T10:00:00Z",
+  "valid_until_utc": "2026-09-22T10:00:00Z",
+  "authorization": {
+    "pr_number": 324,
+    "pr_head": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "scope": "read_only_production_corrective_pre_apply_live_collection",
+    "tooling_reviewed_tip": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "committed_pre_apply_pins": "UNPUBLISHED",
+    "disposable_pin_scope": "in_memory_file_sha_only"
+  },
+  "automation_gate": {
+    "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "production_presence": "absent",
+    "effective_state": "closed",
+    "value_read": false
+  },
+  "database_readonly": {
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "observed_at_utc": "2026-09-21T10:00:00Z",
+    "history_count": 190,
+    "original_committed_migrations": [
+      {
+        "version": "20260917044537",
+        "count": 1,
+        "digest_match": true,
+        "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+        "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+        "bytes": 6952
+      },
+      {
+        "version": "20260917180140",
+        "count": 1,
+        "digest_match": true,
+        "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+        "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+        "bytes": 3997
+      }
+    ],
+    "corrective_version": "20260922003200",
+    "corrective_version_count": 0,
+    "tables": [
+      "ra_pro_weekly_completeness_runs",
+      "ra_pro_weekly_completeness_findings",
+      "ra_pro_month_end_review_packages"
+    ],
+    "tables_present": true,
+    "rls_enabled": true,
+    "policies_present": true,
+    "functions_present": true,
+    "privilege_defect": {
+      "present": true,
+      "service_role": {
+        "SELECT": true,
+        "INSERT": true,
+        "UPDATE": true,
+        "DELETE": true,
+        "TRUNCATE": true,
+        "REFERENCES": true,
+        "TRIGGER": true
+      },
+      "authenticated": {
+        "SELECT": true,
+        "INSERT": false,
+        "UPDATE": false,
+        "DELETE": false,
+        "TRUNCATE": false,
+        "REFERENCES": false,
+        "TRIGGER": false
+      },
+      "anon": {
+        "SELECT": false,
+        "INSERT": false,
+        "UPDATE": false,
+        "DELETE": false,
+        "TRUNCATE": false,
+        "REFERENCES": false,
+        "TRIGGER": false
+      },
+      "PUBLIC_catalog_empty": true,
+      "EXECUTE": {
+        "service_role": true,
+        "authenticated": false,
+        "anon": false,
+        "PUBLIC": false
+      },
+      "maintain_supported": false,
+      "maintain_status": "not_supported"
+    },
+    "server_version_num": 160000,
+    "linked_firms_count": 0,
+    "authorizing_inventory": {
+      "predicate": "review_assist_pro_active_and_complimentary",
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "dual_owner": 0
+    },
+    "webhook_non_terminal_count": 0,
+    "webhook_non_terminal_statuses": [
+      "received",
+      "processing",
+      "retryable"
+    ],
+    "consumed_dual_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f"
+  },
+  "safety": {
+    "read_only": true,
+    "select_only": true,
+    "production_writes": 0,
+    "sql_application_attempts": 0,
+    "dry_run_attempts": 0,
+    "migration_apply_attempts": 0,
+    "provider_writes": 0,
+    "automation_enabled": false,
+    "merge_or_deploy_performed": false,
+    "credential_prompt_opened": false,
+    "marker_created": false,
+    "pins_published": false
+  },
+  "visibility_limitations": [
+    "Synthetic disposable fixture. Corrective pre-apply live evidence pins remain UNPUBLISHED."
+  ],
+  "validator_result": "PASS_CORRECTIVE_PRE_APPLY_LIVE_VALIDATION"
+}

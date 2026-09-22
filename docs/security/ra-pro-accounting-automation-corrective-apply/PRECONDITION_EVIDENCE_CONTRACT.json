@@ -1,0 +1,119 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
+  "schema_version": 1,
+  "publication_status": "UNPUBLISHED",
+  "pin_source": "committed_tooling_authorization_only",
+  "operator_path_override": "forbidden",
+  "operator_env_override": "forbidden",
+  "freshness": "valid_from_utc <= UtcNow < valid_until_utc",
+  "validity_window": "exactly_24_hours",
+  "newline": "UTF-8, no BOM, no CR, exactly one trailing LF",
+  "sanitization": [
+    "no database URLs",
+    "no credential material",
+    "no PEM or private keys",
+    "no customer, firm, user, or webhook identifiers",
+    "no hostnames",
+    "no UUID shapes"
+  ],
+  "substitution_forbidden": [
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "RA_PRO_ACCOUNTING_AUTOMATION_PRIOR_DRY_RUN_EVIDENCE_V1",
+    "RA_PRO_CUTOVER_PRECONDITION_EVIDENCE_V1",
+    "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_V1"
+  ],
+  "self_asserted_fields_are_not_authority": [
+    "validator_result",
+    "committed_pre_apply_pins",
+    "disposable_pin_scope",
+    "pins_published"
+  ],
+  "bindings": {
+    "pr_number": 324,
+    "tooling_reviewed_tip": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "collection_pr_head": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "scope": "read_only_production_corrective_precondition_collection",
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "history_count": 190,
+    "original_committed_migrations": [
+      {
+        "version": "20260917044537",
+        "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+        "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+        "bytes": 6952
+      },
+      {
+        "version": "20260917180140",
+        "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+        "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+        "bytes": 3997
+      }
+    ],
+    "corrective_version": "20260922003200",
+    "corrective_version_count": 0,
+    "tables_present": [
+      "ra_pro_weekly_completeness_runs",
+      "ra_pro_weekly_completeness_findings",
+      "ra_pro_month_end_review_packages"
+    ],
+    "privilege_defect_expected": {
+      "present": true,
+      "service_role": {
+        "SELECT": true,
+        "INSERT": true,
+        "UPDATE": true,
+        "DELETE": true,
+        "TRUNCATE": true,
+        "REFERENCES": true,
+        "TRIGGER": true
+      },
+      "authenticated": {
+        "SELECT": true,
+        "INSERT": false,
+        "UPDATE": false,
+        "DELETE": false,
+        "TRUNCATE": false,
+        "REFERENCES": false,
+        "TRIGGER": false
+      },
+      "anon": {
+        "SELECT": false,
+        "INSERT": false,
+        "UPDATE": false,
+        "DELETE": false,
+        "TRUNCATE": false,
+        "REFERENCES": false,
+        "TRIGGER": false
+      },
+      "PUBLIC_catalog_empty": true,
+      "EXECUTE": {
+        "service_role": true,
+        "authenticated": false,
+        "anon": false,
+        "PUBLIC": false
+      },
+      "maintain_applicability": "version_gated"
+    },
+    "authorizing_inventory": {
+      "predicate": "review_assist_pro_active_and_complimentary",
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "dual_owner": 0
+    },
+    "linked_firms_count": 0,
+    "webhook_non_terminal_count": 0,
+    "webhook_non_terminal_statuses": [
+      "received",
+      "processing",
+      "retryable"
+    ],
+    "consumed_dual_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f",
+    "automation_gate_key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "automation_gate_presence": "absent",
+    "automation_gate_state": "closed",
+    "write_counters": 0
+  }
+}
