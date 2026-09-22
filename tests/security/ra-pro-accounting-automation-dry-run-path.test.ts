@@ -205,7 +205,31 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
     expect(String(harnessEnv.error_code || "")).toMatch(/HARNESS_VIA_ENV_FORBIDDEN/);
     expect(harnessEnv.databaseConnectionAttempts ?? 0).toBe(0);
 
-    const cli = spawnSync(
+    // Sealed dual precondition window: 2026-09-21T04:32:56Z .. 2026-09-22T04:32:56Z.
+    // Operator CLI/standalone refuse --as-of on dry-run; supply the historical clock
+    // only via in-process harness `now` so the project-binding gate is still exercised.
+    const INSIDE_PRECONDITION_WINDOW = "2026-09-21T12:00:00Z";
+    const cli = await runApplicator({
+      mode: "dry-run",
+      now: INSIDE_PRECONDITION_WINDOW,
+      env: { [DATABASE_URL_ENV]: LOOPBACK_URL },
+    });
+    expect(String(cli.error_code || cli.result_code || "")).toMatch(/DATABASE_PROJECT_REF_MISMATCH/);
+    expect(cli.databaseConnectionAttempts ?? 0).toBe(0);
+
+    const standalone = await runApplicator({
+      mode: "dry-run",
+      now: INSIDE_PRECONDITION_WINDOW,
+      env: { [DATABASE_URL_ENV]: LOOPBACK_URL },
+    });
+    expect(String(standalone.error_code || standalone.result_code || "")).toMatch(
+      /DATABASE_PROJECT_REF_MISMATCH/,
+    );
+    expect(standalone.databaseConnectionAttempts ?? 0).toBe(0);
+
+    // Real wall-clock operator CLI remains fail-closed on expired published evidence and
+    // refuses --as-of overrides on the dry-run entrypoint.
+    const cliWall = spawnSync(
       process.execPath,
       ["scripts/security/apply-ra-pro-accounting-automation.js", "--dry-run"],
       {
@@ -215,18 +239,18 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
         env: { ...process.env, [DATABASE_URL_ENV]: LOOPBACK_URL },
       },
     );
-    expect(cli.status).toBe(1);
-    const cliPayload = JSON.parse(
-      `${cli.stdout || ""}${cli.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
+    expect(cliWall.status).toBe(1);
+    const cliWallPayload = JSON.parse(
+      `${cliWall.stdout || ""}${cliWall.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
-    expect(String(cliPayload.error_code || cliPayload.result_code || "")).toMatch(
-      /DATABASE_PROJECT_REF_MISMATCH/,
+    expect(String(cliWallPayload.error_code || cliWallPayload.result_code || cliWallPayload.reason || "")).toMatch(
+      /PRECONDITION_EVIDENCE_EXPIRED/,
     );
-    expect(cliPayload.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(cliWallPayload.databaseConnectionAttempts ?? 0).toBe(0);
 
-    const standalone = spawnSync(
+    const cliAsOfForbidden = spawnSync(
       process.execPath,
-      ["scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"],
+      ["scripts/security/apply-ra-pro-accounting-automation.js", "--dry-run", "--as-of", INSIDE_PRECONDITION_WINDOW],
       {
         cwd: ROOT,
         encoding: "utf8",
@@ -234,13 +258,13 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
         env: { ...process.env, [DATABASE_URL_ENV]: LOOPBACK_URL },
       },
     );
-    const standPayload = JSON.parse(
-      `${standalone.stdout || ""}${standalone.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
+    expect(cliAsOfForbidden.status).toBe(1);
+    const cliAsOfPayload = JSON.parse(
+      `${cliAsOfForbidden.stdout || ""}${cliAsOfForbidden.stderr || ""}`.trim().split(/\r?\n/).pop() || "{}",
     );
-    expect(String(standPayload.error_code || standPayload.result_code || "")).toMatch(
-      /DATABASE_PROJECT_REF_MISMATCH/,
+    expect(String(cliAsOfPayload.blocked || cliAsOfPayload.reason || "")).toMatch(
+      /APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN/,
     );
-    expect(standPayload.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
   it("apply remains unreachable with token + URL after pre-apply pins publish", async () => {
