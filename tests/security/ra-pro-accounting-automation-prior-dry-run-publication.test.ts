@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { AFTER_DUAL_PRE_APPLY_WINDOW, DUAL_PUBLICATION } from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { assertPriorDryRunEvidencePublished } = require(
@@ -37,7 +38,7 @@ describe("RA Pro accounting-automation prior dry-run publication", () => {
       bytes: 5100,
       apply_authorized: false,
     });
-    expect(() => assertAuthorizationPublished({})).toThrow(
+    expect(() => assertAuthorizationPublished({ publicationCommit: DUAL_PUBLICATION, cwd: ROOT, now: AFTER_DUAL_PRE_APPLY_WINDOW })).toThrow(
       /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
     );
   });

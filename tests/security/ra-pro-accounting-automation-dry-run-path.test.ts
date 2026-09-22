@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { AFTER_DUAL_PRE_APPLY_WINDOW, DUAL_PUBLICATION } from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
 import {
   APPLY_AUTHORIZATION_TOKEN,
   DATABASE_URL_ENV,
@@ -108,8 +109,8 @@ function assertCleanupTruthful(payload: Record<string, unknown>, expectOk: boole
 
 describe("RA Pro accounting-automation dry-run path authority", () => {
   it("published pre-apply pins still refuse apply before credentials", () => {
-    expect(() => assertAuthorizationPublished({})).toThrow(
-      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    expect(() => assertAuthorizationPublished({ publicationCommit: DUAL_PUBLICATION, cwd: ROOT, now: AFTER_DUAL_PRE_APPLY_WINDOW })).toThrow(
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED|PRECONDITION_EVIDENCE_EXPIRED/,
     );
   });
 
@@ -245,13 +246,15 @@ describe("RA Pro accounting-automation dry-run path authority", () => {
   it("apply remains unreachable with token + URL after pre-apply pins publish", async () => {
     const result = await runApplicator({
       mode: "apply",
-      now: "2026-09-21T12:00:00Z",
+      now: AFTER_DUAL_PRE_APPLY_WINDOW,
+      publicationCommit: DUAL_PUBLICATION,
+      allowDisposablePublicationCommit: true,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       env: { [DATABASE_URL_ENV]: PROJECT_URL },
     });
     expect(result.verdict).toBe("APPLY_BLOCKED");
     expect(String(result.error_code || result.result_code || "")).toMatch(
-      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED|PRECONDITION_EVIDENCE_EXPIRED/,
     );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
     expect(result.sqlApplicationAttempts ?? 0).toBe(0);

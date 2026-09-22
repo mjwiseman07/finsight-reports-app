@@ -8,6 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DUAL_EXECUTABLE, DUAL_PUBLICATION } from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
 // @ts-expect-error pg types optional in this repo
 import { Client } from "pg";
 import {
@@ -99,16 +100,7 @@ function gitTip() {
  * When HEAD is a later AUTHORIZED publication (consumed apply), use its parent.
  */
 function unpublishedExecutableTip() {
-  let commit = gitTip();
-  for (let i = 0; i < 8; i += 1) {
-    const auth = loadAuthAt(commit);
-    const status = String(auth?.production_apply_authorization?.status || "");
-    if (status !== "AUTHORIZED") return commit;
-    const parent = gitText(["rev-parse", `${commit}^`]);
-    if (!parent || parent === commit) break;
-    commit = parent;
-  }
-  throw new Error("UNPUBLISHED_EXECUTABLE_TIP_UNRESOLVED");
+  return DUAL_EXECUTABLE;
 }
 
 function gitText(args: string[]) {
@@ -169,6 +161,15 @@ function replaceTreePath(tree: string, parts: string[], blob: string): string {
 }
 
 describe("RA Pro accounting-automation applicator (unit)", () => {
+  it("HEAD publication against dual executable fails allowlist", () => {
+    expect(() => describeApplyArtifactMap({ cwd: process.cwd() })).toThrow(/APPLY_AUTHORIZATION_ALLOWLIST/);
+    try {
+      describeApplyArtifactMap({ cwd: process.cwd() });
+    } catch (err) {
+      expect(String((err as Error).message || err)).toMatch(/corrective/);
+    }
+  });
+
   it("refuses published pre-apply evidence before any database contact", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-pub-"));
     expect(() =>

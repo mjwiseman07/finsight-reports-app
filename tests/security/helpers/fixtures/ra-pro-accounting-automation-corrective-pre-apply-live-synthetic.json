@@ -1,16 +1,16 @@
 {
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_channel_classification": "synthetic_disposable_fixture",
   "collection_started_at_utc": "2026-09-21T10:00:00Z",
-  "collection_ended_at_utc": "2026-09-21T10:04:00Z",
+  "collection_ended_at_utc": "2026-09-21T10:01:00Z",
   "valid_from_utc": "2026-09-21T10:00:00Z",
   "valid_until_utc": "2026-09-22T10:00:00Z",
   "authorization": {
     "pr_number": 324,
-    "pr_head": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "pr_head": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
     "scope": "read_only_production_corrective_pre_apply_live_collection",
-    "tooling_reviewed_tip": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "tooling_reviewed_tip": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
     "committed_pre_apply_pins": "UNPUBLISHED",
     "disposable_pin_scope": "in_memory_file_sha_only"
   },
@@ -44,55 +44,662 @@
     ],
     "corrective_version": "20260922003200",
     "corrective_version_count": 0,
-    "tables": [
-      "ra_pro_weekly_completeness_runs",
-      "ra_pro_weekly_completeness_findings",
-      "ra_pro_month_end_review_packages"
-    ],
-    "tables_present": true,
-    "rls_enabled": true,
-    "policies_present": true,
-    "functions_present": true,
-    "privilege_defect": {
-      "present": true,
-      "service_role": {
-        "SELECT": true,
-        "INSERT": true,
-        "UPDATE": true,
-        "DELETE": true,
-        "TRUNCATE": true,
-        "REFERENCES": true,
-        "TRIGGER": true
+    "privilege_surfaces": {
+      "server_version_num": 160000,
+      "maintain_applicability": "not_supported",
+      "tables": {
+        "ra_pro_weekly_completeness_runs": {
+          "owner": "postgres",
+          "direct_catalog": {
+            "service_role": [
+              "DELETE",
+              "INSERT",
+              "REFERENCES",
+              "SELECT",
+              "TRIGGER",
+              "TRUNCATE",
+              "UPDATE"
+            ],
+            "authenticated": [
+              "SELECT"
+            ],
+            "anon": [],
+            "PUBLIC": []
+          },
+          "effective": {
+            "service_role": {
+              "SELECT": true,
+              "INSERT": true,
+              "UPDATE": true,
+              "DELETE": true,
+              "TRUNCATE": true,
+              "REFERENCES": true,
+              "TRIGGER": true
+            },
+            "authenticated": {
+              "SELECT": true,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            },
+            "anon": {
+              "SELECT": false,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            }
+          },
+          "inherited_contributions": {
+            "service_role": [],
+            "authenticated": [],
+            "anon": []
+          },
+          "unexpected_grantees": []
+        },
+        "ra_pro_weekly_completeness_findings": {
+          "owner": "postgres",
+          "direct_catalog": {
+            "service_role": [
+              "DELETE",
+              "INSERT",
+              "REFERENCES",
+              "SELECT",
+              "TRIGGER",
+              "TRUNCATE",
+              "UPDATE"
+            ],
+            "authenticated": [
+              "SELECT"
+            ],
+            "anon": [],
+            "PUBLIC": []
+          },
+          "effective": {
+            "service_role": {
+              "SELECT": true,
+              "INSERT": true,
+              "UPDATE": true,
+              "DELETE": true,
+              "TRUNCATE": true,
+              "REFERENCES": true,
+              "TRIGGER": true
+            },
+            "authenticated": {
+              "SELECT": true,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            },
+            "anon": {
+              "SELECT": false,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            }
+          },
+          "inherited_contributions": {
+            "service_role": [],
+            "authenticated": [],
+            "anon": []
+          },
+          "unexpected_grantees": []
+        },
+        "ra_pro_month_end_review_packages": {
+          "owner": "postgres",
+          "direct_catalog": {
+            "service_role": [
+              "DELETE",
+              "INSERT",
+              "REFERENCES",
+              "SELECT",
+              "TRIGGER",
+              "TRUNCATE",
+              "UPDATE"
+            ],
+            "authenticated": [
+              "SELECT"
+            ],
+            "anon": [],
+            "PUBLIC": []
+          },
+          "effective": {
+            "service_role": {
+              "SELECT": true,
+              "INSERT": true,
+              "UPDATE": true,
+              "DELETE": true,
+              "TRUNCATE": true,
+              "REFERENCES": true,
+              "TRIGGER": true
+            },
+            "authenticated": {
+              "SELECT": true,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            },
+            "anon": {
+              "SELECT": false,
+              "INSERT": false,
+              "UPDATE": false,
+              "DELETE": false,
+              "TRUNCATE": false,
+              "REFERENCES": false,
+              "TRIGGER": false
+            }
+          },
+          "inherited_contributions": {
+            "service_role": [],
+            "authenticated": [],
+            "anon": []
+          },
+          "unexpected_grantees": []
+        }
       },
-      "authenticated": {
-        "SELECT": true,
-        "INSERT": false,
-        "UPDATE": false,
-        "DELETE": false,
-        "TRUNCATE": false,
-        "REFERENCES": false,
-        "TRIGGER": false
-      },
-      "anon": {
-        "SELECT": false,
-        "INSERT": false,
-        "UPDATE": false,
-        "DELETE": false,
-        "TRUNCATE": false,
-        "REFERENCES": false,
-        "TRIGGER": false
-      },
-      "PUBLIC_catalog_empty": true,
-      "EXECUTE": {
-        "service_role": true,
-        "authenticated": false,
-        "anon": false,
-        "PUBLIC": false
-      },
-      "maintain_supported": false,
-      "maintain_status": "not_supported"
+      "execute": {
+        "public.persist_ra_pro_weekly_completeness(jsonb,jsonb)": {
+          "service_role": true,
+          "authenticated": false,
+          "anon": false,
+          "PUBLIC": false
+        },
+        "public.persist_ra_pro_month_end_review_package(jsonb)": {
+          "service_role": true,
+          "authenticated": false,
+          "anon": false,
+          "PUBLIC": false
+        }
+      }
     },
-    "server_version_num": 160000,
+    "objects": {
+      "tables": [
+        {
+          "name": "ra_pro_weekly_completeness_runs",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "firm_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "firm_client_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "company_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "accounting_sync_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "provider",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "week_ending",
+              "type": "date",
+              "nullable": false
+            },
+            {
+              "name": "status",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "finding_count",
+              "type": "int4",
+              "nullable": false
+            },
+            {
+              "name": "summary",
+              "type": "jsonb",
+              "nullable": false
+            },
+            {
+              "name": "idempotency_key",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "completed_at",
+              "type": "timestamptz",
+              "nullable": false
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "nullable": false
+            }
+          ],
+          "indexes": [
+            {
+              "name": "ra_pro_weekly_runs_firm_period_idx",
+              "unique": false,
+              "columns": [
+                "firm_id",
+                "week_ending"
+              ]
+            },
+            {
+              "name": "ra_pro_weekly_runs_client_period_idx",
+              "unique": false,
+              "columns": [
+                "firm_client_id",
+                "week_ending"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "name": "ra_pro_weekly_completeness_runs_pkey",
+              "kind": "primary_key"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_idempotency_key_key",
+              "kind": "unique"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_firm_client_id_week_ending_accounting_sync_id_key",
+              "kind": "unique"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_firm_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_firm_client_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_company_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_runs_accounting_sync_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "check_provider",
+              "kind": "check",
+              "token": "provider"
+            },
+            {
+              "name": "check_status",
+              "kind": "check",
+              "token": "status"
+            },
+            {
+              "name": "check_finding_count",
+              "kind": "check",
+              "token": "finding_count"
+            },
+            {
+              "name": "check_idempotency_key",
+              "kind": "check",
+              "token": "idempotency_key"
+            }
+          ],
+          "policies": [
+            {
+              "name": "ra_pro_weekly_runs_service_role_insert",
+              "cmd": "a",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_weekly_runs_service_role_select",
+              "cmd": "r",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_weekly_runs_firm_member_select",
+              "cmd": "r",
+              "role": "authenticated"
+            }
+          ]
+        },
+        {
+          "name": "ra_pro_weekly_completeness_findings",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "run_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "category",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "code",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "severity",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "item_count",
+              "type": "int4",
+              "nullable": false
+            },
+            {
+              "name": "amount_cents",
+              "type": "int8",
+              "nullable": true
+            },
+            {
+              "name": "evidence",
+              "type": "jsonb",
+              "nullable": false
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "nullable": false
+            }
+          ],
+          "indexes": [
+            {
+              "name": "ra_pro_weekly_findings_run_idx",
+              "unique": false,
+              "columns": [
+                "run_id",
+                "severity",
+                "category"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "name": "ra_pro_weekly_completeness_findings_pkey",
+              "kind": "primary_key"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_findings_run_id_code_key",
+              "kind": "unique"
+            },
+            {
+              "name": "ra_pro_weekly_completeness_findings_run_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "check_category",
+              "kind": "check",
+              "token": "category"
+            },
+            {
+              "name": "check_code",
+              "kind": "check",
+              "token": "code"
+            },
+            {
+              "name": "check_severity",
+              "kind": "check",
+              "token": "severity"
+            },
+            {
+              "name": "check_item_count",
+              "kind": "check",
+              "token": "item_count"
+            }
+          ],
+          "policies": [
+            {
+              "name": "ra_pro_weekly_findings_service_role_insert",
+              "cmd": "a",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_weekly_findings_service_role_select",
+              "cmd": "r",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_weekly_findings_firm_member_select",
+              "cmd": "r",
+              "role": "authenticated"
+            }
+          ]
+        },
+        {
+          "name": "ra_pro_month_end_review_packages",
+          "owner": "postgres",
+          "rls_enabled": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "firm_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "firm_client_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "company_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "accounting_sync_id",
+              "type": "uuid",
+              "nullable": false
+            },
+            {
+              "name": "provider",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "period_end",
+              "type": "date",
+              "nullable": false
+            },
+            {
+              "name": "status",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "review_package",
+              "type": "jsonb",
+              "nullable": false
+            },
+            {
+              "name": "idempotency_key",
+              "type": "text",
+              "nullable": false
+            },
+            {
+              "name": "completed_at",
+              "type": "timestamptz",
+              "nullable": false
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "nullable": false
+            }
+          ],
+          "indexes": [
+            {
+              "name": "ra_pro_month_end_firm_period_idx",
+              "unique": false,
+              "columns": [
+                "firm_id",
+                "period_end"
+              ]
+            },
+            {
+              "name": "ra_pro_month_end_client_period_idx",
+              "unique": false,
+              "columns": [
+                "firm_client_id",
+                "period_end"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "name": "ra_pro_month_end_review_packages_pkey",
+              "kind": "primary_key"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_idempotency_key_key",
+              "kind": "unique"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_firm_client_id_period_end_accounting_sync_id_key",
+              "kind": "unique"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_firm_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_firm_client_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_company_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "ra_pro_month_end_review_packages_accounting_sync_id_fkey",
+              "kind": "foreign_key"
+            },
+            {
+              "name": "check_provider",
+              "kind": "check",
+              "token": "provider"
+            },
+            {
+              "name": "check_status",
+              "kind": "check",
+              "token": "status"
+            },
+            {
+              "name": "check_idempotency_key",
+              "kind": "check",
+              "token": "idempotency_key"
+            },
+            {
+              "name": "check_review_only",
+              "kind": "check",
+              "token": "review_only"
+            },
+            {
+              "name": "check_provider_writes",
+              "kind": "check",
+              "token": "provider_writes"
+            }
+          ],
+          "policies": [
+            {
+              "name": "ra_pro_month_end_service_insert",
+              "cmd": "a",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_month_end_service_select",
+              "cmd": "r",
+              "role": "service_role"
+            },
+            {
+              "name": "ra_pro_month_end_member_select",
+              "cmd": "r",
+              "role": "authenticated"
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "signature": "public.persist_ra_pro_weekly_completeness(jsonb,jsonb)",
+          "security": "INVOKER",
+          "search_path": "pg_catalog, public",
+          "language": "plpgsql"
+        },
+        {
+          "signature": "public.persist_ra_pro_month_end_review_package(jsonb)",
+          "security": "INVOKER",
+          "search_path": "pg_catalog, public",
+          "language": "plpgsql"
+        }
+      ],
+      "provider_sentinels": {
+        "invoices": {
+          "present": true,
+          "count": 0
+        },
+        "bills": {
+          "present": true,
+          "count": 0
+        },
+        "payments": {
+          "present": true,
+          "count": 0
+        },
+        "journal_entries": {
+          "present": true,
+          "count": 0
+        },
+        "provider_write_attempts": {
+          "present": true,
+          "count": 0
+        }
+      },
+      "partial_corrective_state": false,
+      "row_counts": {
+        "ra_pro_weekly_completeness_runs": 0,
+        "ra_pro_weekly_completeness_findings": 0,
+        "ra_pro_month_end_review_packages": 0
+      }
+    },
     "linked_firms_count": 0,
     "authorizing_inventory": {
       "predicate": "review_assist_pro_active_and_complimentary",
@@ -126,5 +733,729 @@
   "visibility_limitations": [
     "Synthetic disposable fixture. Corrective pre-apply live evidence pins remain UNPUBLISHED."
   ],
-  "validator_result": "PASS_CORRECTIVE_PRE_APPLY_LIVE_VALIDATION"
+  "validator_result": "PASS_CORRECTIVE_PRE_APPLY_LIVE_VALIDATION",
+  "independently_observed": {
+    "pr_head": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "database_readonly": {
+      "project_ref": "jzmdgwwiestcmmeuhhkr",
+      "observed_at_utc": "2026-09-21T10:00:00Z",
+      "history_count": 190,
+      "original_committed_migrations": [
+        {
+          "version": "20260917044537",
+          "count": 1,
+          "digest_match": true,
+          "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+          "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+          "bytes": 6952
+        },
+        {
+          "version": "20260917180140",
+          "count": 1,
+          "digest_match": true,
+          "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+          "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+          "bytes": 3997
+        }
+      ],
+      "corrective_version": "20260922003200",
+      "corrective_version_count": 0,
+      "privilege_surfaces": {
+        "server_version_num": 160000,
+        "maintain_applicability": "not_supported",
+        "tables": {
+          "ra_pro_weekly_completeness_runs": {
+            "owner": "postgres",
+            "direct_catalog": {
+              "service_role": [
+                "DELETE",
+                "INSERT",
+                "REFERENCES",
+                "SELECT",
+                "TRIGGER",
+                "TRUNCATE",
+                "UPDATE"
+              ],
+              "authenticated": [
+                "SELECT"
+              ],
+              "anon": [],
+              "PUBLIC": []
+            },
+            "effective": {
+              "service_role": {
+                "SELECT": true,
+                "INSERT": true,
+                "UPDATE": true,
+                "DELETE": true,
+                "TRUNCATE": true,
+                "REFERENCES": true,
+                "TRIGGER": true
+              },
+              "authenticated": {
+                "SELECT": true,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              },
+              "anon": {
+                "SELECT": false,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              }
+            },
+            "inherited_contributions": {
+              "service_role": [],
+              "authenticated": [],
+              "anon": []
+            },
+            "unexpected_grantees": []
+          },
+          "ra_pro_weekly_completeness_findings": {
+            "owner": "postgres",
+            "direct_catalog": {
+              "service_role": [
+                "DELETE",
+                "INSERT",
+                "REFERENCES",
+                "SELECT",
+                "TRIGGER",
+                "TRUNCATE",
+                "UPDATE"
+              ],
+              "authenticated": [
+                "SELECT"
+              ],
+              "anon": [],
+              "PUBLIC": []
+            },
+            "effective": {
+              "service_role": {
+                "SELECT": true,
+                "INSERT": true,
+                "UPDATE": true,
+                "DELETE": true,
+                "TRUNCATE": true,
+                "REFERENCES": true,
+                "TRIGGER": true
+              },
+              "authenticated": {
+                "SELECT": true,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              },
+              "anon": {
+                "SELECT": false,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              }
+            },
+            "inherited_contributions": {
+              "service_role": [],
+              "authenticated": [],
+              "anon": []
+            },
+            "unexpected_grantees": []
+          },
+          "ra_pro_month_end_review_packages": {
+            "owner": "postgres",
+            "direct_catalog": {
+              "service_role": [
+                "DELETE",
+                "INSERT",
+                "REFERENCES",
+                "SELECT",
+                "TRIGGER",
+                "TRUNCATE",
+                "UPDATE"
+              ],
+              "authenticated": [
+                "SELECT"
+              ],
+              "anon": [],
+              "PUBLIC": []
+            },
+            "effective": {
+              "service_role": {
+                "SELECT": true,
+                "INSERT": true,
+                "UPDATE": true,
+                "DELETE": true,
+                "TRUNCATE": true,
+                "REFERENCES": true,
+                "TRIGGER": true
+              },
+              "authenticated": {
+                "SELECT": true,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              },
+              "anon": {
+                "SELECT": false,
+                "INSERT": false,
+                "UPDATE": false,
+                "DELETE": false,
+                "TRUNCATE": false,
+                "REFERENCES": false,
+                "TRIGGER": false
+              }
+            },
+            "inherited_contributions": {
+              "service_role": [],
+              "authenticated": [],
+              "anon": []
+            },
+            "unexpected_grantees": []
+          }
+        },
+        "execute": {
+          "public.persist_ra_pro_weekly_completeness(jsonb,jsonb)": {
+            "service_role": true,
+            "authenticated": false,
+            "anon": false,
+            "PUBLIC": false
+          },
+          "public.persist_ra_pro_month_end_review_package(jsonb)": {
+            "service_role": true,
+            "authenticated": false,
+            "anon": false,
+            "PUBLIC": false
+          }
+        }
+      },
+      "objects": {
+        "tables": [
+          {
+            "name": "ra_pro_weekly_completeness_runs",
+            "owner": "postgres",
+            "rls_enabled": true,
+            "columns": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "firm_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "firm_client_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "company_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "accounting_sync_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "provider",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "week_ending",
+                "type": "date",
+                "nullable": false
+              },
+              {
+                "name": "status",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "finding_count",
+                "type": "int4",
+                "nullable": false
+              },
+              {
+                "name": "summary",
+                "type": "jsonb",
+                "nullable": false
+              },
+              {
+                "name": "idempotency_key",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "completed_at",
+                "type": "timestamptz",
+                "nullable": false
+              },
+              {
+                "name": "created_at",
+                "type": "timestamptz",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "ra_pro_weekly_runs_firm_period_idx",
+                "unique": false,
+                "columns": [
+                  "firm_id",
+                  "week_ending"
+                ]
+              },
+              {
+                "name": "ra_pro_weekly_runs_client_period_idx",
+                "unique": false,
+                "columns": [
+                  "firm_client_id",
+                  "week_ending"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "name": "ra_pro_weekly_completeness_runs_pkey",
+                "kind": "primary_key"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_idempotency_key_key",
+                "kind": "unique"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_firm_client_id_week_ending_accounting_sync_id_key",
+                "kind": "unique"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_firm_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_firm_client_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_company_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_runs_accounting_sync_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "check_provider",
+                "kind": "check",
+                "token": "provider"
+              },
+              {
+                "name": "check_status",
+                "kind": "check",
+                "token": "status"
+              },
+              {
+                "name": "check_finding_count",
+                "kind": "check",
+                "token": "finding_count"
+              },
+              {
+                "name": "check_idempotency_key",
+                "kind": "check",
+                "token": "idempotency_key"
+              }
+            ],
+            "policies": [
+              {
+                "name": "ra_pro_weekly_runs_service_role_insert",
+                "cmd": "a",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_weekly_runs_service_role_select",
+                "cmd": "r",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_weekly_runs_firm_member_select",
+                "cmd": "r",
+                "role": "authenticated"
+              }
+            ]
+          },
+          {
+            "name": "ra_pro_weekly_completeness_findings",
+            "owner": "postgres",
+            "rls_enabled": true,
+            "columns": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "run_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "category",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "code",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "severity",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "item_count",
+                "type": "int4",
+                "nullable": false
+              },
+              {
+                "name": "amount_cents",
+                "type": "int8",
+                "nullable": true
+              },
+              {
+                "name": "evidence",
+                "type": "jsonb",
+                "nullable": false
+              },
+              {
+                "name": "created_at",
+                "type": "timestamptz",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "ra_pro_weekly_findings_run_idx",
+                "unique": false,
+                "columns": [
+                  "run_id",
+                  "severity",
+                  "category"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "name": "ra_pro_weekly_completeness_findings_pkey",
+                "kind": "primary_key"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_findings_run_id_code_key",
+                "kind": "unique"
+              },
+              {
+                "name": "ra_pro_weekly_completeness_findings_run_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "check_category",
+                "kind": "check",
+                "token": "category"
+              },
+              {
+                "name": "check_code",
+                "kind": "check",
+                "token": "code"
+              },
+              {
+                "name": "check_severity",
+                "kind": "check",
+                "token": "severity"
+              },
+              {
+                "name": "check_item_count",
+                "kind": "check",
+                "token": "item_count"
+              }
+            ],
+            "policies": [
+              {
+                "name": "ra_pro_weekly_findings_service_role_insert",
+                "cmd": "a",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_weekly_findings_service_role_select",
+                "cmd": "r",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_weekly_findings_firm_member_select",
+                "cmd": "r",
+                "role": "authenticated"
+              }
+            ]
+          },
+          {
+            "name": "ra_pro_month_end_review_packages",
+            "owner": "postgres",
+            "rls_enabled": true,
+            "columns": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "firm_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "firm_client_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "company_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "accounting_sync_id",
+                "type": "uuid",
+                "nullable": false
+              },
+              {
+                "name": "provider",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "period_end",
+                "type": "date",
+                "nullable": false
+              },
+              {
+                "name": "status",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "review_package",
+                "type": "jsonb",
+                "nullable": false
+              },
+              {
+                "name": "idempotency_key",
+                "type": "text",
+                "nullable": false
+              },
+              {
+                "name": "completed_at",
+                "type": "timestamptz",
+                "nullable": false
+              },
+              {
+                "name": "created_at",
+                "type": "timestamptz",
+                "nullable": false
+              }
+            ],
+            "indexes": [
+              {
+                "name": "ra_pro_month_end_firm_period_idx",
+                "unique": false,
+                "columns": [
+                  "firm_id",
+                  "period_end"
+                ]
+              },
+              {
+                "name": "ra_pro_month_end_client_period_idx",
+                "unique": false,
+                "columns": [
+                  "firm_client_id",
+                  "period_end"
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "name": "ra_pro_month_end_review_packages_pkey",
+                "kind": "primary_key"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_idempotency_key_key",
+                "kind": "unique"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_firm_client_id_period_end_accounting_sync_id_key",
+                "kind": "unique"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_firm_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_firm_client_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_company_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "ra_pro_month_end_review_packages_accounting_sync_id_fkey",
+                "kind": "foreign_key"
+              },
+              {
+                "name": "check_provider",
+                "kind": "check",
+                "token": "provider"
+              },
+              {
+                "name": "check_status",
+                "kind": "check",
+                "token": "status"
+              },
+              {
+                "name": "check_idempotency_key",
+                "kind": "check",
+                "token": "idempotency_key"
+              },
+              {
+                "name": "check_review_only",
+                "kind": "check",
+                "token": "review_only"
+              },
+              {
+                "name": "check_provider_writes",
+                "kind": "check",
+                "token": "provider_writes"
+              }
+            ],
+            "policies": [
+              {
+                "name": "ra_pro_month_end_service_insert",
+                "cmd": "a",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_month_end_service_select",
+                "cmd": "r",
+                "role": "service_role"
+              },
+              {
+                "name": "ra_pro_month_end_member_select",
+                "cmd": "r",
+                "role": "authenticated"
+              }
+            ]
+          }
+        ],
+        "functions": [
+          {
+            "signature": "public.persist_ra_pro_weekly_completeness(jsonb,jsonb)",
+            "security": "INVOKER",
+            "search_path": "pg_catalog, public",
+            "language": "plpgsql"
+          },
+          {
+            "signature": "public.persist_ra_pro_month_end_review_package(jsonb)",
+            "security": "INVOKER",
+            "search_path": "pg_catalog, public",
+            "language": "plpgsql"
+          }
+        ],
+        "provider_sentinels": {
+          "invoices": {
+            "present": true,
+            "count": 0
+          },
+          "bills": {
+            "present": true,
+            "count": 0
+          },
+          "payments": {
+            "present": true,
+            "count": 0
+          },
+          "journal_entries": {
+            "present": true,
+            "count": 0
+          },
+          "provider_write_attempts": {
+            "present": true,
+            "count": 0
+          }
+        },
+        "partial_corrective_state": false,
+        "row_counts": {
+          "ra_pro_weekly_completeness_runs": 0,
+          "ra_pro_weekly_completeness_findings": 0,
+          "ra_pro_month_end_review_packages": 0
+        }
+      },
+      "linked_firms_count": 0,
+      "authorizing_inventory": {
+        "predicate": "review_assist_pro_active_and_complimentary",
+        "total": 4,
+        "company_owned": 3,
+        "firm_owned": 1,
+        "dual_owner": 0
+      },
+      "webhook_non_terminal_count": 0,
+      "webhook_non_terminal_statuses": [
+        "received",
+        "processing",
+        "retryable"
+      ],
+      "consumed_dual_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f"
+    },
+    "automation_gate": {
+      "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+      "production_presence": "absent",
+      "effective_state": "closed",
+      "value_read": false
+    },
+    "safety": {
+      "read_only": true,
+      "select_only": true,
+      "production_writes": 0,
+      "sql_application_attempts": 0,
+      "dry_run_attempts": 0,
+      "migration_apply_attempts": 0,
+      "provider_writes": 0,
+      "automation_enabled": false,
+      "merge_or_deploy_performed": false,
+      "credential_prompt_opened": false,
+      "marker_created": false,
+      "pins_published": false
+    }
+  },
+  "attestations": {
+    "collection_scope": null,
+    "tooling_reviewed_tip": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "operator_note": null
+  }
 }

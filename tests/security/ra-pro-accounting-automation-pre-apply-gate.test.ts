@@ -3,6 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
+import {
+  AFTER_DUAL_PRE_APPLY_WINDOW,
+  DUAL_PUBLICATION,
+} from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const gates = require("../../scripts/security/ra-pro-accounting-automation-pre-apply-gates");
@@ -203,7 +207,7 @@ describe("RA Pro accounting-automation pre-apply live gate", () => {
 
   it("apply authorization still throws before credentials after the pin is published", () => {
     expectCode(
-      () => assertAuthorizationPublished({}),
+      () => assertAuthorizationPublished({ publicationCommit: DUAL_PUBLICATION, cwd: ROOT, now: AFTER_DUAL_PRE_APPLY_WINDOW }),
       "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED",
     );
     const core = fs.readFileSync(

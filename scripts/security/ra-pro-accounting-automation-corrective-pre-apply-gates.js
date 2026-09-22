@@ -133,7 +133,7 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
     "CORRECTIVE_PRE_APPLY_SCHEMA",
   );
   assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRE_APPLY_PROTOCOL_MISMATCH", "protocol");
-  assertExact(evidence.schema_version, 1, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
+  assertExact(evidence.schema_version, 2, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
   if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
     throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "source channel");
   }
@@ -186,13 +186,8 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
       "original_committed_migrations",
       "corrective_version",
       "corrective_version_count",
-      "tables",
-      "tables_present",
-      "rls_enabled",
-      "policies_present",
-      "functions_present",
-      "privilege_defect",
-      "server_version_num",
+      "privilege_surfaces",
+      "objects",
       "linked_firms_count",
       "authorizing_inventory",
       "webhook_non_terminal_count",

@@ -69,18 +69,18 @@
   },
   "precondition_evidence_contract": {
     "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
-    "source_commit": "5d112447ad90597d923900eff747917c0bd4f6c1",
-    "oid": "c62238dee21d3007502fb1fe419a936c761a574b",
-    "sha256": "598376fdb63a28a6ab4070e2103fb8eddaaf385ec0429ce09a25c3d82e204ba2",
-    "bytes": 3754,
+    "source_commit": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "oid": "085c0053e16688ad300bbd2aa18822a00b9ebc23",
+    "sha256": "d60e0330d146207f51725372cc78f3bf404122f883bcdfeb243c00267b0dca2d",
+    "bytes": 4294,
     "line_endings": "LF"
   },
   "pre_apply_live_evidence_contract": {
     "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
-    "source_commit": "5d112447ad90597d923900eff747917c0bd4f6c1",
-    "oid": "08a9bb98fb3874cef0e23ae789a0d2c1e650c7d3",
-    "sha256": "8e0438d086b06cb42fdba2b0a0f2d2587f3b11a2232554a4ef70ccf02ac10997",
-    "bytes": 3859,
+    "source_commit": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "oid": "ba7df30acc1d539800ef826751150564c9a53440",
+    "sha256": "d9cb825d7b73ead1e4a5c339d3488a144d6bd101c53bb30faeb19b7afccb1294",
+    "bytes": 4370,
     "line_endings": "LF"
   },
   "production_apply_authorization": {
@@ -113,9 +113,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "3e335195fa093e28d9ee3346f53c2e81669b7480",
-    "sha256": "0abe8b266a89eb3467dba8e2017c222838f654086774f292a4137aeb29fb6326",
-    "bytes": 324377,
+    "oid": "6f4180590ae873f3a180acd46eaacc307a93f40f",
+    "sha256": "e204a6cedb06bd0ea3e57649a82749540733648eb2f8aba6eecee456e171f3d5",
+    "bytes": 351144,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

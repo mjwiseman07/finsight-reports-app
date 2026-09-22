@@ -499,6 +499,43 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
   }
 }
 
+function assertTestOnlyHarnessContext(inputs = {}) {
+  const harness =
+    inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true;
+  if (!harness) return;
+  if (inputs.testOnlyHarnessContext !== true) {
+    const e = new Error("HARNESS_CONTEXT_REQUIRED: testOnlyHarnessContext required for harness flags");
+    e.code = "HARNESS_CONTEXT_REQUIRED";
+    e.phase = "harness_isolation";
+    throw e;
+  }
+  const env = inputs.env || process.env || {};
+  const dbUrl = env.RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL || "";
+  if (dbUrl && !/localhost|127\.0\.0\.1/i.test(String(dbUrl))) {
+    const e = new Error("HARNESS_PRODUCTION_CREDENTIAL_FORBIDDEN");
+    e.code = "HARNESS_PRODUCTION_CREDENTIAL_FORBIDDEN";
+    e.phase = "harness_isolation";
+    throw e;
+  }
+  if (inputs.publicationCommit && inputs.allowDisposablePublicationCommit !== true) {
+    const e = new Error("HARNESS_PRODUCTION_PUBLICATION_FORBIDDEN");
+    e.code = "HARNESS_PRODUCTION_PUBLICATION_FORBIDDEN";
+    e.phase = "harness_isolation";
+    throw e;
+  }
+  if (inputs.markerDir) {
+    const marker = String(inputs.markerDir).replace(/\\/g, "/").toLowerCase();
+    const tmp = require("node:os").tmpdir().replace(/\\/g, "/").toLowerCase();
+    if (!marker.includes("/tmp") && !marker.startsWith(tmp) && !marker.includes("\\temp") && !marker.includes("/temp")) {
+      const e = new Error("HARNESS_REAL_MARKER_DIR_FORBIDDEN");
+      e.code = "HARNESS_REAL_MARKER_DIR_FORBIDDEN";
+      e.phase = "harness_isolation";
+      throw e;
+    }
+  }
+}
+
+
 function isPublishedHexOid(value) {
   return typeof value === "string" && /^[0-9a-f]{40}$/i.test(value);
 }
@@ -523,6 +560,7 @@ function resolveBundleSeals(inputs = {}) {
 function assertBundleAuthority(inputs = {}) {
   assertNoHarnessEnvOrArgv(inputs);
   if (inputs.allowDisposablePublicationCommit === true) {
+    assertTestOnlyHarnessContext(inputs);
     return {
       path: STANDALONE_BUNDLE_PATH,
       oid: STANDALONE_BUNDLE_OID,
@@ -844,7 +882,9 @@ function finalizeEvidence(evidence) {
 }
 
 function enforceCorrectiveEvidenceGates(inputs = {}, mode = "dry-run") {
+  assertNoHarnessEnvOrArgv(inputs);
   if (inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true) {
+    assertTestOnlyHarnessContext(inputs);
     return { skipped_for_harness: true, phase: "evidence_gates" };
   }
   const cwd = resolveRepoRoot(inputs);
@@ -1126,6 +1166,7 @@ module.exports = {
   IndeterminateCommitError,
   assertBundleAuthority,
   enforceCorrectiveEvidenceGates,
+  assertTestOnlyHarnessContext,
   assertFeatureFlagUntouched,
   assertMigrationOrder,
   assertNoHarnessEnvOrArgv,

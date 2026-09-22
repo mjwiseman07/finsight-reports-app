@@ -71,10 +71,13 @@ function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
     throw new Error("COLLECTOR_REFUSED: production write observations forbidden");
   }
   const observed = mergeIndependentlyObserved(observations);
+  if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
+    throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
+  }
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
-    schema_version: 1,
+    schema_version: 2,
     source_channel_classification:
       meta.source_channel_classification || observations.source_channel_classification || "synthetic_disposable_fixture",
     collected_at_utc: window.collected_at_utc,
@@ -122,10 +125,13 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
     throw new Error("COLLECTOR_REFUSED: production write observations forbidden");
   }
   const observed = mergeIndependentlyObserved(observations);
+  if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
+    throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
+  }
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
-    schema_version: 1,
+    schema_version: 2,
     source_channel_classification:
       meta.source_channel_classification || observations.source_channel_classification || "synthetic_disposable_fixture",
     collection_started_at_utc: window.collection_started_at_utc,

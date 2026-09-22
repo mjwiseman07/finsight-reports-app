@@ -1,6 +1,6 @@
 {
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
-  "schema_version": 1,
+  "schema_version": 2,
   "publication_status": "UNPUBLISHED",
   "pin_source": "committed_tooling_authorization_only",
   "operator_path_override": "forbidden",
@@ -25,17 +25,10 @@
     "RA_PRO_CUTOVER_PRE_APPLY_LIVE_EVIDENCE_V1",
     "RA_PRO_CUTOVER_PRIOR_DRY_RUN_EVIDENCE_V1"
   ],
-  "self_asserted_fields_are_not_authority": [
-    "validator_result",
-    "committed_pre_apply_pins",
-    "disposable_pin_scope",
-    "bound_to_expected_sha",
-    "pins_published"
-  ],
   "bindings": {
     "pr_number": 324,
-    "tooling_reviewed_tip": "5d112447ad90597d923900eff747917c0bd4f6c1",
-    "collection_pr_head": "5d112447ad90597d923900eff747917c0bd4f6c1",
+    "tooling_reviewed_tip": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "collection_pr_head": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
     "scope": "read_only_production_corrective_pre_apply_live_collection",
     "project_ref": "jzmdgwwiestcmmeuhhkr",
     "history_count": 190,
@@ -55,48 +48,61 @@
     ],
     "corrective_version": "20260922003200",
     "corrective_version_count": 0,
-    "tables_present": [
-      "ra_pro_weekly_completeness_runs",
-      "ra_pro_weekly_completeness_findings",
-      "ra_pro_month_end_review_packages"
-    ],
-    "privilege_defect_expected": {
-      "present": true,
-      "service_role": {
-        "SELECT": true,
-        "INSERT": true,
-        "UPDATE": true,
-        "DELETE": true,
-        "TRUNCATE": true,
-        "REFERENCES": true,
-        "TRIGGER": true
-      },
-      "authenticated": {
-        "SELECT": true,
-        "INSERT": false,
-        "UPDATE": false,
-        "DELETE": false,
-        "TRUNCATE": false,
-        "REFERENCES": false,
-        "TRIGGER": false
-      },
-      "anon": {
-        "SELECT": false,
-        "INSERT": false,
-        "UPDATE": false,
-        "DELETE": false,
-        "TRUNCATE": false,
-        "REFERENCES": false,
-        "TRIGGER": false
-      },
-      "PUBLIC_catalog_empty": true,
-      "EXECUTE": {
+    "privilege_surfaces": {
+      "tables": [
+        "ra_pro_weekly_completeness_runs",
+        "ra_pro_weekly_completeness_findings",
+        "ra_pro_month_end_review_packages"
+      ],
+      "owner": "postgres",
+      "direct_catalog_grantees": [
+        "service_role",
+        "authenticated",
+        "anon",
+        "PUBLIC"
+      ],
+      "effective_roles": [
+        "service_role",
+        "authenticated",
+        "anon"
+      ],
+      "inherited_contributions": "must_be_empty",
+      "unexpected_grantees": "must_be_empty",
+      "service_role_pre_correction": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER"
+      ],
+      "authenticated_pre_correction": [
+        "SELECT"
+      ],
+      "anon_pre_correction": [],
+      "PUBLIC_pre_correction": [],
+      "execute": {
         "service_role": true,
         "authenticated": false,
         "anon": false,
         "PUBLIC": false
       },
-      "maintain_applicability": "version_gated"
+      "MAINTAIN": {
+        "PG16_and_below": "not_supported_and_claim_forbidden",
+        "PG17_and_above": "service_role_direct_and_effective_true; all_other_roles_false"
+      }
+    },
+    "objects": {
+      "table_owners": "postgres",
+      "columns": "exact_name_type_nullability_match",
+      "indexes": "exact_name_uniqueness_columns_match",
+      "constraints": "exact_name_kind_and_check_token_match",
+      "policies": "exact_name_command_role_match",
+      "functions": "exact_signature_security_search_path_language_match",
+      "row_counts": "nonnegative_integer_for_each_corrective_table",
+      "provider_sentinels": "invoices,bills,payments,journal_entries,provider_write_attempts present with nonnegative counts",
+      "partial_corrective_state": false
     },
     "authorizing_inventory": {
       "predicate": "review_assist_pro_active_and_complimentary",

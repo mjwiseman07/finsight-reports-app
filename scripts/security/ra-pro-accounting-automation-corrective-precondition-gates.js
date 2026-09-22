@@ -3,24 +3,26 @@
 
 const { loadAndVerifyGitBlob, assertUtf8LfNoBom } = require("./git-blob-authority");
 const {
-  CONSUMED_ORIGINAL_ATTEMPT_ID,
-  CORRECTIVE_TABLES,
+  validatePreCorrectionDatabaseReadonly,
+  assertPreCorrectionPrivilegeSurfaces,
+  WEBHOOK_STATUSES: SCHEMA_WEBHOOK_STATUSES,
+  BASE_TABLE_PRIVS,
+} = require("./ra-pro-accounting-automation-corrective-evidence-schema");
+const {
   MIGRATIONS,
-  ORIGINAL_COMMITTED_MIGRATIONS,
   PRIOR_HISTORY_COUNT,
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 
 const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1";
 const CONTRACT_PATH =
   "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json";
-const TOOLING_REVIEWED_TIP = "5d112447ad90597d923900eff747917c0bd4f6c1";
-const COLLECTION_PR_HEAD = "5d112447ad90597d923900eff747917c0bd4f6c1";
-const PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
+const TOOLING_REVIEWED_TIP = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
+const COLLECTION_PR_HEAD = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
 const HISTORY_COUNT = PRIOR_HISTORY_COUNT;
 const CORRECTIVE_VERSION = MIGRATIONS[0].version;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
-const WEBHOOK_STATUSES = ["received", "processing", "retryable"];
-const TABLE_PRIVILEGES = ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"];
+const WEBHOOK_STATUSES = SCHEMA_WEBHOOK_STATUSES;
+const TABLE_PRIVILEGES = BASE_TABLE_PRIVS;
 const EXECUTE_ROLES = ["service_role", "authenticated", "anon", "PUBLIC"];
 const SUBSTITUTES = new Set([
   "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
@@ -123,164 +125,17 @@ function expectedPrHead(options = {}) {
   return options.expected?.pr_head || options.expectedPrHead || COLLECTION_PR_HEAD;
 }
 
-function validatePrivilegeMatrix(db, codePrefix = "CORRECTIVE_PRECONDITION_PRIVILEGE") {
-  const defect = db.privilege_defect;
-  if (!defect || typeof defect !== "object") {
-    throw blocked(`${codePrefix}_DEFECT`, "privilege_defect missing");
-  }
-  if (defect.present !== true) {
-    throw blocked(`${codePrefix}_DEFECT`, "privilege defect must be present");
-  }
-
-  for (const role of ["service_role", "authenticated", "anon"]) {
-    const matrix = defect[role];
-    if (!matrix || typeof matrix !== "object") {
-      throw blocked(`${codePrefix}_DEFECT`, `${role} matrix missing`);
-    }
-    for (const priv of TABLE_PRIVILEGES) {
-      if (typeof matrix[priv] !== "boolean") {
-        throw blocked(`${codePrefix}_DEFECT`, `${role}.${priv} must be boolean`);
-      }
-    }
-  }
-
-  const svc = defect.service_role;
-  if (
-    svc.SELECT !== true ||
-    svc.INSERT !== true ||
-    svc.UPDATE !== true ||
-    svc.DELETE !== true ||
-    svc.TRUNCATE !== true ||
-    svc.REFERENCES !== true ||
-    svc.TRIGGER !== true
-  ) {
-    throw blocked(`${codePrefix}_DEFECT`, "service_role excess defect incomplete");
-  }
-
-  const auth = defect.authenticated;
-  if (
-    auth.SELECT !== true ||
-    auth.INSERT !== false ||
-    auth.UPDATE !== false ||
-    auth.DELETE !== false ||
-    auth.TRUNCATE !== false ||
-    auth.REFERENCES !== false ||
-    auth.TRIGGER !== false
-  ) {
-    throw blocked(`${codePrefix}_DEFECT`, "authenticated matrix mismatch");
-  }
-
-  const anon = defect.anon;
-  for (const priv of TABLE_PRIVILEGES) {
-    if (anon[priv] !== false) {
-      throw blocked(`${codePrefix}_DEFECT`, `anon.${priv} must be false`);
-    }
-  }
-
-  if (defect.PUBLIC_catalog_empty !== true) {
-    throw blocked(`${codePrefix}_PUBLIC`, "PUBLIC catalog must be empty");
-  }
-
-  const exec = defect.EXECUTE;
-  if (!exec || typeof exec !== "object") throw blocked(`${codePrefix}_EXECUTE`, "EXECUTE matrix missing");
-  assertExact(exec.service_role, true, `${codePrefix}_EXECUTE`, "service_role execute");
-  assertExact(exec.authenticated, false, `${codePrefix}_EXECUTE`, "authenticated execute");
-  assertExact(exec.anon, false, `${codePrefix}_EXECUTE`, "anon execute");
-  assertExact(exec.PUBLIC, false, `${codePrefix}_EXECUTE`, "PUBLIC execute");
-
-  const versionNum = db.server_version_num;
-  if (!Number.isInteger(versionNum) || versionNum <= 0) {
-    throw blocked(`${codePrefix}_VERSION`, "server_version_num required");
-  }
-  const maintainSupported = versionNum >= 170000;
-  if (maintainSupported) {
-    if (defect.maintain_supported !== true || defect.maintain_status !== "checked") {
-      throw blocked(`${codePrefix}_MAINTAIN`, "PG17 maintain must be checked");
-    }
-    for (const role of ["service_role", "authenticated", "anon"]) {
-      if (defect[role].MAINTAIN !== false) {
-        throw blocked(`${codePrefix}_MAINTAIN`, `${role}.MAINTAIN must be false when supported`);
-      }
-    }
-  } else {
-    if (defect.maintain_supported !== false || defect.maintain_status !== "not_supported") {
-      throw blocked(`${codePrefix}_MAINTAIN`, "PG16 maintain must be not_supported");
-    }
-    for (const role of ["service_role", "authenticated", "anon"]) {
-      if (Object.prototype.hasOwnProperty.call(defect[role], "MAINTAIN")) {
-        throw blocked(`${codePrefix}_MAINTAIN`, `${role}.MAINTAIN claim forbidden below PG17`);
-      }
-    }
-  }
-}
-
-function validateOriginals(db) {
-  const originals = db.original_committed_migrations;
-  if (!Array.isArray(originals) || originals.length !== ORIGINAL_COMMITTED_MIGRATIONS.length) {
-    throw blocked("CORRECTIVE_PRECONDITION_ORIGINALS", "original migration count");
-  }
-  for (const expected of ORIGINAL_COMMITTED_MIGRATIONS) {
-    const got = originals.find((row) => row.version === expected.version);
-    if (!got) throw blocked("CORRECTIVE_PRECONDITION_ORIGINALS", `missing ${expected.version}`);
-    assertExact(got.count, 1, "CORRECTIVE_PRECONDITION_ORIGINALS", "count");
-    assertExact(got.digest_match, true, "CORRECTIVE_PRECONDITION_ORIGINALS", "digest");
-    assertExact(got.oid, expected.oid, "CORRECTIVE_PRECONDITION_ORIGINALS", "oid");
-    assertExact(got.sha256, expected.sha256, "CORRECTIVE_PRECONDITION_ORIGINALS", "sha256");
-    assertExact(got.bytes, expected.bytes, "CORRECTIVE_PRECONDITION_ORIGINALS", "bytes");
-  }
+function validatePrivilegeMatrix(dbOrSurfaces, codePrefix = "CORRECTIVE_PRECONDITION") {
+  return assertPreCorrectionPrivilegeSurfaces(
+    dbOrSurfaces.privilege_surfaces || dbOrSurfaces,
+    codePrefix,
+  );
 }
 
 function validateDatabaseReadonly(db) {
-  assertExact(db.project_ref, PROJECT_REF, "CORRECTIVE_PRECONDITION_PROJECT_MISMATCH", "project_ref");
-  assertExact(db.history_count, HISTORY_COUNT, "CORRECTIVE_PRECONDITION_HISTORY_DRIFT", "history");
-  validateOriginals(db);
-  assertExact(db.corrective_version, CORRECTIVE_VERSION, "CORRECTIVE_PRECONDITION_CORRECTIVE", "version");
-  assertExact(db.corrective_version_count, 0, "CORRECTIVE_PRECONDITION_CORRECTIVE", "count");
-  if (db.tables_present !== true || db.rls_enabled !== true) {
-    throw blocked("CORRECTIVE_PRECONDITION_OBJECT_DRIFT", "tables/rls");
-  }
-  if (db.policies_present !== true || db.functions_present !== true) {
-    throw blocked("CORRECTIVE_PRECONDITION_OBJECT_DRIFT", "policies/functions");
-  }
-  if (!Array.isArray(db.tables) || db.tables.length !== CORRECTIVE_TABLES.length) {
-    throw blocked("CORRECTIVE_PRECONDITION_OBJECT_DRIFT", "tables list");
-  }
-  for (const table of CORRECTIVE_TABLES) {
-    if (!db.tables.includes(table)) {
-      throw blocked("CORRECTIVE_PRECONDITION_OBJECT_DRIFT", `missing table ${table}`);
-    }
-  }
-  validatePrivilegeMatrix(db);
-  assertExact(db.linked_firms_count, 0, "CORRECTIVE_PRECONDITION_LINKED_FIRMS", "linked firms");
-  const inventory = db.authorizing_inventory;
-  assertKeys(
-    inventory,
-    ["predicate", "total", "company_owned", "firm_owned", "dual_owner"],
-    "CORRECTIVE_PRECONDITION_INVENTORY",
-  );
-  assertExact(
-    inventory.predicate,
-    "review_assist_pro_active_and_complimentary",
-    "CORRECTIVE_PRECONDITION_INVENTORY",
-    "predicate",
-  );
-  assertExact(inventory.total, 4, "CORRECTIVE_PRECONDITION_INVENTORY", "total");
-  assertExact(inventory.company_owned, 3, "CORRECTIVE_PRECONDITION_INVENTORY", "company");
-  assertExact(inventory.firm_owned, 1, "CORRECTIVE_PRECONDITION_INVENTORY", "firm");
-  assertExact(inventory.dual_owner, 0, "CORRECTIVE_PRECONDITION_INVENTORY", "dual");
-  if (inventory.company_owned + inventory.firm_owned + inventory.dual_owner !== inventory.total) {
-    throw blocked("CORRECTIVE_PRECONDITION_INVENTORY", "inventory sum");
-  }
-  if (!Array.isArray(db.webhook_non_terminal_statuses) || db.webhook_non_terminal_statuses.join(",") !== WEBHOOK_STATUSES.join(",")) {
-    throw blocked("CORRECTIVE_PRECONDITION_WEBHOOK", "statuses");
-  }
-  assertExact(db.webhook_non_terminal_count, 0, "CORRECTIVE_PRECONDITION_WEBHOOK", "count");
-  assertExact(
-    db.consumed_dual_attempt_id,
-    CONSUMED_ORIGINAL_ATTEMPT_ID,
-    "CORRECTIVE_PRECONDITION_DUAL_ATTEMPT",
-    "consumed attempt",
-  );
+  return validatePreCorrectionDatabaseReadonly(db, {
+    codePrefix: "CORRECTIVE_PRECONDITION",
+  });
 }
 
 function validateSafety(safety) {
@@ -351,7 +206,7 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
     "CORRECTIVE_PRECONDITION_SCHEMA",
   );
   assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRECONDITION_PROTOCOL_MISMATCH", "protocol");
-  assertExact(evidence.schema_version, 1, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
+  assertExact(evidence.schema_version, 2, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
   if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
     throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "source channel");
   }
@@ -397,13 +252,8 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
       "original_committed_migrations",
       "corrective_version",
       "corrective_version_count",
-      "tables",
-      "tables_present",
-      "rls_enabled",
-      "policies_present",
-      "functions_present",
-      "privilege_defect",
-      "server_version_num",
+      "privilege_surfaces",
+      "objects",
       "linked_firms_count",
       "authorizing_inventory",
       "webhook_non_terminal_count",

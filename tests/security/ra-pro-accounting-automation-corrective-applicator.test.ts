@@ -84,6 +84,7 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
     expect(() => assertOriginalMigrationStatementsNotSelectable()).not.toThrow();
     const packed = loadSealedMigrations({
       allowDisposablePublicationCommit: true,
+      testOnlyHarnessContext: true,
       allowWorktreeMigrationLoad: true,
     });
     expect(packed).toHaveLength(1);
@@ -143,11 +144,14 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation corrective applicator (
         executableCommit: executable,
         attemptId: attempt,
         allowDisposablePublicationCommit: true,
+      testOnlyHarnessContext: true,
       }).publicationCommit;
     return {
       mode: "apply" as const,
       allowDisposablePublicationCommit: true,
+      testOnlyHarnessContext: true,
       allowLocalhostForHarness: true,
+      testOnlyHarnessContext: true,
       allowWorktreeMigrationLoad: true,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
       publicationCommit,
@@ -301,7 +305,9 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation corrective applicator (
     const result = await runApplicator({
       mode: "dry-run",
       allowDisposablePublicationCommit: true,
+      testOnlyHarnessContext: true,
       allowLocalhostForHarness: true,
+      testOnlyHarnessContext: true,
       allowWorktreeMigrationLoad: true,
       env: { [DATABASE_URL_ENV]: url },
     });
