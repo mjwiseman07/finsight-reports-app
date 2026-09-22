@@ -1,6 +1,6 @@
 {
   "package": "ra-pro-accounting-automation-corrective-apply-tooling",
-  "artifact_commit": "PENDING_ARTIFACT_COMMIT_PLACEHOLDER_000000000000",
+  "artifact_commit": "772911b236bb24fbb9b06b104732a7495c790a07",
   "project_ref": "jzmdgwwiestcmmeuhhkr",
   "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL",
   "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_20260922",
@@ -78,9 +78,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "3c736a13599fc91962a42826ed7fc7dc7c19d131",
-    "sha256": "fc0acbac1f14c07104079a7050194f4378b40586fe55c0f36654c82eff2a621a",
-    "bytes": 272738,
+    "oid": "38ba5196fa040354cdf1f2ca18bc52e52adfbf55",
+    "sha256": "b149295a0261816fedea4f33a7a1b2b1afa5ce436dd62d2f9a11934670f7aa51",
+    "bytes": 272730,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

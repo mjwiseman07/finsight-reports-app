@@ -9,7 +9,7 @@ var __commonJS = (cb, mod) => function __require() {
 var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js"(exports2, module2) {
     "use strict";
-    var ARTIFACT_COMMIT = "PENDING_ARTIFACT_COMMIT_PLACEHOLDER_000000000000";
+    var ARTIFACT_COMMIT = "772911b236bb24fbb9b06b104732a7495c790a07";
     var EXPECTED_PROJECT_REF = "jzmdgwwiestcmmeuhhkr";
     var DATABASE_URL_ENV2 = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL";
     var APPLY_AUTHORIZATION_TOKEN2 = "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_20260922";
