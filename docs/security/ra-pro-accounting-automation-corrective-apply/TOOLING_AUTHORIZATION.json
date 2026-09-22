@@ -1,0 +1,87 @@
+{
+  "package": "ra-pro-accounting-automation-corrective-apply-tooling",
+  "artifact_commit": "PENDING_ARTIFACT_COMMIT_PLACEHOLDER_000000000000",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL",
+  "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_20260922",
+  "advisory_lock": {
+    "name": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY",
+    "key1": 1380008769,
+    "key2": 539363618
+  },
+  "history_contract": {
+    "prior": 190,
+    "post": 191
+  },
+  "migrations": [
+    {
+      "version": "20260922003200",
+      "name": "ra_pro_accounting_automation_service_role_least_privilege",
+      "path": "supabase/migrations/20260922003200_ra_pro_accounting_automation_service_role_least_privilege.sql",
+      "oid": "2c24cdfdd087db0020296ebf3b1d077513b4744c",
+      "sha256": "34f81879c8e5a457ea4025ac36f9961cfcab2e275ae73d71337aa69887dd407f",
+      "bytes": 3982
+    }
+  ],
+  "original_committed_migrations_verify_only": [
+    {
+      "version": "20260917044537",
+      "path": "supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql",
+      "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+      "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+      "bytes": 6952
+    },
+    {
+      "version": "20260917180140",
+      "path": "supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql",
+      "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+      "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+      "bytes": 3997
+    }
+  ],
+  "publication": {
+    "status": "UNPUBLISHED",
+    "required_prior_dry_run_evidence_sha256": null,
+    "required_prior_dry_run_evidence_oid": null,
+    "required_prior_dry_run_evidence_bytes": null,
+    "required_pre_apply_live_evidence_sha256": null,
+    "required_pre_apply_live_evidence_oid": null,
+    "required_pre_apply_live_evidence_bytes": null
+  },
+  "production_apply_authorization": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
+    "apply_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "database_url_env": null,
+    "apply_authorization_token": null,
+    "bundle": null,
+    "migrations": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective apply authorization is unpublished until a separate reviewed publication. Evidence and the apply token do not authorize apply. Never reuse the consumed dual-package attempt."
+  },
+  "feature_flag": {
+    "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "must_remain": "absent_or_not_true",
+    "applicator_may_enable": false
+  },
+  "consumed_original_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f",
+  "notes": [
+    "Original dual migrations 20260917044537 and 20260917180140 remain committed in production (history 190). This package applies ONLY the corrective least-privilege migration 20260922003200 (190→191).",
+    "Never re-run or re-include the original dual migration SQL through this tooling.",
+    "Consumed dual-package attempt apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f must never be reused.",
+    "production_apply_authorization remains UNPUBLISHED until a separate review publishes an AUTHORIZED record.",
+    "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
+    "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels."
+  ],
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
+    "oid": "3c736a13599fc91962a42826ed7fc7dc7c19d131",
+    "sha256": "fc0acbac1f14c07104079a7050194f4378b40586fe55c0f36654c82eff2a621a",
+    "bytes": 272738,
+    "line_endings": "LF",
+    "authority": "git_blob_cat_file"
+  }
+}

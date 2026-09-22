@@ -323,19 +323,41 @@ async function expectPermissionDenied(client, sql) {
   return denied;
 }
 
+/**
+ * Runtime idempotency probe under SET LOCAL ROLE service_role.
+ * Creates valid FK fixture rows as the setup role (session user), then invokes
+ * persist RPCs twice without disabling FK/RI triggers. Never claims a JWT
+ * service_role session — pooler project-bound connections use SET ROLE only.
+ */
 async function probeIdempotentPersistence(client) {
+  const result = {
+    ok: false,
+    session_role_model: "set_role_not_jwt",
+    sqlstate: null,
+    check_code: null,
+    weekly_run_count: null,
+    month_package_count: null,
+  };
   await client.query("SAVEPOINT probe_rpc");
   try {
-    await client.query(
-      "ALTER TABLE public.ra_pro_weekly_completeness_runs DISABLE TRIGGER ALL",
-    );
-    await client.query(
-      "ALTER TABLE public.ra_pro_month_end_review_packages DISABLE TRIGGER ALL",
-    );
     const firmId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
-    const clientId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
     const companyId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
+    const clientId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
+    const connectionId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
     const syncId = (await client.query("SELECT gen_random_uuid() AS id")).rows[0].id;
+    await client.query("INSERT INTO public.firms(id) VALUES ($1)", [firmId]);
+    await client.query("INSERT INTO public.companies(id) VALUES ($1)", [companyId]);
+    await client.query(
+      "INSERT INTO public.firm_clients(id, firm_id, company_id) VALUES ($1, $2, $3)",
+      [clientId, firmId, companyId],
+    );
+    await client.query("INSERT INTO public.accounting_connections(id) VALUES ($1)", [
+      connectionId,
+    ]);
+    await client.query(
+      "INSERT INTO public.accounting_syncs(id, connection_id) VALUES ($1, $2)",
+      [syncId, connectionId],
+    );
     const weekly = {
       firm_id: firmId,
       firm_client_id: clientId,
@@ -378,20 +400,33 @@ async function probeIdempotentPersistence(client) {
       "SELECT package_id, reused FROM public.persist_ra_pro_month_end_review_package($1::jsonb)",
       [JSON.stringify(month)],
     );
+    const counts = await client.query(`
+      SELECT
+        (SELECT count(*)::int FROM public.ra_pro_weekly_completeness_runs) AS runs,
+        (SELECT count(*)::int FROM public.ra_pro_month_end_review_packages) AS packages
+    `);
     await client.query("RESET ROLE");
-    const ok =
+    result.weekly_run_count = counts.rows[0].runs;
+    result.month_package_count = counts.rows[0].packages;
+    result.ok =
       weeklyFirst.rows[0].reused === false &&
       weeklySecond.rows[0].reused === true &&
       weeklyFirst.rows[0].run_id === weeklySecond.rows[0].run_id &&
       monthFirst.rows[0].reused === false &&
       monthSecond.rows[0].reused === true &&
-      monthFirst.rows[0].package_id === monthSecond.rows[0].package_id;
+      monthFirst.rows[0].package_id === monthSecond.rows[0].package_id &&
+      counts.rows[0].runs === 1 &&
+      counts.rows[0].packages === 1;
+    if (!result.ok) result.check_code = "IDEMPOTENT_REUSE_MISMATCH";
     await client.query("ROLLBACK TO SAVEPOINT probe_rpc");
-    return ok;
+    return result;
   } catch (err) {
     await client.query("ROLLBACK TO SAVEPOINT probe_rpc").catch(() => {});
-    if (err.code === "42501") return false;
-    throw err;
+    result.sqlstate = err && err.code ? String(err.code) : "UNKNOWN";
+    result.check_code =
+      result.sqlstate === "42501" ? "SERVICE_ROLE_RPC_PRIVILEGE_DENIED" : "SERVICE_ROLE_RPC_FAILED";
+    result.ok = false;
+    return result;
   }
 }
 
@@ -408,9 +443,14 @@ async function verifyPostCommit(client, options = {}) {
     rls_enabled: false,
     policies_present: false,
     grants_match: false,
+    service_role_execute_ok: false,
     browser_write_denied: false,
     service_role_rpc_ok: false,
     idempotent_reuse: false,
+    service_role_rpc_sqlstate: null,
+    idempotent_reuse_sqlstate: null,
+    service_role_rpc_check_code: null,
+    session_role_model: "set_role_not_jwt",
     sentinel_unchanged: false,
     sentinels: {},
     automation_enabled: env[FEATURE_FLAG_ENV] === "true",
@@ -531,6 +571,7 @@ async function verifyPostCommit(client, options = {}) {
         has_function_privilege('authenticated', 'public.persist_ra_pro_month_end_review_package(jsonb)', 'EXECUTE') AS month_auth_exec
     `);
     const grant = grants.rows[0];
+    // Catalog table privileges only — EXECUTE is checked separately.
     view.grants_match = Boolean(
       grant.auth_select === true &&
         grant.auth_insert === false &&
@@ -544,14 +585,18 @@ async function verifyPostCommit(client, options = {}) {
         grant.findings_auth_insert === false &&
         grant.month_auth_select === true &&
         grant.month_auth_insert === false &&
-        grant.month_svc_insert === true &&
-        grant.weekly_exec === true &&
+        grant.month_svc_insert === true,
+    );
+    if (!view.grants_match) failed.push("grants_match");
+
+    view.service_role_execute_ok = Boolean(
+      grant.weekly_exec === true &&
         grant.weekly_auth_exec === false &&
         grant.weekly_anon_exec === false &&
         grant.month_exec === true &&
         grant.month_auth_exec === false,
     );
-    if (!view.grants_match) failed.push("grants_match");
+    if (!view.service_role_execute_ok) failed.push("service_role_execute");
 
     const deniedInsert = await expectPermissionDenied(
       client,
@@ -568,10 +613,17 @@ async function verifyPostCommit(client, options = {}) {
     view.browser_write_denied = deniedInsert && deniedDelete && deniedRpc;
     if (!view.browser_write_denied) failed.push("browser_write_denied");
 
-    view.idempotent_reuse = await probeIdempotentPersistence(client);
-    view.service_role_rpc_ok = view.idempotent_reuse === true;
+    const rpcProbe = await probeIdempotentPersistence(client);
+    view.session_role_model = rpcProbe.session_role_model;
+    view.service_role_rpc_sqlstate = rpcProbe.sqlstate;
+    view.idempotent_reuse_sqlstate = rpcProbe.sqlstate;
+    view.service_role_rpc_check_code = rpcProbe.check_code;
+    view.idempotent_reuse = rpcProbe.ok === true;
+    view.service_role_rpc_ok = rpcProbe.ok === true;
     if (!view.service_role_rpc_ok) failed.push("service_role_rpc");
     if (!view.idempotent_reuse) failed.push("idempotent_reuse");
+    if (rpcProbe.sqlstate) failed.push(`rpc_sqlstate:${rpcProbe.sqlstate}`);
+    if (rpcProbe.check_code) failed.push(`rpc_check:${rpcProbe.check_code}`);
 
     await client.query("ROLLBACK");
     const leftover = await client.query(`

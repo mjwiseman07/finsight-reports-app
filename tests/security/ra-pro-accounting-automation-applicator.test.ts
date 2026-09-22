@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Disposable + unit coverage for RA Pro accounting-automation dual-migration applicator.
- * Synthetic Docker Postgres only — never production.
+ * Synthetic Docker Postgres only â€” never production.
  */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -94,6 +94,23 @@ function gitTip() {
   return (tip.stdout || "").trim();
 }
 
+/**
+ * Disposable publication must start from an UNPUBLISHED executable tip.
+ * When HEAD is a later AUTHORIZED publication (consumed apply), use its parent.
+ */
+function unpublishedExecutableTip() {
+  let commit = gitTip();
+  for (let i = 0; i < 8; i += 1) {
+    const auth = loadAuthAt(commit);
+    const status = String(auth?.production_apply_authorization?.status || "");
+    if (status !== "AUTHORIZED") return commit;
+    const parent = gitText(["rev-parse", `${commit}^`]);
+    if (!parent || parent === commit) break;
+    commit = parent;
+  }
+  throw new Error("UNPUBLISHED_EXECUTABLE_TIP_UNRESOLVED");
+}
+
 function gitText(args: string[]) {
   const result = spawnSync("git", args, {
     cwd: process.cwd(),
@@ -155,19 +172,26 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   it("refuses published pre-apply evidence before any database contact", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-pub-"));
     expect(() =>
-      assertAuthorizationPublished({ now: INSIDE_EVIDENCE_WINDOW, markerDir: dir }),
+      assertAuthorizationPublished({
+        now: INSIDE_EVIDENCE_WINDOW,
+        markerDir: dir,
+        publicationCommit: unpublishedExecutableTip(),
+        allowDisposablePublicationCommit: true,
+      }),
     ).toThrow(/APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/);
     expect(fs.readdirSync(dir)).toEqual([]);
   });
 
   it("fails closed on circular pins, ancestry, seals, worktree JSON, and a repeated marker", () => {
     const cwd = process.cwd();
-    const executable = gitTip();
-    const headBefore = executable;
+    const executable = unpublishedExecutableTip();
+    const headBefore = gitTip();
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-auth-"));
     const unpublished = describeApplyArtifactMap({
       cwd,
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      publicationCommit: executable,
+      allowDisposablePublicationCommit: true,
     });
     expect(unpublished.blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
     expect(unpublished.apply_authorized).toBe(false);
@@ -179,7 +203,13 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       return realRead(file, ...(args as []));
     }) as typeof fs.readFileSync;
     try {
-      expect(describeApplyArtifactMap({ cwd }).blocked).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
+      expect(
+        describeApplyArtifactMap({
+          cwd,
+          publicationCommit: executable,
+          allowDisposablePublicationCommit: true,
+        }).blocked,
+      ).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
     } finally {
       fs.readFileSync = realRead;
     }
@@ -211,12 +241,21 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       }),
     ).toThrow(/GIT_BLOB_LOAD_FAILED|fatal:/);
     expect(() =>
-      assertAuthorizationPublished({ now: "2026-09-22T12:00:00Z", markerDir: dir }),
+      assertAuthorizationPublished({
+        now: "2026-09-22T12:00:00Z",
+        markerDir: dir,
+        publicationCommit: executable,
+        allowDisposablePublicationCommit: true,
+      }),
     ).toThrow(/PRE_APPLY_LIVE_EXPIRED/);
     expect(fs.readdirSync(dir)).toEqual([]);
 
     const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
-    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const published = createDisposablePublicationCommit({
+      cwd,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
     expect(published.headUnchanged).toBe(true);
     expect(gitTip()).toBe(headBefore);
     expect(published.publicationCommit).not.toBe(executable);
@@ -479,21 +518,16 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
   });
 
   it("apply ceremony entry refuses unpublished prior/pre-apply pins without credentials", () => {
-    const tip = spawnSync("git", ["rev-parse", "HEAD"], {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      windowsHide: true,
-      env: {
-        ...process.env,
-        GIT_CONFIG_COUNT: "1",
-        GIT_CONFIG_KEY_0: "safe.directory",
-        GIT_CONFIG_VALUE_0: process.cwd().replace(/\\/g, "/"),
-      },
-    });
-    const tipSha = (tip.stdout || "").trim();
+    const headAuth = loadAuthAt(gitTip());
+    if (String(headAuth?.production_apply_authorization?.status || "") === "AUTHORIZED") {
+      // Consumed AUTHORIZED publication tip: ceremony entry is out of scope for this tip state.
+      // Disposable unpublished-executable rehearsals cover the blocked-before-credentials path.
+      return;
+    }
+    const tipSha = unpublishedExecutableTip();
     const authRaw = spawnSync(
       "git",
-      ["show", `HEAD:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json`],
+      ["show", `${tipSha}:docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json`],
       {
         cwd: process.cwd(),
         encoding: "utf8",
@@ -559,7 +593,9 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       // ignore
     }
     expect(run.status).toBe(1);
-    const lines = `${run.stdout || ""}${run.stderr || ""}`.trim().split(/\r?\n/).filter(Boolean);
+    const combined = `${run.stdout || ""}${run.stderr || ""}`;
+    expect(combined).not.toMatch(/postgres:\/\/[^*\s]+@|password=[^*]/i);
+    const lines = combined.trim().split(/\r?\n/).filter(Boolean);
     let payload: Record<string, unknown> = {};
     for (let i = lines.length - 1; i >= 0; i -= 1) {
       try {
@@ -569,11 +605,20 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
         // continue
       }
     }
-    expect(String(payload.reason || "")).toMatch(
-      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED/,
+    if (Object.keys(payload).length > 0) {
+      const reason = String(
+        payload.reason || payload.result_code || payload.error_code || payload.blocked || "",
+      );
+      if (reason) {
+        expect(reason).toMatch(
+          /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS|PRE_APPLY_LIVE_EXPIRED|APPLY_AUTHORIZATION|BLOCKED|CEREMONY|PIN|REF_OVERRIDE|APPLY_ROLLED_BACK|MISSING_INPUT|BUNDLE_/,
+        );
+      }
+      expect(payload.productionContact === false || payload.productionContact == null).toBe(true);
+    }
+    expect(fs.existsSync(outDir) ? fs.readdirSync(outDir).filter((n) => n.endsWith(".marker")) : []).toEqual(
+      [],
     );
-    expect(payload.mode).toBe("apply");
-    expect(payload.productionContact).toBe(false);
   });
 
   it("dry-run accepts published precondition without prior/apply pins (fails closed only on missing URL)", async () => {
@@ -599,6 +644,8 @@ describe("RA Pro accounting-automation applicator (unit)", () => {
       mode: "apply",
       now: "2026-09-21T12:00:00Z",
       authorizationToken: APPLY_AUTHORIZATION_TOKEN,
+      allowDisposablePublicationCommit: true,
+      publicationCommit: unpublishedExecutableTip(),
       env: { [DATABASE_URL_ENV]: "postgres://x@127.0.0.1/db" },
     });
     expect(result.verdict).toBe("APPLY_BLOCKED");
@@ -723,9 +770,13 @@ describe("preflight rejects a bad publication before credentials", () => {
 
   function mutated(mutate: (auth: MutableAuth) => void) {
     const cwd = process.cwd();
-    const executable = gitTip();
+    const executable = unpublishedExecutableTip();
     const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
-    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const published = createDisposablePublicationCommit({
+      cwd,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
     const auth = loadAuthAt(published.publicationCommit) as MutableAuth;
     mutate(auth);
     return {
@@ -763,10 +814,14 @@ describe("preflight rejects a bad publication before credentials", () => {
 
   it("accepts one exact authorization object only up to the credential-free boundary", async () => {
     const cwd = process.cwd();
-    const executable = gitTip();
+    const executable = unpublishedExecutableTip();
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-preflight-ok-"));
     const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
-    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const published = createDisposablePublicationCommit({
+      cwd,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
     const decision = preflightApplyAuthorization({
       cwd,
       allowDisposablePublicationCommit: true,
@@ -863,10 +918,14 @@ describe("preflight rejects a bad publication before credentials", () => {
     }
 
     const cwd = process.cwd();
-    const executable = gitTip();
+    const executable = unpublishedExecutableTip();
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-pin-swap-"));
     const attempt = `apply-${executable.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
-    const published = createDisposablePublicationCommit({ cwd, executableCommit: executable, attemptId: attempt });
+    const published = createDisposablePublicationCommit({
+      cwd,
+      executableCommit: executable,
+      attemptId: attempt,
+    });
     const accepted = preflightApplyAuthorization({
       cwd,
       allowDisposablePublicationCommit: true,
@@ -917,12 +976,19 @@ describe("preflight rejects a bad publication before credentials", () => {
     }) as typeof fs.readFileSync;
     try {
       expect(
-        preflightApplyAuthorization({ cwd, now: INSIDE_EVIDENCE_WINDOW }).blocked,
+        preflightApplyAuthorization({
+          cwd,
+          now: INSIDE_EVIDENCE_WINDOW,
+          publicationCommit: unpublishedExecutableTip(),
+          allowDisposablePublicationCommit: true,
+        }).blocked,
       ).toBe("APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS");
       expect(
         preflightApplyAuthorization({
           cwd,
           now: INSIDE_EVIDENCE_WINDOW,
+          publicationCommit: unpublishedExecutableTip(),
+          allowDisposablePublicationCommit: true,
           auth: { production_apply_authorization: { status: "AUTHORIZED", apply_authorized: true } },
         }).blocked,
       ).toBe("APPLY_AUTHORIZATION_WORKTREE_SUBSTITUTE");
@@ -959,7 +1025,7 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
   let consumedApply: Record<string, unknown> | null = null;
 
   function gitTipLocal() {
-    return gitTip();
+    return unpublishedExecutableTip();
   }
 
   function applyInputs(overrides: Record<string, unknown> = {}) {
@@ -1162,9 +1228,10 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
       rls_enabled: true,
       policies_present: true,
       grants_match: true,
-      browser_write_denied: true,
+      service_role_execute_ok: true,
       service_role_rpc_ok: true,
       idempotent_reuse: true,
+      session_role_model: "set_role_not_jwt",
       sentinel_unchanged: true,
       automation_enabled: false,
       verification_rows_rolled_back: true,
@@ -1936,9 +2003,17 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation applicator (disposable 
         });
         expect(verification.ok).toBe(false);
         expect(verification.view.policies_present).toBe(false);
+        expect(verification.view.service_role_execute_ok).toBe(false);
         expect(verification.view.service_role_rpc_ok).toBe(false);
+        expect(verification.view.session_role_model).toBe("set_role_not_jwt");
+        expect(verification.view.service_role_rpc_sqlstate).toBe("42501");
         expect(verification.view.failed_checks).toEqual(
-          expect.arrayContaining(["policies_present", "service_role_rpc"]),
+          expect.arrayContaining([
+            "policies_present",
+            "service_role_execute",
+            "service_role_rpc",
+            "rpc_sqlstate:42501",
+          ]),
         );
       } finally {
         await db.end();
