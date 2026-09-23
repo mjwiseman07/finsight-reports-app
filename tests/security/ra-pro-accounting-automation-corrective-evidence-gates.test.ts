@@ -409,14 +409,71 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
 
   it("assertPublished throws when pins UNPUBLISHED", () => {
     const auth = JSON.parse(fs.readFileSync(path.join(ROOT, AUTH_PATH), "utf8"));
+    const unpublished = JSON.parse(JSON.stringify(auth));
+    unpublished.precondition_publication = {
+      status: "UNPUBLISHED",
+      protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
+      evidence_path: null,
+      evidence_source_commit: null,
+      evidence_blob_oid: null,
+      evidence_sha256: null,
+      evidence_bytes: null,
+    };
+    unpublished.pre_apply_live_publication = {
+      status: "UNPUBLISHED",
+      protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
+      evidence_path: null,
+      evidence_source_commit: null,
+      evidence_blob_oid: null,
+      evidence_sha256: null,
+      evidence_bytes: null,
+      apply_authorized: false,
+    };
+    unpublished.publication = {
+      status: "UNPUBLISHED",
+      required_prior_dry_run_evidence_sha256: null,
+      required_prior_dry_run_evidence_oid: null,
+      required_prior_dry_run_evidence_bytes: null,
+      required_pre_apply_live_evidence_sha256: null,
+      required_pre_apply_live_evidence_oid: null,
+      required_pre_apply_live_evidence_bytes: null,
+    };
     expectCode(
-      () => preconditionGates.assertCorrectivePreconditionEvidencePublished({ auth, cwd: ROOT }),
+      () =>
+        preconditionGates.assertCorrectivePreconditionEvidencePublished({
+          auth: unpublished,
+          cwd: ROOT,
+        }),
       "CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED",
     );
     expectCode(
-      () => preApplyGates.assertCorrectivePreApplyLiveEvidencePublished({ auth, cwd: ROOT }),
+      () =>
+        preApplyGates.assertCorrectivePreApplyLiveEvidencePublished({
+          auth: unpublished,
+          cwd: ROOT,
+        }),
       "CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED",
     );
+  });
+
+  it("assertPublished accepts tip pins with collection-authority triad while apply stays false", () => {
+    const auth = JSON.parse(fs.readFileSync(path.join(ROOT, AUTH_PATH), "utf8"));
+    const now = "2026-09-23T06:00:00Z";
+    const pre = preconditionGates.assertCorrectivePreconditionEvidencePublished({
+      auth,
+      cwd: ROOT,
+      now,
+    });
+    const live = preApplyGates.assertCorrectivePreApplyLiveEvidencePublished({
+      auth,
+      cwd: ROOT,
+      now,
+    });
+    expect(pre.apply_authorized).toBe(false);
+    expect(live.apply_authorized).toBe(false);
+    expect(auth.production_apply_authorization.status).toBe("UNPUBLISHED");
+    expect(auth.production_apply_authorization.apply_authorized).toBe(false);
+    expect(auth.pre_apply_live_publication.apply_authorized).toBe(false);
   });
 
   it("collector refuses write when invalid and writes LF artifact when valid", () => {

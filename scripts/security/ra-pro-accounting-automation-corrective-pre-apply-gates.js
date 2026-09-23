@@ -113,16 +113,42 @@ function assertNoOverride(inputs = {}) {
   }
 }
 
+function expectedAuthorityFromPublication(pub = {}) {
+  const e = {
+    authorized_executable_commit: pub.authorized_executable_commit,
+    authorization_publication_commit: pub.authorization_publication_commit,
+    authorization_publication_blob_oid: pub.authorization_publication_blob_oid,
+  };
+  if (
+    !HEX40.test(String(e.authorized_executable_commit || "").toLowerCase()) ||
+    !HEX40.test(String(e.authorization_publication_commit || "").toLowerCase()) ||
+    !HEX40.test(String(e.authorization_publication_blob_oid || "").toLowerCase())
+  ) {
+    return null;
+  }
+  return {
+    authorized_executable_commit: String(e.authorized_executable_commit).toLowerCase(),
+    authorization_publication_commit: String(e.authorization_publication_commit).toLowerCase(),
+    authorization_publication_blob_oid: String(e.authorization_publication_blob_oid).toLowerCase(),
+  };
+}
+
 function expectedAuthority(options = {}) {
   const e = options.expected || {};
   if (
-    !e.authorized_executable_commit ||
-    !e.authorization_publication_commit ||
-    !e.authorization_publication_blob_oid
+    e.authorized_executable_commit &&
+    e.authorization_publication_commit &&
+    e.authorization_publication_blob_oid
   ) {
-    throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_EXPECTED", "expected authority pins required");
+    return {
+      authorized_executable_commit: String(e.authorized_executable_commit).toLowerCase(),
+      authorization_publication_commit: String(e.authorization_publication_commit).toLowerCase(),
+      authorization_publication_blob_oid: String(e.authorization_publication_blob_oid).toLowerCase(),
+    };
   }
-  return e;
+  const fromPub = expectedAuthorityFromPublication(options.publication || {});
+  if (fromPub) return fromPub;
+  throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_EXPECTED", "expected authority pins required");
 }
 
 function assertAuthorityNotStale(authz) {
@@ -335,10 +361,6 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
   assertNoOverride(inputs);
   const auth = inputs.auth;
   if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "auth");
-  verifyCorrectivePreApplyContractSeal(auth, inputs.cwd, {
-    executableCommit: inputs.executableCommit,
-    expected: inputs.expected,
-  });
   if (preApplyPinsUnpublished(auth)) {
     throw blocked(
       "CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED",
@@ -347,6 +369,28 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
   }
   const pub = auth.publication;
   const pre = auth.pre_apply_live_publication;
+  const expected =
+    (inputs.expected &&
+    inputs.expected.authorized_executable_commit &&
+    inputs.expected.authorization_publication_commit &&
+    inputs.expected.authorization_publication_blob_oid
+      ? {
+          authorized_executable_commit: String(inputs.expected.authorized_executable_commit).toLowerCase(),
+          authorization_publication_commit: String(
+            inputs.expected.authorization_publication_commit,
+          ).toLowerCase(),
+          authorization_publication_blob_oid: String(
+            inputs.expected.authorization_publication_blob_oid,
+          ).toLowerCase(),
+        }
+      : null) || expectedAuthorityFromPublication(pre);
+  if (!expected) {
+    throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_EXPECTED", "expected authority pins required");
+  }
+  verifyCorrectivePreApplyContractSeal(auth, inputs.cwd, {
+    executableCommit: inputs.executableCommit || expected.authorized_executable_commit,
+    expected,
+  });
   if (
     pub.required_pre_apply_live_evidence_sha256 !== pre.evidence_sha256 ||
     pub.required_pre_apply_live_evidence_oid !== pre.evidence_blob_oid ||
@@ -356,6 +400,13 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
   }
   if (pre.apply_authorized === true) {
     throw blocked("AUTHORIZATION_PINS_UNPUBLISHED", "pre_apply apply_authorized must remain false");
+  }
+  if (
+    !HEX40.test(String(pre.authorized_executable_commit || "").toLowerCase()) ||
+    !HEX40.test(String(pre.authorization_publication_commit || "").toLowerCase()) ||
+    !HEX40.test(String(pre.authorization_publication_blob_oid || "").toLowerCase())
+  ) {
+    throw blocked("CORRECTIVE_PRE_APPLY_PINS_INVALID", "collection-authority triad required");
   }
   let loaded;
   try {
@@ -373,7 +424,7 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
   }
   assertTrailingLf(loaded.buffer);
   const evidence = JSON.parse(loaded.buffer.toString("utf8"));
-  validateCorrectivePreApplyLiveEvidence(evidence, { now: inputs.now, expected: inputs.expected });
+  validateCorrectivePreApplyLiveEvidence(evidence, { now: inputs.now, expected });
   return {
     sha256: loaded.sha256,
     oid: loaded.oid,
@@ -390,6 +441,7 @@ module.exports = {
   HISTORY_COUNT,
   DISPOSABLE_VALIDATOR: DISPOSABLE_VALIDATOR_PRE_APPLY,
   expectedAuthority,
+  expectedAuthorityFromPublication,
   validateCorrectivePreApplyLiveEvidence,
   assertCorrectivePreApplyLiveEvidencePublished,
   verifyCorrectivePreApplyContractSeal,

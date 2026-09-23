@@ -104,11 +104,13 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
     expect(FEATURE_FLAG_ENV).toBe("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION");
   });
 
-  it("blocks dry-run when corrective precondition pins are UNPUBLISHED", async () => {
+  it("blocks dry-run before credentials when apply authorization remains UNPUBLISHED", async () => {
     const result = await runDryRun({});
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED");
-    expect(result.phase).toBe("precondition_evidence");
+    // Published evidence pins; dry-run still stops before DB URL / production contact.
+    expect(result.error_code).toBe("MISSING_INPUT");
+    expect(result.phase).toBe("uri_validate");
+    expect(result.productionContact).not.toBe(true);
   });
 });
 

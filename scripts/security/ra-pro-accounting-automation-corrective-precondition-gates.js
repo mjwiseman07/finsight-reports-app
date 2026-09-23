@@ -132,16 +132,42 @@ function assertTrailingLf(buffer) {
   }
 }
 
+function expectedAuthorityFromPublication(pub = {}) {
+  const e = {
+    authorized_executable_commit: pub.authorized_executable_commit,
+    authorization_publication_commit: pub.authorization_publication_commit,
+    authorization_publication_blob_oid: pub.authorization_publication_blob_oid,
+  };
+  if (
+    !HEX40.test(String(e.authorized_executable_commit || "").toLowerCase()) ||
+    !HEX40.test(String(e.authorization_publication_commit || "").toLowerCase()) ||
+    !HEX40.test(String(e.authorization_publication_blob_oid || "").toLowerCase())
+  ) {
+    return null;
+  }
+  return {
+    authorized_executable_commit: String(e.authorized_executable_commit).toLowerCase(),
+    authorization_publication_commit: String(e.authorization_publication_commit).toLowerCase(),
+    authorization_publication_blob_oid: String(e.authorization_publication_blob_oid).toLowerCase(),
+  };
+}
+
 function expectedAuthority(options = {}) {
   const e = options.expected || {};
   if (
-    !e.authorized_executable_commit ||
-    !e.authorization_publication_commit ||
-    !e.authorization_publication_blob_oid
+    e.authorized_executable_commit &&
+    e.authorization_publication_commit &&
+    e.authorization_publication_blob_oid
   ) {
-    throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED", "expected authority pins required");
+    return {
+      authorized_executable_commit: String(e.authorized_executable_commit).toLowerCase(),
+      authorization_publication_commit: String(e.authorization_publication_commit).toLowerCase(),
+      authorization_publication_blob_oid: String(e.authorization_publication_blob_oid).toLowerCase(),
+    };
   }
-  return e;
+  const fromPub = expectedAuthorityFromPublication(options.publication || {});
+  if (fromPub) return fromPub;
+  throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED", "expected authority pins required");
 }
 
 function validatePrivilegeMatrix(dbOrSurfaces, codePrefix = "CORRECTIVE_PRECONDITION") {
@@ -387,10 +413,6 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
   assertNoOverride(inputs);
   const auth = inputs.auth;
   if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "auth");
-  verifyCorrectivePreconditionContractSeal(auth, inputs.cwd, {
-    executableCommit: inputs.executableCommit,
-    expected: inputs.expected,
-  });
   if (preconditionPinsUnpublished(auth)) {
     throw blocked(
       "CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED",
@@ -398,6 +420,28 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
     );
   }
   const pub = auth.precondition_publication;
+  const expected =
+    (inputs.expected &&
+    inputs.expected.authorized_executable_commit &&
+    inputs.expected.authorization_publication_commit &&
+    inputs.expected.authorization_publication_blob_oid
+      ? {
+          authorized_executable_commit: String(inputs.expected.authorized_executable_commit).toLowerCase(),
+          authorization_publication_commit: String(
+            inputs.expected.authorization_publication_commit,
+          ).toLowerCase(),
+          authorization_publication_blob_oid: String(
+            inputs.expected.authorization_publication_blob_oid,
+          ).toLowerCase(),
+        }
+      : null) || expectedAuthorityFromPublication(pub);
+  if (!expected) {
+    throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED", "expected authority pins required");
+  }
+  verifyCorrectivePreconditionContractSeal(auth, inputs.cwd, {
+    executableCommit: inputs.executableCommit || expected.authorized_executable_commit,
+    expected,
+  });
   for (const [key, pattern] of Object.entries({
     evidence_source_commit: /^[0-9a-f]{40}$/,
     evidence_blob_oid: /^[0-9a-f]{40}$/,
@@ -409,6 +453,13 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
   }
   if (!Number.isInteger(pub.evidence_bytes) || pub.evidence_bytes <= 0) {
     throw blocked("CORRECTIVE_PRECONDITION_PINS_INVALID", "evidence_bytes is invalid");
+  }
+  if (
+    !HEX40.test(String(pub.authorized_executable_commit || "").toLowerCase()) ||
+    !HEX40.test(String(pub.authorization_publication_commit || "").toLowerCase()) ||
+    !HEX40.test(String(pub.authorization_publication_blob_oid || "").toLowerCase())
+  ) {
+    throw blocked("CORRECTIVE_PRECONDITION_PINS_INVALID", "collection-authority triad required");
   }
   let loaded;
   try {
@@ -426,7 +477,7 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
   }
   assertTrailingLf(loaded.buffer);
   const evidence = JSON.parse(loaded.buffer.toString("utf8"));
-  validateCorrectivePreconditionEvidence(evidence, { now: inputs.now, expected: inputs.expected });
+  validateCorrectivePreconditionEvidence(evidence, { now: inputs.now, expected });
   return {
     protocol: PROTOCOL,
     sha256: loaded.sha256,
@@ -449,6 +500,7 @@ module.exports = {
   DISPOSABLE_VALIDATOR,
   assertTrailingLf,
   expectedAuthority,
+  expectedAuthorityFromPublication,
   validateCorrectivePreconditionEvidence,
   validateDatabaseReadonly,
   validatePrivilegeMatrix,

@@ -40,36 +40,46 @@
     }
   ],
   "publication": {
-    "status": "UNPUBLISHED",
+    "status": "PUBLISHED",
     "required_prior_dry_run_evidence_sha256": null,
     "required_prior_dry_run_evidence_oid": null,
     "required_prior_dry_run_evidence_bytes": null,
-    "required_pre_apply_live_evidence_sha256": null,
-    "required_pre_apply_live_evidence_oid": null,
-    "required_pre_apply_live_evidence_bytes": null
+    "required_pre_apply_live_evidence_sha256": "9c2e8a037d8494bf6c707ebcaecb37c246f89a5302f527228a49dd9aa956e4ce",
+    "required_pre_apply_live_evidence_oid": "174fc11dc5ff5debabcd3d2e16e8f0ac164471a0",
+    "required_pre_apply_live_evidence_bytes": 66428
   },
   "precondition_publication": {
-    "status": "UNPUBLISHED",
+    "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
-    "evidence_path": null,
-    "evidence_source_commit": null,
-    "evidence_blob_oid": null,
-    "evidence_sha256": null,
-    "evidence_bytes": null
+    "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1.json",
+    "evidence_source_commit": "5e368e70ed4fce82214e7b48027247fef3dda498",
+    "evidence_blob_oid": "0168322963ba7fdba90b1606f0038bb45e408f04",
+    "evidence_sha256": "33d960caee40d0c118b4fbcd1ebd76e7ccab8195dd81c6eb5ee8a0b1fe81b396",
+    "evidence_bytes": 66258,
+    "valid_from_utc": "2026-09-23T05:23:03Z",
+    "valid_until_utc": "2026-09-24T05:23:03Z",
+    "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321"
   },
   "pre_apply_live_publication": {
-    "status": "UNPUBLISHED",
+    "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
-    "evidence_path": null,
-    "evidence_source_commit": null,
-    "evidence_blob_oid": null,
-    "evidence_sha256": null,
-    "evidence_bytes": null,
-    "apply_authorized": false
+    "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1.json",
+    "evidence_source_commit": "5e368e70ed4fce82214e7b48027247fef3dda498",
+    "evidence_blob_oid": "174fc11dc5ff5debabcd3d2e16e8f0ac164471a0",
+    "evidence_sha256": "9c2e8a037d8494bf6c707ebcaecb37c246f89a5302f527228a49dd9aa956e4ce",
+    "evidence_bytes": 66428,
+    "valid_from_utc": "2026-09-23T05:23:03Z",
+    "valid_until_utc": "2026-09-24T05:23:03Z",
+    "apply_authorized": false,
+    "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321"
   },
   "precondition_evidence_contract": {
     "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
-    "source_commit": null,
+    "source_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
     "seal_binding": "authorized_executable_commit",
     "oid": "ae96e62710b0a8a32d3d2020a6b879401216d388",
     "sha256": "34235f77e387e609f2fda345485d16a9a836c5dca21bbcd123c951696fdf97cd",
@@ -78,7 +88,7 @@
   },
   "pre_apply_live_evidence_contract": {
     "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
-    "source_commit": null,
+    "source_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
     "seal_binding": "authorized_executable_commit",
     "oid": "5226d76a80596ed448827f108b00cb1b24e19cb4",
     "sha256": "dc9b60ce8dee13c96fbf646592c9f53749e84a1524d500eb9e6aa12a0127fccc",
@@ -169,13 +179,14 @@
     "production_apply_authorization remains UNPUBLISHED until a separate review publishes an AUTHORIZED record.",
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels.",
-    "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection."
+    "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection.",
+    "Corrective precondition and pre-apply live evidence pins are PUBLISHED from source commit 5e368e70… (byte-exact independently reviewed artifacts). Collection-authority triad binds executable 2617f2e4… / publication 15732f70… / blob cd94d9bd…. production_apply_authorization remains UNPUBLISHED; pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "5185b6320dc783f255c29c68e3e9f7b43234bc07",
-    "sha256": "fc4dd676a5a1cb3758739303d19691cf87e6cf9de5c0fe7ea5d4663f4c0f69e4",
-    "bytes": 383908,
+    "oid": "76cd7853a911f6e2cb9be1d49f5587416a6e1f45",
+    "sha256": "913621170644ccd0ee34d9977d7d83667a1e1eadca57ae7e99cbfd4998b86528",
+    "bytes": 388946,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

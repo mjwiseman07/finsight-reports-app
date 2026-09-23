@@ -29,13 +29,13 @@ The consumed dual-package attempt id `apply-b9926961e32c-8aecb1bd2f5f17dec0483dd
 
 Corrective evidence gates (`RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1` and `RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1`) are schema v3 and bind `authorized_executable_commit` + `authorization_publication_commit` + `authorization_publication_blob_oid`. Free-form attestations such as `collection_tooling_tip` are never authority.
 
-`production_collection_authorization` starts **UNPUBLISHED** (`collection_authorized: false`, `authorized_executable_commit: null`). While unpublished, collection entry and the collector return `COLLECTION_REMAINS_BLOCKED_BEFORE_PRODUCTION_CONTACT` **before** Production env-key listing, credential acquisition, database connection, observation, or artifact emit. Tip `dbdce968…` is rejected/stale and must never authorize collection.
+`production_collection_authorization` is **AUTHORIZED** for immutable executable tip `2617f2e4…` via AUTH-only publication `15732f70…` (blob `cd94d9bd…`). Tip `dbdce968…` remains rejected/stale and must never authorize collection.
 
 Non-circular model: the immutable executable tip never stores its own SHA as a collection head constant. A later one-object publication may change only `production_collection_authorization`, name the already-known executable tip, and must not embed the publication commit SHA. Removing that AUTH object must leave the publication JSON byte/semantically identical to the executable-tip JSON.
 
-`precondition_publication` and `pre_apply_live_publication` in `TOOLING_AUTHORIZATION.json` start **UNPUBLISHED** with null evidence pins — dry-run and apply fail closed with `CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED` / `CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED` before any database URL is resolved. Dual-package and cutover evidence protocols are forbidden substitutions.
+`precondition_publication` and `pre_apply_live_publication` are **PUBLISHED** from evidence source commit `5e368e70…` with byte-exact independently reviewed artifacts and the collection-authority triad (executable `2617f2e4…` / publication `15732f70…` / blob `cd94d9bd…`). Pin publication does **not** authorize credentials, dry-run DB contact, apply, merge, deploy, env changes, or automation. Dual-package and cutover evidence protocols remain forbidden substitutions.
 
-`production_apply_authorization` starts **UNPUBLISHED** (`apply_authorized: false`, `attempt_id: null`). It stays unpublished until a separate reviewed publication. Evidence pins and the apply token alone do not authorize apply.
+`production_apply_authorization` remains **UNPUBLISHED** (`apply_authorized: false`, `attempt_id: null`). It stays unpublished until a separate reviewed publication. Evidence pins and the apply token alone do not authorize apply. Apply fails closed with `APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS` before any database URL is resolved.
 
 ## Safety
 
