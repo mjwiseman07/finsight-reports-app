@@ -20,6 +20,15 @@ const PRE_APPLY_FIXTURE =
   "tests/security/helpers/fixtures/ra-pro-accounting-automation-corrective-pre-apply-live-synthetic.json";
 const AUTH_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
 const NOW = "2026-09-21T12:00:00Z";
+const SYNTH_EXEC = "a111111111111111111111111111111111111111";
+const SYNTH_PUB = "b222222222222222222222222222222222222222";
+const SYNTH_OID = "c333333333333333333333333333333333333333";
+const EXPECTED_AUTHORITY = {
+  authorized_executable_commit: SYNTH_EXEC,
+  authorization_publication_commit: SYNTH_PUB,
+  authorization_publication_blob_oid: SYNTH_OID,
+};
+const GATE_OPTS = { now: NOW, expected: EXPECTED_AUTHORITY };
 
 type MutableEvidence = Record<string, unknown>;
 
@@ -63,11 +72,11 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
   it("accepts valid precondition and pre-apply synthetic fixtures", () => {
     const precondition = loadJson(PRECONDITION_FIXTURE);
     expect(
-      preconditionGates.validateCorrectivePreconditionEvidence(precondition, { now: NOW }),
+      preconditionGates.validateCorrectivePreconditionEvidence(precondition, GATE_OPTS),
     ).toMatchObject({ protocol: preconditionGates.PROTOCOL, apply_authorized: false });
 
     const preApply = loadJson(PRE_APPLY_FIXTURE);
-    expect(preApplyGates.validateCorrectivePreApplyLiveEvidence(preApply, { now: NOW })).toMatchObject({
+    expect(preApplyGates.validateCorrectivePreApplyLiveEvidence(preApply, GATE_OPTS)).toMatchObject({
       protocol: preApplyGates.PROTOCOL,
       apply_authorized: false,
     });
@@ -80,7 +89,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     const evidence = cloneFixture(PRECONDITION_FIXTURE);
     mutate(evidence);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_HISTORY",
     );
   });
@@ -91,21 +100,21 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
       ((missing.database_readonly as MutableEvidence).original_committed_migrations as MutableEvidence[])[0],
     ];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_ORIGINALS",
     );
 
     const duplicate = cloneFixture(PRECONDITION_FIXTURE);
     (((duplicate.database_readonly as MutableEvidence).original_committed_migrations as MutableEvidence[])[0].count = 2);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(duplicate, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(duplicate, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_ORIGINALS",
     );
 
     const corrective = cloneFixture(PRECONDITION_FIXTURE);
     (corrective.database_readonly as MutableEvidence).corrective_version_count = 1;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(corrective, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(corrective, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_CORRECTIVE",
     );
   });
@@ -120,7 +129,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((t.effective as MutableEvidence).service_role as MutableEvidence).REFERENCES = false;
     ((t.effective as MutableEvidence).service_role as MutableEvidence).TRIGGER = false;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(incomplete, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(incomplete, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE",
     );
 
@@ -129,7 +138,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((a.direct_catalog as MutableEvidence).authenticated as string[]).push("INSERT");
     ((a.effective as MutableEvidence).authenticated as MutableEvidence).INSERT = true;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(authInsert, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(authInsert, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE",
     );
   });
@@ -141,7 +150,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
       { ancestor: "nested_role", privileges: ["UPDATE"] },
     ];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(inherited, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(inherited, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE_INHERITED",
     );
 
@@ -149,7 +158,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     const u = firstTable(unexpected);
     u.unexpected_grantees = [{ grantee: "authenticator", privileges: ["SELECT"] }];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(unexpected, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(unexpected, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE_UNEXPECTED",
     );
   });
@@ -162,7 +171,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ).filter((p) => p !== "UPDATE");
     ((a.effective as MutableEvidence).service_role as MutableEvidence).UPDATE = true;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(cleanDirty, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(cleanDirty, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE_CONTRADICTION",
     );
 
@@ -170,7 +179,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     const b = firstTable(dirtyClean);
     ((b.effective as MutableEvidence).service_role as MutableEvidence).UPDATE = false;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(dirtyClean, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(dirtyClean, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE_CONTRADICTION",
     );
   });
@@ -178,13 +187,13 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
   it("enforces PG16 not_supported and PG17 MAINTAIN true pre-correction", () => {
     const pg16 = cloneFixture(PRECONDITION_FIXTURE);
     expect(() =>
-      preconditionGates.validateCorrectivePreconditionEvidence(pg16, { now: NOW }),
+      preconditionGates.validateCorrectivePreconditionEvidence(pg16, GATE_OPTS),
     ).not.toThrow();
 
     const pg17 = cloneFixture(PRECONDITION_FIXTURE);
     setPg17(pg17);
     expect(
-      preconditionGates.validateCorrectivePreconditionEvidence(pg17, { now: NOW }).protocol,
+      preconditionGates.validateCorrectivePreconditionEvidence(pg17, GATE_OPTS).protocol,
     ).toBe(preconditionGates.PROTOCOL);
 
     const badPg17 = cloneFixture(PRECONDITION_FIXTURE);
@@ -195,7 +204,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ).filter((p) => p !== "MAINTAIN");
     ((t.effective as MutableEvidence).service_role as MutableEvidence).MAINTAIN = false;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(badPg17, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(badPg17, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE",
     );
 
@@ -203,7 +212,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     const t16 = firstTable(badPg16);
     ((t16.effective as MutableEvidence).service_role as MutableEvidence).MAINTAIN = false;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(badPg16, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(badPg16, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PRIVILEGE",
     );
   });
@@ -213,7 +222,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((((owner.database_readonly as MutableEvidence).objects as MutableEvidence).tables as MutableEvidence[])[0].owner =
       "service_role");
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(owner, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(owner, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OWNER",
     );
 
@@ -221,7 +230,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((((idx.database_readonly as MutableEvidence).objects as MutableEvidence).tables as MutableEvidence[])[0].indexes =
       []);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(idx, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(idx, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_INDEXES",
     );
 
@@ -229,7 +238,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((((cols.database_readonly as MutableEvidence).objects as MutableEvidence).tables as MutableEvidence[])[0].columns =
       []);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(cols, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(cols, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_COLUMNS",
     );
 
@@ -237,7 +246,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((((cons.database_readonly as MutableEvidence).objects as MutableEvidence).tables as MutableEvidence[])[0].constraints =
       []);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(cons, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(cons, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -245,7 +254,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     ((((pol.database_readonly as MutableEvidence).objects as MutableEvidence).tables as MutableEvidence[])[0].policies =
       []);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(pol, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(pol, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_POLICIES",
     );
 
@@ -253,7 +262,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     (((fn.database_readonly as MutableEvidence).objects as MutableEvidence).functions as MutableEvidence[])[0].security =
       "DEFINER";
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(fn, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(fn, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_FUNCTIONS",
     );
 
@@ -262,7 +271,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
       "ra_pro_weekly_completeness_runs"
     ] = -1;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(rows, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(rows, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_ROW_COUNTS",
     );
 
@@ -274,14 +283,14 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     delete ((((sentinel.database_readonly as MutableEvidence).objects as MutableEvidence).provider_sentinels as MutableEvidence)
       .invoices as MutableEvidence).mutations;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(sentinel, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(sentinel, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
 
     const partial = cloneFixture(PRECONDITION_FIXTURE);
     ((partial.database_readonly as MutableEvidence).objects as MutableEvidence).partial_corrective_state = true;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(partial, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(partial, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_PARTIAL_STATE",
     );
   });
@@ -290,21 +299,21 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     const automation = cloneFixture(PRECONDITION_FIXTURE);
     (automation.safety as MutableEvidence).automation_enabled = true;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(automation, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(automation, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SAFETY",
     );
 
     const webhook = cloneFixture(PRECONDITION_FIXTURE);
     (webhook.database_readonly as MutableEvidence).webhook_non_terminal_count = 1;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(webhook, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(webhook, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_WEBHOOK",
     );
 
     const writes = cloneFixture(PRECONDITION_FIXTURE);
     (writes.safety as MutableEvidence).production_writes = 1;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(writes, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(writes, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_WRITE_COUNTER",
     );
 
@@ -315,7 +324,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
       const sub = cloneFixture(PRECONDITION_FIXTURE);
       sub.protocol = protocol;
       expectCode(
-        () => preconditionGates.validateCorrectivePreconditionEvidence(sub, { now: NOW }),
+        () => preconditionGates.validateCorrectivePreconditionEvidence(sub, GATE_OPTS),
         "CORRECTIVE_PRECONDITION_SUBSTITUTION_FORBIDDEN",
       );
     }
@@ -325,13 +334,13 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     future.valid_until_utc = "2026-09-23T10:00:00Z";
     future.collected_at_utc = "2026-09-22T10:00:00Z";
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(future, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(future, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_NOT_YET_VALID",
     );
 
     const expired = cloneFixture(PRECONDITION_FIXTURE);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(expired, { now: "2026-09-22T10:00:00Z" }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(expired, { now: "2026-09-22T10:00:00Z", expected: EXPECTED_AUTHORITY }),
       "CORRECTIVE_PRECONDITION_EXPIRED",
     );
 
@@ -341,8 +350,60 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
       "postgres://user:pass@host/db",
     ];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(tamper, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(tamper, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SANITIZATION",
+    );
+  });
+
+
+  it("ignores non-authoritative collection_tooling_tip mutation", () => {
+    const evidence = cloneFixture(PRECONDITION_FIXTURE);
+    evidence.attestations = {
+      ...(evidence.attestations as object),
+      collection_tooling_tip: preconditionGates.REJECTED_STALE_COLLECTION_TIP_DBDCE968,
+    };
+    expect(
+      preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
+    ).toMatchObject({ apply_authorized: false });
+  });
+
+  it("rejects authorized_executable_commit pinned to rejected stale dbdce968 tip", () => {
+    const evidence = cloneFixture(PRECONDITION_FIXTURE);
+    (evidence.authorization as MutableEvidence).authorized_executable_commit =
+      preconditionGates.REJECTED_STALE_COLLECTION_TIP_DBDCE968;
+    expectCode(
+      () =>
+        preconditionGates.validateCorrectivePreconditionEvidence(evidence, {
+          now: NOW,
+          expected: {
+            ...EXPECTED_AUTHORITY,
+            authorized_executable_commit: preconditionGates.REJECTED_STALE_COLLECTION_TIP_DBDCE968,
+          },
+        }),
+      "CORRECTIVE_PRECONDITION_REJECTED_STALE_TIP",
+    );
+  });
+
+  it("rejects missing expected authority pins", () => {
+    const evidence = cloneFixture(PRECONDITION_FIXTURE);
+    expectCode(
+      () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+      "CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED",
+    );
+  });
+
+  it("rejects authorization blocks that still carry tooling_reviewed_tip or pr_head", () => {
+    const tip = cloneFixture(PRECONDITION_FIXTURE);
+    (tip.authorization as MutableEvidence).tooling_reviewed_tip = SYNTH_EXEC;
+    expectCode(
+      () => preconditionGates.validateCorrectivePreconditionEvidence(tip, GATE_OPTS),
+      "CORRECTIVE_PRECONDITION_AUTHORITY_FORBIDDEN",
+    );
+    const head = cloneFixture(PRECONDITION_FIXTURE);
+    (head.authorization as MutableEvidence).pr_head = SYNTH_EXEC;
+    expectCode(
+      () => preconditionGates.validateCorrectivePreconditionEvidence(head, GATE_OPTS),
+      "CORRECTIVE_PRECONDITION_AUTHORITY_FORBIDDEN",
     );
   });
 
@@ -379,7 +440,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
           visibility_limitations: fixture.visibility_limitations,
         },
       },
-      meta: { now: new Date("2026-09-21T10:00:00Z") },
+      meta: { now: new Date("2026-09-21T10:00:00Z"), authority: EXPECTED_AUTHORITY },
       allowWrite: true,
       outPath: tmp,
       now: "2026-09-21T12:00:00Z",
@@ -389,7 +450,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     expect(buffer.includes(0x0d)).toBe(false);
     expect(buffer[buffer.length - 1]).toBe(0x0a);
     expect(
-      preconditionGates.validateCorrectivePreconditionEvidence(JSON.parse(buffer.toString("utf8")), { now: NOW }),
+      preconditionGates.validateCorrectivePreconditionEvidence(JSON.parse(buffer.toString("utf8")), GATE_OPTS),
     ).toBeTruthy();
     fs.unlinkSync(tmp);
   });
@@ -413,7 +474,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
       expect(sentinelsOf(evidence)[rel]).toEqual({ ...schema.SENTINEL_ABSENT_PROOF });
     }
     expect(
-      preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+      preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
     ).toMatchObject({ apply_authorized: false });
   });
 
@@ -421,7 +482,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const evidence = cloneFixture(PRECONDITION_FIXTURE);
     sentinelsOf(evidence).bills = { present: true, count: 0 };
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
   });
@@ -442,14 +503,14 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const zero = cloneFixture(PRECONDITION_FIXTURE);
     sentinelsOf(zero).payments = { present: false, count: 0, mutations: "not_applicable" };
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(zero, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(zero, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
 
     const presentOnly = cloneFixture(PRECONDITION_FIXTURE);
     sentinelsOf(presentOnly).payments = { present: false, count: "unavailable" };
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(presentOnly, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(presentOnly, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
   });
@@ -458,14 +519,14 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const missing = cloneFixture(PRECONDITION_FIXTURE);
     delete sentinelsOf(missing).invoices;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
 
     const unknown = cloneFixture(PRECONDITION_FIXTURE);
     sentinelsOf(unknown).ledger_posts = { ...schema.SENTINEL_ABSENT_PROOF };
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(unknown, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(unknown, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
 
@@ -476,7 +537,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
       mutations: "not_applicable",
     };
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(contradictory, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(contradictory, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_SENTINEL",
     );
   });
@@ -488,7 +549,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
       (c as MutableEvidence).name = `pg_generated_${String((c as MutableEvidence).kind)}_${Math.random()}`;
     }
     expect(
-      preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+      preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
     ).toMatchObject({ apply_authorized: false });
   });
 
@@ -496,7 +557,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const cols = cloneFixture(PRECONDITION_FIXTURE);
     (constraintsOf(cols).find((c) => c.kind === "primary_key") as MutableEvidence).columns = ["firm_id"];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(cols, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(cols, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -506,7 +567,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     ) as MutableEvidence;
     check.check_expr_normalized = "provider IN ('xero')";
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(expr, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(expr, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -516,7 +577,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     ) as MutableEvidence;
     firmFk.referenced_table = "companies";
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(fk, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(fk, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -526,7 +587,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     ) as MutableEvidence;
     firmFk2.delete_action = "CASCADE";
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(action, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(action, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -536,14 +597,14 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     ) as MutableEvidence;
     u.columns = ["provider"];
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(uniq, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(uniq, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
     const defer = cloneFixture(PRECONDITION_FIXTURE);
     (constraintsOf(defer)[0] as MutableEvidence).deferrable = true;
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(defer, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(defer, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
   });
@@ -552,7 +613,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const missing = cloneFixture(PRECONDITION_FIXTURE);
     constraintsOf(missing).pop();
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(missing, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -566,7 +627,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
       initially_deferred: false,
     });
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(extra, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(extra, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
 
@@ -574,7 +635,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
     const pk = structuredClone(constraintsOf(dup).find((c) => c.kind === "primary_key"));
     constraintsOf(dup).push(pk as MutableEvidence);
     expectCode(
-      () => preconditionGates.validateCorrectivePreconditionEvidence(dup, { now: NOW }),
+      () => preconditionGates.validateCorrectivePreconditionEvidence(dup, GATE_OPTS),
       "CORRECTIVE_PRECONDITION_OBJECT_CONSTRAINTS",
     );
   });
@@ -602,7 +663,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
       const evidence = cloneFixture(PRECONDITION_FIXTURE);
       (evidence.automation_gate as MutableEvidence).production_key_name_authority = authority;
       expectCode(
-        () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, { now: NOW }),
+        () => preconditionGates.validateCorrectivePreconditionEvidence(evidence, GATE_OPTS),
         "CORRECTIVE_PRECONDITION_AUTOMATION_GATE",
       );
     }
@@ -623,7 +684,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
           visibility_limitations: fixture.visibility_limitations,
         },
       },
-      meta: { now: new Date("2026-09-21T10:00:00Z") },
+      meta: { now: new Date("2026-09-21T10:00:00Z"), authority: EXPECTED_AUTHORITY },
       allowWrite: true,
       outPath: tmp,
       now: "2026-09-21T12:00:00Z",
@@ -651,7 +712,7 @@ describe("RA Pro corrective evidence typed sentinels + structural constraints", 
           visibility_limitations: fixture.visibility_limitations,
         },
       },
-      meta: { now: new Date("2026-09-21T10:00:00Z") },
+      meta: { now: new Date("2026-09-21T10:00:00Z"), authority: EXPECTED_AUTHORITY },
       allowWrite: true,
       outPath: tmp,
       now: "2026-09-21T12:00:00Z",

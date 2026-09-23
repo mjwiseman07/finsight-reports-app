@@ -6653,6 +6653,465 @@ var require_ra_pro_accounting_automation_corrective_evidence_schema = __commonJS
   }
 });
 
+// scripts/security/ra-pro-accounting-automation-corrective-collection-authorization.js
+var require_ra_pro_accounting_automation_corrective_collection_authorization = __commonJS({
+  "scripts/security/ra-pro-accounting-automation-corrective-collection-authorization.js"(exports2, module2) {
+    "use strict";
+    var path = require("node:path");
+    var { execFileSync } = require("node:child_process");
+    var {
+      EXPECTED_PROJECT_REF,
+      STANDALONE_BUNDLE_PATH,
+      STANDALONE_BUNDLE_OID,
+      STANDALONE_BUNDLE_SHA256,
+      STANDALONE_BUNDLE_BYTES,
+      TOOLING_AUTHORIZATION_PATH
+    } = require_ra_pro_accounting_automation_corrective_apply_constants();
+    var { loadAndVerifyGitBlob } = require_git_blob_authority();
+    var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EVIDENCE_COLLECTION_AUTHORIZATION_V1";
+    var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
+    var RECORD_KEY = "production_collection_authorization";
+    var BLOCKED_UNPUBLISHED = "COLLECTION_REMAINS_BLOCKED_BEFORE_PRODUCTION_CONTACT";
+    var HEX40 = /^[0-9a-f]{40}$/;
+    var HEX64 = /^[0-9a-f]{64}$/;
+    var REJECTED_STALE_COLLECTION_TIP_DBDCE968 = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
+    var PRECONDITION_CONTRACT_REL = "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json";
+    var PRE_APPLY_CONTRACT_REL = "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json";
+    var SCHEMA_REL = "scripts/security/ra-pro-accounting-automation-corrective-evidence-schema.js";
+    var PRECONDITION_GATES_REL = "scripts/security/ra-pro-accounting-automation-corrective-precondition-gates.js";
+    var PRE_APPLY_GATES_REL = "scripts/security/ra-pro-accounting-automation-corrective-pre-apply-gates.js";
+    var COLLECTOR_REL = "scripts/security/ra-pro-accounting-automation-corrective-evidence-collector.js";
+    var RECORD_KEYS = Object.freeze([
+      "status",
+      "protocol",
+      "collection_authorized",
+      "authorized_executable_commit",
+      "project_ref",
+      "bundle",
+      "precondition_evidence_contract",
+      "pre_apply_live_evidence_contract",
+      "schema",
+      "precondition_gates",
+      "pre_apply_gates",
+      "collector",
+      "publication_role",
+      "note"
+    ]);
+    var ARTIFACT_MAP = Object.freeze({
+      authorization_record: "publication_commit",
+      contracts_schema_gates_collector_bundle: "authorized_executable_commit"
+    });
+    function blocked(code, message) {
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      error.phase = "collection_authorization";
+      return error;
+    }
+    function gitEnv(cwd) {
+      const env = { ...process.env };
+      const n = Number(env.GIT_CONFIG_COUNT || 0);
+      env.GIT_CONFIG_COUNT = String(n + 1);
+      env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+      env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-corrective-collection-disposable";
+      env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-corrective-collection-disposable@invalid";
+      env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-corrective-collection-disposable";
+      env.GIT_COMMITTER_EMAIL = env.GIT_COMMITTER_EMAIL || "ra-acct-corrective-collection-disposable@invalid";
+      return env;
+    }
+    function gitText(args, cwd) {
+      return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
+    }
+    function canonicalUnpublishedCollectionAuthorization() {
+      return {
+        status: "UNPUBLISHED",
+        protocol: PROTOCOL,
+        collection_authorized: false,
+        authorized_executable_commit: null,
+        project_ref: null,
+        bundle: null,
+        precondition_evidence_contract: null,
+        pre_apply_live_evidence_contract: null,
+        schema: null,
+        precondition_gates: null,
+        pre_apply_gates: null,
+        collector: null,
+        publication_role: "later_descendant_commit",
+        note: "Corrective evidence-collection authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit. The publication commit SHA is not stored here. dbdce968 is rejected/stale and must never authorize collection."
+      };
+    }
+    function loadAuthFromGit(commit, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: AUTH_REL, cwd });
+      return { auth: JSON.parse(loaded.buffer.toString("utf8")), loaded };
+    }
+    function isAncestor(ancestor, descendant, cwd) {
+      try {
+        execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+          cwd,
+          env: gitEnv(cwd),
+          stdio: "ignore"
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function assertNoAuthorizationEnv(env) {
+      for (const key of Object.keys(env || {})) {
+        if (/CORRECTIVE.*COLLECTION.*AUTH|COLLECTION_AUTHORIZATION/i.test(key) && env[key]) {
+          throw blocked("COLLECTION_AUTHORIZATION_ENV_OVERRIDE_FORBIDDEN", key);
+        }
+      }
+    }
+    function resolvePublicationCommit(inputs, cwd) {
+      if (inputs.publicationCommit != null) {
+        const commit = String(inputs.publicationCommit || "").toLowerCase();
+        if (!HEX40.test(commit)) throw blocked("COLLECTION_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN", "shape");
+        return commit;
+      }
+      return gitText(["rev-parse", "HEAD"], cwd).toLowerCase();
+    }
+    function assertNotCircularPin(publication, executable, blobText) {
+      if (!HEX40.test(String(executable || "")) || executable === publication || String(blobText || "").includes(publication)) {
+        throw blocked("COLLECTION_AUTHORIZATION_CIRCULAR_TIP", "publication commit must not name itself");
+      }
+      if (String(executable) === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+        throw blocked("COLLECTION_AUTHORIZATION_REJECTED_STALE_TIP", REJECTED_STALE_COLLECTION_TIP_DBDCE968);
+      }
+      if (String(blobText || "").includes(REJECTED_STALE_COLLECTION_TIP_DBDCE968)) {
+        throw blocked("COLLECTION_AUTHORIZATION_REJECTED_STALE_TIP", "dbdce968 in auth blob");
+      }
+    }
+    function assertAllowlist(executable, publication, cwd) {
+      if (!isAncestor(executable, publication, cwd) || executable === publication) {
+        throw blocked("COLLECTION_AUTHORIZATION_ANCESTRY", "executable must be a strict ancestor");
+      }
+      const names = gitText(["diff", "--name-only", executable, publication], cwd).split(/\n/).filter(Boolean);
+      if (names.length !== 1 || names[0] !== AUTH_REL) {
+        throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", names.join(",") || "empty");
+      }
+      const left = loadAuthFromGit(executable, cwd).auth;
+      const right = loadAuthFromGit(publication, cwd).auth;
+      const prior = left[RECORD_KEY] || {};
+      if (prior.status !== "UNPUBLISHED" || prior.collection_authorized !== false || prior.authorized_executable_commit) {
+        throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", "executable record is not unpublished");
+      }
+      left[RECORD_KEY] = null;
+      right[RECORD_KEY] = null;
+      if (JSON.stringify(left) !== JSON.stringify(right)) {
+        throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", "non-authorization json changed");
+      }
+    }
+    function requireSeal(seal, label) {
+      if (!seal || !HEX40.test(String(seal.oid || "")) || !HEX64.test(String(seal.sha256 || "")) || !Number.isInteger(seal.bytes)) {
+        throw blocked("COLLECTION_AUTHORIZATION_SEAL_MISSING", label);
+      }
+    }
+    function assertBlob(commit, rel, seal, cwd, code) {
+      requireSeal(seal, rel);
+      try {
+        loadAndVerifyGitBlob({
+          commit,
+          path: rel,
+          expectedOid: seal.oid,
+          expectedSha256: seal.sha256,
+          expectedBytes: seal.bytes,
+          cwd
+        });
+      } catch (err) {
+        throw blocked(code, err && err.message ? err.message : rel);
+      }
+    }
+    function assertRecordSeals(record, executable, cwd) {
+      if (record.project_ref !== EXPECTED_PROJECT_REF) {
+        throw blocked("COLLECTION_AUTHORIZATION_SEAL_MISSING", "project");
+      }
+      const bundle = record.bundle || {};
+      requireSeal(bundle, "bundle");
+      if (bundle.path !== STANDALONE_BUNDLE_PATH) {
+        throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "path");
+      }
+      if (bundle.oid !== STANDALONE_BUNDLE_OID || bundle.sha256 !== STANDALONE_BUNDLE_SHA256 || bundle.bytes !== STANDALONE_BUNDLE_BYTES) {
+        throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "constants");
+      }
+      assertBlob(executable, STANDALONE_BUNDLE_PATH, bundle, cwd, "COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH");
+      const pairs = [
+        ["precondition_evidence_contract", PRECONDITION_CONTRACT_REL],
+        ["pre_apply_live_evidence_contract", PRE_APPLY_CONTRACT_REL],
+        ["schema", SCHEMA_REL],
+        ["precondition_gates", PRECONDITION_GATES_REL],
+        ["pre_apply_gates", PRE_APPLY_GATES_REL],
+        ["collector", COLLECTOR_REL]
+      ];
+      for (const [key, rel] of pairs) {
+        const seal = record[key] || {};
+        if (seal.path !== rel) throw blocked("COLLECTION_AUTHORIZATION_SEAL_MISSING", key + " path");
+        assertBlob(executable, rel, seal, cwd, "COLLECTION_AUTHORIZATION_SEAL_MISSING");
+      }
+    }
+    function describeCollectionArtifactMap(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      assertNoAuthorizationEnv(inputs.env || {});
+      const publication = resolvePublicationCommit(inputs, cwd);
+      const { auth, loaded } = loadAuthFromGit(publication, cwd);
+      if (inputs.auth && JSON.stringify(inputs.auth) !== JSON.stringify(auth)) {
+        throw blocked("COLLECTION_AUTHORIZATION_WORKTREE_SUBSTITUTE", "auth object");
+      }
+      const record = auth[RECORD_KEY] || {};
+      const base = {
+        protocol: PROTOCOL,
+        publication_commit: publication,
+        authorization_publication_blob_oid: loaded.oid,
+        authorized_executable_commit: null,
+        bundle_oid: null,
+        collection_authorized: false,
+        artifact_map: ARTIFACT_MAP,
+        blocked: null
+      };
+      if (record.status !== "AUTHORIZED" || record.collection_authorized !== true) {
+        return { ...base, blocked: BLOCKED_UNPUBLISHED };
+      }
+      const extraRecordKeys = Object.keys(record).filter((key) => !RECORD_KEYS.includes(key));
+      if (extraRecordKeys.length) {
+        throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", `extra record field ${extraRecordKeys[0]}`);
+      }
+      for (const key of RECORD_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(record, key)) {
+          throw blocked("COLLECTION_AUTHORIZATION_SEAL_MISSING", key);
+        }
+      }
+      const executable = String(record.authorized_executable_commit || "").toLowerCase();
+      assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
+      assertAllowlist(executable, publication, cwd);
+      assertRecordSeals(record, executable, cwd);
+      return {
+        ...base,
+        authorized_executable_commit: executable,
+        bundle_oid: record.bundle.oid,
+        bundle_sha256: record.bundle.sha256,
+        bundle_bytes: record.bundle.bytes,
+        collection_authorized: true,
+        blocked: null,
+        seals: {
+          precondition_evidence_contract: record.precondition_evidence_contract,
+          pre_apply_live_evidence_contract: record.pre_apply_live_evidence_contract,
+          schema: record.schema,
+          precondition_gates: record.precondition_gates,
+          pre_apply_gates: record.pre_apply_gates,
+          collector: record.collector,
+          bundle: record.bundle
+        }
+      };
+    }
+    function preflightCollectionAuthorization(inputs = {}) {
+      try {
+        return describeCollectionArtifactMap(inputs);
+      } catch (err) {
+        return {
+          blocked: err.code || "COLLECTION_AUTHORIZATION_PREFLIGHT_FAILED",
+          collection_authorized: false,
+          publication_commit: inputs.publicationCommit || null,
+          authorization_publication_blob_oid: null,
+          authorized_executable_commit: null
+        };
+      }
+    }
+    function recheckCollectionAuthorizationPin(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const expectExecutable = String(inputs.expectExecutable || "").toLowerCase();
+      const expectCommit = String(inputs.expectCommit || "").toLowerCase();
+      const expectOid = String(inputs.expectBlobOid || "").toLowerCase();
+      const expectBundle = String(inputs.expectBundleOid || "").toLowerCase();
+      if (![expectExecutable, expectCommit, expectOid, expectBundle].every((value) => HEX40.test(value))) {
+        throw blocked("COLLECTION_AUTHORIZATION_PIN_MISMATCH", "pin shape");
+      }
+      const head = gitText(["rev-parse", "HEAD"], cwd).toLowerCase();
+      if (head !== expectCommit) {
+        throw blocked("COLLECTION_AUTHORIZATION_PIN_MISMATCH", "HEAD changed after preflight");
+      }
+      if (!isAncestor(expectExecutable, head, cwd) || expectExecutable === head) {
+        throw blocked("COLLECTION_AUTHORIZATION_ANCESTRY", "executable moved after preflight");
+      }
+      const bundleAtExecutable = gitText(
+        ["rev-parse", `${expectExecutable}:${STANDALONE_BUNDLE_PATH}`],
+        cwd
+      ).toLowerCase();
+      let bundleAtHead = "";
+      try {
+        bundleAtHead = gitText(["rev-parse", `${head}:${STANDALONE_BUNDLE_PATH}`], cwd).toLowerCase();
+      } catch (err) {
+        throw blocked(
+          "COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH",
+          err && err.message ? err.message : "publication bundle"
+        );
+      }
+      if (bundleAtExecutable !== expectBundle || bundleAtHead !== expectBundle) {
+        throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "bundle moved after preflight");
+      }
+      const { loaded } = loadAuthFromGit(head, cwd);
+      if (loaded.oid !== expectOid) {
+        throw blocked("COLLECTION_AUTHORIZATION_PIN_MISMATCH", "authorization blob changed");
+      }
+      const decision = describeCollectionArtifactMap({ cwd, publicationCommit: head });
+      if (decision.blocked) throw blocked(decision.blocked, "recheck");
+      if (decision.publication_commit !== expectCommit || decision.authorization_publication_blob_oid !== expectOid || decision.authorized_executable_commit !== expectExecutable || decision.bundle_oid !== expectBundle) {
+        throw blocked("COLLECTION_AUTHORIZATION_PIN_MISMATCH", "map drift");
+      }
+      return decision;
+    }
+    function assertCollectionAuthorityBeforeObservation(inputs = {}) {
+      const map = describeCollectionArtifactMap(inputs);
+      if (map.blocked || map.collection_authorized !== true) {
+        throw blocked(map.blocked || BLOCKED_UNPUBLISHED, "collection unauthorized");
+      }
+      return map;
+    }
+    function mktree(lines, cwd) {
+      const input = lines.length ? `${lines.join("\n")}
+` : "";
+      return execFileSync("git", ["mktree"], {
+        cwd,
+        env: gitEnv(cwd),
+        input,
+        encoding: "utf8"
+      }).trim();
+    }
+    function replacePathInTree(tree, parts, blob, cwd) {
+      const lines = gitText(["ls-tree", tree], cwd).split(/\n/).filter(Boolean);
+      const name = parts[0];
+      let found = false;
+      const next = lines.map((line) => {
+        const tab = line.indexOf("	");
+        if (line.slice(tab + 1) !== name) return line;
+        found = true;
+        if (parts.length === 1) return `100644 blob ${blob}	${name}`;
+        const old = line.slice(0, tab).split(" ")[2];
+        const child = replacePathInTree(old, parts.slice(1), blob, cwd);
+        return `040000 tree ${child}	${name}`;
+      });
+      if (!found) {
+        if (parts.length === 1) {
+          next.push(`100644 blob ${blob}	${name}`);
+        } else {
+          const emptyTree = mktree([], cwd);
+          const child = replacePathInTree(emptyTree, parts.slice(1), blob, cwd);
+          next.push(`040000 tree ${child}	${name}`);
+        }
+      }
+      return mktree(next, cwd);
+    }
+    function commitPublicationTree(cwd, parent, authObject) {
+      const text = `${JSON.stringify(authObject, null, 2)}
+`;
+      if (text.includes("\r")) throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", "crlf");
+      const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd,
+        env: gitEnv(cwd),
+        input: text,
+        encoding: "utf8"
+      }).trim();
+      const tree = gitText(["rev-parse", `${parent}^{tree}`], cwd);
+      const newTree = replacePathInTree(tree, AUTH_REL.split("/"), blob, cwd);
+      return execFileSync(
+        "git",
+        ["commit-tree", newTree, "-p", parent, "-m", "disposable corrective collection authorization"],
+        { cwd, env: gitEnv(cwd), encoding: "utf8" }
+      ).trim();
+    }
+    function sealAtCommit(commit, rel, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: rel, cwd });
+      return {
+        path: rel,
+        oid: loaded.oid,
+        sha256: loaded.sha256,
+        bytes: loaded.bytes,
+        line_endings: "LF"
+      };
+    }
+    function createDisposableCollectionPublicationCommit(inputs = {}) {
+      if (inputs.allowDisposablePublicationCommit !== true) {
+        throw blocked("DISPOSABLE_PUBLICATION_FORBIDDEN", "harness flag required");
+      }
+      const cwd = inputs.cwd || process.cwd();
+      const executable = String(inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)).toLowerCase();
+      if (!HEX40.test(executable)) throw blocked("COLLECTION_AUTHORIZATION_ANCESTRY", "executable");
+      if (executable === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+        throw blocked("COLLECTION_AUTHORIZATION_REJECTED_STALE_TIP", executable);
+      }
+      const { auth } = loadAuthFromGit(executable, cwd);
+      if ((auth[RECORD_KEY] || {}).status === "AUTHORIZED") {
+        throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
+      }
+      auth[RECORD_KEY] = {
+        status: "AUTHORIZED",
+        protocol: PROTOCOL,
+        collection_authorized: true,
+        authorized_executable_commit: executable,
+        project_ref: auth.project_ref || EXPECTED_PROJECT_REF,
+        bundle: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: auth.standalone_bundle && auth.standalone_bundle.oid || STANDALONE_BUNDLE_OID,
+          sha256: auth.standalone_bundle && auth.standalone_bundle.sha256 || STANDALONE_BUNDLE_SHA256,
+          bytes: auth.standalone_bundle && auth.standalone_bundle.bytes || STANDALONE_BUNDLE_BYTES
+        },
+        precondition_evidence_contract: sealAtCommit(executable, PRECONDITION_CONTRACT_REL, cwd),
+        pre_apply_live_evidence_contract: sealAtCommit(executable, PRE_APPLY_CONTRACT_REL, cwd),
+        schema: sealAtCommit(executable, SCHEMA_REL, cwd),
+        precondition_gates: sealAtCommit(executable, PRECONDITION_GATES_REL, cwd),
+        pre_apply_gates: sealAtCommit(executable, PRE_APPLY_GATES_REL, cwd),
+        collector: sealAtCommit(executable, COLLECTOR_REL, cwd),
+        publication_role: "later_descendant_commit",
+        note: "Disposable corrective collection publication for harness only. Publication SHA is not stored here."
+      };
+      const before = gitText(["rev-parse", "HEAD"], cwd);
+      const publication = commitPublicationTree(cwd, executable, auth);
+      const after = gitText(["rev-parse", "HEAD"], cwd);
+      if (before !== after) throw blocked("COLLECTION_AUTHORIZATION_ALLOWLIST", "HEAD moved");
+      if (JSON.stringify(auth).includes(publication)) {
+        throw blocked("COLLECTION_AUTHORIZATION_CIRCULAR_TIP", "publication embedded");
+      }
+      return {
+        publicationCommit: publication,
+        executableCommit: executable,
+        authorization_publication_blob_oid: gitText(["rev-parse", `${publication}:${AUTH_REL}`], cwd),
+        headUnchanged: true
+      };
+    }
+    function expectedAuthorityFromMap(map) {
+      if (!map || map.blocked || map.collection_authorized !== true) {
+        throw blocked(BLOCKED_UNPUBLISHED, "expected authority unavailable");
+      }
+      return {
+        authorized_executable_commit: map.authorized_executable_commit,
+        authorization_publication_commit: map.publication_commit,
+        authorization_publication_blob_oid: map.authorization_publication_blob_oid
+      };
+    }
+    module2.exports = {
+      ARTIFACT_MAP,
+      AUTH_REL,
+      BLOCKED_UNPUBLISHED,
+      COLLECTOR_REL,
+      PRECONDITION_CONTRACT_REL,
+      PRE_APPLY_CONTRACT_REL,
+      PROTOCOL,
+      RECORD_KEY,
+      RECORD_KEYS,
+      REJECTED_STALE_COLLECTION_TIP_DBDCE968,
+      SCHEMA_REL,
+      assertCollectionAuthorityBeforeObservation,
+      assertNotCircularPin,
+      canonicalUnpublishedCollectionAuthorization,
+      createDisposableCollectionPublicationCommit,
+      describeCollectionArtifactMap,
+      expectedAuthorityFromMap,
+      loadAuthFromGit,
+      preflightCollectionAuthorization,
+      recheckCollectionAuthorizationPin
+    };
+  }
+});
+
 // scripts/security/ra-pro-accounting-automation-corrective-precondition-gates.js
 var require_ra_pro_accounting_automation_corrective_precondition_gates = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-precondition-gates.js"(exports2, module2) {
@@ -6669,16 +7128,18 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       MIGRATIONS,
       PRIOR_HISTORY_COUNT
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
+    var {
+      REJECTED_STALE_COLLECTION_TIP_DBDCE968
+    } = require_ra_pro_accounting_automation_corrective_collection_authorization();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1";
     var CONTRACT_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json";
-    var TOOLING_REVIEWED_TIP = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
-    var COLLECTION_PR_HEAD = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
     var HISTORY_COUNT = PRIOR_HISTORY_COUNT;
     var CORRECTIVE_VERSION = MIGRATIONS[0].version;
     var WINDOW_MS = 24 * 60 * 60 * 1e3;
     var WEBHOOK_STATUSES = SCHEMA_WEBHOOK_STATUSES;
     var TABLE_PRIVILEGES = BASE_TABLE_PRIVS;
     var EXECUTE_ROLES = ["service_role", "authenticated", "anon", "PUBLIC"];
+    var HEX40 = /^[0-9a-f]{40}$/;
     var SUBSTITUTES = /* @__PURE__ */ new Set([
       "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
       "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
@@ -6693,6 +7154,14 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       "synthetic_disposable_fixture"
     ]);
     var DISPOSABLE_VALIDATOR = "PASS_CORRECTIVE_PRECONDITION_VALIDATION";
+    var AUTH_KEYS = [
+      "pr_number",
+      "scope",
+      "authorized_executable_commit",
+      "authorization_publication_commit",
+      "authorization_publication_blob_oid"
+    ];
+    var FORBIDDEN_AUTH_KEYS = ["pr_head", "tooling_reviewed_tip", "collection_pr_head"];
     function blocked(code, message) {
       const error = new Error(`${code}: ${message}`);
       error.code = code;
@@ -6757,8 +7226,12 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
         throw blocked("CORRECTIVE_PRECONDITION_NEWLINE", "exactly one trailing LF required");
       }
     }
-    function expectedPrHead(options = {}) {
-      return options.expected?.pr_head || options.expectedPrHead || COLLECTION_PR_HEAD;
+    function expectedAuthority(options = {}) {
+      const e = options.expected || {};
+      if (!e.authorized_executable_commit || !e.authorization_publication_commit || !e.authorization_publication_blob_oid) {
+        throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED", "expected authority pins required");
+      }
+      return e;
     }
     function validatePrivilegeMatrix(dbOrSurfaces, codePrefix = "CORRECTIVE_PRECONDITION") {
       return assertPreCorrectionPrivilegeSurfaces(
@@ -6806,6 +7279,31 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
         throw blocked("CORRECTIVE_PRECONDITION_SAFETY", "safety flag");
       }
     }
+    function validateAuthorityBlock(authz, options, codePrefix) {
+      if (!authz || typeof authz !== "object" || Array.isArray(authz)) {
+        throw blocked(`${codePrefix}_SCHEMA`, "authorization object");
+      }
+      for (const key of FORBIDDEN_AUTH_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(authz, key)) {
+          throw blocked(`${codePrefix}_AUTHORITY_FORBIDDEN`, key);
+        }
+      }
+      void options;
+      assertKeys(authz, AUTH_KEYS, `${codePrefix}_SCHEMA`);
+      const expected = expectedAuthority(options);
+      for (const key of [
+        "authorized_executable_commit",
+        "authorization_publication_commit",
+        "authorization_publication_blob_oid"
+      ]) {
+        const value = String(authz[key] || "").toLowerCase();
+        if (!HEX40.test(value)) throw blocked(`${codePrefix}_AUTHORITY_SHAPE`, key);
+        if (value === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+          throw blocked(`${codePrefix}_REJECTED_STALE_TIP`, key);
+        }
+        assertExact(value, String(expected[key]).toLowerCase(), `${codePrefix}_AUTHORITY_MISMATCH`, key);
+      }
+    }
     function validateCorrectivePreconditionEvidence(evidence, options = {}) {
       if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
         throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "evidence object");
@@ -6832,7 +7330,7 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
         "CORRECTIVE_PRECONDITION_SCHEMA"
       );
       assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRECONDITION_PROTOCOL_MISMATCH", "protocol");
-      assertExact(evidence.schema_version, 2, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
+      assertExact(evidence.schema_version, 3, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
       if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
         throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "source channel");
       }
@@ -6848,16 +7346,20 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       if (now < from) throw blocked("CORRECTIVE_PRECONDITION_NOT_YET_VALID", "future start");
       if (now >= until) throw blocked("CORRECTIVE_PRECONDITION_EXPIRED", "expired");
       const authz = evidence.authorization;
-      assertKeys(authz, ["pr_number", "pr_head", "scope", "tooling_reviewed_tip"], "CORRECTIVE_PRECONDITION_SCHEMA");
+      for (const key of FORBIDDEN_AUTH_KEYS) {
+        if (authz && Object.prototype.hasOwnProperty.call(authz, key)) {
+          throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_FORBIDDEN", key);
+        }
+      }
+      assertKeys(authz, AUTH_KEYS, "CORRECTIVE_PRECONDITION_SCHEMA");
       assertExact(authz.pr_number, 324, "CORRECTIVE_PRECONDITION_SCHEMA", "pr");
-      assertExact(authz.pr_head, expectedPrHead(options), "CORRECTIVE_PRECONDITION_HEAD_MISMATCH", "pr head");
       assertExact(
         authz.scope,
         "read_only_production_corrective_precondition_collection",
         "CORRECTIVE_PRECONDITION_SCHEMA",
         "scope"
       );
-      assertExact(authz.tooling_reviewed_tip, TOOLING_REVIEWED_TIP, "CORRECTIVE_PRECONDITION_BINDING_MISMATCH", "tip");
+      validateAuthorityBlock(authz, options, "CORRECTIVE_PRECONDITION");
       const gate = evidence.automation_gate;
       assertAutomationGate(gate, "CORRECTIVE_PRECONDITION");
       const db = evidence.database_readonly;
@@ -6896,7 +7398,17 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       assertSanitized(JSON.stringify(evidence));
       return { protocol: PROTOCOL, apply_authorized: false };
     }
-    function verifyCorrectivePreconditionContractSeal(auth, cwd) {
+    function resolveContractCommit(seal, options = {}) {
+      if (seal.source_commit != null && String(seal.source_commit).length) {
+        return String(seal.source_commit).toLowerCase();
+      }
+      const fromOptions = options.executableCommit || options.expected?.authorized_executable_commit || null;
+      if (!fromOptions || !HEX40.test(String(fromOptions).toLowerCase())) {
+        throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "source_commit unresolved");
+      }
+      return String(fromOptions).toLowerCase();
+    }
+    function verifyCorrectivePreconditionContractSeal(auth, cwd, options = {}) {
       const seal = auth && auth.precondition_evidence_contract;
       if (!seal || seal.path !== CONTRACT_PATH) {
         throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_UNSEALED", "contract seal missing");
@@ -6905,11 +7417,9 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       if (pub.status !== "PUBLISHED") {
         return { path: CONTRACT_PATH, skipped_blob_load: true };
       }
-      if (String(seal.source_commit || "").toLowerCase() !== String(seal.source_commit || "").toLowerCase()) {
-        throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "source");
-      }
+      const commit = resolveContractCommit(seal, options);
       const loaded = loadAndVerifyGitBlob({
-        commit: seal.source_commit,
+        commit,
         path: CONTRACT_PATH,
         expectedOid: seal.oid,
         expectedSha256: seal.sha256,
@@ -6920,7 +7430,12 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       const contract = JSON.parse(loaded.buffer.toString("utf8"));
       assertExact(contract.protocol, PROTOCOL, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "protocol");
       assertExact(contract.publication_status, "UNPUBLISHED", "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "status");
-      assertExact(contract.bindings.collection_pr_head, COLLECTION_PR_HEAD, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "head");
+      assertExact(
+        contract.bindings.authorized_executable_commit,
+        "from_production_collection_authorization_record",
+        "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH",
+        "authorized_executable_commit"
+      );
       assertExact(contract.bindings.history_count, HISTORY_COUNT, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "history");
       return loaded;
     }
@@ -6932,7 +7447,10 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       assertNoOverride(inputs);
       const auth = inputs.auth;
       if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "auth");
-      verifyCorrectivePreconditionContractSeal(auth, inputs.cwd);
+      verifyCorrectivePreconditionContractSeal(auth, inputs.cwd, {
+        executableCommit: inputs.executableCommit,
+        expected: inputs.expected
+      });
       if (preconditionPinsUnpublished(auth)) {
         throw blocked(
           "CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED",
@@ -6981,8 +7499,7 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
     module2.exports = {
       PROTOCOL,
       CONTRACT_PATH,
-      COLLECTION_PR_HEAD,
-      TOOLING_REVIEWED_TIP,
+      REJECTED_STALE_COLLECTION_TIP_DBDCE968,
       HISTORY_COUNT,
       CORRECTIVE_VERSION,
       WEBHOOK_STATUSES,
@@ -6990,6 +7507,7 @@ var require_ra_pro_accounting_automation_corrective_precondition_gates = __commo
       EXECUTE_ROLES,
       DISPOSABLE_VALIDATOR,
       assertTrailingLf,
+      expectedAuthority,
       validateCorrectivePreconditionEvidence,
       validateDatabaseReadonly,
       validatePrivilegeMatrix,
@@ -7010,9 +7528,8 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       validateDatabaseReadonly,
       validateSafety,
       assertTrailingLf,
-      COLLECTION_PR_HEAD,
-      TOOLING_REVIEWED_TIP,
-      HISTORY_COUNT
+      HISTORY_COUNT,
+      REJECTED_STALE_COLLECTION_TIP_DBDCE968
     } = require_ra_pro_accounting_automation_corrective_precondition_gates();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1";
     var CONTRACT_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json";
@@ -7032,6 +7549,17 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       "synthetic_disposable_fixture"
     ]);
     var DISPOSABLE_VALIDATOR_PRE_APPLY = "PASS_CORRECTIVE_PRE_APPLY_LIVE_VALIDATION";
+    var AUTHORIZATION_KEYS = [
+      "pr_number",
+      "scope",
+      "authorized_executable_commit",
+      "authorization_publication_commit",
+      "authorization_publication_blob_oid",
+      "committed_pre_apply_pins",
+      "disposable_pin_scope"
+    ];
+    var FORBIDDEN_AUTHORITY_KEYS = ["tooling_reviewed_tip", "pr_head", "collection_pr_head"];
+    var HEX40 = /^[0-9a-f]{40}$/;
     function blocked(code, message) {
       const error = new Error(`${code}: ${message}`);
       error.code = code;
@@ -7086,8 +7614,73 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
         }
       }
     }
-    function expectedPrHead(options = {}) {
-      return options.expected?.pr_head || options.expectedPrHead || COLLECTION_PR_HEAD;
+    function expectedAuthority(options = {}) {
+      const e = options.expected || {};
+      if (!e.authorized_executable_commit || !e.authorization_publication_commit || !e.authorization_publication_blob_oid) {
+        throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_EXPECTED", "expected authority pins required");
+      }
+      return e;
+    }
+    function assertAuthorityNotStale(authz) {
+      for (const key of [
+        "authorized_executable_commit",
+        "authorization_publication_commit",
+        "authorization_publication_blob_oid"
+      ]) {
+        if (String(authz[key] || "").toLowerCase() === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+          throw blocked("CORRECTIVE_PRE_APPLY_REJECTED_STALE_TIP", key);
+        }
+      }
+    }
+    function assertAuthorizationAuthority(authz, options = {}) {
+      for (const key of FORBIDDEN_AUTHORITY_KEYS) {
+        if (authz && Object.prototype.hasOwnProperty.call(authz, key)) {
+          throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_FORBIDDEN", key);
+        }
+      }
+      assertKeys(authz, AUTHORIZATION_KEYS, "CORRECTIVE_PRE_APPLY_SCHEMA");
+      void options.evidence?.attestations?.collection_tooling_tip;
+      void options.evidence?.attestations?.tooling_reviewed_tip;
+      assertExact(authz.pr_number, 324, "CORRECTIVE_PRE_APPLY_SCHEMA", "pr");
+      assertExact(
+        authz.scope,
+        "read_only_production_corrective_pre_apply_live_collection",
+        "CORRECTIVE_PRE_APPLY_SCHEMA",
+        "scope"
+      );
+      assertExact(authz.committed_pre_apply_pins, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRADICTION", "pins");
+      assertExact(authz.disposable_pin_scope, "in_memory_file_sha_only", "CORRECTIVE_PRE_APPLY_SCHEMA", "pin scope");
+      assertAuthorityNotStale(authz);
+      const expected = expectedAuthority(options);
+      for (const key of [
+        "authorized_executable_commit",
+        "authorization_publication_commit",
+        "authorization_publication_blob_oid"
+      ]) {
+        const value = String(authz[key] || "").toLowerCase();
+        if (!HEX40.test(value)) {
+          throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_SHAPE", key);
+        }
+        assertExact(
+          value,
+          String(expected[key]).toLowerCase(),
+          "CORRECTIVE_PRE_APPLY_AUTHORITY_MISMATCH",
+          key
+        );
+      }
+    }
+    function resolveContractCommit(seal, options = {}) {
+      if (seal.source_commit != null && String(seal.source_commit).trim() !== "") {
+        return String(seal.source_commit).toLowerCase();
+      }
+      const fromOptions = options.executableCommit || options.expected?.authorized_executable_commit || null;
+      if (!fromOptions || !HEX40.test(String(fromOptions).toLowerCase())) {
+        throw blocked(
+          "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH",
+          "source_commit null requires executableCommit or expected.authorized_executable_commit"
+        );
+      }
+      return String(fromOptions).toLowerCase();
     }
     function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
       if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
@@ -7116,7 +7709,7 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
         "CORRECTIVE_PRE_APPLY_SCHEMA"
       );
       assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRE_APPLY_PROTOCOL_MISMATCH", "protocol");
-      assertExact(evidence.schema_version, 2, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
+      assertExact(evidence.schema_version, 3, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
       if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
         throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "source channel");
       }
@@ -7132,23 +7725,7 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       const now = resolveNow(options);
       if (now < from) throw blocked("CORRECTIVE_PRE_APPLY_NOT_YET_VALID", "future start");
       if (now >= until) throw blocked("CORRECTIVE_PRE_APPLY_EXPIRED", "expired");
-      const authz = evidence.authorization;
-      assertKeys(
-        authz,
-        ["pr_number", "pr_head", "scope", "tooling_reviewed_tip", "committed_pre_apply_pins", "disposable_pin_scope"],
-        "CORRECTIVE_PRE_APPLY_SCHEMA"
-      );
-      assertExact(authz.pr_number, 324, "CORRECTIVE_PRE_APPLY_SCHEMA", "pr");
-      assertExact(authz.pr_head, expectedPrHead(options), "CORRECTIVE_PRE_APPLY_HEAD_MISMATCH", "pr head");
-      assertExact(
-        authz.scope,
-        "read_only_production_corrective_pre_apply_live_collection",
-        "CORRECTIVE_PRE_APPLY_SCHEMA",
-        "scope"
-      );
-      assertExact(authz.tooling_reviewed_tip, TOOLING_REVIEWED_TIP, "CORRECTIVE_PRE_APPLY_BINDING_MISMATCH", "tip");
-      assertExact(authz.committed_pre_apply_pins, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRADICTION", "pins");
-      assertExact(authz.disposable_pin_scope, "in_memory_file_sha_only", "CORRECTIVE_PRE_APPLY_SCHEMA", "pin scope");
+      assertAuthorizationAuthority(evidence.authorization, { ...options, evidence });
       const gate = evidence.automation_gate;
       assertAutomationGate(gate, "CORRECTIVE_PRE_APPLY");
       const db = evidence.database_readonly;
@@ -7187,7 +7764,7 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       assertSanitized(JSON.stringify(evidence));
       return { protocol: PROTOCOL, apply_authorized: false };
     }
-    function verifyCorrectivePreApplyContractSeal(auth, cwd) {
+    function verifyCorrectivePreApplyContractSeal(auth, cwd, options = {}) {
       const seal = auth && auth.pre_apply_live_evidence_contract;
       if (!seal || seal.path !== CONTRACT_PATH) {
         throw blocked("CORRECTIVE_PRE_APPLY_CONTRACT_UNSEALED", "contract seal missing");
@@ -7196,8 +7773,9 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       if (pub.status !== "PUBLISHED") {
         return { path: CONTRACT_PATH, skipped_blob_load: true };
       }
+      const commit = resolveContractCommit(seal, options);
       const loaded = loadAndVerifyGitBlob({
-        commit: seal.source_commit,
+        commit,
         path: CONTRACT_PATH,
         expectedOid: seal.oid,
         expectedSha256: seal.sha256,
@@ -7208,7 +7786,12 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       const contract = JSON.parse(loaded.buffer.toString("utf8"));
       assertExact(contract.protocol, PROTOCOL, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "protocol");
       assertExact(contract.publication_status, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "status");
-      assertExact(contract.bindings.collection_pr_head, COLLECTION_PR_HEAD, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "head");
+      assertExact(
+        contract.bindings.authorized_executable_commit,
+        "from_production_collection_authorization_record",
+        "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH",
+        "authorized_executable_commit"
+      );
       assertExact(contract.bindings.history_count, HISTORY_COUNT, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "history");
       return loaded;
     }
@@ -7221,7 +7804,10 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
       assertNoOverride(inputs);
       const auth = inputs.auth;
       if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "auth");
-      verifyCorrectivePreApplyContractSeal(auth, inputs.cwd);
+      verifyCorrectivePreApplyContractSeal(auth, inputs.cwd, {
+        executableCommit: inputs.executableCommit,
+        expected: inputs.expected
+      });
       if (preApplyPinsUnpublished(auth)) {
         throw blocked(
           "CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED",
@@ -7264,10 +7850,10 @@ var require_ra_pro_accounting_automation_corrective_pre_apply_gates = __commonJS
     module2.exports = {
       PROTOCOL,
       CONTRACT_PATH,
-      COLLECTION_PR_HEAD,
-      TOOLING_REVIEWED_TIP,
+      REJECTED_STALE_COLLECTION_TIP_DBDCE968,
       HISTORY_COUNT,
       DISPOSABLE_VALIDATOR: DISPOSABLE_VALIDATOR_PRE_APPLY,
+      expectedAuthority,
       validateCorrectivePreApplyLiveEvidence,
       assertCorrectivePreApplyLiveEvidencePublished,
       verifyCorrectivePreApplyContractSeal

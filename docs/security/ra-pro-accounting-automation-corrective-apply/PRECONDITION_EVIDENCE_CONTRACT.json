@@ -1,6 +1,6 @@
 {
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
-  "schema_version": 2,
+  "schema_version": 3,
   "publication_status": "UNPUBLISHED",
   "pin_source": "committed_tooling_authorization_only",
   "operator_path_override": "forbidden",
@@ -26,8 +26,9 @@
   ],
   "bindings": {
     "pr_number": 324,
-    "tooling_reviewed_tip": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
-    "collection_pr_head": "dbdce9680fa996aab4e952567562e0ab7fb9d237",
+    "authorized_executable_commit": "from_production_collection_authorization_record",
+    "authorization_publication_commit": "from_runtime_publication_commit",
+    "authorization_publication_blob_oid": "from_authorization_git_blob",
     "scope": "read_only_production_corrective_precondition_collection",
     "project_ref": "jzmdgwwiestcmmeuhhkr",
     "history_count": 190,

@@ -21,8 +21,16 @@ const {
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 
 const ROOT = path.resolve(__dirname, "../..");
-const PR_HEAD = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
+const SYNTH_EXEC = "a111111111111111111111111111111111111111";
+const SYNTH_PUB = "b222222222222222222222222222222222222222";
+const SYNTH_OID = "c333333333333333333333333333333333333333";
 const NOW = new Date("2026-09-21T10:00:00Z");
+
+const SYNTH_AUTHORITY = {
+  authorized_executable_commit: SYNTH_EXEC,
+  authorization_publication_commit: SYNTH_PUB,
+  authorization_publication_blob_oid: SYNTH_OID,
+};
 
 function databaseReadonly() {
   return {
@@ -58,7 +66,9 @@ function databaseReadonly() {
 function observations() {
   return {
     independently_observed: {
-      pr_head: PR_HEAD,
+      authorized_executable_commit: SYNTH_EXEC,
+      authorization_publication_commit: SYNTH_PUB,
+      authorization_publication_blob_oid: SYNTH_OID,
       database_readonly: databaseReadonly(),
       automation_gate: {
         key: "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
@@ -87,16 +97,14 @@ function observations() {
 
 const precondition = buildCorrectivePreconditionEvidence(observations(), {
   now: NOW,
-  pr_head: PR_HEAD,
-  tooling_reviewed_tip: PR_HEAD,
+  authority: SYNTH_AUTHORITY,
   visibility_limitations: [
     "Synthetic disposable fixture. Corrective precondition evidence pins remain UNPUBLISHED.",
   ],
 });
 const preApply = buildCorrectivePreApplyLiveEvidence(observations(), {
   now: NOW,
-  pr_head: PR_HEAD,
-  tooling_reviewed_tip: PR_HEAD,
+  authority: SYNTH_AUTHORITY,
   visibility_limitations: [
     "Synthetic disposable fixture. Corrective pre-apply live evidence pins remain UNPUBLISHED.",
   ],

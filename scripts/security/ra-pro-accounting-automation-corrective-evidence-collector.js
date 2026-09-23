@@ -8,15 +8,19 @@ const { execFileSync } = require("node:child_process");
 const {
   validateCorrectivePreconditionEvidence,
   DISPOSABLE_VALIDATOR,
-  COLLECTION_PR_HEAD,
-  TOOLING_REVIEWED_TIP,
 } = require("./ra-pro-accounting-automation-corrective-precondition-gates");
 const {
   validateCorrectivePreApplyLiveEvidence,
   DISPOSABLE_VALIDATOR: DISPOSABLE_PRE_APPLY_VALIDATOR,
 } = require("./ra-pro-accounting-automation-corrective-pre-apply-gates");
+const {
+  assertCollectionAuthorityBeforeObservation,
+  expectedAuthorityFromMap,
+  BLOCKED_UNPUBLISHED,
+} = require("./ra-pro-accounting-automation-corrective-collection-authorization");
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
+const HEX40 = /^[0-9a-f]{40}$/;
 
 function sha256Buffer(buf) {
   return createHash("sha256").update(buf).digest("hex");
@@ -43,13 +47,15 @@ function mergeIndependentlyObserved(observations = {}) {
 }
 
 function buildAttestations(meta = {}, observations = {}) {
+  // Do not stamp tooling_reviewed_tip as authority. Free-form collection_tooling_tip
+  // may exist in observation attestations but is non-authoritative and ignored by gates.
   const attestations = {
     ...(observations.attestations || {}),
     ...(meta.attestations || {}),
     collection_scope: meta.collection_scope || observations.collection_scope || null,
-    tooling_reviewed_tip: meta.tooling_reviewed_tip || TOOLING_REVIEWED_TIP,
     operator_note: meta.operator_note || null,
   };
+  delete attestations.tooling_reviewed_tip;
   assertObservationSafe(attestations, "attestations");
   return attestations;
 }
@@ -66,10 +72,73 @@ function buildWindow(now = new Date()) {
   };
 }
 
+function requireAuthorityFields(authority, label) {
+  if (
+    !authority ||
+    !HEX40.test(String(authority.authorized_executable_commit || "").toLowerCase()) ||
+    !HEX40.test(String(authority.authorization_publication_commit || "").toLowerCase()) ||
+    !HEX40.test(String(authority.authorization_publication_blob_oid || "").toLowerCase())
+  ) {
+    const error = new Error(
+      `${label}: meta.authority requires authorized_executable_commit, authorization_publication_commit, authorization_publication_blob_oid`,
+    );
+    error.code = "COLLECTOR_AUTHORITY_REQUIRED";
+    throw error;
+  }
+  return {
+    authorized_executable_commit: String(authority.authorized_executable_commit).toLowerCase(),
+    authorization_publication_commit: String(authority.authorization_publication_commit).toLowerCase(),
+    authorization_publication_blob_oid: String(authority.authorization_publication_blob_oid).toLowerCase(),
+  };
+}
+
+/**
+ * Resolve collection authority before observation/emit.
+ * meta.authority (verified map) skips runtime publication lookup.
+ * fresh_read_only_supabase_select / production channels require published collection auth.
+ */
+function resolveCollectionAuthority(meta = {}, observations = {}) {
+  const channel =
+    meta.source_channel_classification ||
+    observations.source_channel_classification ||
+    "synthetic_disposable_fixture";
+
+  if (meta.authority) {
+    return requireAuthorityFields(meta.authority, "COLLECTOR_AUTHORITY_REQUIRED");
+  }
+
+  if (channel === "synthetic_disposable_fixture") {
+    const error = new Error(
+      "COLLECTOR_AUTHORITY_REQUIRED: meta.authority with three fields required for synthetic_disposable_fixture",
+    );
+    error.code = "COLLECTOR_AUTHORITY_REQUIRED";
+    throw error;
+  }
+
+  // Production observation path: fail closed before any production contact.
+  const map = assertCollectionAuthorityBeforeObservation({
+    cwd: meta.cwd,
+    publicationCommit: meta.publicationCommit,
+    env: meta.env,
+    auth: meta.auth,
+  });
+  if (map.blocked || map.collection_authorized !== true) {
+    const error = new Error(`${BLOCKED_UNPUBLISHED}: collection unauthorized`);
+    error.code = BLOCKED_UNPUBLISHED;
+    throw error;
+  }
+  return expectedAuthorityFromMap(map);
+}
+
+function assertAuthorityGate(meta = {}, observations = {}) {
+  return resolveCollectionAuthority(meta, observations);
+}
+
 function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
   if (observations.productionContact === true || observations.production_writes > 0) {
     throw new Error("COLLECTOR_REFUSED: production write observations forbidden");
   }
+  const authority = assertAuthorityGate(meta, observations);
   const observed = mergeIndependentlyObserved(observations);
   if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
     throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
@@ -80,7 +149,7 @@ function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
-    schema_version: 2,
+    schema_version: 3,
     source_channel_classification:
       meta.source_channel_classification || observations.source_channel_classification || "synthetic_disposable_fixture",
     collected_at_utc: window.collected_at_utc,
@@ -88,9 +157,10 @@ function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
     valid_until_utc: window.valid_until_utc,
     authorization: {
       pr_number: 324,
-      pr_head: meta.pr_head || observed.pr_head || COLLECTION_PR_HEAD,
       scope: "read_only_production_corrective_precondition_collection",
-      tooling_reviewed_tip: meta.tooling_reviewed_tip || TOOLING_REVIEWED_TIP,
+      authorized_executable_commit: authority.authorized_executable_commit,
+      authorization_publication_commit: authority.authorization_publication_commit,
+      authorization_publication_blob_oid: authority.authorization_publication_blob_oid,
     },
     automation_gate: observed.automation_gate,
     database_readonly: observed.database_readonly,
@@ -122,6 +192,7 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
   if (observations.productionContact === true || observations.production_writes > 0) {
     throw new Error("COLLECTOR_REFUSED: production write observations forbidden");
   }
+  const authority = assertAuthorityGate(meta, observations);
   const observed = mergeIndependentlyObserved(observations);
   if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
     throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
@@ -132,7 +203,7 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
-    schema_version: 2,
+    schema_version: 3,
     source_channel_classification:
       meta.source_channel_classification || observations.source_channel_classification || "synthetic_disposable_fixture",
     collection_started_at_utc: window.collection_started_at_utc,
@@ -141,9 +212,10 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
     valid_until_utc: window.valid_until_utc,
     authorization: {
       pr_number: 324,
-      pr_head: meta.pr_head || observed.pr_head || COLLECTION_PR_HEAD,
       scope: "read_only_production_corrective_pre_apply_live_collection",
-      tooling_reviewed_tip: meta.tooling_reviewed_tip || TOOLING_REVIEWED_TIP,
+      authorized_executable_commit: authority.authorized_executable_commit,
+      authorization_publication_commit: authority.authorization_publication_commit,
+      authorization_publication_blob_oid: authority.authorization_publication_blob_oid,
       committed_pre_apply_pins: "UNPUBLISHED",
       disposable_pin_scope: "in_memory_file_sha_only",
     },
@@ -193,6 +265,10 @@ function emitCorrectiveEvidenceArtifact({
     if (!outPath) {
       return { ok: false, error: "COLLECTOR_WRITE_FORBIDDEN: outPath required" };
     }
+    // Fail closed before any write when production collection authority is unpublished.
+    const authority = assertAuthorityGate(meta, observations);
+    const gatedMeta = { ...meta, authority };
+
     const build =
       kind === "precondition"
         ? buildCorrectivePreconditionEvidence
@@ -202,13 +278,21 @@ function emitCorrectiveEvidenceArtifact({
     if (!build) {
       return { ok: false, error: "COLLECTOR_KIND_INVALID" };
     }
-    const evidence = build(observations, meta);
+    const evidence = build(observations, gatedMeta);
     const validate =
       kind === "precondition"
         ? validateCorrectivePreconditionEvidence
         : validateCorrectivePreApplyLiveEvidence;
     const gateNow = now || meta.gateNow || evidence.valid_from_utc;
-    validate(evidence, { now: gateNow, expected: expectedPins });
+    const expected = {
+      authorized_executable_commit:
+        expectedPins.authorized_executable_commit || authority.authorized_executable_commit,
+      authorization_publication_commit:
+        expectedPins.authorization_publication_commit || authority.authorization_publication_commit,
+      authorization_publication_blob_oid:
+        expectedPins.authorization_publication_blob_oid || authority.authorization_publication_blob_oid,
+    };
+    validate(evidence, { now: gateNow, expected });
     const text = serializeLfJson(evidence);
     const buffer = Buffer.from(text, "utf8");
     if (buffer.includes(0x0d)) {
@@ -223,7 +307,7 @@ function emitCorrectiveEvidenceArtifact({
     }).trim();
     validate(JSON.parse(fs.readFileSync(outPath, "utf8")), {
       now: gateNow,
-      expected: expectedPins,
+      expected,
     });
     return { ok: true, sha256, bytes: buffer.length, oid, path: outPath };
   } catch (err) {
@@ -236,4 +320,5 @@ module.exports = {
   buildCorrectivePreApplyLiveEvidence,
   emitCorrectiveEvidenceArtifact,
   serializeLfJson,
+  resolveCollectionAuthority,
 };

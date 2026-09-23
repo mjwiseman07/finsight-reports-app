@@ -7,9 +7,8 @@ const {
   validateDatabaseReadonly,
   validateSafety,
   assertTrailingLf,
-  COLLECTION_PR_HEAD,
-  TOOLING_REVIEWED_TIP,
   HISTORY_COUNT,
+  REJECTED_STALE_COLLECTION_TIP_DBDCE968,
 } = require("./ra-pro-accounting-automation-corrective-precondition-gates");
 
 const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1";
@@ -31,6 +30,17 @@ const SOURCE_CHANNELS = new Set([
   "synthetic_disposable_fixture",
 ]);
 const DISPOSABLE_VALIDATOR_PRE_APPLY = "PASS_CORRECTIVE_PRE_APPLY_LIVE_VALIDATION";
+const AUTHORIZATION_KEYS = [
+  "pr_number",
+  "scope",
+  "authorized_executable_commit",
+  "authorization_publication_commit",
+  "authorization_publication_blob_oid",
+  "committed_pre_apply_pins",
+  "disposable_pin_scope",
+];
+const FORBIDDEN_AUTHORITY_KEYS = ["tooling_reviewed_tip", "pr_head", "collection_pr_head"];
+const HEX40 = /^[0-9a-f]{40}$/;
 
 function blocked(code, message) {
   const error = new Error(`${code}: ${message}`);
@@ -103,8 +113,86 @@ function assertNoOverride(inputs = {}) {
   }
 }
 
-function expectedPrHead(options = {}) {
-  return options.expected?.pr_head || options.expectedPrHead || COLLECTION_PR_HEAD;
+function expectedAuthority(options = {}) {
+  const e = options.expected || {};
+  if (
+    !e.authorized_executable_commit ||
+    !e.authorization_publication_commit ||
+    !e.authorization_publication_blob_oid
+  ) {
+    throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_EXPECTED", "expected authority pins required");
+  }
+  return e;
+}
+
+function assertAuthorityNotStale(authz) {
+  for (const key of [
+    "authorized_executable_commit",
+    "authorization_publication_commit",
+    "authorization_publication_blob_oid",
+  ]) {
+    if (String(authz[key] || "").toLowerCase() === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+      throw blocked("CORRECTIVE_PRE_APPLY_REJECTED_STALE_TIP", key);
+    }
+  }
+}
+
+function assertAuthorizationAuthority(authz, options = {}) {
+  for (const key of FORBIDDEN_AUTHORITY_KEYS) {
+    if (authz && Object.prototype.hasOwnProperty.call(authz, key)) {
+      throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_FORBIDDEN", key);
+    }
+  }
+  assertKeys(authz, AUTHORIZATION_KEYS, "CORRECTIVE_PRE_APPLY_SCHEMA");
+  // attestations.collection_tooling_tip / tooling_reviewed_tip are non-authoritative
+  void options.evidence?.attestations?.collection_tooling_tip;
+  void options.evidence?.attestations?.tooling_reviewed_tip;
+
+  assertExact(authz.pr_number, 324, "CORRECTIVE_PRE_APPLY_SCHEMA", "pr");
+  assertExact(
+    authz.scope,
+    "read_only_production_corrective_pre_apply_live_collection",
+    "CORRECTIVE_PRE_APPLY_SCHEMA",
+    "scope",
+  );
+  assertExact(authz.committed_pre_apply_pins, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRADICTION", "pins");
+  assertExact(authz.disposable_pin_scope, "in_memory_file_sha_only", "CORRECTIVE_PRE_APPLY_SCHEMA", "pin scope");
+  assertAuthorityNotStale(authz);
+
+  const expected = expectedAuthority(options);
+  for (const key of [
+    "authorized_executable_commit",
+    "authorization_publication_commit",
+    "authorization_publication_blob_oid",
+  ]) {
+    const value = String(authz[key] || "").toLowerCase();
+    if (!HEX40.test(value)) {
+      throw blocked("CORRECTIVE_PRE_APPLY_AUTHORITY_SHAPE", key);
+    }
+    assertExact(
+      value,
+      String(expected[key]).toLowerCase(),
+      "CORRECTIVE_PRE_APPLY_AUTHORITY_MISMATCH",
+      key,
+    );
+  }
+}
+
+function resolveContractCommit(seal, options = {}) {
+  if (seal.source_commit != null && String(seal.source_commit).trim() !== "") {
+    return String(seal.source_commit).toLowerCase();
+  }
+  const fromOptions =
+    options.executableCommit ||
+    options.expected?.authorized_executable_commit ||
+    null;
+  if (!fromOptions || !HEX40.test(String(fromOptions).toLowerCase())) {
+    throw blocked(
+      "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH",
+      "source_commit null requires executableCommit or expected.authorized_executable_commit",
+    );
+  }
+  return String(fromOptions).toLowerCase();
 }
 
 function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
@@ -134,7 +222,7 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
     "CORRECTIVE_PRE_APPLY_SCHEMA",
   );
   assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRE_APPLY_PROTOCOL_MISMATCH", "protocol");
-  assertExact(evidence.schema_version, 2, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
+  assertExact(evidence.schema_version, 3, "CORRECTIVE_PRE_APPLY_SCHEMA", "schema_version");
   if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
     throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "source channel");
   }
@@ -152,23 +240,7 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
   if (now < from) throw blocked("CORRECTIVE_PRE_APPLY_NOT_YET_VALID", "future start");
   if (now >= until) throw blocked("CORRECTIVE_PRE_APPLY_EXPIRED", "expired");
 
-  const authz = evidence.authorization;
-  assertKeys(
-    authz,
-    ["pr_number", "pr_head", "scope", "tooling_reviewed_tip", "committed_pre_apply_pins", "disposable_pin_scope"],
-    "CORRECTIVE_PRE_APPLY_SCHEMA",
-  );
-  assertExact(authz.pr_number, 324, "CORRECTIVE_PRE_APPLY_SCHEMA", "pr");
-  assertExact(authz.pr_head, expectedPrHead(options), "CORRECTIVE_PRE_APPLY_HEAD_MISMATCH", "pr head");
-  assertExact(
-    authz.scope,
-    "read_only_production_corrective_pre_apply_live_collection",
-    "CORRECTIVE_PRE_APPLY_SCHEMA",
-    "scope",
-  );
-  assertExact(authz.tooling_reviewed_tip, TOOLING_REVIEWED_TIP, "CORRECTIVE_PRE_APPLY_BINDING_MISMATCH", "tip");
-  assertExact(authz.committed_pre_apply_pins, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRADICTION", "pins");
-  assertExact(authz.disposable_pin_scope, "in_memory_file_sha_only", "CORRECTIVE_PRE_APPLY_SCHEMA", "pin scope");
+  assertAuthorizationAuthority(evidence.authorization, { ...options, evidence });
 
   const gate = evidence.automation_gate;
   assertAutomationGate(gate, "CORRECTIVE_PRE_APPLY");
@@ -210,7 +282,7 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
   return { protocol: PROTOCOL, apply_authorized: false };
 }
 
-function verifyCorrectivePreApplyContractSeal(auth, cwd) {
+function verifyCorrectivePreApplyContractSeal(auth, cwd, options = {}) {
   const seal = auth && auth.pre_apply_live_evidence_contract;
   if (!seal || seal.path !== CONTRACT_PATH) {
     throw blocked("CORRECTIVE_PRE_APPLY_CONTRACT_UNSEALED", "contract seal missing");
@@ -219,8 +291,9 @@ function verifyCorrectivePreApplyContractSeal(auth, cwd) {
   if (pub.status !== "PUBLISHED") {
     return { path: CONTRACT_PATH, skipped_blob_load: true };
   }
+  const commit = resolveContractCommit(seal, options);
   const loaded = loadAndVerifyGitBlob({
-    commit: seal.source_commit,
+    commit,
     path: CONTRACT_PATH,
     expectedOid: seal.oid,
     expectedSha256: seal.sha256,
@@ -231,7 +304,12 @@ function verifyCorrectivePreApplyContractSeal(auth, cwd) {
   const contract = JSON.parse(loaded.buffer.toString("utf8"));
   assertExact(contract.protocol, PROTOCOL, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "protocol");
   assertExact(contract.publication_status, "UNPUBLISHED", "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "status");
-  assertExact(contract.bindings.collection_pr_head, COLLECTION_PR_HEAD, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "head");
+  assertExact(
+    contract.bindings.authorized_executable_commit,
+    "from_production_collection_authorization_record",
+    "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH",
+    "authorized_executable_commit",
+  );
   assertExact(contract.bindings.history_count, HISTORY_COUNT, "CORRECTIVE_PRE_APPLY_CONTRACT_MISMATCH", "history");
   return loaded;
 }
@@ -257,7 +335,10 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
   assertNoOverride(inputs);
   const auth = inputs.auth;
   if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRE_APPLY_SCHEMA", "auth");
-  verifyCorrectivePreApplyContractSeal(auth, inputs.cwd);
+  verifyCorrectivePreApplyContractSeal(auth, inputs.cwd, {
+    executableCommit: inputs.executableCommit,
+    expected: inputs.expected,
+  });
   if (preApplyPinsUnpublished(auth)) {
     throw blocked(
       "CORRECTIVE_PRE_APPLY_PINS_UNPUBLISHED",
@@ -305,10 +386,10 @@ function assertCorrectivePreApplyLiveEvidencePublished(inputs = {}) {
 module.exports = {
   PROTOCOL,
   CONTRACT_PATH,
-  COLLECTION_PR_HEAD,
-  TOOLING_REVIEWED_TIP,
+  REJECTED_STALE_COLLECTION_TIP_DBDCE968,
   HISTORY_COUNT,
   DISPOSABLE_VALIDATOR: DISPOSABLE_VALIDATOR_PRE_APPLY,
+  expectedAuthority,
   validateCorrectivePreApplyLiveEvidence,
   assertCorrectivePreApplyLiveEvidencePublished,
   verifyCorrectivePreApplyContractSeal,

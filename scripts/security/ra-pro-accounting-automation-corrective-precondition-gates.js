@@ -13,18 +13,20 @@ const {
   MIGRATIONS,
   PRIOR_HISTORY_COUNT,
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
+const {
+  REJECTED_STALE_COLLECTION_TIP_DBDCE968,
+} = require("./ra-pro-accounting-automation-corrective-collection-authorization");
 
 const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1";
 const CONTRACT_PATH =
   "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json";
-const TOOLING_REVIEWED_TIP = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
-const COLLECTION_PR_HEAD = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
 const HISTORY_COUNT = PRIOR_HISTORY_COUNT;
 const CORRECTIVE_VERSION = MIGRATIONS[0].version;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const WEBHOOK_STATUSES = SCHEMA_WEBHOOK_STATUSES;
 const TABLE_PRIVILEGES = BASE_TABLE_PRIVS;
 const EXECUTE_ROLES = ["service_role", "authenticated", "anon", "PUBLIC"];
+const HEX40 = /^[0-9a-f]{40}$/;
 const SUBSTITUTES = new Set([
   "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_V1",
   "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
@@ -39,6 +41,14 @@ const SOURCE_CHANNELS = new Set([
   "synthetic_disposable_fixture",
 ]);
 const DISPOSABLE_VALIDATOR = "PASS_CORRECTIVE_PRECONDITION_VALIDATION";
+const AUTH_KEYS = [
+  "pr_number",
+  "scope",
+  "authorized_executable_commit",
+  "authorization_publication_commit",
+  "authorization_publication_blob_oid",
+];
+const FORBIDDEN_AUTH_KEYS = ["pr_head", "tooling_reviewed_tip", "collection_pr_head"];
 
 function blocked(code, message) {
   const error = new Error(`${code}: ${message}`);
@@ -122,8 +132,16 @@ function assertTrailingLf(buffer) {
   }
 }
 
-function expectedPrHead(options = {}) {
-  return options.expected?.pr_head || options.expectedPrHead || COLLECTION_PR_HEAD;
+function expectedAuthority(options = {}) {
+  const e = options.expected || {};
+  if (
+    !e.authorized_executable_commit ||
+    !e.authorization_publication_commit ||
+    !e.authorization_publication_blob_oid
+  ) {
+    throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_EXPECTED", "expected authority pins required");
+  }
+  return e;
 }
 
 function validatePrivilegeMatrix(dbOrSurfaces, codePrefix = "CORRECTIVE_PRECONDITION") {
@@ -181,6 +199,33 @@ function validateSafety(safety) {
   }
 }
 
+function validateAuthorityBlock(authz, options, codePrefix) {
+  if (!authz || typeof authz !== "object" || Array.isArray(authz)) {
+    throw blocked(`${codePrefix}_SCHEMA`, "authorization object");
+  }
+  for (const key of FORBIDDEN_AUTH_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(authz, key)) {
+      throw blocked(`${codePrefix}_AUTHORITY_FORBIDDEN`, key);
+    }
+  }
+  // attestations.collection_tooling_tip / tooling_reviewed_tip are non-authoritative and ignored
+  void options;
+  assertKeys(authz, AUTH_KEYS, `${codePrefix}_SCHEMA`);
+  const expected = expectedAuthority(options);
+  for (const key of [
+    "authorized_executable_commit",
+    "authorization_publication_commit",
+    "authorization_publication_blob_oid",
+  ]) {
+    const value = String(authz[key] || "").toLowerCase();
+    if (!HEX40.test(value)) throw blocked(`${codePrefix}_AUTHORITY_SHAPE`, key);
+    if (value === REJECTED_STALE_COLLECTION_TIP_DBDCE968) {
+      throw blocked(`${codePrefix}_REJECTED_STALE_TIP`, key);
+    }
+    assertExact(value, String(expected[key]).toLowerCase(), `${codePrefix}_AUTHORITY_MISMATCH`, key);
+  }
+}
+
 function validateCorrectivePreconditionEvidence(evidence, options = {}) {
   if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
     throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "evidence object");
@@ -207,7 +252,7 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
     "CORRECTIVE_PRECONDITION_SCHEMA",
   );
   assertExact(evidence.protocol, PROTOCOL, "CORRECTIVE_PRECONDITION_PROTOCOL_MISMATCH", "protocol");
-  assertExact(evidence.schema_version, 2, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
+  assertExact(evidence.schema_version, 3, "CORRECTIVE_PRECONDITION_SCHEMA", "schema_version");
   if (!SOURCE_CHANNELS.has(evidence.source_channel_classification)) {
     throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "source channel");
   }
@@ -225,16 +270,20 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
   if (now >= until) throw blocked("CORRECTIVE_PRECONDITION_EXPIRED", "expired");
 
   const authz = evidence.authorization;
-  assertKeys(authz, ["pr_number", "pr_head", "scope", "tooling_reviewed_tip"], "CORRECTIVE_PRECONDITION_SCHEMA");
+  for (const key of FORBIDDEN_AUTH_KEYS) {
+    if (authz && Object.prototype.hasOwnProperty.call(authz, key)) {
+      throw blocked("CORRECTIVE_PRECONDITION_AUTHORITY_FORBIDDEN", key);
+    }
+  }
+  assertKeys(authz, AUTH_KEYS, "CORRECTIVE_PRECONDITION_SCHEMA");
   assertExact(authz.pr_number, 324, "CORRECTIVE_PRECONDITION_SCHEMA", "pr");
-  assertExact(authz.pr_head, expectedPrHead(options), "CORRECTIVE_PRECONDITION_HEAD_MISMATCH", "pr head");
   assertExact(
     authz.scope,
     "read_only_production_corrective_precondition_collection",
     "CORRECTIVE_PRECONDITION_SCHEMA",
     "scope",
   );
-  assertExact(authz.tooling_reviewed_tip, TOOLING_REVIEWED_TIP, "CORRECTIVE_PRECONDITION_BINDING_MISMATCH", "tip");
+  validateAuthorityBlock(authz, options, "CORRECTIVE_PRECONDITION");
 
   const gate = evidence.automation_gate;
   assertAutomationGate(gate, "CORRECTIVE_PRECONDITION");
@@ -276,7 +325,21 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
   return { protocol: PROTOCOL, apply_authorized: false };
 }
 
-function verifyCorrectivePreconditionContractSeal(auth, cwd) {
+function resolveContractCommit(seal, options = {}) {
+  if (seal.source_commit != null && String(seal.source_commit).length) {
+    return String(seal.source_commit).toLowerCase();
+  }
+  const fromOptions =
+    options.executableCommit ||
+    options.expected?.authorized_executable_commit ||
+    null;
+  if (!fromOptions || !HEX40.test(String(fromOptions).toLowerCase())) {
+    throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "source_commit unresolved");
+  }
+  return String(fromOptions).toLowerCase();
+}
+
+function verifyCorrectivePreconditionContractSeal(auth, cwd, options = {}) {
   const seal = auth && auth.precondition_evidence_contract;
   if (!seal || seal.path !== CONTRACT_PATH) {
     throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_UNSEALED", "contract seal missing");
@@ -285,11 +348,9 @@ function verifyCorrectivePreconditionContractSeal(auth, cwd) {
   if (pub.status !== "PUBLISHED") {
     return { path: CONTRACT_PATH, skipped_blob_load: true };
   }
-  if (String(seal.source_commit || "").toLowerCase() !== String(seal.source_commit || "").toLowerCase()) {
-    throw blocked("CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "source");
-  }
+  const commit = resolveContractCommit(seal, options);
   const loaded = loadAndVerifyGitBlob({
-    commit: seal.source_commit,
+    commit,
     path: CONTRACT_PATH,
     expectedOid: seal.oid,
     expectedSha256: seal.sha256,
@@ -300,7 +361,12 @@ function verifyCorrectivePreconditionContractSeal(auth, cwd) {
   const contract = JSON.parse(loaded.buffer.toString("utf8"));
   assertExact(contract.protocol, PROTOCOL, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "protocol");
   assertExact(contract.publication_status, "UNPUBLISHED", "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "status");
-  assertExact(contract.bindings.collection_pr_head, COLLECTION_PR_HEAD, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "head");
+  assertExact(
+    contract.bindings.authorized_executable_commit,
+    "from_production_collection_authorization_record",
+    "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH",
+    "authorized_executable_commit",
+  );
   assertExact(contract.bindings.history_count, HISTORY_COUNT, "CORRECTIVE_PRECONDITION_CONTRACT_MISMATCH", "history");
   return loaded;
 }
@@ -321,7 +387,10 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
   assertNoOverride(inputs);
   const auth = inputs.auth;
   if (!auth || typeof auth !== "object") throw blocked("CORRECTIVE_PRECONDITION_SCHEMA", "auth");
-  verifyCorrectivePreconditionContractSeal(auth, inputs.cwd);
+  verifyCorrectivePreconditionContractSeal(auth, inputs.cwd, {
+    executableCommit: inputs.executableCommit,
+    expected: inputs.expected,
+  });
   if (preconditionPinsUnpublished(auth)) {
     throw blocked(
       "CORRECTIVE_PRECONDITION_PINS_UNPUBLISHED",
@@ -371,8 +440,7 @@ function assertCorrectivePreconditionEvidencePublished(inputs = {}) {
 module.exports = {
   PROTOCOL,
   CONTRACT_PATH,
-  COLLECTION_PR_HEAD,
-  TOOLING_REVIEWED_TIP,
+  REJECTED_STALE_COLLECTION_TIP_DBDCE968,
   HISTORY_COUNT,
   CORRECTIVE_VERSION,
   WEBHOOK_STATUSES,
@@ -380,6 +448,7 @@ module.exports = {
   EXECUTE_ROLES,
   DISPOSABLE_VALIDATOR,
   assertTrailingLf,
+  expectedAuthority,
   validateCorrectivePreconditionEvidence,
   validateDatabaseReadonly,
   validatePrivilegeMatrix,

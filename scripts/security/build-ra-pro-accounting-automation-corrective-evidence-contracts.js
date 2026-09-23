@@ -6,9 +6,8 @@ const path = require("node:path");
 const { ORIGINAL_COMMITTED_MIGRATIONS } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 
 const ROOT = path.resolve(__dirname, "../..");
-const TIP = "dbdce9680fa996aab4e952567562e0ab7fb9d237";
 const common = {
-  schema_version: 2,
+  schema_version: 3,
   publication_status: "UNPUBLISHED",
   pin_source: "committed_tooling_authorization_only",
   operator_path_override: "forbidden",
@@ -29,8 +28,9 @@ const common = {
 function bindings(scope) {
   return {
     pr_number: 324,
-    tooling_reviewed_tip: TIP,
-    collection_pr_head: TIP,
+    authorized_executable_commit: "from_production_collection_authorization_record",
+    authorization_publication_commit: "from_runtime_publication_commit",
+    authorization_publication_blob_oid: "from_authorization_git_blob",
     scope,
     project_ref: "jzmdgwwiestcmmeuhhkr",
     history_count: 190,
