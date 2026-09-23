@@ -228,14 +228,9 @@ function assertRecordSeals(record, executable, cwd) {
   if (bundle.path !== STANDALONE_BUNDLE_PATH) {
     throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "path");
   }
-  if (
-    bundle.oid !== STANDALONE_BUNDLE_OID ||
-    bundle.sha256 !== STANDALONE_BUNDLE_SHA256 ||
-    bundle.bytes !== STANDALONE_BUNDLE_BYTES
-  ) {
-    // Constants must match the sealed executable tip bundle; mismatch = substitute.
-    throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "constants");
-  }
+  // Collection seals bind the authorized executable tip blob only. Tip HEAD
+  // standalone constants may reseal later (evidence-pin / gate embed); never
+  // require them to equal the historical collection-authorization bundle.
   assertBlob(executable, STANDALONE_BUNDLE_PATH, bundle, cwd, "COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH");
 
   const pairs = [

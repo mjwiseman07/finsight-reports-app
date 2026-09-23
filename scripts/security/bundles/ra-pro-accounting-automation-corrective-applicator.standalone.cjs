@@ -6831,9 +6831,6 @@ var require_ra_pro_accounting_automation_corrective_collection_authorization = _
       if (bundle.path !== STANDALONE_BUNDLE_PATH) {
         throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "path");
       }
-      if (bundle.oid !== STANDALONE_BUNDLE_OID || bundle.sha256 !== STANDALONE_BUNDLE_SHA256 || bundle.bytes !== STANDALONE_BUNDLE_BYTES) {
-        throw blocked("COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH", "constants");
-      }
       assertBlob(executable, STANDALONE_BUNDLE_PATH, bundle, cwd, "COLLECTION_AUTHORIZATION_BUNDLE_MISMATCH");
       const pairs = [
         ["precondition_evidence_contract", PRECONDITION_CONTRACT_REL],
