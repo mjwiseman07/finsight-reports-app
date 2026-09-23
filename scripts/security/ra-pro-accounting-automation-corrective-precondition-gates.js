@@ -5,6 +5,7 @@ const { loadAndVerifyGitBlob, assertUtf8LfNoBom } = require("./git-blob-authorit
 const {
   validatePreCorrectionDatabaseReadonly,
   assertPreCorrectionPrivilegeSurfaces,
+  assertAutomationGate,
   WEBHOOK_STATUSES: SCHEMA_WEBHOOK_STATUSES,
   BASE_TABLE_PRIVS,
 } = require("./ra-pro-accounting-automation-corrective-evidence-schema");
@@ -236,11 +237,7 @@ function validateCorrectivePreconditionEvidence(evidence, options = {}) {
   assertExact(authz.tooling_reviewed_tip, TOOLING_REVIEWED_TIP, "CORRECTIVE_PRECONDITION_BINDING_MISMATCH", "tip");
 
   const gate = evidence.automation_gate;
-  assertKeys(gate, ["key", "production_presence", "effective_state", "value_read"], "CORRECTIVE_PRECONDITION_SCHEMA");
-  assertExact(gate.key, "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION", "CORRECTIVE_PRECONDITION_AUTOMATION_GATE", "key");
-  if (gate.production_presence !== "absent" || gate.effective_state !== "closed" || gate.value_read !== false) {
-    throw blocked("CORRECTIVE_PRECONDITION_AUTOMATION_GATE", "gate");
-  }
+  assertAutomationGate(gate, "CORRECTIVE_PRECONDITION");
 
   const db = evidence.database_readonly;
   assertKeys(

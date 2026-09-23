@@ -17,6 +17,7 @@
   "automation_gate": {
     "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
     "production_presence": "absent",
+    "production_key_name_authority": "vercel_production_exact_key_names",
     "effective_state": "closed",
     "value_read": false
   },
@@ -319,52 +320,131 @@
           ],
           "constraints": [
             {
-              "name": "ra_pro_weekly_completeness_runs_pkey",
-              "kind": "primary_key"
+              "name_binding": "structural",
+              "kind": "primary_key",
+              "columns": [
+                "id"
+              ],
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_idempotency_key_key",
-              "kind": "unique"
+              "name_binding": "structural",
+              "kind": "unique",
+              "columns": [
+                "idempotency_key"
+              ],
+              "nulls_distinct": true,
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_firm_client_id_week_ending_accounting_sync_id_key",
-              "kind": "unique"
+              "name_binding": "structural",
+              "kind": "unique",
+              "columns": [
+                "firm_client_id",
+                "week_ending",
+                "accounting_sync_id"
+              ],
+              "nulls_distinct": true,
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_firm_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "firm_id"
+              ],
+              "referenced_table": "firms",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_firm_client_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "firm_client_id"
+              ],
+              "referenced_table": "firm_clients",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_company_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "company_id"
+              ],
+              "referenced_table": "companies",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_runs_accounting_sync_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "accounting_sync_id"
+              ],
+              "referenced_table": "accounting_syncs",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_provider",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "provider"
+              "columns": [],
+              "check_expr_normalized": "provider IN ('quickbooks','xero')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_status",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "status"
+              "columns": [],
+              "check_expr_normalized": "status IN ('clear','review_required','blocked')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_finding_count",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "finding_count"
+              "columns": [],
+              "check_expr_normalized": "finding_count >= 0",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_idempotency_key",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "idempotency_key"
+              "columns": [],
+              "check_expr_normalized": "idempotency_key ~ '^[a-f0-9]{64}$'",
+              "deferrable": false,
+              "initially_deferred": false
             }
           ],
           "policies": [
@@ -449,36 +529,72 @@
           ],
           "constraints": [
             {
-              "name": "ra_pro_weekly_completeness_findings_pkey",
-              "kind": "primary_key"
+              "name_binding": "structural",
+              "kind": "primary_key",
+              "columns": [
+                "id"
+              ],
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_findings_run_id_code_key",
-              "kind": "unique"
+              "name_binding": "structural",
+              "kind": "unique",
+              "columns": [
+                "run_id",
+                "code"
+              ],
+              "nulls_distinct": true,
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_weekly_completeness_findings_run_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "run_id"
+              ],
+              "referenced_table": "ra_pro_weekly_completeness_runs",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_category",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "category"
+              "columns": [],
+              "check_expr_normalized": "category IN ('bank_activity','order_to_invoice','accounts_receivable','accounts_payable','source_data')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_code",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "code"
+              "columns": [],
+              "check_expr_normalized": "code ~ '^[a-z0-9_]+$'",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_severity",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "severity"
+              "columns": [],
+              "check_expr_normalized": "severity IN ('review','block')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_item_count",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "item_count"
+              "columns": [],
+              "check_expr_normalized": "item_count >= 0",
+              "deferrable": false,
+              "initially_deferred": false
             }
           ],
           "policies": [
@@ -585,57 +701,139 @@
           ],
           "constraints": [
             {
-              "name": "ra_pro_month_end_review_packages_pkey",
-              "kind": "primary_key"
+              "name_binding": "structural",
+              "kind": "primary_key",
+              "columns": [
+                "id"
+              ],
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_idempotency_key_key",
-              "kind": "unique"
+              "name_binding": "structural",
+              "kind": "unique",
+              "columns": [
+                "idempotency_key"
+              ],
+              "nulls_distinct": true,
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_firm_client_id_period_end_accounting_sync_id_key",
-              "kind": "unique"
+              "name_binding": "structural",
+              "kind": "unique",
+              "columns": [
+                "firm_client_id",
+                "period_end",
+                "accounting_sync_id"
+              ],
+              "nulls_distinct": true,
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_firm_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "firm_id"
+              ],
+              "referenced_table": "firms",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_firm_client_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "firm_client_id"
+              ],
+              "referenced_table": "firm_clients",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_company_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "company_id"
+              ],
+              "referenced_table": "companies",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "ra_pro_month_end_review_packages_accounting_sync_id_fkey",
-              "kind": "foreign_key"
+              "name_binding": "structural",
+              "kind": "foreign_key",
+              "columns": [
+                "accounting_sync_id"
+              ],
+              "referenced_table": "accounting_syncs",
+              "referenced_columns": [
+                "id"
+              ],
+              "match_option": "SIMPLE",
+              "update_action": "NO ACTION",
+              "delete_action": "RESTRICT",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_provider",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "provider"
+              "columns": [],
+              "check_expr_normalized": "provider IN ('quickbooks','xero')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_status",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "status"
+              "columns": [],
+              "check_expr_normalized": "status IN ('ready','review_required','blocked')",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_idempotency_key",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "idempotency_key"
+              "columns": [],
+              "check_expr_normalized": "idempotency_key ~ '^[a-f0-9]{64}$'",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_review_only",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "review_only"
+              "columns": [],
+              "check_expr_normalized": "(review_package->>'review_only')::boolean IS TRUE",
+              "deferrable": false,
+              "initially_deferred": false
             },
             {
-              "name": "check_provider_writes",
+              "name_binding": "structural",
               "kind": "check",
-              "token": "provider_writes"
+              "columns": [],
+              "check_expr_normalized": "(review_package->>'provider_writes')::boolean IS FALSE",
+              "deferrable": false,
+              "initially_deferred": false
             }
           ],
           "policies": [
@@ -673,24 +871,29 @@
       ],
       "provider_sentinels": {
         "invoices": {
-          "present": true,
-          "count": 0
+          "present": false,
+          "count": "unavailable",
+          "mutations": "not_applicable"
         },
         "bills": {
-          "present": true,
-          "count": 0
+          "present": false,
+          "count": "unavailable",
+          "mutations": "not_applicable"
         },
         "payments": {
-          "present": true,
-          "count": 0
+          "present": false,
+          "count": "unavailable",
+          "mutations": "not_applicable"
         },
         "journal_entries": {
-          "present": true,
-          "count": 0
+          "present": false,
+          "count": "unavailable",
+          "mutations": "not_applicable"
         },
         "provider_write_attempts": {
-          "present": true,
-          "count": 0
+          "present": false,
+          "count": "unavailable",
+          "mutations": "not_applicable"
         }
       },
       "partial_corrective_state": false,
@@ -1035,52 +1238,131 @@
             ],
             "constraints": [
               {
-                "name": "ra_pro_weekly_completeness_runs_pkey",
-                "kind": "primary_key"
+                "name_binding": "structural",
+                "kind": "primary_key",
+                "columns": [
+                  "id"
+                ],
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_idempotency_key_key",
-                "kind": "unique"
+                "name_binding": "structural",
+                "kind": "unique",
+                "columns": [
+                  "idempotency_key"
+                ],
+                "nulls_distinct": true,
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_firm_client_id_week_ending_accounting_sync_id_key",
-                "kind": "unique"
+                "name_binding": "structural",
+                "kind": "unique",
+                "columns": [
+                  "firm_client_id",
+                  "week_ending",
+                  "accounting_sync_id"
+                ],
+                "nulls_distinct": true,
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_firm_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "firm_id"
+                ],
+                "referenced_table": "firms",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_firm_client_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "firm_client_id"
+                ],
+                "referenced_table": "firm_clients",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_company_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "company_id"
+                ],
+                "referenced_table": "companies",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_runs_accounting_sync_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "accounting_sync_id"
+                ],
+                "referenced_table": "accounting_syncs",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_provider",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "provider"
+                "columns": [],
+                "check_expr_normalized": "provider IN ('quickbooks','xero')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_status",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "status"
+                "columns": [],
+                "check_expr_normalized": "status IN ('clear','review_required','blocked')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_finding_count",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "finding_count"
+                "columns": [],
+                "check_expr_normalized": "finding_count >= 0",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_idempotency_key",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "idempotency_key"
+                "columns": [],
+                "check_expr_normalized": "idempotency_key ~ '^[a-f0-9]{64}$'",
+                "deferrable": false,
+                "initially_deferred": false
               }
             ],
             "policies": [
@@ -1165,36 +1447,72 @@
             ],
             "constraints": [
               {
-                "name": "ra_pro_weekly_completeness_findings_pkey",
-                "kind": "primary_key"
+                "name_binding": "structural",
+                "kind": "primary_key",
+                "columns": [
+                  "id"
+                ],
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_findings_run_id_code_key",
-                "kind": "unique"
+                "name_binding": "structural",
+                "kind": "unique",
+                "columns": [
+                  "run_id",
+                  "code"
+                ],
+                "nulls_distinct": true,
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_weekly_completeness_findings_run_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "run_id"
+                ],
+                "referenced_table": "ra_pro_weekly_completeness_runs",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_category",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "category"
+                "columns": [],
+                "check_expr_normalized": "category IN ('bank_activity','order_to_invoice','accounts_receivable','accounts_payable','source_data')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_code",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "code"
+                "columns": [],
+                "check_expr_normalized": "code ~ '^[a-z0-9_]+$'",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_severity",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "severity"
+                "columns": [],
+                "check_expr_normalized": "severity IN ('review','block')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_item_count",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "item_count"
+                "columns": [],
+                "check_expr_normalized": "item_count >= 0",
+                "deferrable": false,
+                "initially_deferred": false
               }
             ],
             "policies": [
@@ -1301,57 +1619,139 @@
             ],
             "constraints": [
               {
-                "name": "ra_pro_month_end_review_packages_pkey",
-                "kind": "primary_key"
+                "name_binding": "structural",
+                "kind": "primary_key",
+                "columns": [
+                  "id"
+                ],
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_idempotency_key_key",
-                "kind": "unique"
+                "name_binding": "structural",
+                "kind": "unique",
+                "columns": [
+                  "idempotency_key"
+                ],
+                "nulls_distinct": true,
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_firm_client_id_period_end_accounting_sync_id_key",
-                "kind": "unique"
+                "name_binding": "structural",
+                "kind": "unique",
+                "columns": [
+                  "firm_client_id",
+                  "period_end",
+                  "accounting_sync_id"
+                ],
+                "nulls_distinct": true,
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_firm_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "firm_id"
+                ],
+                "referenced_table": "firms",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_firm_client_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "firm_client_id"
+                ],
+                "referenced_table": "firm_clients",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_company_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "company_id"
+                ],
+                "referenced_table": "companies",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "ra_pro_month_end_review_packages_accounting_sync_id_fkey",
-                "kind": "foreign_key"
+                "name_binding": "structural",
+                "kind": "foreign_key",
+                "columns": [
+                  "accounting_sync_id"
+                ],
+                "referenced_table": "accounting_syncs",
+                "referenced_columns": [
+                  "id"
+                ],
+                "match_option": "SIMPLE",
+                "update_action": "NO ACTION",
+                "delete_action": "RESTRICT",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_provider",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "provider"
+                "columns": [],
+                "check_expr_normalized": "provider IN ('quickbooks','xero')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_status",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "status"
+                "columns": [],
+                "check_expr_normalized": "status IN ('ready','review_required','blocked')",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_idempotency_key",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "idempotency_key"
+                "columns": [],
+                "check_expr_normalized": "idempotency_key ~ '^[a-f0-9]{64}$'",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_review_only",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "review_only"
+                "columns": [],
+                "check_expr_normalized": "(review_package->>'review_only')::boolean IS TRUE",
+                "deferrable": false,
+                "initially_deferred": false
               },
               {
-                "name": "check_provider_writes",
+                "name_binding": "structural",
                 "kind": "check",
-                "token": "provider_writes"
+                "columns": [],
+                "check_expr_normalized": "(review_package->>'provider_writes')::boolean IS FALSE",
+                "deferrable": false,
+                "initially_deferred": false
               }
             ],
             "policies": [
@@ -1389,24 +1789,29 @@
         ],
         "provider_sentinels": {
           "invoices": {
-            "present": true,
-            "count": 0
+            "present": false,
+            "count": "unavailable",
+            "mutations": "not_applicable"
           },
           "bills": {
-            "present": true,
-            "count": 0
+            "present": false,
+            "count": "unavailable",
+            "mutations": "not_applicable"
           },
           "payments": {
-            "present": true,
-            "count": 0
+            "present": false,
+            "count": "unavailable",
+            "mutations": "not_applicable"
           },
           "journal_entries": {
-            "present": true,
-            "count": 0
+            "present": false,
+            "count": "unavailable",
+            "mutations": "not_applicable"
           },
           "provider_write_attempts": {
-            "present": true,
-            "count": 0
+            "present": false,
+            "count": "unavailable",
+            "mutations": "not_applicable"
           }
         },
         "partial_corrective_state": false,
@@ -1435,6 +1840,7 @@
     "automation_gate": {
       "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
       "production_presence": "absent",
+      "production_key_name_authority": "vercel_production_exact_key_names",
       "effective_state": "closed",
       "value_read": false
     },

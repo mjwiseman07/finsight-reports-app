@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
+const { assertAutomationGate } = require("./ra-pro-accounting-automation-corrective-evidence-schema");
 const {
   validateDatabaseReadonly,
   validateSafety,
@@ -170,11 +171,7 @@ function validateCorrectivePreApplyLiveEvidence(evidence, options = {}) {
   assertExact(authz.disposable_pin_scope, "in_memory_file_sha_only", "CORRECTIVE_PRE_APPLY_SCHEMA", "pin scope");
 
   const gate = evidence.automation_gate;
-  assertKeys(gate, ["key", "production_presence", "effective_state", "value_read"], "CORRECTIVE_PRE_APPLY_SCHEMA");
-  assertExact(gate.key, "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION", "CORRECTIVE_PRE_APPLY_AUTOMATION_GATE", "key");
-  if (gate.production_presence !== "absent" || gate.effective_state !== "closed" || gate.value_read !== false) {
-    throw blocked("CORRECTIVE_PRE_APPLY_AUTOMATION_GATE", "gate");
-  }
+  assertAutomationGate(gate, "CORRECTIVE_PRE_APPLY");
 
   const db = evidence.database_readonly;
   assertKeys(

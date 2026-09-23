@@ -96,11 +96,13 @@
       "table_owners": "postgres",
       "columns": "exact_name_type_nullability_match",
       "indexes": "exact_name_uniqueness_columns_match",
-      "constraints": "exact_name_kind_and_check_token_match",
+      "constraints": "structural_canonical_identity_for_unnamed_migration_constraints; exact_name_only_when_CONSTRAINT_clause_present_in_sealed_migrations (none)",
+      "constraints_exact_name_bound": [],
+      "constraints_structurally_canonicalized": "all_pk_unique_fk_check; compare table/kind/ordered_columns/referenced_table_columns/match_update_delete/deferrability/normalized_check_expr/uniqueness; ignore PostgreSQL-generated names",
       "policies": "exact_name_command_role_match",
       "functions": "exact_signature_security_search_path_language_match",
       "row_counts": "nonnegative_integer_for_each_corrective_table",
-      "provider_sentinels": "invoices,bills,payments,journal_entries,provider_write_attempts present with nonnegative counts",
+      "provider_sentinels": "typed_state_per_relation; sealed_expected_absent_for_invoices_bills_payments_journal_entries_provider_write_attempts; present:false requires count=unavailable mutations=not_applicable; present:true requires nonnegative count; reject missing/unknown/duplicate/contradictory/unexpected_presence/nonzero_provider_write_evidence",
       "partial_corrective_state": false
     },
     "authorizing_inventory": {
@@ -120,7 +122,9 @@
     "consumed_dual_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f",
     "automation_gate_key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
     "automation_gate_presence": "absent",
+    "automation_gate_production_key_name_authority": "vercel_production_exact_key_names",
     "automation_gate_state": "closed",
+    "automation_gate_value_read": false,
     "write_counters": 0
   }
 }

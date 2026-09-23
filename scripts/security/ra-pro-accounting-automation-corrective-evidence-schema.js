@@ -74,6 +74,38 @@ const SENTINEL_RELATIONS = Object.freeze([
   "provider_write_attempts",
 ]);
 
+/**
+ * Sealed expected presence for corrective evidence provider-sentinel relations.
+ * Evidence-model only; applicator write-sentinels in schema-probes stay fail-closed.
+ */
+const SENTINEL_EXPECTED_STATE = Object.freeze({
+  invoices: "absent",
+  bills: "absent",
+  payments: "absent",
+  journal_entries: "absent",
+  provider_write_attempts: "absent",
+});
+
+/** Sealed unavailable / not-applicable representation for expected-absent sentinels. */
+const SENTINEL_ABSENT_PROOF = Object.freeze({
+  present: false,
+  count: "unavailable",
+  mutations: "not_applicable",
+});
+
+const AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES = Object.freeze([
+  "vercel_production_exact_key_names",
+]);
+
+const NON_AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES = Object.freeze([
+  "local_process",
+  "process_env",
+  "unavailable",
+  "non_authoritative",
+  "unknown",
+  "fixture_guess",
+]);
+
 const WEBHOOK_STATUSES = Object.freeze(["received", "processing", "retryable"]);
 
 const TABLE_COLUMNS = Object.freeze({
@@ -133,42 +165,102 @@ const TABLE_INDEXES = Object.freeze({
   ]),
 });
 
+/**
+ * Constraint identity policy (from sealed original migrations):
+ * - Exact-name-bound: none. Migrations never use CONSTRAINT <name> clauses;
+ *   PostgreSQL may generate truncated/renamed catalog names. Do not hard-code them.
+ * - Structurally canonicalized: all PK / UNIQUE / FK / CHECK constraints below.
+ * Observed name is non-authoritative metadata when name_binding === "structural".
+ * Indexes and policies remain exact-name-bound elsewhere in this schema.
+ */
+const CONSTRAINT_NAME_BINDING_POLICY = Object.freeze({
+  exact_name_bound: Object.freeze([]),
+  structurally_canonicalized: "all_pk_unique_fk_check_from_original_migrations",
+});
+
+function fk(columns, referencedTable, referencedColumns, deleteAction = "RESTRICT") {
+  return Object.freeze({
+    name_binding: "structural",
+    kind: "foreign_key",
+    columns: Object.freeze([...columns]),
+    referenced_table: referencedTable,
+    referenced_columns: Object.freeze([...referencedColumns]),
+    match_option: "SIMPLE",
+    update_action: "NO ACTION",
+    delete_action: deleteAction,
+    deferrable: false,
+    initially_deferred: false,
+  });
+}
+
+function pk(columns) {
+  return Object.freeze({
+    name_binding: "structural",
+    kind: "primary_key",
+    columns: Object.freeze([...columns]),
+    deferrable: false,
+    initially_deferred: false,
+  });
+}
+
+function uq(columns) {
+  return Object.freeze({
+    name_binding: "structural",
+    kind: "unique",
+    columns: Object.freeze([...columns]),
+    nulls_distinct: true,
+    deferrable: false,
+    initially_deferred: false,
+  });
+}
+
+function chk(checkExprNormalized) {
+  return Object.freeze({
+    name_binding: "structural",
+    kind: "check",
+    columns: Object.freeze([]),
+    check_expr_normalized: checkExprNormalized,
+    deferrable: false,
+    initially_deferred: false,
+  });
+}
+
 const TABLE_CONSTRAINTS = Object.freeze({
   ra_pro_weekly_completeness_runs: Object.freeze([
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_pkey", kind: "primary_key" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_idempotency_key_key", kind: "unique" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_firm_client_id_week_ending_accounting_sync_id_key", kind: "unique" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_firm_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_firm_client_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_company_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_runs_accounting_sync_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "check_provider", kind: "check", token: "provider" }),
-    Object.freeze({ name: "check_status", kind: "check", token: "status" }),
-    Object.freeze({ name: "check_finding_count", kind: "check", token: "finding_count" }),
-    Object.freeze({ name: "check_idempotency_key", kind: "check", token: "idempotency_key" }),
+    pk(["id"]),
+    uq(["idempotency_key"]),
+    uq(["firm_client_id", "week_ending", "accounting_sync_id"]),
+    fk(["firm_id"], "firms", ["id"]),
+    fk(["firm_client_id"], "firm_clients", ["id"]),
+    fk(["company_id"], "companies", ["id"]),
+    fk(["accounting_sync_id"], "accounting_syncs", ["id"]),
+    chk("provider IN ('quickbooks','xero')"),
+    chk("status IN ('clear','review_required','blocked')"),
+    chk("finding_count >= 0"),
+    chk("idempotency_key ~ '^[a-f0-9]{64}$'"),
   ]),
   ra_pro_weekly_completeness_findings: Object.freeze([
-    Object.freeze({ name: "ra_pro_weekly_completeness_findings_pkey", kind: "primary_key" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_findings_run_id_code_key", kind: "unique" }),
-    Object.freeze({ name: "ra_pro_weekly_completeness_findings_run_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "check_category", kind: "check", token: "category" }),
-    Object.freeze({ name: "check_code", kind: "check", token: "code" }),
-    Object.freeze({ name: "check_severity", kind: "check", token: "severity" }),
-    Object.freeze({ name: "check_item_count", kind: "check", token: "item_count" }),
+    pk(["id"]),
+    uq(["run_id", "code"]),
+    fk(["run_id"], "ra_pro_weekly_completeness_runs", ["id"]),
+    chk("category IN ('bank_activity','order_to_invoice','accounts_receivable','accounts_payable','source_data')"),
+    chk("code ~ '^[a-z0-9_]+$'"),
+    chk("severity IN ('review','block')"),
+    chk("item_count >= 0"),
   ]),
   ra_pro_month_end_review_packages: Object.freeze([
-    Object.freeze({ name: "ra_pro_month_end_review_packages_pkey", kind: "primary_key" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_idempotency_key_key", kind: "unique" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_firm_client_id_period_end_accounting_sync_id_key", kind: "unique" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_firm_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_firm_client_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_company_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "ra_pro_month_end_review_packages_accounting_sync_id_fkey", kind: "foreign_key" }),
-    Object.freeze({ name: "check_provider", kind: "check", token: "provider" }),
-    Object.freeze({ name: "check_status", kind: "check", token: "status" }),
-    Object.freeze({ name: "check_idempotency_key", kind: "check", token: "idempotency_key" }),
-    Object.freeze({ name: "check_review_only", kind: "check", token: "review_only" }),
-    Object.freeze({ name: "check_provider_writes", kind: "check", token: "provider_writes" }),
+    pk(["id"]),
+    uq(["idempotency_key"]),
+    uq(["firm_client_id", "period_end", "accounting_sync_id"]),
+    fk(["firm_id"], "firms", ["id"]),
+    fk(["firm_client_id"], "firm_clients", ["id"]),
+    fk(["company_id"], "companies", ["id"]),
+    fk(["accounting_sync_id"], "accounting_syncs", ["id"]),
+    chk("provider IN ('quickbooks','xero')"),
+    chk("status IN ('ready','review_required','blocked')"),
+    chk("idempotency_key ~ '^[a-f0-9]{64}$'"),
+    chk("(review_package->>'review_only')::boolean IS TRUE"),
+    chk("(review_package->>'provider_writes')::boolean IS FALSE"),
   ]),
 });
 
@@ -496,18 +588,179 @@ function canonicalizeIndexes(indexes) {
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
+function normalizeCheckExpression(expr) {
+  let s = String(expr || "").trim();
+  s = s.replace(/^CHECK\s*/i, "");
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.startsWith("(") && s.endsWith(")")) {
+    let depth = 0;
+    let wrap = true;
+    for (let i = 0; i < s.length; i += 1) {
+      if (s[i] === "(") depth += 1;
+      else if (s[i] === ")") {
+        depth -= 1;
+        if (depth === 0 && i !== s.length - 1) {
+          wrap = false;
+          break;
+        }
+      }
+    }
+    if (wrap) s = s.slice(1, -1).trim();
+  }
+  s = s.replace(
+    /=\s*ANY\s*\(\s*ARRAY\s*\[([^\]]+)\]\s*\)/gi,
+    (_m, inner) => {
+      const parts = [...inner.matchAll(/'([^']*)'/g)].map((x) => x[1]).sort();
+      return " IN ('" + parts.join("','") + "')";
+    },
+  );
+  s = s.replace(/\s+IN\s*\(/gi, " IN (");
+  s = s.replace(/IN\s*\(([^)]+)\)/gi, (_m, inner) => {
+    const parts = [...String(inner).matchAll(/'([^']*)'/g)].map((x) => x[1]);
+    if (parts.length === 0) return "IN (" + String(inner).replace(/\s+/g, "") + ")";
+    return "IN ('" + [...parts].sort().join("','") + "')";
+  });
+  s = s.replace(/::text/gi, "");
+  s = s.replace(/\bTRUE\b/gi, "TRUE").replace(/\bFALSE\b/gi, "FALSE");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
+function orderedColumns(columns) {
+  return [...(columns || [])].map(String);
+}
+
+function structuralConstraintIdentity(constraint) {
+  const kind = String(constraint.kind);
+  const binding = String(constraint.name_binding || "structural");
+  const base = {
+    name_binding: binding,
+    kind,
+    columns: orderedColumns(constraint.columns),
+    deferrable: Boolean(constraint.deferrable),
+    initially_deferred: Boolean(constraint.initially_deferred),
+  };
+  if (binding === "exact") {
+    base.name = String(constraint.name || "");
+  }
+  if (kind === "foreign_key") {
+    return {
+      ...base,
+      referenced_table: String(constraint.referenced_table || ""),
+      referenced_columns: orderedColumns(constraint.referenced_columns),
+      match_option: String(constraint.match_option || "SIMPLE"),
+      update_action: String(constraint.update_action || "NO ACTION"),
+      delete_action: String(constraint.delete_action || "NO ACTION"),
+    };
+  }
+  if (kind === "check") {
+    return {
+      ...base,
+      check_expr_normalized: normalizeCheckExpression(
+        constraint.check_expr_normalized || constraint.check_expr || constraint.token || "",
+      ),
+    };
+  }
+  if (kind === "unique") {
+    return {
+      ...base,
+      nulls_distinct: constraint.nulls_distinct !== false,
+    };
+  }
+  if (kind === "primary_key") {
+    return base;
+  }
+  throw blocked("CORRECTIVE_EVIDENCE", "OBJECT_CONSTRAINTS", "unknown kind " + kind);
+}
+
+function constraintIdentityKey(identity) {
+  return JSON.stringify(identity);
+}
+
 function canonicalizeConstraints(constraints) {
   return [...(constraints || [])]
-    .map((c) => ({
-      name: String(c.name),
-      kind: String(c.kind),
-      ...(c.token ? { token: String(c.token) } : {}),
-    }))
-    .sort((a, b) => {
-      if (a.kind !== b.kind) return a.kind < b.kind ? -1 : 1;
-      if (a.name !== b.name) return a.name < b.name ? -1 : 1;
-      return String(a.token || "").localeCompare(String(b.token || ""));
-    });
+    .map((c) => structuralConstraintIdentity(c))
+    .sort((a, b) => constraintIdentityKey(a).localeCompare(constraintIdentityKey(b)));
+}
+
+function assertConstraintSet(observedConstraints, expectedConstraints, codePrefix, table) {
+  if (!Array.isArray(observedConstraints)) {
+    throw blocked(codePrefix, "OBJECT_CONSTRAINTS", table + " constraints array");
+  }
+  const got = canonicalizeConstraints(observedConstraints);
+  const want = canonicalizeConstraints(expectedConstraints);
+  const gotKeys = got.map(constraintIdentityKey);
+  const wantKeys = want.map(constraintIdentityKey);
+  if (new Set(gotKeys).size !== gotKeys.length) {
+    throw blocked(codePrefix, "OBJECT_CONSTRAINTS", table + " duplicate canonical constraints");
+  }
+  if (new Set(wantKeys).size !== wantKeys.length) {
+    throw blocked(codePrefix, "OBJECT_CONSTRAINTS", table + " sealed duplicate constraints");
+  }
+  if (!deepEqualCanonical(got, want)) {
+    throw blocked(codePrefix, "OBJECT_CONSTRAINTS", table + " constraints drift");
+  }
+}
+
+function assertProviderSentinels(providerSentinels, codePrefix, expectedState = SENTINEL_EXPECTED_STATE) {
+  if (!providerSentinels || typeof providerSentinels !== "object" || Array.isArray(providerSentinels)) {
+    throw blocked(codePrefix, "SENTINEL", "provider_sentinels object required");
+  }
+  assertKeys(providerSentinels, SENTINEL_RELATIONS, codePrefix, "SENTINEL");
+  for (const rel of SENTINEL_RELATIONS) {
+    const expected = expectedState[rel];
+    const s = providerSentinels[rel];
+    if (!s || typeof s !== "object" || Array.isArray(s)) {
+      throw blocked(codePrefix, "SENTINEL", rel + " entry");
+    }
+    if (expected === "absent") {
+      assertKeys(s, ["present", "count", "mutations"], codePrefix, "SENTINEL");
+      if (s.present !== false) {
+        throw blocked(codePrefix, "SENTINEL", rel + " unexpected presence");
+      }
+      if (s.count !== "unavailable") {
+        throw blocked(codePrefix, "SENTINEL", rel + " absent count must be unavailable");
+      }
+      if (s.mutations !== "not_applicable") {
+        throw blocked(codePrefix, "SENTINEL", rel + " absent mutations must be not_applicable");
+      }
+      continue;
+    }
+    if (expected === "present") {
+      assertKeys(s, ["present", "count"], codePrefix, "SENTINEL");
+      if (s.present !== true) {
+        throw blocked(codePrefix, "SENTINEL", rel + " expected present");
+      }
+      if (!Number.isInteger(s.count) || s.count < 0) {
+        throw blocked(codePrefix, "SENTINEL", rel + " count");
+      }
+      continue;
+    }
+    throw blocked(codePrefix, "SENTINEL", rel + " unknown sealed expected state");
+  }
+}
+
+function assertAutomationGate(gate, codePrefix) {
+  if (!gate || typeof gate !== "object" || Array.isArray(gate)) {
+    throw blocked(codePrefix, "AUTOMATION_GATE", "gate missing");
+  }
+  assertKeys(
+    gate,
+    ["key", "production_presence", "production_key_name_authority", "effective_state", "value_read"],
+    codePrefix,
+    "AUTOMATION_GATE",
+  );
+  assertExact(gate.key, "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION", codePrefix, "AUTOMATION_GATE", "key");
+  const authority = String(gate.production_key_name_authority || "");
+  if (NON_AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES.includes(authority) || !authority) {
+    throw blocked(codePrefix, "AUTOMATION_GATE", "non-authoritative Production key-name authority");
+  }
+  if (!AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES.includes(authority)) {
+    throw blocked(codePrefix, "AUTOMATION_GATE", "Production key-name authority not sealed");
+  }
+  if (gate.production_presence !== "absent" || gate.effective_state !== "closed" || gate.value_read !== false) {
+    throw blocked(codePrefix, "AUTOMATION_GATE", "gate closed/absent/value_read");
+  }
 }
 
 function canonicalizePolicies(policies) {
@@ -568,11 +821,7 @@ function assertPreCorrectionObjects(observed, codePrefix) {
       throw blocked(codePrefix, "OBJECT_INDEXES", `${table} indexes drift`);
     }
 
-    const constraints = canonicalizeConstraints(row.constraints);
-    const wantCons = canonicalizeConstraints(TABLE_CONSTRAINTS[table]);
-    if (!deepEqualCanonical(constraints, wantCons)) {
-      throw blocked(codePrefix, "OBJECT_CONSTRAINTS", `${table} constraints drift`);
-    }
+    assertConstraintSet(row.constraints, TABLE_CONSTRAINTS[table], codePrefix, table);
 
     const policies = canonicalizePolicies(row.policies);
     const wantPolicies = canonicalizePolicies(
@@ -605,15 +854,7 @@ function assertPreCorrectionObjects(observed, codePrefix) {
     throw blocked(codePrefix, "OBJECT_FUNCTIONS", "function shape drift");
   }
 
-  assertKeys(observed.provider_sentinels, SENTINEL_RELATIONS, codePrefix, "SENTINEL");
-  for (const rel of SENTINEL_RELATIONS) {
-    const s = observed.provider_sentinels[rel];
-    assertKeys(s, ["present", "count"], codePrefix, "SENTINEL");
-    if (s.present !== true) throw blocked(codePrefix, "SENTINEL", `${rel} must be present`);
-    if (!Number.isInteger(s.count) || s.count < 0) {
-      throw blocked(codePrefix, "SENTINEL", `${rel} count`);
-    }
-  }
+  assertProviderSentinels(observed.provider_sentinels, codePrefix);
 
   assertKeys(observed.row_counts, CORRECTIVE_TABLES, codePrefix, "ROW_COUNTS");
   for (const table of CORRECTIVE_TABLES) {
@@ -696,7 +937,12 @@ function buildSyntheticObjects(rowCounts = null) {
   }));
   const provider_sentinels = {};
   for (const rel of SENTINEL_RELATIONS) {
-    provider_sentinels[rel] = { present: true, count: 0 };
+    const expected = SENTINEL_EXPECTED_STATE[rel];
+    if (expected === "absent") {
+      provider_sentinels[rel] = { ...SENTINEL_ABSENT_PROOF };
+    } else {
+      provider_sentinels[rel] = { present: true, count: 0 };
+    }
   }
   return {
     tables,
@@ -716,6 +962,11 @@ module.exports = {
   TARGET_POLICIES,
   POST_COMMIT_POLICIES,
   SENTINEL_RELATIONS,
+  SENTINEL_EXPECTED_STATE,
+  SENTINEL_ABSENT_PROOF,
+  AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES,
+  NON_AUTHORITATIVE_PRODUCTION_KEY_NAME_AUTHORITIES,
+  CONSTRAINT_NAME_BINDING_POLICY,
   WEBHOOK_STATUSES,
   TABLE_COLUMNS,
   TABLE_INDEXES,
@@ -727,6 +978,12 @@ module.exports = {
   canonicalizeInherited,
   canonicalizeUnexpected,
   deepEqualCanonical,
+  normalizeCheckExpression,
+  structuralConstraintIdentity,
+  canonicalizeConstraints,
+  assertConstraintSet,
+  assertProviderSentinels,
+  assertAutomationGate,
   buildExpectedPrivilegeSurfaces,
   buildSyntheticPrivilegeSurfaces,
   buildSyntheticObjects,

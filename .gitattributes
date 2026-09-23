@@ -68,14 +68,22 @@ tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json text
 
 # RA Pro accounting-automation applicator ù LF-authoritative seals
 docs/security/ra-pro-accounting-automation-apply/** text eol=lf
+docs/security/ra-pro-accounting-automation-corrective-apply/** text eol=lf
 scripts/security/ra-pro-accounting-automation-*.js text eol=lf
 scripts/security/apply-ra-pro-accounting-automation.js text eol=lf
+scripts/security/apply-ra-pro-accounting-automation-corrective.js text eol=lf
 scripts/security/assemble-ra-pro-accounting-automation-applicator-standalone-bundle.js text eol=lf
+scripts/security/assemble-ra-pro-accounting-automation-corrective-applicator-standalone-bundle.js text eol=lf
+scripts/security/build-ra-pro-accounting-automation-corrective-*.js text eol=lf
 scripts/security/verify-ra-pro-accounting-automation-apply-authority.js text eol=lf
+scripts/security/verify-ra-pro-accounting-automation-corrective-apply-authority.js text eol=lf
 scripts/security/enter-ra-pro-accounting-automation-apply.ps1 text eol=lf
 scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1 text eol=lf
 scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs text eol=lf
+scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs text eol=lf
 tests/security/ra-pro-accounting-automation-*.test.ts text eol=lf
+tests/security/helpers/fixtures/ra-pro-accounting-automation-corrective-*.json text eol=lf
 supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql text eol=lf
 supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql text eol=lf
+supabase/migrations/20260922003200_ra_pro_accounting_automation_service_role_least_privilege.sql text eol=lf
 

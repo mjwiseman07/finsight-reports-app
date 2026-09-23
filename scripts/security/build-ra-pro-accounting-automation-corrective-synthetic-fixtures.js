@@ -63,6 +63,7 @@ function observations() {
       automation_gate: {
         key: "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
         production_presence: "absent",
+        production_key_name_authority: "vercel_production_exact_key_names",
         effective_state: "closed",
         value_read: false,
       },

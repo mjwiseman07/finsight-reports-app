@@ -74,6 +74,9 @@ function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
   if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
     throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
   }
+  if (!observed.automation_gate) {
+    throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: authoritative automation_gate required");
+  }
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
@@ -89,12 +92,7 @@ function buildCorrectivePreconditionEvidence(observations = {}, meta = {}) {
       scope: "read_only_production_corrective_precondition_collection",
       tooling_reviewed_tip: meta.tooling_reviewed_tip || TOOLING_REVIEWED_TIP,
     },
-    automation_gate: observed.automation_gate || {
-      key: "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
-      production_presence: "absent",
-      effective_state: "closed",
-      value_read: false,
-    },
+    automation_gate: observed.automation_gate,
     database_readonly: observed.database_readonly,
     safety: observed.safety || {
       read_only: true,
@@ -128,6 +126,9 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
   if (!observed.database_readonly?.privilege_surfaces || !observed.database_readonly?.objects) {
     throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: privilege_surfaces and objects required");
   }
+  if (!observed.automation_gate) {
+    throw new Error("COLLECTOR_OBSERVATION_INCOMPLETE: authoritative automation_gate required");
+  }
   const window = buildWindow(meta.now || observations.now || new Date("2026-09-21T10:00:00Z"));
   const evidence = {
     protocol: "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
@@ -146,12 +147,7 @@ function buildCorrectivePreApplyLiveEvidence(observations = {}, meta = {}) {
       committed_pre_apply_pins: "UNPUBLISHED",
       disposable_pin_scope: "in_memory_file_sha_only",
     },
-    automation_gate: observed.automation_gate || {
-      key: "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
-      production_presence: "absent",
-      effective_state: "closed",
-      value_read: false,
-    },
+    automation_gate: observed.automation_gate,
     database_readonly: observed.database_readonly,
     safety: observed.safety || {
       read_only: true,
