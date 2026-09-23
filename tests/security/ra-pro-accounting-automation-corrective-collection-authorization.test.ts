@@ -13,6 +13,13 @@ const collector = require("../../scripts/security/ra-pro-accounting-automation-c
 const ROOT = process.cwd();
 const AUTH_REL = collectionAuth.AUTH_REL;
 const STALE = collectionAuth.REJECTED_STALE_COLLECTION_TIP_DBDCE968;
+
+/** Immutable unpublished executable tip (parent of the reviewed AUTH-only publication). */
+const UNPUBLISHED_EXECUTABLE = "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94";
+/** Reviewed AUTH-only collection-authorization publication (not replaced by later test-only heads). */
+const AUTHORIZATION_PUBLICATION = "15732f7034596e64f724901d15225efa257f08c5";
+const AUTHORIZATION_BLOB_OID = "cd94d9bd32f23125e149e40ee90c185aa02d3321";
+
 const PRECONDITION_FIXTURE =
   "tests/security/helpers/fixtures/ra-pro-accounting-automation-corrective-precondition-synthetic.json";
 const REJECTED_ARTIFACT =
@@ -25,10 +32,11 @@ function codeOf(err: unknown) {
 function expectCode(fn: () => unknown, code: string) {
   try {
     fn();
-    throw new Error(`expected ${code}`);
   } catch (err) {
     expect(codeOf(err)).toMatch(new RegExp(code));
+    return;
   }
+  throw new Error(`expected throw matching ${code}`);
 }
 
 function gitEnv(cwd: string) {
@@ -48,23 +56,28 @@ function git(args: string[], cwd = ROOT) {
   return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
 }
 
-function tipHasUnpublishedCollectionAuth(commit: string) {
-  try {
-    const raw = git(["cat-file", "blob", `${commit}:${AUTH_REL}`]);
-    const auth = JSON.parse(raw);
-    return auth?.production_collection_authorization?.status === "UNPUBLISHED";
-  } catch {
-    return false;
-  }
+function assertUnpublishedExecutableBlob() {
+  const raw = git(["cat-file", "blob", `${UNPUBLISHED_EXECUTABLE}:${AUTH_REL}`]);
+  const auth = JSON.parse(raw);
+  expect(auth?.production_collection_authorization?.status).toBe("UNPUBLISHED");
+  expect(auth?.production_collection_authorization?.collection_authorized).toBe(false);
 }
 
 describe("corrective collection authorization (non-circular)", () => {
   it("unpublished executable tip blocks before production contact", () => {
-    const map = collectionAuth.describeCollectionArtifactMap({ cwd: ROOT });
+    assertUnpublishedExecutableBlob();
+    const map = collectionAuth.describeCollectionArtifactMap({
+      cwd: ROOT,
+      publicationCommit: UNPUBLISHED_EXECUTABLE,
+    });
     expect(map.collection_authorized).toBe(false);
     expect(map.blocked).toBe(collectionAuth.BLOCKED_UNPUBLISHED);
     expectCode(
-      () => collectionAuth.assertCollectionAuthorityBeforeObservation({ cwd: ROOT }),
+      () =>
+        collectionAuth.assertCollectionAuthorityBeforeObservation({
+          cwd: ROOT,
+          publicationCommit: UNPUBLISHED_EXECUTABLE,
+        }),
       collectionAuth.BLOCKED_UNPUBLISHED,
     );
   });
@@ -95,21 +108,16 @@ describe("corrective collection authorization (non-circular)", () => {
   });
 
   it("accepts a synthetic one-object descendant publication offline and rejects worktree substitute", () => {
-    const head = git(["rev-parse", "HEAD"]);
-    if (!tipHasUnpublishedCollectionAuth(head)) {
-      // Executable tip commit must already contain unpublished production_collection_authorization.
-      expect(tipHasUnpublishedCollectionAuth(head)).toBe(false);
-      return;
-    }
-
+    assertUnpublishedExecutableBlob();
     const created = collectionAuth.createDisposableCollectionPublicationCommit({
       allowDisposablePublicationCommit: true,
       cwd: ROOT,
-      executableCommit: head,
+      executableCommit: UNPUBLISHED_EXECUTABLE,
     });
     expect(created.headUnchanged).toBe(true);
-    expect(created.executableCommit).toBe(head.toLowerCase());
-    expect(created.publicationCommit).not.toBe(head.toLowerCase());
+    expect(created.executableCommit).toBe(UNPUBLISHED_EXECUTABLE);
+    expect(created.publicationCommit).not.toBe(UNPUBLISHED_EXECUTABLE);
+    expect(created.publicationCommit).not.toBe(AUTHORIZATION_PUBLICATION);
 
     const map = collectionAuth.describeCollectionArtifactMap({
       cwd: ROOT,
@@ -117,10 +125,10 @@ describe("corrective collection authorization (non-circular)", () => {
     });
     expect(map.blocked).toBeNull();
     expect(map.collection_authorized).toBe(true);
-    expect(map.authorized_executable_commit).toBe(head.toLowerCase());
+    expect(map.authorized_executable_commit).toBe(UNPUBLISHED_EXECUTABLE);
     expect(map.authorization_publication_blob_oid).toBe(created.authorization_publication_blob_oid);
 
-    const tipAuth = JSON.parse(git(["cat-file", "blob", `${head}:${AUTH_REL}`]));
+    const tipAuth = JSON.parse(git(["cat-file", "blob", `${UNPUBLISHED_EXECUTABLE}:${AUTH_REL}`]));
     const poisoned = structuredClone(tipAuth);
     poisoned.production_collection_authorization = {
       ...tipAuth.production_collection_authorization,
@@ -142,19 +150,42 @@ describe("corrective collection authorization (non-circular)", () => {
     expect(
       collectionAuth.describeCollectionArtifactMap({
         cwd: ROOT,
-        publicationCommit: head,
+        publicationCommit: UNPUBLISHED_EXECUTABLE,
       }).blocked,
     ).toBe(collectionAuth.BLOCKED_UNPUBLISHED);
+
+    // Exact reviewed AUTH-only publication is accepted offline (credential-free map).
+    const reviewed = collectionAuth.describeCollectionArtifactMap({
+      cwd: ROOT,
+      publicationCommit: AUTHORIZATION_PUBLICATION,
+    });
+    expect(reviewed.blocked).toBeNull();
+    expect(reviewed.collection_authorized).toBe(true);
+    expect(reviewed.authorized_executable_commit).toBe(UNPUBLISHED_EXECUTABLE);
+    expect(reviewed.authorization_publication_blob_oid).toBe(AUTHORIZATION_BLOB_OID);
+    expect(reviewed.publication_commit).toBe(AUTHORIZATION_PUBLICATION);
+
+    // Later test-only PR HEAD is not executable authority and not the reviewed publication.
+    const head = git(["rev-parse", "HEAD"]).toLowerCase();
+    expect(head).not.toBe(UNPUBLISHED_EXECUTABLE);
+    if (head !== AUTHORIZATION_PUBLICATION) {
+      expectCode(
+        () =>
+          collectionAuth.describeCollectionArtifactMap({
+            cwd: ROOT,
+            publicationCommit: head,
+          }),
+        "COLLECTION_AUTHORIZATION_ALLOWLIST|COLLECTION_AUTHORIZATION_ANCESTRY|COLLECTION_REMAINS_BLOCKED",
+      );
+    }
   });
 
   it("wrong ancestry / circular self-pin fails closed", () => {
-    const head = git(["rev-parse", "HEAD"]);
-    if (!tipHasUnpublishedCollectionAuth(head)) return;
-
+    assertUnpublishedExecutableBlob();
     const created = collectionAuth.createDisposableCollectionPublicationCommit({
       allowDisposablePublicationCommit: true,
       cwd: ROOT,
-      executableCommit: head,
+      executableCommit: UNPUBLISHED_EXECUTABLE,
     });
     expect(created.publicationCommit).not.toBe(STALE);
     expectCode(
@@ -218,19 +249,22 @@ describe("corrective collection authorization (non-circular)", () => {
               },
             },
           },
-          { source_channel_classification: "fresh_read_only_supabase_select", cwd: ROOT },
+          {
+            source_channel_classification: "fresh_read_only_supabase_select",
+            cwd: ROOT,
+            publicationCommit: UNPUBLISHED_EXECUTABLE,
+          },
         ),
       collectionAuth.BLOCKED_UNPUBLISHED,
     );
   });
 
   it("recheck fails when publication ref swaps after preflight pins", () => {
-    const head = git(["rev-parse", "HEAD"]);
-    if (!tipHasUnpublishedCollectionAuth(head)) return;
+    assertUnpublishedExecutableBlob();
     const created = collectionAuth.createDisposableCollectionPublicationCommit({
       allowDisposablePublicationCommit: true,
       cwd: ROOT,
-      executableCommit: head,
+      executableCommit: UNPUBLISHED_EXECUTABLE,
     });
     const map = collectionAuth.describeCollectionArtifactMap({
       cwd: ROOT,
@@ -239,7 +273,7 @@ describe("corrective collection authorization (non-circular)", () => {
     const other = collectionAuth.createDisposableCollectionPublicationCommit({
       allowDisposablePublicationCommit: true,
       cwd: ROOT,
-      executableCommit: head,
+      executableCommit: UNPUBLISHED_EXECUTABLE,
     });
     expectCode(
       () =>
