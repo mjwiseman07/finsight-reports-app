@@ -2,10 +2,10 @@
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
   "schema_version": 3,
   "source_channel_classification": "fresh_read_only_supabase_select",
-  "collection_started_at_utc": "2026-09-23T05:23:03Z",
-  "collection_ended_at_utc": "2026-09-23T05:24:03Z",
-  "valid_from_utc": "2026-09-23T05:23:03Z",
-  "valid_until_utc": "2026-09-24T05:23:03Z",
+  "collection_started_at_utc": "2026-09-24T04:55:21Z",
+  "collection_ended_at_utc": "2026-09-24T04:56:21Z",
+  "valid_from_utc": "2026-09-24T04:55:21Z",
+  "valid_until_utc": "2026-09-25T04:55:21Z",
   "authorization": {
     "pr_number": 324,
     "scope": "read_only_production_corrective_pre_apply_live_collection",
@@ -24,7 +24,7 @@
   },
   "database_readonly": {
     "project_ref": "jzmdgwwiestcmmeuhhkr",
-    "observed_at_utc": "2026-09-23T05:23:03Z",
+    "observed_at_utc": "2026-09-24T04:55:21Z",
     "history_count": 190,
     "original_committed_migrations": [
       {
@@ -1041,14 +1041,14 @@
       "target": "production"
     },
     "preview_deployment": {
-      "vercel_deployment_id": "dpl_5j7985NUahshGhCLbQgnzdTU6qqp",
-      "preview_commit": "943c7a31494099012310ff052e97bc57c9ff3dbc",
+      "vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+      "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
       "preview_state": "READY",
       "target": null
     },
     "database_readonly": {
       "project_ref": "jzmdgwwiestcmmeuhhkr",
-      "observed_at_utc": "2026-09-23T05:23:03Z",
+      "observed_at_utc": "2026-09-24T04:55:21Z",
       "history_count": 190,
       "original_committed_migrations": [
         {
@@ -2017,8 +2017,8 @@
     "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321",
     "production_vercel_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
     "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
-    "preview_vercel_deployment_id": "dpl_5j7985NUahshGhCLbQgnzdTU6qqp",
-    "preview_commit": "943c7a31494099012310ff052e97bc57c9ff3dbc",
+    "preview_vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+    "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
     "vercel_production_key_name_authority": "vercel_production_exact_key_names",
     "enable_flag_name_present_in_production": false,
     "project_ref": "jzmdgwwiestcmmeuhhkr",
