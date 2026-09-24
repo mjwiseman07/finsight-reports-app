@@ -44,38 +44,58 @@
     "required_prior_dry_run_evidence_sha256": null,
     "required_prior_dry_run_evidence_oid": null,
     "required_prior_dry_run_evidence_bytes": null,
-    "required_pre_apply_live_evidence_sha256": "9c2e8a037d8494bf6c707ebcaecb37c246f89a5302f527228a49dd9aa956e4ce",
-    "required_pre_apply_live_evidence_oid": "174fc11dc5ff5debabcd3d2e16e8f0ac164471a0",
+    "required_pre_apply_live_evidence_sha256": "a05f652705cee954ea141250619e7ad3ed4d4466fc6cfe040d516155a887f371",
+    "required_pre_apply_live_evidence_oid": "f353e7461cc2f1160bef903fb347a6feabdb0fbc",
     "required_pre_apply_live_evidence_bytes": 66428
   },
   "precondition_publication": {
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
     "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1.json",
-    "evidence_source_commit": "5e368e70ed4fce82214e7b48027247fef3dda498",
-    "evidence_blob_oid": "0168322963ba7fdba90b1606f0038bb45e408f04",
-    "evidence_sha256": "33d960caee40d0c118b4fbcd1ebd76e7ccab8195dd81c6eb5ee8a0b1fe81b396",
+    "evidence_source_commit": "a055228c3ad704507cbd00613bd1c5b09cf4798c",
+    "evidence_blob_oid": "7df037fe248519fbd10b07f59745992e48bbdaf3",
+    "evidence_sha256": "e37c2112fd0246945c78ac936d0615feebb781f2d89249f03daa8388e8b288da",
     "evidence_bytes": 66258,
-    "valid_from_utc": "2026-09-23T05:23:03Z",
-    "valid_until_utc": "2026-09-24T05:23:03Z",
+    "valid_from_utc": "2026-09-24T04:55:21Z",
+    "valid_until_utc": "2026-09-25T04:55:21Z",
     "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
     "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
-    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321"
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321",
+    "reviewed_tooling_lineage_tip": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
+    "production_deployment": {
+      "vercel_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
+      "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d"
+    },
+    "preview_deployment": {
+      "vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+      "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98"
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr"
   },
   "pre_apply_live_publication": {
     "status": "PUBLISHED",
     "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
     "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1.json",
-    "evidence_source_commit": "5e368e70ed4fce82214e7b48027247fef3dda498",
-    "evidence_blob_oid": "174fc11dc5ff5debabcd3d2e16e8f0ac164471a0",
-    "evidence_sha256": "9c2e8a037d8494bf6c707ebcaecb37c246f89a5302f527228a49dd9aa956e4ce",
+    "evidence_source_commit": "a055228c3ad704507cbd00613bd1c5b09cf4798c",
+    "evidence_blob_oid": "f353e7461cc2f1160bef903fb347a6feabdb0fbc",
+    "evidence_sha256": "a05f652705cee954ea141250619e7ad3ed4d4466fc6cfe040d516155a887f371",
     "evidence_bytes": 66428,
-    "valid_from_utc": "2026-09-23T05:23:03Z",
-    "valid_until_utc": "2026-09-24T05:23:03Z",
+    "valid_from_utc": "2026-09-24T04:55:21Z",
+    "valid_until_utc": "2026-09-25T04:55:21Z",
     "apply_authorized": false,
     "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
     "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
-    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321"
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321",
+    "reviewed_tooling_lineage_tip": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
+    "production_deployment": {
+      "vercel_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
+      "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d"
+    },
+    "preview_deployment": {
+      "vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+      "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98"
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr"
   },
   "precondition_evidence_contract": {
     "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
@@ -180,7 +200,7 @@
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels.",
     "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection.",
-    "Corrective precondition and pre-apply live evidence pins are PUBLISHED from source commit 5e368e70… (byte-exact independently reviewed artifacts). Collection-authority triad binds executable 2617f2e4… / publication 15732f70… / blob cd94d9bd…. production_apply_authorization remains UNPUBLISHED; pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation."
+    "Corrective precondition and pre-apply live evidence pins are PUBLISHED from source commit a055228c… (byte-exact independently reviewed fresh artifacts). Collection-authority triad binds executable 2617f2e4… / publication 15732f70… / blob cd94d9bd…. Prior pin identities from 5e368e70…/33d960…/9c2e8a… are superseded and must not satisfy active gates. production_apply_authorization remains UNPUBLISHED; pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation. Reviewed tooling lineage tip: 99dc4cc3…."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",

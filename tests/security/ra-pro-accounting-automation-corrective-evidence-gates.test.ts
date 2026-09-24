@@ -458,7 +458,7 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
 
   it("assertPublished accepts tip pins with collection-authority triad while apply stays false", () => {
     const auth = JSON.parse(fs.readFileSync(path.join(ROOT, AUTH_PATH), "utf8"));
-    const now = "2026-09-23T06:00:00Z";
+    const now = "2026-09-24T06:00:00Z";
     const pre = preconditionGates.assertCorrectivePreconditionEvidencePublished({
       auth,
       cwd: ROOT,
@@ -474,6 +474,18 @@ describe("RA Pro accounting-automation corrective evidence gates", () => {
     expect(auth.production_apply_authorization.status).toBe("UNPUBLISHED");
     expect(auth.production_apply_authorization.apply_authorized).toBe(false);
     expect(auth.pre_apply_live_publication.apply_authorized).toBe(false);
+    expect(auth.precondition_publication.evidence_sha256).toBe(
+      "e37c2112fd0246945c78ac936d0615feebb781f2d89249f03daa8388e8b288da",
+    );
+    expect(auth.pre_apply_live_publication.evidence_sha256).toBe(
+      "a05f652705cee954ea141250619e7ad3ed4d4466fc6cfe040d516155a887f371",
+    );
+    expect(auth.precondition_publication.evidence_sha256).not.toBe(
+      "33d960caee40d0c118b4fbcd1ebd76e7ccab8195dd81c6eb5ee8a0b1fe81b396",
+    );
+    expect(auth.pre_apply_live_publication.evidence_sha256).not.toBe(
+      "9c2e8a037d8494bf6c707ebcaecb37c246f89a5302f527228a49dd9aa956e4ce",
+    );
   });
 
   it("collector refuses write when invalid and writes LF artifact when valid", () => {
