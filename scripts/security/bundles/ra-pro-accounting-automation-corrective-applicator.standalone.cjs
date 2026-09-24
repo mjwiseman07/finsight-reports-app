@@ -75,6 +75,7 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       "scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js",
       "scripts/security/ra-pro-accounting-automation-corrective-evidence.js",
       "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js",
+      "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js",
       "scripts/security/git-blob-authority.js",
       "scripts/security/verify-ra-pro-accounting-automation-corrective-apply-authority.js"
     ]);
@@ -10067,6 +10068,26 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
         if (typeof evidence.verdict !== "string" || typeof evidence.result_code !== "string") {
           return { ok: false, code: "CORRECTIVE_EVIDENCE_VERDICT", phase: "schema" };
         }
+        if (Object.prototype.hasOwnProperty.call(evidence, "cleanup")) {
+          return { ok: false, code: "CORRECTIVE_EVIDENCE_CLEANUP_FORBIDDEN", phase: "schema" };
+        }
+        const predictiveCleanupNote = "ceremony fills cleanup";
+        const scanForPredictiveNote = (value, depth = 0) => {
+          if (depth > 12 || value == null) return false;
+          if (typeof value === "string") return value.includes(predictiveCleanupNote);
+          if (typeof value !== "object") return false;
+          if (Array.isArray(value)) return value.some((v) => scanForPredictiveNote(v, depth + 1));
+          return Object.values(value).some((v) => scanForPredictiveNote(v, depth + 1));
+        };
+        if (scanForPredictiveNote(evidence)) {
+          return { ok: false, code: "CORRECTIVE_EVIDENCE_PREDICTIVE_CLEANUP", phase: "schema" };
+        }
+        if (Object.prototype.hasOwnProperty.call(evidence, "producer_cleanup")) {
+          const pc = evidence.producer_cleanup;
+          if (!pc || typeof pc !== "object" || Array.isArray(pc)) {
+            return { ok: false, code: "CORRECTIVE_EVIDENCE_PRODUCER_CLEANUP", phase: "schema" };
+          }
+        }
         return { ok: true };
       } catch (err) {
         return { ok: false, code: err.code || "CORRECTIVE_EVIDENCE_SCHEMA", phase: "schema" };
@@ -10373,10 +10394,6 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
         schema_probes: partial.schema_probes || null,
         prior_history_count: partial.prior_history_count,
         evidence_gates: partial.evidence_gates || null,
-        cleanup: partial.cleanup || {
-          completed: false,
-          note: "ceremony fills cleanup after credential/material disposal"
-        },
         verdict: partial.verdict || "DRY_RUN_BLOCKED",
         result_code: partial.result_code || partial.verdict || "DRY_RUN_BLOCKED",
         error: partial.error,
@@ -10384,6 +10401,9 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
         phase: partial.phase,
         tooling_authorization_path: TOOLING_AUTHORIZATION_PATH2
       };
+      if (partial.producer_cleanup && typeof partial.producer_cleanup === "object" && !Array.isArray(partial.producer_cleanup)) {
+        sealed.producer_cleanup = partial.producer_cleanup;
+      }
       return sanitizeEvidenceValue(sealed);
     }
     module2.exports = {

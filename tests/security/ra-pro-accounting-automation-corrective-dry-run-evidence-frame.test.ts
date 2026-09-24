@@ -231,4 +231,45 @@ describe("corrective dry-run evidence frame", () => {
     expect(Buffer.compare(a, psStyle)).not.toBe(0);
     expect(psStyle.includes(0x0d)).toBe(true);
   });
+
+  it("sealed frame has no cleanup key; schema rejects predictive cleanup", () => {
+    const sealed = sealCorrectiveDryRunEvidence(readyPartial(), AUTH);
+    expect(Object.prototype.hasOwnProperty.call(sealed, "cleanup")).toBe(false);
+    expect(JSON.stringify(sealed)).not.toMatch(/ceremony fills cleanup/);
+    expect(
+      validateCorrectiveDryRunEvidenceSchema({
+        ...sealed,
+        cleanup: { completed: false, note: "ceremony fills cleanup after credential/material disposal" },
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateCorrectiveDryRunEvidenceSchema({
+        ...sealed,
+        cleanup: { completed: false, note: "ceremony fills cleanup after credential/material disposal" },
+      }).code,
+    ).toBe("CORRECTIVE_EVIDENCE_CLEANUP_FORBIDDEN");
+    expect(
+      validateCorrectiveDryRunEvidenceSchema({
+        ...sealed,
+        stray_note: "ceremony fills cleanup after disposal",
+      }).code,
+    ).toBe("CORRECTIVE_EVIDENCE_PREDICTIVE_CLEANUP");
+  });
+
+  it("includes producer_cleanup only when measured object provided", () => {
+    const without = sealCorrectiveDryRunEvidence(readyPartial(), AUTH);
+    expect(Object.prototype.hasOwnProperty.call(without, "producer_cleanup")).toBe(false);
+    const withPc = sealCorrectiveDryRunEvidence(
+      {
+        ...readyPartial(),
+        producer_cleanup: { measured_before_emission: true, stdout_flushed: true },
+      },
+      AUTH,
+    );
+    expect(withPc.producer_cleanup).toEqual({
+      measured_before_emission: true,
+      stdout_flushed: true,
+    });
+    expect(validateCorrectiveDryRunEvidenceSchema(withPc).ok).toBe(true);
+  });
 });

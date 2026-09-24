@@ -1,8 +1,10 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Operator ceremony for corrective production dry-run with byte-exact sealed evidence retention.
+  Operator ceremony for corrective production dry-run with byte-exact sealed evidence
+  retention and fail-closed measured cleanup receipt.
   Never ConvertTo-Json the sealed applicator frame. Never --apply.
+  Cleanup truth lives ONLY on CORRECTIVE_PRODUCTION_DRY_RUN_CEREMONY_RECEIPT.json.
 #>
 [CmdletBinding()]
 param(
@@ -31,6 +33,8 @@ $DbEnv = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs"
 $EvidenceModRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence.js"
 $DecodeRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js"
+$ReceiptModRel = "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js"
+$CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1"
 
 $env:GIT_CONFIG_COUNT = "1"
 $env:GIT_CONFIG_KEY_0 = "safe.directory"
@@ -42,7 +46,10 @@ $env:GIT_CONFIG_VALUE_0 = ($RepoRoot -replace '\\', '/')
   "RA_PRO_ACCOUNTING_AUTOMATION_APPLY_DATABASE_URL",
   "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
   $DbEnv
-) | ForEach-Object { Remove-Item -Path ("Env:" + $_) -ErrorAction SilentlyContinue }
+) | ForEach-Object {
+  $ep = "Env:" + $_
+  if (Test-Path -LiteralPath $ep) { Remove-Item -LiteralPath $ep -Force }
+}
 
 function Get-GitBlobBytes([string]$Spec) {
   $psi = New-Object Diagnostics.ProcessStartInfo
@@ -71,33 +78,115 @@ function Get-Sha256Bytes([byte[]]$Bytes) {
   finally { $sha.Dispose() }
 }
 
+function Get-GitBlobOid([string]$Spec) {
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = "rev-parse $Spec"
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $psi.EnvironmentVariables["GIT_CONFIG_COUNT"] = "1"
+  $psi.EnvironmentVariables["GIT_CONFIG_KEY_0"] = "safe.directory"
+  $psi.EnvironmentVariables["GIT_CONFIG_VALUE_0"] = $env:GIT_CONFIG_VALUE_0
+  $p = [Diagnostics.Process]::Start($psi)
+  $out = $p.StandardOutput.ReadToEnd().Trim()
+  $err = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(60000)) { try { $p.Kill() } catch {}; throw "git rev-parse timed out" }
+  if ($p.ExitCode -ne 0) { throw ("git rev-parse failed: " + $err) }
+  return $out.ToLowerInvariant()
+}
+
+function Count-CrBytes([byte[]]$Bytes) {
+  $n = 0
+  foreach ($b in $Bytes) { if ($b -eq 0x0d) { $n++ } }
+  return $n
+}
+
+<#
+  Tip-bound ceremony seal authority. Worktree CR count / bytes must match tip blob
+  when reporting seals (regression for CRLF worktree substitution).
+#>
+function Get-CommittedCeremonySeal([string]$Tip, [string]$RelPath) {
+  $spec = "${Tip}:${RelPath}"
+  $blob = Get-GitBlobBytes $spec
+  $oid = Get-GitBlobOid $spec
+  $sha = Get-Sha256Bytes $blob
+  $wtPath = Join-Path $RepoRoot ($RelPath -replace '/', [IO.Path]::DirectorySeparatorChar)
+  if (Test-Path -LiteralPath $wtPath) {
+    $wt = [IO.File]::ReadAllBytes($wtPath)
+    $blobCr = Count-CrBytes $blob
+    $wtCr = Count-CrBytes $wt
+    if ($blobCr -ne $wtCr -or $blob.Length -ne $wt.Length) {
+      throw ("CEREMONY_WORKTREE_CRLF_MISMATCH tip_bytes=" + $blob.Length +
+        " tip_cr=" + $blobCr + " wt_bytes=" + $wt.Length + " wt_cr=" + $wtCr)
+    }
+  }
+  return [ordered]@{
+    path = $RelPath
+    oid = $oid
+    sha256 = $sha
+    bytes = [int]$blob.Length
+  }
+}
+
+function Add-CleanupError([System.Collections.Generic.List[string]]$List, [string]$Code) {
+  if (-not [string]::IsNullOrWhiteSpace($Code) -and -not $List.Contains($Code)) {
+    [void]$List.Add($Code)
+  }
+}
+
 if ([string]::IsNullOrWhiteSpace($EvidenceOutDir)) {
   $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-corrective-dryrun-" + [guid]::NewGuid().ToString("N"))
 }
 New-Item -ItemType Directory -Force -Path $EvidenceOutDir | Out-Null
 $EvidencePath = Join-Path $EvidenceOutDir "CORRECTIVE_PRODUCTION_DRY_RUN_EVIDENCE.json"
+$ReceiptPath = Join-Path $EvidenceOutDir "CORRECTIVE_PRODUCTION_DRY_RUN_CEREMONY_RECEIPT.json"
 $SummaryPath = Join-Path $EvidenceOutDir "CORRECTIVE_PRODUCTION_DRY_RUN_SUMMARY.json"
 $RawPath = Join-Path $EvidenceOutDir "raw-child-stdout.frame.bin"
+$MeasurementsPath = Join-Path $EvidenceOutDir "measurements.json"
 $BundleDir = Join-Path $env:TEMP ("ra-acct-corrective-bundle-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $BundleDir | Out-Null
 $BundleFile = Join-Path $BundleDir "corrective-applicator.standalone.cjs"
 $DecodeFile = Join-Path $EvidenceOutDir "decode-frame.js"
 $EvidenceModFile = Join-Path $EvidenceOutDir "corrective-evidence.js"
+$ReceiptModFile = Join-Path $EvidenceOutDir "ceremony-receipt.js"
 
 $secure = $null
 $bstr = [IntPtr]::Zero
 $plain = $null
 $nodeExit = -1
 $retainOk = $false
+$retainedSha = $null
+$retainedBytes = 0
+$childPid = 0
+$childProcess = $null
+$cleanupErrors = New-Object 'System.Collections.Generic.List[string]'
+$executionTip = $null
+$ceremonySeal = $null
+$bundleSeal = $null
 
 try {
+  $executionTip = (git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant()
+  $ceremonySeal = Get-CommittedCeremonySeal -Tip $PinTip -RelPath $CeremonyRel
   $bundleBytes = Get-GitBlobBytes "${PinTip}:${BundleRel}"
+  $bundleOid = Get-GitBlobOid "${PinTip}:${BundleRel}"
+  $bundleSha = Get-Sha256Bytes $bundleBytes
+  $bundleSeal = [ordered]@{
+    path = $BundleRel
+    oid = $bundleOid
+    sha256 = $bundleSha
+    bytes = [int]$bundleBytes.Length
+  }
+
   [IO.File]::WriteAllBytes($BundleFile, $bundleBytes)
   $rb = [IO.File]::ReadAllBytes($BundleFile)
-  if ((Get-Sha256Bytes $rb) -ne (Get-Sha256Bytes $bundleBytes)) { throw "BUNDLE_MATERIALIZE_MISMATCH" }
+  if ((Get-Sha256Bytes $rb) -ne $bundleSha) { throw "BUNDLE_MATERIALIZE_MISMATCH" }
 
   [IO.File]::WriteAllBytes($EvidenceModFile, (Get-GitBlobBytes "${PinTip}:${EvidenceModRel}"))
   [IO.File]::WriteAllBytes($DecodeFile, (Get-GitBlobBytes "${PinTip}:${DecodeRel}"))
+  [IO.File]::WriteAllBytes($ReceiptModFile, (Get-GitBlobBytes "${PinTip}:${ReceiptModRel}"))
 
   Write-Host "Paste Session Pooler URL into SecureString only. Never into chat."
   Write-Host ("Channel: " + $DbEnv)
@@ -124,12 +213,16 @@ try {
     if ($psi.EnvironmentVariables.ContainsKey($f)) { [void]$psi.EnvironmentVariables.Remove($f) }
   }
 
-  $p = [Diagnostics.Process]::Start($psi)
+  $childProcess = [Diagnostics.Process]::Start($psi)
+  $childPid = [int]$childProcess.Id
   $ms = New-Object IO.MemoryStream
-  $p.StandardOutput.BaseStream.CopyTo($ms)
-  $stderr = $p.StandardError.ReadToEnd()
-  if (-not $p.WaitForExit(180000)) { try { $p.Kill() } catch {}; throw "NODE_DRY_RUN_TIMEOUT" }
-  $nodeExit = $p.ExitCode
+  $childProcess.StandardOutput.BaseStream.CopyTo($ms)
+  $stderr = $childProcess.StandardError.ReadToEnd()
+  if (-not $childProcess.WaitForExit(180000)) {
+    try { $childProcess.Kill() } catch {}
+    throw "NODE_DRY_RUN_TIMEOUT"
+  }
+  $nodeExit = $childProcess.ExitCode
   $stdoutBytes = $ms.ToArray()
   [IO.File]::WriteAllBytes($RawPath, $stdoutBytes)
   if (-not [string]::IsNullOrWhiteSpace($stderr)) {
@@ -137,46 +230,343 @@ try {
   }
 
   $node = (Get-Command node.exe).Source
+  $decodeOut = Join-Path $EvidenceOutDir "decode-out.json"
+  $decodeErr = Join-Path $EvidenceOutDir "decode-err.txt"
   $decodeArgs = "`"$DecodeFile`" `"$EvidenceModFile`" `"$RawPath`" `"$EvidencePath`""
-  $decode = Start-Process -FilePath $node -ArgumentList $decodeArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $EvidenceOutDir "decode-out.json") -RedirectStandardError (Join-Path $EvidenceOutDir "decode-err.txt")
-  $decodeJson = Get-Content -LiteralPath (Join-Path $EvidenceOutDir "decode-out.json") -Raw
+  $decode = Start-Process -FilePath $node -ArgumentList $decodeArgs -Wait -PassThru -NoNewWindow `
+    -RedirectStandardOutput $decodeOut -RedirectStandardError $decodeErr
+  $decodeJson = Get-Content -LiteralPath $decodeOut -Raw
   $decoded = $decodeJson | ConvertFrom-Json
   if (-not $decoded.ok) {
     throw ("CORRECTIVE_EVIDENCE_FRAME_INVALID:" + [string]$decoded.code)
   }
   $retainOk = $true
-  # Summary only — never reserialize sealed frame
-  $summary = [ordered]@{
-    protocol = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_DRY_RUN_CEREMONY_SUMMARY_V1"
-    sealed_evidence_path = $EvidencePath
-    sealed_evidence_sha256 = [string]$decoded.sha256
-    sealed_evidence_bytes = [int]$decoded.bytes
-    node_exit = $nodeExit
-    pin_tip = $PinTip
-    apply_authorized = $false
-  }
-  [IO.File]::WriteAllText($SummaryPath, (($summary | ConvertTo-Json -Depth 5) + "`n"))
+  $retainedSha = [string]$decoded.sha256
+  $retainedBytes = [int]$decoded.bytes
   Write-Host ("EVIDENCE_PATH=" + $EvidencePath)
-  Write-Host ("EVIDENCE_SHA256=" + $decoded.sha256)
-  Write-Host ("EVIDENCE_BYTES=" + $decoded.bytes)
+  Write-Host ("EVIDENCE_SHA256=" + $retainedSha)
+  Write-Host ("EVIDENCE_BYTES=" + $retainedBytes)
   Write-Host ("NODE_EXIT=" + $nodeExit)
 }
-finally {
-  if ($bstr -ne [IntPtr]::Zero) {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) | Out-Null
-    $bstr = [IntPtr]::Zero
-  }
-  if ($null -ne $secure) { $secure.Dispose(); $secure = $null }
-  $plain = $null
-  Remove-Item -Path ("Env:" + $DbEnv) -ErrorAction SilentlyContinue
-  if (Test-Path -LiteralPath $RawPath) { Remove-Item -LiteralPath $RawPath -Force -ErrorAction SilentlyContinue }
-  if (Test-Path -LiteralPath $BundleDir) { Remove-Item -LiteralPath $BundleDir -Recurse -Force -ErrorAction SilentlyContinue }
-  foreach ($f in @("decode-frame.js", "corrective-evidence.js", "decode-out.json", "decode-err.txt")) {
-    $p = Join-Path $EvidenceOutDir $f
-    if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
-  }
+catch {
+  Add-CleanupError $cleanupErrors ("CEREMONY_RUN:" + $_.Exception.Message)
+  Write-Host ("CEREMONY_ERROR=" + $_.Exception.Message)
 }
+finally {
+  # --- Measured cleanup (continue addressing all resources; never rewrite sealed evidence) ---
+  $credentialCleared = $false
+  $securestringZeroFreed = $false
+  $rawStdoutRemoved = $false
+  $temporaryBundleRemoved = $false
+  $decodeSidecarRemoved = $false
+  $childTerminated = $false
+  $orphanCheckPassed = $false
+  $finalEvidencePresent = $false
+  $finalEvidenceShaUnchanged = $false
+  $finalEvidenceBytesUnchanged = $false
 
-if (-not $retainOk) { exit 2 }
-if ($nodeExit -ne 0) { exit $nodeExit }
-exit 0
+  # Child termination
+  try {
+    if ($null -ne $childProcess) {
+      if (-not $childProcess.HasExited) {
+        try { $childProcess.Kill() } catch {
+          Add-CleanupError $cleanupErrors "CHILD_KILL_FAILED"
+        }
+        Start-Sleep -Milliseconds 200
+      }
+      $childTerminated = [bool]$childProcess.HasExited
+      if (-not $childTerminated) { Add-CleanupError $cleanupErrors "CHILD_NOT_TERMINATED" }
+    } else {
+      $childTerminated = $true
+    }
+  } catch {
+    $childTerminated = $false
+    Add-CleanupError $cleanupErrors "CHILD_TERMINATION_CHECK_FAILED"
+  }
+
+  # Credential / SecureString
+  try {
+    if ($bstr -ne [IntPtr]::Zero) {
+      [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) | Out-Null
+      $bstr = [IntPtr]::Zero
+    }
+    if ($null -ne $secure) { $secure.Dispose(); $secure = $null }
+    $plain = $null
+    $securestringZeroFreed = ($bstr -eq [IntPtr]::Zero -and $null -eq $secure)
+  } catch {
+    $securestringZeroFreed = $false
+    Add-CleanupError $cleanupErrors "SECURESTRING_ZERO_FREE_FAILED"
+  }
+  try {
+    $ep = "Env:" + $DbEnv
+    if (Test-Path -LiteralPath $ep) { Remove-Item -LiteralPath $ep -Force }
+    $credentialCleared = -not [bool][Environment]::GetEnvironmentVariable($DbEnv, "Process")
+    if (-not $credentialCleared) { Add-CleanupError $cleanupErrors "CREDENTIAL_ENV_STILL_PRESENT" }
+  } catch {
+    $credentialCleared = $false
+    Add-CleanupError $cleanupErrors "CREDENTIAL_CLEAR_FAILED"
+  }
+
+  # Raw stdout
+  try {
+    if (Test-Path -LiteralPath $RawPath) {
+      Remove-Item -LiteralPath $RawPath -Force -ErrorAction Stop
+    }
+    $rawStdoutRemoved = -not (Test-Path -LiteralPath $RawPath)
+    if (-not $rawStdoutRemoved) { Add-CleanupError $cleanupErrors "RAW_STDOUT_STILL_PRESENT" }
+  } catch {
+    $rawStdoutRemoved = $false
+    Add-CleanupError $cleanupErrors "RAW_STDOUT_REMOVE_FAILED"
+  }
+
+  # Temp bundle dir
+  try {
+    if (Test-Path -LiteralPath $BundleDir) {
+      Remove-Item -LiteralPath $BundleDir -Recurse -Force -ErrorAction Stop
+    }
+    $temporaryBundleRemoved = -not (Test-Path -LiteralPath $BundleDir)
+    if (-not $temporaryBundleRemoved) { Add-CleanupError $cleanupErrors "TEMP_BUNDLE_STILL_PRESENT" }
+  } catch {
+    $temporaryBundleRemoved = $false
+    Add-CleanupError $cleanupErrors "TEMP_BUNDLE_REMOVE_FAILED"
+  }
+
+  # Decode / evidence / receipt sidecars + measurements (non-authoritative)
+  try {
+    $sidecars = @(
+      "decode-frame.js",
+      "corrective-evidence.js",
+      "ceremony-receipt.js",
+      "decode-out.json",
+      "decode-err.txt",
+      "measurements.json"
+    )
+    foreach ($f in $sidecars) {
+      $p = Join-Path $EvidenceOutDir $f
+      if (Test-Path -LiteralPath $p) {
+        Remove-Item -LiteralPath $p -Force -ErrorAction Stop
+      }
+    }
+    $left = @()
+    foreach ($f in $sidecars) {
+      $p = Join-Path $EvidenceOutDir $f
+      if (Test-Path -LiteralPath $p) { $left += $f }
+    }
+    $decodeSidecarRemoved = ($left.Count -eq 0)
+    if (-not $decodeSidecarRemoved) { Add-CleanupError $cleanupErrors "DECODE_SIDECAR_STILL_PRESENT" }
+  } catch {
+    $decodeSidecarRemoved = $false
+    Add-CleanupError $cleanupErrors "DECODE_SIDECAR_REMOVE_FAILED"
+  }
+
+  # Orphan check: tracked child pid must not remain
+  try {
+    if ($childPid -gt 0) {
+      $still = Get-Process -Id $childPid -ErrorAction SilentlyContinue
+      $orphanCheckPassed = ($null -eq $still)
+      if (-not $orphanCheckPassed) { Add-CleanupError $cleanupErrors "ORPHAN_CHILD_PID_REMAINS" }
+    } else {
+      $orphanCheckPassed = $true
+    }
+  } catch {
+    $orphanCheckPassed = $false
+    Add-CleanupError $cleanupErrors "ORPHAN_CHECK_FAILED"
+  }
+
+  # Final evidence present + digest unchanged (never rewrite sealed evidence)
+  try {
+    if ($retainOk -and (Test-Path -LiteralPath $EvidencePath)) {
+      $finalEvidencePresent = $true
+      $evBytes = [IO.File]::ReadAllBytes($EvidencePath)
+      $evSha = Get-Sha256Bytes $evBytes
+      $finalEvidenceShaUnchanged = ($evSha -eq $retainedSha)
+      $finalEvidenceBytesUnchanged = ($evBytes.Length -eq $retainedBytes)
+      if (-not $finalEvidenceShaUnchanged) { Add-CleanupError $cleanupErrors "EVIDENCE_SHA_CHANGED" }
+      if (-not $finalEvidenceBytesUnchanged) { Add-CleanupError $cleanupErrors "EVIDENCE_BYTES_CHANGED" }
+    } else {
+      $finalEvidencePresent = $false
+      if ($retainOk) { Add-CleanupError $cleanupErrors "FINAL_EVIDENCE_MISSING" }
+    }
+  } catch {
+    $finalEvidencePresent = $false
+    $finalEvidenceShaUnchanged = $false
+    $finalEvidenceBytesUnchanged = $false
+    Add-CleanupError $cleanupErrors "FINAL_EVIDENCE_CHECK_FAILED"
+  }
+
+  $cleanupCompleted = (
+    $credentialCleared -and
+    $securestringZeroFreed -and
+    $rawStdoutRemoved -and
+    $temporaryBundleRemoved -and
+    $decodeSidecarRemoved -and
+    $childTerminated -and
+    $orphanCheckPassed -and
+    $finalEvidencePresent -and
+    $finalEvidenceShaUnchanged -and
+    $finalEvidenceBytesUnchanged -and
+    ($cleanupErrors.Count -eq 0)
+  )
+
+  # Tip seals for reporting (from git cat-file only)
+  if ($null -eq $ceremonySeal) {
+    try { $ceremonySeal = Get-CommittedCeremonySeal -Tip $PinTip -RelPath $CeremonyRel } catch {
+      Add-CleanupError $cleanupErrors ("CEREMONY_SEAL:" + $_.Exception.Message)
+      $ceremonySeal = [ordered]@{ path = $CeremonyRel; oid = ("0" * 40); sha256 = ("0" * 64); bytes = 0 }
+    }
+  }
+  if ($null -eq $bundleSeal) {
+    try {
+      $bb = Get-GitBlobBytes "${PinTip}:${BundleRel}"
+      $bundleSeal = [ordered]@{
+        path = $BundleRel
+        oid = (Get-GitBlobOid "${PinTip}:${BundleRel}")
+        sha256 = (Get-Sha256Bytes $bb)
+        bytes = [int]$bb.Length
+      }
+    } catch {
+      Add-CleanupError $cleanupErrors ("BUNDLE_SEAL:" + $_.Exception.Message)
+      $bundleSeal = [ordered]@{ path = $BundleRel; oid = ("0" * 40); sha256 = ("0" * 64); bytes = 0 }
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($executionTip)) {
+    try { $executionTip = (git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant() } catch {
+      $executionTip = ("0" * 40)
+      Add-CleanupError $cleanupErrors "EXECUTION_TIP_UNAVAILABLE"
+    }
+  }
+
+  # Non-authoritative measurements for receipt CLI (written then removed as sidecar)
+  $frameValid = [bool]($retainOk -and $finalEvidencePresent -and $finalEvidenceShaUnchanged -and $finalEvidenceBytesUnchanged)
+  $measurements = [ordered]@{
+    frame_valid = $frameValid
+    sealed_evidence_sha256 = $(if ($retainedSha) { $retainedSha } else { ("0" * 64) })
+    sealed_evidence_bytes = $(if ($retainedBytes -gt 0) { [int]$retainedBytes } else { 0 })
+    execution_tip = $executionTip
+    pin_tip = $PinTip
+    ceremony_path = [string]$ceremonySeal.path
+    ceremony_oid = [string]$ceremonySeal.oid
+    ceremony_sha256 = [string]$ceremonySeal.sha256
+    ceremony_bytes = [int]$ceremonySeal.bytes
+    bundle_path = [string]$bundleSeal.path
+    bundle_oid = [string]$bundleSeal.oid
+    bundle_sha256 = [string]$bundleSeal.sha256
+    bundle_bytes = [int]$bundleSeal.bytes
+    node_exit = [int]$nodeExit
+    credential_cleared = [bool]$credentialCleared
+    securestring_zero_freed = [bool]$securestringZeroFreed
+    raw_stdout_removed = [bool]$rawStdoutRemoved
+    temporary_bundle_removed = [bool]$temporaryBundleRemoved
+    decode_sidecar_removed = [bool]$decodeSidecarRemoved
+    child_terminated = [bool]$childTerminated
+    orphan_check_passed = [bool]$orphanCheckPassed
+    final_evidence_present = [bool]$finalEvidencePresent
+    final_evidence_sha256_unchanged = [bool]$finalEvidenceShaUnchanged
+    final_evidence_bytes_unchanged = [bool]$finalEvidenceBytesUnchanged
+    cleanup_error_codes = @($cleanupErrors.ToArray())
+    cleanup_completed = [bool]$cleanupCompleted
+  }
+
+  $pinReady = $false
+  $receiptSha = $null
+  $receiptBytes = 0
+
+  # Receipt write requires tip-bound receipt module; re-materialize from tip if sidecar was removed
+  try {
+    $receiptJs = Join-Path $EvidenceOutDir "ceremony-receipt.js"
+    if (-not (Test-Path -LiteralPath $receiptJs)) {
+      [IO.File]::WriteAllBytes($receiptJs, (Get-GitBlobBytes "${PinTip}:${ReceiptModRel}"))
+    }
+    # Serialize measurements via Node for UTF-8 LF JSON (non-authoritative)
+    $measTmpPs = Join-Path $EvidenceOutDir "measurements.ps.json"
+    [IO.File]::WriteAllText($measTmpPs, (($measurements | ConvertTo-Json -Depth 8) + "`n"))
+    $nodeExe = (Get-Command node.exe).Source
+    $normalizeScript = @"
+const fs = require('fs');
+const raw = fs.readFileSync(process.argv[1], 'utf8').replace(/^\uFEFF/, '');
+const obj = JSON.parse(raw);
+fs.writeFileSync(process.argv[2], JSON.stringify(obj) + '\n', 'utf8');
+"@
+    $normFile = Join-Path $EvidenceOutDir "_normalize-meas.js"
+    [IO.File]::WriteAllText($normFile, $normalizeScript)
+    & $nodeExe $normFile $measTmpPs $MeasurementsPath | Out-Null
+    Remove-Item -LiteralPath $normFile -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $measTmpPs -Force -ErrorAction SilentlyContinue
+
+    if ($retainOk -and (Test-Path -LiteralPath $EvidencePath)) {
+      $receiptOut = & $nodeExe $receiptJs write $MeasurementsPath $EvidencePath $ReceiptPath 2>&1
+      $receiptLine = ($receiptOut | Select-Object -Last 1 | Out-String).Trim()
+      try {
+        $receiptResult = $receiptLine | ConvertFrom-Json
+        $pinReady = [bool]$receiptResult.pin_ready
+        if ($receiptResult.sha256) { $receiptSha = [string]$receiptResult.sha256 }
+        if ($receiptResult.bytes) { $receiptBytes = [int]$receiptResult.bytes }
+        if (-not $pinReady -and $receiptResult.code) {
+          Add-CleanupError $cleanupErrors ([string]$receiptResult.code)
+        }
+        Write-Host ("RECEIPT_PIN_READY=" + $pinReady)
+        Write-Host ("RECEIPT_SHA256=" + $receiptSha)
+        Write-Host ("RECEIPT_BYTES=" + $receiptBytes)
+      } catch {
+        Add-CleanupError $cleanupErrors "RECEIPT_CLI_PARSE_FAILED"
+        $pinReady = $false
+      }
+    } else {
+      Add-CleanupError $cleanupErrors "RECEIPT_SKIPPED_NO_EVIDENCE"
+      $pinReady = $false
+    }
+  } catch {
+    Add-CleanupError $cleanupErrors ("RECEIPT_WRITE:" + $_.Exception.Message)
+    $pinReady = $false
+  }
+
+  # Remove remaining sidecars used for receipt write (measurements, receipt module, normalize leftovers)
+  foreach ($f in @("measurements.json", "ceremony-receipt.js", "_normalize-meas.js", "measurements.ps.json")) {
+    $p = Join-Path $EvidenceOutDir $f
+    if (Test-Path -LiteralPath $p) {
+      try { Remove-Item -LiteralPath $p -Force -ErrorAction Stop } catch {
+        Add-CleanupError $cleanupErrors "POST_RECEIPT_SIDECAR_REMOVE_FAILED"
+        $pinReady = $false
+      }
+    }
+  }
+
+  # Optional non-authoritative SUMMARY — binds evidence + receipt hashes only (never sealed frame body)
+  try {
+    $summary = [ordered]@{
+      protocol = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_DRY_RUN_CEREMONY_SUMMARY_V1"
+      sealed_evidence_path = $EvidencePath
+      sealed_evidence_sha256 = $(if ($retainedSha) { $retainedSha } else { $null })
+      sealed_evidence_bytes = $(if ($retainedBytes -gt 0) { [int]$retainedBytes } else { $null })
+      ceremony_receipt_path = $ReceiptPath
+      ceremony_receipt_sha256 = $receiptSha
+      ceremony_receipt_bytes = $(if ($receiptBytes -gt 0) { [int]$receiptBytes } else { $null })
+      pin_ready = [bool]$pinReady
+      cleanup_completed = [bool]$cleanupCompleted
+      node_exit = [int]$nodeExit
+      pin_tip = $PinTip
+      apply_authorized = $false
+      production_apply_authorization_status = "UNPUBLISHED"
+      note = "non-authoritative; authority is evidence frame + ceremony receipt bytes"
+    }
+    [IO.File]::WriteAllText($SummaryPath, (($summary | ConvertTo-Json -Depth 5) + "`n"))
+  } catch {
+    # Summary is optional / non-authoritative
+  }
+
+  # Console may print sanitized fields (non-authoritative)
+  Write-Host ("CLEANUP_COMPLETED=" + $cleanupCompleted)
+  Write-Host ("PIN_READY=" + $pinReady)
+  if ($cleanupErrors.Count -gt 0) {
+    Write-Host ("CLEANUP_ERROR_CODES=" + ($cleanupErrors -join ","))
+  }
+
+  # Exit: pin_ready => 0 (or node_exit if node failed). Any cleanup failure => nonzero.
+  if ($pinReady) {
+    if ($nodeExit -ne 0 -and $nodeExit -ne -1) { exit $nodeExit }
+    exit 0
+  }
+  if (-not $retainOk) { exit 2 }
+  if ($nodeExit -ne 0 -and $nodeExit -ne -1) { exit $nodeExit }
+  exit 1
+}

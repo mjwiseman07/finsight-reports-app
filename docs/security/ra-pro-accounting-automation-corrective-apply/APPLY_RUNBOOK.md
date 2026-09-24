@@ -55,11 +55,23 @@ node scripts/security/apply-ra-pro-accounting-automation-corrective.js --dry-run
 
 ### Dry-run evidence retention (mandatory)
 
-Dry-run stdout is exactly one sealed frame:
+Dry-run stdout is exactly one sealed **applicator frame**:
 
 `RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_DRY_RUN_EVIDENCE_V1:<base64url>`
 
-The retained file must be the **exact decoded canonical JSON payload bytes** (UTF-8, LF-only, one trailing LF, no BOM). Capture stdout binary-safe; extract/retain via `ra-pro-accounting-automation-corrective-evidence-decode-frame.js`. **Never** `ConvertFrom-Json` / `ConvertTo-Json` the sealed frame. A ceremony summary may bind the frame by SHA-256/bytes only.
+#### Frame vs receipt hierarchy
+
+| Artifact | Authority | Contains |
+| --- | --- | --- |
+| `CORRECTIVE_PRODUCTION_DRY_RUN_EVIDENCE.json` | Sealed applicator bytes (immutable after retain) | Dry-run verdict, bundle/migration seals, pins, CA, counters. **No `cleanup` field.** |
+| `CORRECTIVE_PRODUCTION_DRY_RUN_CEREMONY_RECEIPT.json` | Fail-closed ceremony measurements | Credential/material disposal, child termination, orphan check, evidence digest unchanged, `pin_ready`. |
+| `CORRECTIVE_PRODUCTION_DRY_RUN_SUMMARY.json` (optional) | Non-authoritative | Binds evidence + receipt by SHA-256/bytes only — never reserializes the sealed frame. |
+
+**Pin-ready requires both:** a schema-valid retained evidence frame **and** a ceremony receipt with `pin_ready: true` (all mandatory cleanup bools true, empty `cleanup_error_codes`, evidence digest unchanged). Frame alone is never pin-ready.
+
+The retained evidence file must be the **exact decoded canonical JSON payload bytes** (UTF-8, LF-only, one trailing LF, no BOM). Capture stdout binary-safe; extract/retain via `ra-pro-accounting-automation-corrective-evidence-decode-frame.js`. **Never** `ConvertFrom-Json` / `ConvertTo-Json` the sealed frame.
+
+Ceremony / bundle / evidence-module seals for reporting come from **`git cat-file` / `git rev-parse tip:path` only** — never from worktree bytes. A CRLF worktree copy of the ceremony script must not substitute for the tip blob.
 
 Rejected / non-pin-ready: any prior CRLF or PowerShell-reserialized artifact (e.g. temp dry-run `bec0a81f…` / 4701 bytes with CR). Do not normalize it — require a new authorized dry run after this tooling passes review.
 

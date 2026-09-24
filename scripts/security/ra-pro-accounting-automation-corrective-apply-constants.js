@@ -88,10 +88,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
 
 const STANDALONE_BUNDLE_OID =
-  "d308fd8acd5d86d3004bf74af25f7091e39ea329";
+  "c4fa871167f30ed1b066671d62d0fc0090f3cb2e";
 const STANDALONE_BUNDLE_SHA256 =
-  "4a3f236bb53ce7bb9527fb7b0bbd2713b78df15be57875056658756571b9b8f7";
-const STANDALONE_BUNDLE_BYTES = 414769;
+  "f1266434745059302d01b92a1059a05050cd74929152e1fa297e110eb3520f28";
+const STANDALONE_BUNDLE_BYTES = 416073;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
@@ -99,6 +99,7 @@ const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js",
   "scripts/security/ra-pro-accounting-automation-corrective-evidence.js",
   "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js",
+  "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js",
   "scripts/security/git-blob-authority.js",
   "scripts/security/verify-ra-pro-accounting-automation-corrective-apply-authority.js",
 ]);
