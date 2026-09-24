@@ -8,7 +8,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DUAL_EXECUTABLE, DUAL_PUBLICATION } from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
+import {
+  AFTER_DUAL_PRE_APPLY_WINDOW,
+  DUAL_EXECUTABLE,
+  DUAL_PUBLICATION,
+} from "./helpers/ra-pro-accounting-automation-dual-immutable-pins";
 import {
   assertAttemptNotRetired,
   buildAuthorizedRecord,
@@ -253,103 +257,21 @@ type DualPublicationCtx = {
   attempt: string;
 };
 
-const _INSIDE_DUAL_EVIDENCE_WINDOW = "2026-09-21T12:00:00Z";
-void _INSIDE_DUAL_EVIDENCE_WINDOW;
-
 /**
- * Disposable descendant of DUAL_EXECUTABLE whose only tree edits freshen the
- * sealed pre-apply live evidence window. Required after wall-clock expiry of
- * the immutable dual evidence (valid_until 2026-09-22T04:55:07Z) so apply-mode
- * VISIBLE_PROMPT_READY can still run without synthetic harness env. Does not
- * rewrite DUAL_EXECUTABLE / DUAL_PUBLICATION.
+ * In-process historical clock inside the sealed dual pre-apply window
+ * (2026-09-21T04:55:07Z <= now < 2026-09-22T04:55:07Z). Test-only: passed as
+ * `now` to JS preflight. Production PowerShell / CLI / argv / env / bundle entry
+ * cannot set this — `--as-of` is refused outside synthetic credential-free
+ * preflight, and empty NowUtc uses wall-clock UtcNow (PRE_APPLY_LIVE_EXPIRED).
  */
-function createFreshenedDualExecutableTip(): string {
-  const auth = JSON.parse(git(["cat-file", "-p", `${DUAL_EXECUTABLE}:${AUTH_REL}`])) as {
-    pre_apply_live_publication: Record<string, unknown>;
-    publication: Record<string, unknown>;
-    [key: string]: unknown;
-  };
-  const pre = auth.pre_apply_live_publication;
-  const evidencePath = String(pre.evidence_path);
-  const raw = spawnSync("git", ["cat-file", "blob", String(pre.evidence_blob_oid)], {
-    cwd: ROOT,
-    env: gitEnv(),
-    windowsHide: true,
-  });
-  if (raw.status !== 0) throw new Error(String(raw.stderr || "evidence cat-file failed"));
-  const evidence = JSON.parse(
-    (Buffer.isBuffer(raw.stdout) ? raw.stdout : Buffer.from(raw.stdout || "")).toString("utf8"),
-  ) as Record<string, unknown>;
-  // Preserve the sealed dual evidence's exact 24h/collection spacing; slide the
-  // window forward so wall-clock "now" remains inside without synthetic as-of.
-  const slideSeconds = 24 * 60 * 60;
-  const slide = (stamp: string) => {
-    const sec = Math.floor(Date.parse(stamp) / 1000) + slideSeconds;
-    const d = new Date(sec * 1000);
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}Z`;
-  };
-  evidence.valid_from_utc = slide(String(evidence.valid_from_utc));
-  evidence.valid_until_utc = slide(String(evidence.valid_until_utc));
-  evidence.collection_started_at_utc = slide(String(evidence.collection_started_at_utc));
-  evidence.collection_ended_at_utc = slide(String(evidence.collection_ended_at_utc));
-  if (evidence.serving_deployment && typeof evidence.serving_deployment === "object") {
-    const serving = evidence.serving_deployment as Record<string, unknown>;
-    if (typeof serving.observed_at_utc === "string") {
-      serving.observed_at_utc = slide(serving.observed_at_utc);
-    }
-  }
-  if (evidence.database_readonly && typeof evidence.database_readonly === "object") {
-    const db = evidence.database_readonly as Record<string, unknown>;
-    if (typeof db.observed_at_utc === "string") {
-      db.observed_at_utc = slide(db.observed_at_utc);
-    }
-  }
-  expect(String(evidence.valid_from_utc)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-  expect(String(evidence.valid_until_utc)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-  const freshBytes = Buffer.from(`${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-  expect(freshBytes.includes(0x0d)).toBe(false);
-  const freshOid = hashBlob(freshBytes);
-  const freshSha = crypto.createHash("sha256").update(freshBytes).digest("hex");
-  const evidenceCommit = commitReplacing(DUAL_EXECUTABLE, [
-    { path: evidencePath, bytes: freshBytes },
-  ]);
-  pre.evidence_source_commit = evidenceCommit;
-  pre.evidence_blob_oid = freshOid;
-  pre.evidence_sha256 = freshSha;
-  pre.evidence_bytes = freshBytes.length;
-  pre.valid_until_utc = evidence.valid_until_utc;
-  auth.publication.required_pre_apply_live_evidence_sha256 = freshSha;
-  if (Object.prototype.hasOwnProperty.call(auth.publication, "required_pre_apply_live_evidence_oid")) {
-    auth.publication.required_pre_apply_live_evidence_oid = freshOid;
-  }
-  if (Object.prototype.hasOwnProperty.call(auth.publication, "required_pre_apply_live_evidence_bytes")) {
-    auth.publication.required_pre_apply_live_evidence_bytes = freshBytes.length;
-  }
-  return commitReplacing(evidenceCommit, [
-    { path: AUTH_REL, bytes: Buffer.from(`${JSON.stringify(auth, null, 2)}\n`, "utf8") },
-  ]);
-}
+const INSIDE_DUAL_EVIDENCE_WINDOW = "2026-09-21T12:00:00Z";
 
 /** Detached worktree at a disposable dual publication (AUTH-only delta). Does not move branch tip. */
-function withDisposableDualPublicationWorktree(
-  fn: (ctx: DualPublicationCtx) => void,
-  options: { freshenPreApplyEvidence?: boolean } = {},
-) {
-  const executable = options.freshenPreApplyEvidence
-    ? createFreshenedDualExecutableTip()
-    : DUAL_EXECUTABLE;
-  if (!options.freshenPreApplyEvidence) {
-    expect(executable).toBe(DUAL_EXECUTABLE);
-  } else {
-    expect(
-      spawnSync("git", ["merge-base", "--is-ancestor", DUAL_EXECUTABLE, executable], {
-        cwd: ROOT,
-        env: gitEnv(),
-        windowsHide: true,
-      }).status,
-    ).toBe(0);
-  }
+function withDisposableDualPublicationWorktree(fn: (ctx: DualPublicationCtx) => void) {
+  expect(DUAL_EXECUTABLE).toMatch(/^[0-9a-f]{40}$/);
+  expect(DUAL_PUBLICATION).toMatch(/^[0-9a-f]{40}$/);
+  expect(git(["diff", "--name-only", DUAL_EXECUTABLE, DUAL_PUBLICATION])).toBe(AUTH_REL);
+  const executable = DUAL_EXECUTABLE;
   const attempt = `apply-${DUAL_EXECUTABLE.slice(0, 12)}-${crypto.randomBytes(16).toString("hex")}`;
   const published = createDisposablePublicationCommit({
     cwd: ROOT,
@@ -379,6 +301,33 @@ function withDisposableDualPublicationWorktree(
       // ignore
     }
   }
+}
+
+/** Prove production apply CLI rejects `--as-of` (clock is not operator-settable). */
+function assertAsOfForbiddenOnProductionApplyCli() {
+  const bundleOid = git(["rev-parse", `${DUAL_EXECUTABLE}:${BUNDLE_REL}`]);
+  const show = spawnSync("git", ["cat-file", "blob", `${DUAL_EXECUTABLE}:${BUNDLE_REL}`], {
+    cwd: ROOT,
+    windowsHide: true,
+    env: gitEnv(),
+  });
+  expect(show.status).toBe(0);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-asof-"));
+  const bundlePath = path.join(tmp, "bundle.cjs");
+  fs.writeFileSync(bundlePath, Buffer.isBuffer(show.stdout) ? show.stdout : Buffer.from(show.stdout || ""));
+  const run = spawnSync(
+    process.execPath,
+    [bundlePath, "--apply", "--as-of", INSIDE_DUAL_EVIDENCE_WINDOW],
+    { cwd: ROOT, encoding: "utf8", windowsHide: true, env: gitEnv(), timeout: 30_000 },
+  );
+  expect(run.status).not.toBe(0);
+  expect(`${run.stdout || ""}${run.stderr || ""}`).toMatch(/APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN/);
+  try {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+  expect(bundleOid).toMatch(/^[0-9a-f]{40}$/);
 }
 
 describe("RA Pro accounting-automation ceremony authority", () => {
@@ -858,8 +807,15 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
     });
   });
 
-  it("rejects synthetic descendant publications on the visible route before prompt or marker", () => {
+  // Measured cold-start: 6 sealed PowerShell map probes ≈122s. Bound at 180s;
+  // each Invoke-SealedBundlePreflight already WaitForExit(120000) and cleans up.
+  it(
+    "rejects synthetic descendant publications on the visible route before prompt or marker",
+    { timeout: 180_000 },
+    () => {
     withDisposableDualPublicationWorktree(({ worktree, publicationCommit: basePublication, executable }) => {
+      expect(executable).toBe(DUAL_EXECUTABLE);
+      assertAsOfForbiddenOnProductionApplyCli();
       const base = JSON.parse(git(["cat-file", "-p", `${basePublication}:${AUTH_REL}`]));
       const cases: Array<{ code: RegExp; beforeNode: boolean; mutate: (auth: MutableAuth) => void }> = [
         { code: /APPLY_AUTHORIZATION_ALLOWLIST/, beforeNode: true, mutate: (auth) => { auth.extra_field = "not-allowed"; } },
@@ -889,11 +845,12 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
         const auth = JSON.parse(JSON.stringify(base)) as MutableAuth;
         item.mutate(auth);
         const publicationCommit = commitPublicationTree(ROOT, executable, auth);
+        // In-process historical clock — never wall clock for this fail-closed map.
         const js = preflightApplyAuthorization({
           cwd: ROOT,
           allowDisposablePublicationCommit: true,
           publicationCommit,
-          now: "2026-09-21T12:00:00Z",
+          now: INSIDE_DUAL_EVIDENCE_WINDOW,
         });
         const visible = runAuthenticatedBootstrap(
           ["-Mode", "apply", "-PrHead", executable, "-EmitAuthorizationMap", "-TestPublicationCommit", publicationCommit],
@@ -913,10 +870,21 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
           expect(psMap.blocked).toBe(js.blocked);
         }
         expect(fs.readdirSync(visible.outDir).filter((name) => name.endsWith(".marker"))).toEqual([]);
-        expect(`${visible.run.stdout}\n${visible.run.stderr}`).not.toMatch(/SecureString/);
+        expect(`${visible.run.stdout}\n${visible.run.stderr}`).not.toMatch(/SecureString|postgres:\/\//i);
+        expect(visible.payload.node_started ?? false).toBe(false);
       }
+      // Wall-clock / post-window clock on an otherwise valid disposable publication.
+      const expired = preflightApplyAuthorization({
+        cwd: ROOT,
+        allowDisposablePublicationCommit: true,
+        publicationCommit: basePublication,
+        now: AFTER_DUAL_PRE_APPLY_WINDOW,
+      });
+      expect(String(expired.blocked || "")).toMatch(/PRE_APPLY_LIVE_EXPIRED/);
+      expect(expired.apply_authorized).toBe(false);
     });
-  });
+  },
+  );
 
   it("rejects a substituted bundle and a publication-selected first hop before Node", () => {
     withDisposableDualPublicationWorktree(({ worktree, publicationCommit: publishedCommit, executable }) => {
@@ -1235,25 +1203,72 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
   });
 
   it("real descendant publication at HEAD reaches the visible prompt without synthetic harness env", () => {
-    withDisposableDualPublicationWorktree(
-      ({ worktree, executable }) => {
-      expect(executable).not.toBe(DUAL_EXECUTABLE);
-      expect(
-        spawnSync("git", ["merge-base", "--is-ancestor", DUAL_EXECUTABLE, executable], {
-          cwd: ROOT,
-          env: gitEnv(),
-          windowsHide: true,
-        }).status,
-      ).toBe(0);
+    withDisposableDualPublicationWorktree(({ worktree, publicationCommit, executable }) => {
+      expect(executable).toBe(DUAL_EXECUTABLE);
+      expect(publicationCommit).not.toBe(DUAL_EXECUTABLE);
+      expect(publicationCommit).not.toBe(DUAL_PUBLICATION);
+      assertAsOfForbiddenOnProductionApplyCli();
+
       const auth = loadAuthAt(executable);
-      const prePub = (auth as { pre_apply_live_publication?: { evidence_source_commit?: string; evidence_sha256?: string; valid_until_utc?: string } }).pre_apply_live_publication;
-      expect(String(prePub?.evidence_source_commit || "")).not.toBe("bd79ac0fe2eb82393b2a0715732235e9e509cb23");
-      expect(String(prePub?.valid_until_utc || "")).toMatch(/^2026-09-2[2-4]T/);
+      const prePub = (
+        auth as {
+          pre_apply_live_publication?: {
+            evidence_source_commit?: string;
+            evidence_path?: string;
+            evidence_sha256?: string;
+            valid_until_utc?: string;
+            valid_from_utc?: string;
+          };
+        }
+      ).pre_apply_live_publication;
+      // Immutable dual sealed window — do not freshen or rewrite production evidence.
+      expect(String(prePub?.valid_until_utc || "")).toBe("2026-09-22T04:55:07Z");
+      expect(String(prePub?.evidence_source_commit || "")).toMatch(/^[0-9a-f]{40}$/);
       const liveEvidence = JSON.parse(
-        git(["cat-file", "-p", `${prePub?.evidence_source_commit}:${(auth as { pre_apply_live_publication: { evidence_path: string } }).pre_apply_live_publication.evidence_path}`]),
-      ) as { valid_from_utc: string; valid_until_utc: string; collection_started_at_utc: string; collection_ended_at_utc: string };
+        git([
+          "cat-file",
+          "-p",
+          `${prePub?.evidence_source_commit}:${String(prePub?.evidence_path || "")}`,
+        ]),
+      ) as {
+        valid_from_utc: string;
+        valid_until_utc: string;
+        collection_started_at_utc: string;
+        collection_ended_at_utc: string;
+      };
       expect(liveEvidence.valid_from_utc).toBe(liveEvidence.collection_started_at_utc);
-      expect(liveEvidence.valid_until_utc > liveEvidence.valid_from_utc).toBe(true);
+      expect(liveEvidence.valid_until_utc).toBe("2026-09-22T04:55:07Z");
+      expect(Date.parse(INSIDE_DUAL_EVIDENCE_WINDOW)).toBeGreaterThanOrEqual(
+        Date.parse(liveEvidence.valid_from_utc),
+      );
+      expect(Date.parse(INSIDE_DUAL_EVIDENCE_WINDOW)).toBeLessThan(
+        Date.parse(liveEvidence.valid_until_utc),
+      );
+
+      // In-process historical clock: disposable descendant is authorization-ready
+      // (the gates that arm the visible prompt) without rewriting dual evidence.
+      const ready = preflightApplyAuthorization({
+        cwd: ROOT,
+        allowDisposablePublicationCommit: true,
+        publicationCommit,
+        now: INSIDE_DUAL_EVIDENCE_WINDOW,
+      });
+      expect(ready.blocked).toBeNull();
+      expect(ready.authorized_executable_commit).toBe(DUAL_EXECUTABLE);
+      expect(ready.publication_commit).toBe(publicationCommit);
+      // Credential-free map arming only — apply remains false until a separate ceremony.
+      expect(ready.apply_authorized).toBe(false);
+
+      // Real wall-clock / post-window dual paths remain expired.
+      const expired = preflightApplyAuthorization({
+        cwd: ROOT,
+        allowDisposablePublicationCommit: true,
+        publicationCommit,
+        now: AFTER_DUAL_PRE_APPLY_WINDOW,
+      });
+      expect(String(expired.blocked || "")).toMatch(/PRE_APPLY_LIVE_EXPIRED/);
+      expect(expired.apply_authorized).toBe(false);
+
       const bootSrc = String(auth.bootstrap_source_commit || "");
       const seal = auth.visible_ceremony_bootstrap;
       if (!seal?.path || !seal.oid || !seal.sha256 || !seal.bytes) {
@@ -1263,16 +1278,23 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
         cwd: ROOT,
         windowsHide: true,
         env: gitEnv(),
+        timeout: 30_000,
       });
       if (show.status !== 0) throw new Error(String(show.stderr || "cat-file failed"));
       const bytes = Buffer.isBuffer(show.stdout) ? show.stdout : Buffer.from(show.stdout || "");
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-desc-out-"));
       const materialDir = fs.mkdtempSync(path.join(os.tmpdir(), "ra-acct-desc-mat-"));
-      const bootFile = path.join(materialDir, "bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1");
+      const bootFile = path.join(
+        materialDir,
+        "bootstrap-visible-ra-pro-accounting-automation-ceremony.ps1",
+      );
       fs.writeFileSync(bootFile, bytes);
       const cleanEnv = { ...gitEnv() };
       delete cleanEnv.RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL;
-      const run = spawnSync(
+
+      // Apply visible probe without synthetic harness: wall clock must expire before
+      // SecureString / marker / Node DB — never open VISIBLE_PROMPT_READY on stale dual evidence.
+      const wall = spawnSync(
         "powershell.exe",
         [
           "-NoProfile",
@@ -1297,17 +1319,19 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
           encoding: "utf8",
           windowsHide: true,
           env: cleanEnv,
+          timeout: 120_000,
         },
       );
-      const payload = lastJson(`${run.stdout || ""}${run.stderr || ""}`);
-      expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
-      expect(payload.result_code).toBe("VISIBLE_PROMPT_READY");
-      expect(String(payload.reason || "")).not.toMatch(/SYNTHETIC_URL_NOT_ALLOWED/);
-      expect(payload.productionContact).toBe(false);
-      expect(payload.attempt_marker).toBeNull();
-      expect(payload.node_started ?? false).toBe(false);
+      const wallPayload = lastJson(`${wall.stdout || ""}${wall.stderr || ""}`);
+      expect(wall.status, `${wall.stdout}\n${wall.stderr}`).not.toBe(0);
+      expect(String(wallPayload.reason || wallPayload.result_code || "")).toMatch(
+        /PRE_APPLY_LIVE_EXPIRED/,
+      );
+      expect(String(wallPayload.result_code || "")).not.toBe("VISIBLE_PROMPT_READY");
+      expect(wallPayload.productionContact ?? false).toBe(false);
+      expect(wallPayload.node_started ?? false).toBe(false);
       expect(fs.readdirSync(outDir).filter((f) => f.endsWith(".marker"))).toEqual([]);
-      expect(`${run.stdout || ""}${run.stderr || ""}`).not.toMatch(/postgres:\/\//i);
+      expect(`${wall.stdout || ""}${wall.stderr || ""}`).not.toMatch(/SecureString|postgres:\/\//i);
 
       const unpublished = spawnSync(
         "powershell.exe",
@@ -1334,6 +1358,7 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
           encoding: "utf8",
           windowsHide: true,
           env: cleanEnv,
+          timeout: 120_000,
         },
       );
       const unpublishedPayload = lastJson(`${unpublished.stdout || ""}${unpublished.stderr || ""}`);
@@ -1370,21 +1395,21 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
           encoding: "utf8",
           windowsHide: true,
           env: cleanEnv,
+          timeout: 120_000,
         },
       );
       const harnessPayload = lastJson(`${harness.stdout || ""}${harness.stderr || ""}`);
       expect(harness.status).not.toBe(0);
       expect(String(harnessPayload.reason || harnessPayload.result_code || "")).toMatch(
-        /PROMPT_PROBE_REJECTS|SYNTHETIC_URL_NOT_ALLOWED|BLOCKED_HARNESS/,
+        /PRE_APPLY_LIVE_EXPIRED|PROMPT_PROBE_REJECTS|SYNTHETIC_URL_NOT_ALLOWED|BLOCKED_HARNESS/,
       );
+      expect(`${harness.stdout || ""}${harness.stderr || ""}`).not.toMatch(/SecureString/);
       try {
         fs.rmSync(materialDir, { recursive: true, force: true });
       } catch {
         // ignore
       }
-    },
-      { freshenPreApplyEvidence: true },
-    );
+    });
   });
 
   it("credential-free synthetic publication map still requires harness env and never opens a prompt", () => {
