@@ -118,6 +118,13 @@ function readyPartial() {
       bytes: STANDALONE_BUNDLE_BYTES,
       commit: "18fa394b477ca728c2c53c3f504f421087ac47eb",
     },
+    dry_run_authorization: {
+      publication_commit: "b111111111111111111111111111111111111111",
+      authorization_publication_blob_oid: "b222222222222222222222222222222222222222",
+      authorized_executable_commit: "18fa394b477ca728c2c53c3f504f421087ac47eb",
+      attempt_id: "corr-dryrun-18fa394b477c-cccccccccccccccccccccccccccccccc",
+      bundle_oid: STANDALONE_BUNDLE_OID,
+    },
     source_authority: [
       {
         version: MIGRATIONS[0].version,
@@ -158,6 +165,9 @@ function allCleanupTrue(overrides: Record<string, unknown> = {}) {
     sealed_evidence_bytes: 100,
     execution_tip: tip,
     pin_tip: tip,
+    dry_run_authorization_publication_commit: "b111111111111111111111111111111111111111",
+    dry_run_authorization_publication_blob_oid: "b222222222222222222222222222222222222222",
+    dry_run_attempt_id: "corr-dryrun-18fa394b477c-cccccccccccccccccccccccccccccccc",
     ceremony_path: CEREMONY_REL,
     ceremony_oid: "b".repeat(40),
     ceremony_sha256: "c".repeat(64),

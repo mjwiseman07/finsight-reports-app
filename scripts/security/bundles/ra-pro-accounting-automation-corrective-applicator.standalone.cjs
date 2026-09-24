@@ -5713,19 +5713,45 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       });
     }
     function resolveExecutableCommit(inputs = {}) {
-      if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+      if (inputs.dryRunAuthorizationMap && inputs.dryRunAuthorizationMap.authorized_executable_commit) {
+        const commit = String(inputs.dryRunAuthorizationMap.authorized_executable_commit).toLowerCase();
+        if (!HEX40.test(commit)) {
+          throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+        }
+        if (inputs.executableCommit && String(inputs.executableCommit).toLowerCase() !== commit) {
+          throw blocked(
+            "EXECUTABLE_COMMIT_RECHECK_MISMATCH",
+            "recheck executable does not match dry-run authorization map"
+          );
+        }
+        return commit;
+      }
+      if (inputs.testOnlyHarnessContext === true && (inputs.allowDisposablePublicationCommit === true || inputs.allowLocalhostForHarness === true || inputs.allowDisposableDryRunPublicationCommit === true)) {
+        if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+          const commit = String(inputs.executableCommit).toLowerCase();
+          if (!HEX40.test(commit)) {
+            throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+          }
+          return commit;
+        }
+        return gitText(["rev-parse", "HEAD"], inputs.cwd || process.cwd()).toLowerCase();
+      }
+      if (inputs.applyMode === true && inputs.executableCommit != null && String(inputs.executableCommit).length) {
         const commit = String(inputs.executableCommit).toLowerCase();
         if (!HEX40.test(commit)) {
           throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
         }
         return commit;
       }
-      if (inputs.testOnlyHarnessContext === true && (inputs.allowDisposablePublicationCommit === true || inputs.allowLocalhostForHarness === true)) {
-        return gitText(["rev-parse", "HEAD"], inputs.cwd || process.cwd()).toLowerCase();
+      if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+        throw blocked(
+          "DRY_RUN_AUTHORIZATION_REQUIRED",
+          "--executable-commit alone is not authority; validated dry-run authorization publication required"
+        );
       }
       throw blocked(
-        "EXECUTABLE_COMMIT_REQUIRED",
-        "explicit executable commit required before credentials"
+        "DRY_RUN_AUTHORIZATION_REQUIRED",
+        "validated dry-run authorization map required before credentials"
       );
     }
     function resolveApplyAuthorizationCommit(inputs = {}) {
@@ -5930,6 +5956,7 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       return { publicationCommit: publication, executableCommit: executable, headUnchanged: true };
     }
     function assertCorrectiveApplyAuthorized(inputs = {}) {
+      inputs = { ...inputs, applyMode: true };
       const cwd = inputs.cwd || process.cwd();
       assertNoAuthEnvOverride(inputs.env || process.env);
       if (inputs.allowDisposablePublicationCommit === true) {
@@ -5971,6 +5998,504 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       resolveApplyAuthorizationCommit,
       resolveEvidenceAuthorityCommit,
       resolveExecutableCommit
+    };
+  }
+});
+
+// scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js
+var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __commonJS({
+  "scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js"(exports2, module2) {
+    "use strict";
+    var path = require("node:path");
+    var { execFileSync } = require("node:child_process");
+    var {
+      EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
+      EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+      EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+      EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
+      EXPECTED_PROJECT_REF,
+      STANDALONE_BUNDLE_BYTES,
+      STANDALONE_BUNDLE_OID,
+      STANDALONE_BUNDLE_PATH,
+      STANDALONE_BUNDLE_SHA256,
+      TOOLING_AUTHORIZATION_PATH
+    } = require_ra_pro_accounting_automation_corrective_apply_constants();
+    var { loadAndVerifyGitBlob } = require_git_blob_authority();
+    var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1";
+    var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
+    var RECORD_KEY = "production_dry_run_authorization";
+    var BLOCKED_UNPUBLISHED = "DRY_RUN_REMAINS_BLOCKED_BEFORE_CREDENTIALS";
+    var HEX40 = /^[0-9a-f]{40}$/;
+    var HEX64 = /^[0-9a-f]{64}$/;
+    var ATTEMPT_RE = /^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/;
+    var BOOTSTRAP_REL = "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
+    var CEREMONY_REL = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
+    var RECORD_KEYS = Object.freeze([
+      "status",
+      "protocol",
+      "dry_run_authorized",
+      "authorized_executable_commit",
+      "attempt_id",
+      "project_ref",
+      "bundle",
+      "bootstrap",
+      "ceremony",
+      "evidence_pin_authority",
+      "precondition_evidence",
+      "pre_apply_live_evidence",
+      "publication_role",
+      "note"
+    ]);
+    var ARTIFACT_MAP = Object.freeze({
+      authorization_record: "publication_commit",
+      bundle_bootstrap_ceremony: "authorized_executable_commit"
+    });
+    function blocked(code, message) {
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      error.phase = "dry_run_authorization";
+      return error;
+    }
+    function gitEnv(cwd) {
+      const env = { ...process.env };
+      const n = Number(env.GIT_CONFIG_COUNT || 0);
+      env.GIT_CONFIG_COUNT = String(n + 1);
+      env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+      env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-corrective-dryrun-disposable";
+      env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-corrective-dryrun-disposable@invalid";
+      env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-corrective-dryrun-disposable";
+      env.GIT_COMMITTER_EMAIL = env.GIT_COMMITTER_EMAIL || "ra-acct-corrective-dryrun-disposable@invalid";
+      return env;
+    }
+    function gitText(args, cwd) {
+      return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
+    }
+    function canonicalUnpublishedDryRunAuthorization() {
+      return {
+        status: "UNPUBLISHED",
+        protocol: PROTOCOL,
+        dry_run_authorized: false,
+        authorized_executable_commit: null,
+        attempt_id: null,
+        project_ref: null,
+        bundle: null,
+        bootstrap: null,
+        ceremony: null,
+        evidence_pin_authority: null,
+        precondition_evidence: null,
+        pre_apply_live_evidence: null,
+        publication_role: "later_descendant_commit",
+        note: "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. --executable-commit alone is never authority."
+      };
+    }
+    function loadAuthFromGit(commit, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: AUTH_REL, cwd });
+      return { auth: JSON.parse(loaded.buffer.toString("utf8")), loaded };
+    }
+    function isAncestor(ancestor, descendant, cwd) {
+      try {
+        execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+          cwd,
+          env: gitEnv(cwd),
+          stdio: "ignore"
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function assertNoAuthorizationEnv(env) {
+      for (const key of Object.keys(env || {})) {
+        if (/CORRECTIVE.*(DRY_RUN.*AUTH|DRYRUN.*AUTH|EXECUTABLE_COMMIT|AUTHORITY_PUBLICATION)/i.test(key) && env[key] && !/DATABASE_URL|APPLY_TOKEN/i.test(key)) {
+          throw blocked("DRY_RUN_AUTHORIZATION_ENV_OVERRIDE_FORBIDDEN", key);
+        }
+      }
+    }
+    function resolvePublicationCommit(inputs, cwd) {
+      if (inputs.publicationCommit != null) {
+        const commit = String(inputs.publicationCommit || "").toLowerCase();
+        if (!HEX40.test(commit)) {
+          throw blocked("DRY_RUN_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN", "shape");
+        }
+        return commit;
+      }
+      return gitText(["rev-parse", "HEAD"], cwd).toLowerCase();
+    }
+    function assertNotCircularPin(publication, executable, blobText) {
+      if (!HEX40.test(String(executable || "")) || executable === publication || String(blobText || "").includes(publication)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_CIRCULAR_TIP", "publication commit must not name itself");
+      }
+    }
+    function assertAllowlist(executable, publication, cwd) {
+      if (!isAncestor(executable, publication, cwd) || executable === publication) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ANCESTRY", "executable must be a strict ancestor");
+      }
+      const names = gitText(["diff", "--name-only", executable, publication], cwd).split(/\n/).filter(Boolean);
+      if (names.length !== 1 || names[0] !== AUTH_REL) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", names.join(",") || "empty");
+      }
+      const left = loadAuthFromGit(executable, cwd).auth;
+      const right = loadAuthFromGit(publication, cwd).auth;
+      const prior = left[RECORD_KEY] || {};
+      if (prior.status !== "UNPUBLISHED" || prior.dry_run_authorized !== false || prior.authorized_executable_commit || prior.attempt_id) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "executable record is not unpublished");
+      }
+      left[RECORD_KEY] = null;
+      right[RECORD_KEY] = null;
+      if (JSON.stringify(left) !== JSON.stringify(right)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "non-authorization json changed");
+      }
+    }
+    function requireSeal(seal, label) {
+      if (!seal || !HEX40.test(String(seal.oid || "")) || !HEX64.test(String(seal.sha256 || "")) || !Number.isInteger(seal.bytes)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", label);
+      }
+    }
+    function assertBlob(commit, rel, seal, cwd, code) {
+      requireSeal(seal, rel);
+      try {
+        loadAndVerifyGitBlob({
+          commit,
+          path: rel,
+          expectedOid: seal.oid,
+          expectedSha256: seal.sha256,
+          expectedBytes: seal.bytes,
+          cwd
+        });
+      } catch (err) {
+        throw blocked(code, err && err.message ? err.message : rel);
+      }
+    }
+    function assertEvidencePinBinding(record) {
+      const pin = record.evidence_pin_authority || {};
+      if (String(pin.commit || "").toLowerCase() !== EVIDENCE_PIN_AUTHORITY_COMMIT2) {
+        throw blocked("DRY_RUN_AUTHORIZATION_EVIDENCE_AUTHORITY", "commit");
+      }
+      if (String(pin.auth_blob_oid || "").toLowerCase() !== EVIDENCE_PIN_AUTHORITY_AUTH_OID) {
+        throw blocked("DRY_RUN_AUTHORIZATION_EVIDENCE_AUTHORITY", "auth oid");
+      }
+      if (String(pin.auth_blob_sha256 || "").toLowerCase() !== EVIDENCE_PIN_AUTHORITY_AUTH_SHA256) {
+        throw blocked("DRY_RUN_AUTHORIZATION_EVIDENCE_AUTHORITY", "auth sha");
+      }
+      if (pin.auth_blob_bytes !== EVIDENCE_PIN_AUTHORITY_AUTH_BYTES) {
+        throw blocked("DRY_RUN_AUTHORIZATION_EVIDENCE_AUTHORITY", "auth bytes");
+      }
+    }
+    function assertRecordSeals(record, executable, cwd) {
+      if (record.project_ref !== EXPECTED_PROJECT_REF) {
+        throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", "project");
+      }
+      if (!ATTEMPT_RE.test(String(record.attempt_id || ""))) {
+        throw blocked("DRY_RUN_ATTEMPT_ID_INVALID", String(record.attempt_id || ""));
+      }
+      assertEvidencePinBinding(record);
+      const bundle = record.bundle || {};
+      requireSeal(bundle, "bundle");
+      if (bundle.path !== STANDALONE_BUNDLE_PATH) {
+        throw blocked("DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH", "path");
+      }
+      assertBlob(executable, STANDALONE_BUNDLE_PATH, bundle, cwd, "DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH");
+      const bootstrap = record.bootstrap || {};
+      if (bootstrap.path !== BOOTSTRAP_REL) {
+        throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", "bootstrap path");
+      }
+      assertBlob(executable, BOOTSTRAP_REL, bootstrap, cwd, "DRY_RUN_AUTHORIZATION_SEAL_MISSING");
+      const ceremony = record.ceremony || {};
+      if (ceremony.path !== CEREMONY_REL) {
+        throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", "ceremony path");
+      }
+      assertBlob(executable, CEREMONY_REL, ceremony, cwd, "DRY_RUN_AUTHORIZATION_SEAL_MISSING");
+      for (const key of ["precondition_evidence", "pre_apply_live_evidence"]) {
+        const seal = record[key] || {};
+        requireSeal(seal, key);
+        if (!HEX40.test(String(seal.source_commit || "").toLowerCase())) {
+          throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", `${key} source_commit`);
+        }
+      }
+    }
+    function describeDryRunArtifactMap(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      assertNoAuthorizationEnv(inputs.env || {});
+      const publication = resolvePublicationCommit(inputs, cwd);
+      const { auth, loaded } = loadAuthFromGit(publication, cwd);
+      if (inputs.auth && JSON.stringify(inputs.auth) !== JSON.stringify(auth)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_WORKTREE_SUBSTITUTE", "auth object");
+      }
+      const record = auth[RECORD_KEY] || {};
+      const base = {
+        protocol: PROTOCOL,
+        publication_commit: publication,
+        authorization_publication_blob_oid: loaded.oid,
+        authorized_executable_commit: null,
+        attempt_id: null,
+        bundle_oid: null,
+        dry_run_authorized: false,
+        artifact_map: ARTIFACT_MAP,
+        blocked: null
+      };
+      if (record.status !== "AUTHORIZED" || record.dry_run_authorized !== true) {
+        return { ...base, blocked: BLOCKED_UNPUBLISHED };
+      }
+      const extraRecordKeys = Object.keys(record).filter((key) => !RECORD_KEYS.includes(key));
+      if (extraRecordKeys.length) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", `extra record field ${extraRecordKeys[0]}`);
+      }
+      for (const key of RECORD_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(record, key)) {
+          throw blocked("DRY_RUN_AUTHORIZATION_SEAL_MISSING", key);
+        }
+      }
+      const executable = String(record.authorized_executable_commit || "").toLowerCase();
+      assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
+      assertAllowlist(executable, publication, cwd);
+      assertRecordSeals(record, executable, cwd);
+      return {
+        ...base,
+        authorized_executable_commit: executable,
+        attempt_id: record.attempt_id,
+        bundle_oid: record.bundle.oid,
+        bundle_sha256: record.bundle.sha256,
+        bundle_bytes: record.bundle.bytes,
+        dry_run_authorized: true,
+        blocked: null,
+        evidence_pin_authority_commit: record.evidence_pin_authority.commit,
+        evidence_pin_authority_auth_oid: record.evidence_pin_authority.auth_blob_oid,
+        seals: {
+          bundle: record.bundle,
+          bootstrap: record.bootstrap,
+          ceremony: record.ceremony,
+          precondition_evidence: record.precondition_evidence,
+          pre_apply_live_evidence: record.pre_apply_live_evidence,
+          evidence_pin_authority: record.evidence_pin_authority
+        }
+      };
+    }
+    function preflightDryRunAuthorization(inputs = {}) {
+      try {
+        return describeDryRunArtifactMap(inputs);
+      } catch (err) {
+        return {
+          blocked: err.code || "DRY_RUN_AUTHORIZATION_PREFLIGHT_FAILED",
+          dry_run_authorized: false,
+          publication_commit: inputs.publicationCommit || null,
+          authorization_publication_blob_oid: null,
+          authorized_executable_commit: null,
+          attempt_id: null
+        };
+      }
+    }
+    function recheckDryRunAuthorizationPin2(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const expectExecutable = String(inputs.expectExecutable || "").toLowerCase();
+      const expectCommit = String(inputs.expectCommit || "").toLowerCase();
+      const expectOid = String(inputs.expectBlobOid || "").toLowerCase();
+      const expectBundle = String(inputs.expectBundleOid || "").toLowerCase();
+      const expectAttempt = String(inputs.expectAttemptId || "");
+      if (![expectExecutable, expectCommit, expectOid, expectBundle].every((value) => HEX40.test(value))) {
+        throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "pin shape");
+      }
+      if (!ATTEMPT_RE.test(expectAttempt)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "attempt shape");
+      }
+      if (inputs.expectLiveRef != null && String(inputs.expectLiveRef).length) {
+        const live = gitText(["rev-parse", String(inputs.expectLiveRef)], cwd).toLowerCase();
+        if (live !== expectCommit) {
+          throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "live ref swapped after preflight");
+        }
+      }
+      if (!isAncestor(expectExecutable, expectCommit, cwd) || expectExecutable === expectCommit) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ANCESTRY", "executable moved after preflight");
+      }
+      const bundleAtExecutable = gitText(
+        ["rev-parse", `${expectExecutable}:${STANDALONE_BUNDLE_PATH}`],
+        cwd
+      ).toLowerCase();
+      let bundleAtPublication = "";
+      try {
+        bundleAtPublication = gitText(
+          ["rev-parse", `${expectCommit}:${STANDALONE_BUNDLE_PATH}`],
+          cwd
+        ).toLowerCase();
+      } catch (err) {
+        throw blocked(
+          "DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH",
+          err && err.message ? err.message : "publication bundle"
+        );
+      }
+      if (bundleAtExecutable !== expectBundle || bundleAtPublication !== expectBundle) {
+        throw blocked("DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH", "bundle moved after preflight");
+      }
+      const { loaded } = loadAuthFromGit(expectCommit, cwd);
+      if (loaded.oid !== expectOid) {
+        throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "authorization blob changed");
+      }
+      const decision = describeDryRunArtifactMap({ cwd, publicationCommit: expectCommit });
+      if (decision.blocked) throw blocked(decision.blocked, "recheck");
+      if (decision.publication_commit !== expectCommit || decision.authorization_publication_blob_oid !== expectOid || decision.authorized_executable_commit !== expectExecutable || decision.bundle_oid !== expectBundle || decision.attempt_id !== expectAttempt) {
+        throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "map drift");
+      }
+      return decision;
+    }
+    function assertDryRunAuthorizedBeforeCredentials2(inputs = {}) {
+      const map = describeDryRunArtifactMap(inputs);
+      if (map.blocked || map.dry_run_authorized !== true) {
+        throw blocked(map.blocked || BLOCKED_UNPUBLISHED, "dry-run unauthorized");
+      }
+      return map;
+    }
+    function mktree(lines, cwd) {
+      const input = lines.length ? `${lines.join("\n")}
+` : "";
+      return execFileSync("git", ["mktree"], {
+        cwd,
+        env: gitEnv(cwd),
+        input,
+        encoding: "utf8"
+      }).trim();
+    }
+    function replacePathInTree(tree, parts, blob, cwd) {
+      const lines = gitText(["ls-tree", tree], cwd).split(/\n/).filter(Boolean);
+      const name = parts[0];
+      let found = false;
+      const next = lines.map((line) => {
+        const tab = line.indexOf("	");
+        if (line.slice(tab + 1) !== name) return line;
+        found = true;
+        if (parts.length === 1) return `100644 blob ${blob}	${name}`;
+        const old = line.slice(0, tab).split(" ")[2];
+        const child = replacePathInTree(old, parts.slice(1), blob, cwd);
+        return `040000 tree ${child}	${name}`;
+      });
+      if (!found) {
+        if (parts.length === 1) {
+          next.push(`100644 blob ${blob}	${name}`);
+        } else {
+          const emptyTree = mktree([], cwd);
+          const child = replacePathInTree(emptyTree, parts.slice(1), blob, cwd);
+          next.push(`040000 tree ${child}	${name}`);
+        }
+      }
+      return mktree(next, cwd);
+    }
+    function commitPublicationTree(cwd, parent, authObject) {
+      const text = `${JSON.stringify(authObject, null, 2)}
+`;
+      if (text.includes("\r")) throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "crlf");
+      const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd,
+        env: gitEnv(cwd),
+        input: text,
+        encoding: "utf8"
+      }).trim();
+      const tree = gitText(["rev-parse", `${parent}^{tree}`], cwd);
+      const newTree = replacePathInTree(tree, AUTH_REL.split("/"), blob, cwd);
+      return execFileSync(
+        "git",
+        ["commit-tree", newTree, "-p", parent, "-m", "disposable corrective dry-run authorization"],
+        { cwd, env: gitEnv(cwd), encoding: "utf8" }
+      ).trim();
+    }
+    function sealAtCommit(commit, rel, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: rel, cwd });
+      return {
+        path: rel,
+        oid: loaded.oid,
+        sha256: loaded.sha256,
+        bytes: loaded.bytes,
+        line_endings: "LF"
+      };
+    }
+    function createDisposableDryRunPublicationCommit(inputs = {}) {
+      if (inputs.allowDisposableDryRunPublicationCommit !== true) {
+        throw blocked("DISPOSABLE_PUBLICATION_FORBIDDEN", "harness flag required");
+      }
+      if (inputs.testOnlyHarnessContext !== true) {
+        throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
+      }
+      const cwd = inputs.cwd || process.cwd();
+      const executable = String(inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)).toLowerCase();
+      if (!HEX40.test(executable)) throw blocked("DRY_RUN_AUTHORIZATION_ANCESTRY", "executable");
+      const attemptId = String(inputs.attemptId || "");
+      if (!ATTEMPT_RE.test(attemptId)) throw blocked("DRY_RUN_ATTEMPT_ID_INVALID", attemptId);
+      const { auth } = loadAuthFromGit(executable, cwd);
+      if ((auth[RECORD_KEY] || {}).status === "AUTHORIZED") {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
+      }
+      const prePub = auth.precondition_publication || {};
+      const livePub = auth.pre_apply_live_publication || {};
+      auth[RECORD_KEY] = {
+        status: "AUTHORIZED",
+        protocol: PROTOCOL,
+        dry_run_authorized: true,
+        authorized_executable_commit: executable,
+        attempt_id: attemptId,
+        project_ref: auth.project_ref || EXPECTED_PROJECT_REF,
+        bundle: {
+          path: STANDALONE_BUNDLE_PATH,
+          oid: auth.standalone_bundle && auth.standalone_bundle.oid || STANDALONE_BUNDLE_OID,
+          sha256: auth.standalone_bundle && auth.standalone_bundle.sha256 || STANDALONE_BUNDLE_SHA256,
+          bytes: auth.standalone_bundle && auth.standalone_bundle.bytes || STANDALONE_BUNDLE_BYTES
+        },
+        bootstrap: sealAtCommit(executable, BOOTSTRAP_REL, cwd),
+        ceremony: sealAtCommit(executable, CEREMONY_REL, cwd),
+        evidence_pin_authority: {
+          commit: EVIDENCE_PIN_AUTHORITY_COMMIT2,
+          auth_path: AUTH_REL,
+          auth_blob_oid: EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+          auth_blob_sha256: EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+          auth_blob_bytes: EVIDENCE_PIN_AUTHORITY_AUTH_BYTES
+        },
+        precondition_evidence: {
+          path: prePub.evidence_path,
+          source_commit: prePub.evidence_source_commit,
+          oid: prePub.evidence_blob_oid,
+          sha256: prePub.evidence_sha256,
+          bytes: prePub.evidence_bytes
+        },
+        pre_apply_live_evidence: {
+          path: livePub.evidence_path,
+          source_commit: livePub.evidence_source_commit,
+          oid: livePub.evidence_blob_oid,
+          sha256: livePub.evidence_sha256,
+          bytes: livePub.evidence_bytes
+        },
+        publication_role: "later_descendant_commit",
+        note: "Disposable corrective dry-run publication for harness only. Publication SHA is not stored here."
+      };
+      const before = gitText(["rev-parse", "HEAD"], cwd);
+      const publication = commitPublicationTree(cwd, executable, auth);
+      const after = gitText(["rev-parse", "HEAD"], cwd);
+      if (before !== after) throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "HEAD moved");
+      if (JSON.stringify(auth).includes(publication)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_CIRCULAR_TIP", "publication embedded");
+      }
+      return {
+        publicationCommit: publication,
+        executableCommit: executable,
+        attemptId,
+        authorization_publication_blob_oid: gitText(["rev-parse", `${publication}:${AUTH_REL}`], cwd),
+        headUnchanged: true
+      };
+    }
+    module2.exports = {
+      ARTIFACT_MAP,
+      ATTEMPT_RE,
+      AUTH_REL,
+      BLOCKED_UNPUBLISHED,
+      BOOTSTRAP_REL,
+      CEREMONY_REL,
+      PROTOCOL,
+      RECORD_KEY,
+      RECORD_KEYS,
+      assertDryRunAuthorizedBeforeCredentials: assertDryRunAuthorizedBeforeCredentials2,
+      assertNotCircularPin,
+      canonicalUnpublishedDryRunAuthorization,
+      createDisposableDryRunPublicationCommit,
+      describeDryRunArtifactMap,
+      loadAuthFromGit,
+      preflightDryRunAuthorization,
+      recheckDryRunAuthorizationPin: recheckDryRunAuthorizationPin2
     };
   }
 });
@@ -9030,6 +9555,10 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       resolveExecutableCommit
     } = require_ra_pro_accounting_automation_corrective_apply_authorization();
     var {
+      assertDryRunAuthorizedBeforeCredentials: assertDryRunAuthorizedBeforeCredentials2,
+      recheckDryRunAuthorizationPin: recheckDryRunAuthorizationPin2
+    } = require_ra_pro_accounting_automation_corrective_dry_run_authorization();
+    var {
       assertCorrectivePreconditionEvidencePublished
     } = require_ra_pro_accounting_automation_corrective_precondition_gates();
     var {
@@ -9454,7 +9983,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       }
     }
     function assertTestOnlyHarnessContext(inputs = {}) {
-      const harness = inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true;
+      const harness = inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true || inputs.allowDisposableDryRunPublicationCommit === true;
       if (!harness) return;
       if (inputs.testOnlyHarnessContext !== true) {
         const e = new Error("HARNESS_CONTEXT_REQUIRED: testOnlyHarnessContext required for harness flags");
@@ -9490,6 +10019,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
     function isPublishedHexOid(value) {
       return typeof value === "string" && /^[0-9a-f]{40}$/i.test(value);
     }
+    var HEX40_LOCAL = /^[0-9a-f]{40}$/;
     function isPublishedHexSha256(value) {
       return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value) && !value.startsWith("PENDING_");
     }
@@ -9881,6 +10411,39 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       evidence.migration_sql_attempts = 0;
       try {
         refuseAuthIfOriginalsTargeted(inputs);
+        let dryRunMap = inputs.dryRunAuthorizationMap || null;
+        if (!dryRunMap && inputs.publicationCommit && HEX40_LOCAL.test(String(inputs.publicationCommit))) {
+          dryRunMap = assertDryRunAuthorizedBeforeCredentials2({
+            cwd: resolveRepoRoot(inputs),
+            publicationCommit: inputs.publicationCommit,
+            env: inputs.env || {}
+          });
+        }
+        if (dryRunMap) {
+          if (inputs.expectAuthorizationBlobOid || inputs.expectBundleOid || inputs.expectAttemptId || inputs.expectExecutable) {
+            recheckDryRunAuthorizationPin2({
+              cwd: resolveRepoRoot(inputs),
+              expectExecutable: inputs.expectExecutable || dryRunMap.authorized_executable_commit,
+              expectCommit: dryRunMap.publication_commit,
+              expectBlobOid: inputs.expectAuthorizationBlobOid || dryRunMap.authorization_publication_blob_oid,
+              expectBundleOid: inputs.expectBundleOid || dryRunMap.bundle_oid,
+              expectAttemptId: inputs.expectAttemptId || dryRunMap.attempt_id,
+              expectLiveRef: inputs.expectLiveRef
+            });
+          }
+          inputs = {
+            ...inputs,
+            dryRunAuthorizationMap: dryRunMap,
+            executableCommit: dryRunMap.authorized_executable_commit
+          };
+          evidence.dry_run_authorization = {
+            publication_commit: dryRunMap.publication_commit,
+            authorization_publication_blob_oid: dryRunMap.authorization_publication_blob_oid,
+            authorized_executable_commit: dryRunMap.authorized_executable_commit,
+            attempt_id: dryRunMap.attempt_id,
+            bundle_oid: dryRunMap.bundle_oid
+          };
+        }
         evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
         evidence.bundle_authority = assertBundleAuthority(inputs);
         evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
@@ -9904,6 +10467,17 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
           ...inputs,
           cwd: resolveRepoRoot(inputs)
         });
+        if (dryRunMap) {
+          recheckDryRunAuthorizationPin2({
+            cwd: resolveRepoRoot(inputs),
+            expectExecutable: dryRunMap.authorized_executable_commit,
+            expectCommit: dryRunMap.publication_commit,
+            expectBlobOid: dryRunMap.authorization_publication_blob_oid,
+            expectBundleOid: dryRunMap.bundle_oid,
+            expectAttemptId: dryRunMap.attempt_id,
+            expectLiveRef: inputs.expectLiveRef
+          });
+        }
         evidence.databaseConnectionAttempts = 1;
         evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
         evidence.read_only = true;
@@ -9949,23 +10523,24 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
     }
     async function runApply(inputs = {}) {
       const evidence = buildEvidenceBase({ ...inputs, mode: "apply" });
+      const applyInputs = { ...inputs, applyMode: true };
       let clientConfig;
       let packed;
       let commitPhase = "pre_commit";
       try {
-        refuseAuthIfOriginalsTargeted(inputs);
-        evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "apply");
-        evidence.bundle_authority = assertBundleAuthority(inputs);
+        refuseAuthIfOriginalsTargeted(applyInputs);
+        evidence.evidence_gates = enforceCorrectiveEvidenceGates(applyInputs, "apply");
+        evidence.bundle_authority = assertBundleAuthority(applyInputs);
         evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
-          ...inputs,
-          cwd: resolveRepoRoot(inputs)
+          ...applyInputs,
+          cwd: resolveRepoRoot(applyInputs)
         });
         evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-          ...inputs,
-          cwd: resolveRepoRoot(inputs),
-          executableCommit: inputs.executableCommit || resolveExecutableCommit(inputs)
+          ...applyInputs,
+          cwd: resolveRepoRoot(applyInputs),
+          executableCommit: applyInputs.executableCommit || resolveExecutableCommit(applyInputs)
         });
-        packed = loadSealedMigrations(inputs);
+        packed = loadSealedMigrations(applyInputs);
         assertCorrectiveMigrationsAllowlist(packed);
         evidence.source_authority = packed.map((p) => ({
           version: p.migration.version,
@@ -10258,6 +10833,28 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
           return { ok: false, code: "CORRECTIVE_EVIDENCE_PROJECT", phase: "schema" };
         }
         assertHex40(String(evidence.execution_tip || "").toLowerCase(), "CORRECTIVE_EVIDENCE_EXECUTION_TIP");
+        const dryAuth = evidence.dry_run_authorization;
+        if (!dryAuth || typeof dryAuth !== "object") {
+          return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_AUTHORIZATION", phase: "schema" };
+        }
+        assertHex40(
+          String(dryAuth.publication_commit || "").toLowerCase(),
+          "CORRECTIVE_EVIDENCE_DRY_RUN_PUBLICATION"
+        );
+        assertHex40(
+          String(dryAuth.authorization_publication_blob_oid || "").toLowerCase(),
+          "CORRECTIVE_EVIDENCE_DRY_RUN_BLOB"
+        );
+        assertHex40(
+          String(dryAuth.authorized_executable_commit || "").toLowerCase(),
+          "CORRECTIVE_EVIDENCE_DRY_RUN_EXECUTABLE"
+        );
+        if (String(dryAuth.authorized_executable_commit || "").toLowerCase() !== String(evidence.execution_tip || "").toLowerCase()) {
+          return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_EXECUTABLE", phase: "schema" };
+        }
+        if (!/^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/.test(String(dryAuth.attempt_id || ""))) {
+          return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_ATTEMPT", phase: "schema" };
+        }
         assertSeal(evidence.bundle, "CORRECTIVE_EVIDENCE_BUNDLE");
         if (evidence.bundle.path !== STANDALONE_BUNDLE_PATH || String(evidence.bundle.oid).toLowerCase() !== String(STANDALONE_BUNDLE_OID).toLowerCase() || String(evidence.bundle.sha256).toLowerCase() !== String(STANDALONE_BUNDLE_SHA256).toLowerCase() || evidence.bundle.bytes !== STANDALONE_BUNDLE_BYTES) {
           return { ok: false, code: "CORRECTIVE_EVIDENCE_BUNDLE_PATH", phase: "schema" };
@@ -10595,6 +11192,21 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
         evidence_source: partial.evidence_source || "sealed_applicator",
         authorization_scope: "corrective_dry_run",
         execution_tip: executionTip,
+        dry_run_authorization: {
+          publication_commit: String(
+            options.dryRunAuthorizationPublication || partial.dry_run_authorization && partial.dry_run_authorization.publication_commit || ""
+          ).toLowerCase(),
+          authorization_publication_blob_oid: String(
+            options.dryRunAuthorizationBlobOid || partial.dry_run_authorization && partial.dry_run_authorization.authorization_publication_blob_oid || ""
+          ).toLowerCase(),
+          authorized_executable_commit: executionTip,
+          attempt_id: String(
+            options.dryRunAttemptId || partial.dry_run_authorization && partial.dry_run_authorization.attempt_id || ""
+          ),
+          bundle_oid: String(
+            partial.dry_run_authorization && partial.dry_run_authorization.bundle_oid || bundle.oid || ""
+          ).toLowerCase()
+        },
         project_ref: EXPECTED_PROJECT_REF,
         database_url_env: DATABASE_URL_ENV2,
         feature_flag_env: FEATURE_FLAG_ENV,
@@ -10698,23 +11310,48 @@ var {
 var {
   loadEvidencePinAuthority
 } = require_ra_pro_accounting_automation_corrective_apply_authorization();
+var {
+  assertDryRunAuthorizedBeforeCredentials,
+  recheckDryRunAuthorizationPin
+} = require_ra_pro_accounting_automation_corrective_dry_run_authorization();
 function readFlags(raw) {
   const flags = {
     apply: false,
     dryRun: false,
     unknown: false,
     executableCommit: null,
-    evidenceAuthorityCommit: null
+    evidenceAuthorityCommit: null,
+    dryRunAuthorizationPublication: null,
+    expectAuthorizationBlobOid: null,
+    expectExecutable: null,
+    expectBundleOid: null,
+    expectAttemptId: null
   };
   for (let i = 0; i < raw.length; i += 1) {
     const arg = raw[i];
     if (arg === "--apply") flags.apply = true;
     else if (arg === "--dry-run") flags.dryRun = true;
     else if (arg === "--executable-commit") {
+      flags.expectExecutable = raw[i + 1] || null;
       flags.executableCommit = raw[i + 1] || null;
       i += 1;
     } else if (arg === "--evidence-authority-commit") {
       flags.evidenceAuthorityCommit = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--dry-run-authorization-publication") {
+      flags.dryRunAuthorizationPublication = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-authorization-blob-oid") {
+      flags.expectAuthorizationBlobOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-executable") {
+      flags.expectExecutable = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-bundle-oid") {
+      flags.expectBundleOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-attempt-id") {
+      flags.expectAttemptId = raw[i + 1] || null;
       i += 1;
     } else flags.unknown = true;
   }
@@ -10731,13 +11368,59 @@ async function main() {
   const apply = flags.apply;
   const dryRun = flags.dryRun || !apply;
   const mode = apply && !dryRun ? "apply" : "dry-run";
+  let dryRunMap = null;
+  if (mode === "dry-run") {
+    const hasFullPin = flags.dryRunAuthorizationPublication && flags.expectAuthorizationBlobOid && flags.expectExecutable && flags.expectBundleOid && flags.expectAttemptId;
+    if (!hasFullPin) {
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "DRY_RUN_AUTHORIZATION_REQUIRED",
+          error: "DRY_RUN_AUTHORIZATION_REQUIRED: validated dry-run authorization publication pin required; --executable-commit alone is not authority",
+          apply_authorized: false,
+          productionContact: false,
+          databaseConnectionAttempts: 0
+        })}
+`
+      );
+      process.exit(1);
+    }
+    dryRunMap = assertDryRunAuthorizedBeforeCredentials({
+      cwd: process.cwd(),
+      publicationCommit: flags.dryRunAuthorizationPublication,
+      env: process.env
+    });
+    recheckDryRunAuthorizationPin({
+      cwd: process.cwd(),
+      expectExecutable: flags.expectExecutable,
+      expectCommit: flags.dryRunAuthorizationPublication,
+      expectBlobOid: flags.expectAuthorizationBlobOid,
+      expectBundleOid: flags.expectBundleOid,
+      expectAttemptId: flags.expectAttemptId
+    });
+    if (dryRunMap.authorized_executable_commit !== String(flags.expectExecutable).toLowerCase()) {
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "DRY_RUN_AUTHORIZATION_PIN_MISMATCH",
+          error: "expect-executable does not match authorization map",
+          productionContact: false
+        })}
+`
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
   const result = await runApplicator({
     mode,
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_TOKEN,
     env: process.env,
     argv: process.argv,
-    executableCommit: flags.executableCommit,
-    evidenceAuthorityCommit: flags.evidenceAuthorityCommit || void 0
+    executableCommit: dryRunMap && dryRunMap.authorized_executable_commit || flags.expectExecutable || void 0,
+    evidenceAuthorityCommit: flags.evidenceAuthorityCommit || void 0,
+    dryRunAuthorizationMap: dryRunMap || void 0,
+    publicationCommit: flags.dryRunAuthorizationPublication || void 0
   });
   if (mode === "dry-run") {
     if (result.verdict === "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
@@ -10763,7 +11446,10 @@ async function main() {
       }
       const sealed = sealCorrectiveDryRunEvidence(result, auth, {
         executionTip: result.bundle_authority && result.bundle_authority.commit,
-        evidenceAuthorityCommit: EVIDENCE_PIN_AUTHORITY_COMMIT
+        evidenceAuthorityCommit: EVIDENCE_PIN_AUTHORITY_COMMIT,
+        dryRunAuthorizationPublication: flags.dryRunAuthorizationPublication,
+        dryRunAuthorizationBlobOid: flags.expectAuthorizationBlobOid,
+        dryRunAttemptId: flags.expectAttemptId
       });
       writeEvidenceFrameToStdout(sealed);
     } else {

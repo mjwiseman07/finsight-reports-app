@@ -4,12 +4,8 @@
 
 /**
  * Operator CLI for RA Pro accounting-automation CORRECTIVE sealed applicator.
- * Default mode: dry-run. Apply requires explicit --apply and authorization token env.
- * Dry-run stdout: exactly one sealed evidence frame (no plain JSON).
- *
- * Authority: never reads TOOLING_AUTHORIZATION.json from the worktree.
- * Requires --executable-commit <40-hex>. Evidence pins load only from the baked
- * evidence pin authority commit (f550842c…) via git cat-file.
+ * Production dry-run requires a validated dry-run authorization publication pin.
+ * --executable-commit alone is never a source of trust (recheck-only with full pin).
  */
 const {
   APPLY_AUTHORIZATION_TOKEN,
@@ -24,6 +20,10 @@ const {
 const {
   loadEvidencePinAuthority,
 } = require("./ra-pro-accounting-automation-corrective-apply-authorization");
+const {
+  assertDryRunAuthorizedBeforeCredentials,
+  recheckDryRunAuthorizationPin,
+} = require("./ra-pro-accounting-automation-corrective-dry-run-authorization");
 
 function readFlags(raw) {
   const flags = {
@@ -32,16 +32,38 @@ function readFlags(raw) {
     unknown: false,
     executableCommit: null,
     evidenceAuthorityCommit: null,
+    dryRunAuthorizationPublication: null,
+    expectAuthorizationBlobOid: null,
+    expectExecutable: null,
+    expectBundleOid: null,
+    expectAttemptId: null,
   };
   for (let i = 0; i < raw.length; i += 1) {
     const arg = raw[i];
     if (arg === "--apply") flags.apply = true;
     else if (arg === "--dry-run") flags.dryRun = true;
     else if (arg === "--executable-commit") {
+      // Legacy alias treated as recheck-only expect-executable when full pin present.
+      flags.expectExecutable = raw[i + 1] || null;
       flags.executableCommit = raw[i + 1] || null;
       i += 1;
     } else if (arg === "--evidence-authority-commit") {
       flags.evidenceAuthorityCommit = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--dry-run-authorization-publication") {
+      flags.dryRunAuthorizationPublication = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-authorization-blob-oid") {
+      flags.expectAuthorizationBlobOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-executable") {
+      flags.expectExecutable = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-bundle-oid") {
+      flags.expectBundleOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-attempt-id") {
+      flags.expectAttemptId = raw[i + 1] || null;
       i += 1;
     } else flags.unknown = true;
   }
@@ -58,13 +80,69 @@ async function main() {
   const apply = flags.apply;
   const dryRun = flags.dryRun || !apply;
   const mode = apply && !dryRun ? "apply" : "dry-run";
+
+  let dryRunMap = null;
+  if (mode === "dry-run") {
+    const hasFullPin =
+      flags.dryRunAuthorizationPublication &&
+      flags.expectAuthorizationBlobOid &&
+      flags.expectExecutable &&
+      flags.expectBundleOid &&
+      flags.expectAttemptId;
+    if (!hasFullPin) {
+      // Bare --executable-commit / missing publication pin cannot select trusted code.
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "DRY_RUN_AUTHORIZATION_REQUIRED",
+          error:
+            "DRY_RUN_AUTHORIZATION_REQUIRED: validated dry-run authorization publication pin required; --executable-commit alone is not authority",
+          apply_authorized: false,
+          productionContact: false,
+          databaseConnectionAttempts: 0,
+        })}\n`,
+      );
+      process.exit(1);
+    }
+    dryRunMap = assertDryRunAuthorizedBeforeCredentials({
+      cwd: process.cwd(),
+      publicationCommit: flags.dryRunAuthorizationPublication,
+      env: process.env,
+    });
+    recheckDryRunAuthorizationPin({
+      cwd: process.cwd(),
+      expectExecutable: flags.expectExecutable,
+      expectCommit: flags.dryRunAuthorizationPublication,
+      expectBlobOid: flags.expectAuthorizationBlobOid,
+      expectBundleOid: flags.expectBundleOid,
+      expectAttemptId: flags.expectAttemptId,
+    });
+    if (dryRunMap.authorized_executable_commit !== String(flags.expectExecutable).toLowerCase()) {
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "DRY_RUN_AUTHORIZATION_PIN_MISMATCH",
+          error: "expect-executable does not match authorization map",
+          productionContact: false,
+        })}\n`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const result = await runApplicator({
     mode,
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_TOKEN,
     env: process.env,
     argv: process.argv,
-    executableCommit: flags.executableCommit,
+    executableCommit:
+      (dryRunMap && dryRunMap.authorized_executable_commit) ||
+      flags.expectExecutable ||
+      undefined,
     evidenceAuthorityCommit: flags.evidenceAuthorityCommit || undefined,
+    dryRunAuthorizationMap: dryRunMap || undefined,
+    publicationCommit: flags.dryRunAuthorizationPublication || undefined,
   });
 
   if (mode === "dry-run") {
@@ -91,14 +169,15 @@ async function main() {
       const sealed = sealCorrectiveDryRunEvidence(result, auth, {
         executionTip: result.bundle_authority && result.bundle_authority.commit,
         evidenceAuthorityCommit: EVIDENCE_PIN_AUTHORITY_COMMIT,
+        dryRunAuthorizationPublication: flags.dryRunAuthorizationPublication,
+        dryRunAuthorizationBlobOid: flags.expectAuthorizationBlobOid,
+        dryRunAttemptId: flags.expectAttemptId,
       });
       writeEvidenceFrameToStdout(sealed);
     } else {
-      // Fail-closed: emit blocked JSON only — never seal a frame without ready authority.
       process.stdout.write(`${JSON.stringify(result)}\n`);
     }
   } else {
-    // Apply path keeps plain JSON until a separate apply-evidence frame is authorized.
     process.stdout.write(`${JSON.stringify(result)}\n`);
   }
 

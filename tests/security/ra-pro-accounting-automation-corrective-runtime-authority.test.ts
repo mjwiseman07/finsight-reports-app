@@ -73,8 +73,16 @@ describe("corrective runtime Git-object authority", () => {
     );
   });
 
-  it("rejects missing executable commit before credentials", () => {
-    expectCode(() => resolveExecutableCommit({}), /EXECUTABLE_COMMIT_REQUIRED/);
+  it("rejects missing dry-run authorization before credentials", () => {
+    expectCode(() => resolveExecutableCommit({}), /DRY_RUN_AUTHORIZATION_REQUIRED/);
+  });
+
+  it("rejects bare --executable-commit as authority", () => {
+    const tip = git(["rev-parse", "HEAD"]);
+    expectCode(
+      () => resolveExecutableCommit({ executableCommit: tip }),
+      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+    );
   });
 
   it("rejects worktree AUTH load without harness context", () => {
@@ -107,16 +115,22 @@ describe("corrective runtime Git-object authority", () => {
     };
     fs.writeFileSync(AUTH_ABS, `${JSON.stringify(poisoned, null, 2)}\n`);
     try {
+      // applyMode allows naming an executable tip for Git AUTH load; dry-run still requires publication.
       const gates = enforceCorrectiveEvidenceGates(
-        { cwd: ROOT, executableCommit: tip, now: new Date("2026-09-24T06:00:00Z") },
-        "dry-run",
+        {
+          cwd: ROOT,
+          executableCommit: tip,
+          applyMode: true,
+          now: new Date("2026-09-24T06:00:00Z"),
+        },
+        "apply",
       );
       // Gates load f550842c Git blob — poison must not change authority oid.
       expect(gates.evidence_authority_commit).toBe(EVIDENCE_PIN_AUTHORITY_COMMIT);
       expect(gates.evidence_authority_auth_oid).toBe(EVIDENCE_PIN_AUTHORITY_AUTH_OID);
       expect(gates.evidence_authority_source).toBe("git_blob");
 
-      const seals = resolveBundleSeals({ cwd: ROOT, executableCommit: tip });
+      const seals = resolveBundleSeals({ cwd: ROOT, executableCommit: tip, applyMode: true });
       expect(seals.source).toBe("executable_git_auth");
       // Seals come from Git at executable tip, not poisoned worktree (tip may still match worktree until commit).
       const gitAuth = loadToolingAuthorization({ cwd: ROOT, commit: tip });
@@ -129,10 +143,23 @@ describe("corrective runtime Git-object authority", () => {
     }
   });
 
-  it("fails dry-run without executable commit before DB", async () => {
+  it("fails dry-run without dry-run authorization publication before DB", async () => {
     const result = await runDryRun({ cwd: ROOT, env: {}, argv: ["node"] });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("EXECUTABLE_COMMIT_REQUIRED");
+    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+  });
+
+  it("fails dry-run when only --executable-commit is supplied", async () => {
+    const tip = git(["rev-parse", "HEAD"]);
+    const result = await runDryRun({
+      cwd: ROOT,
+      executableCommit: tip,
+      env: {},
+      argv: ["node", "--executable-commit", tip],
+    });
+    expect(result.verdict).toBe("DRY_RUN_BLOCKED");
+    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
@@ -143,6 +170,7 @@ describe("corrective runtime Git-object authority", () => {
         assertCorrectiveApplyAuthorized({
           cwd: ROOT,
           executableCommit: tip,
+          applyMode: true,
         }),
       /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/,
     );
@@ -161,6 +189,7 @@ describe("corrective runtime Git-object authority", () => {
       "CORRECTIVE_PRE_APPLY_EXPIRED",
       "BUNDLE_AUTHORITY_UNPUBLISHED",
       "BLOCKED_PIN_MISMATCH",
+      "DRY_RUN_AUTHORIZATION_REQUIRED",
     ]).toContain(result.error_code);
   });
 

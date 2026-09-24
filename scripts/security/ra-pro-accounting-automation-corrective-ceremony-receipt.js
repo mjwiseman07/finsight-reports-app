@@ -157,6 +157,17 @@ function validateCeremonyReceiptSchema(receipt) {
     }
     assertHex40(String(receipt.execution_tip || "").toLowerCase(), "CORRECTIVE_RECEIPT_EXECUTION_TIP");
     assertHex40(String(receipt.pin_tip || "").toLowerCase(), "CORRECTIVE_RECEIPT_PIN_TIP");
+    assertHex40(
+      String(receipt.dry_run_authorization_publication_commit || "").toLowerCase(),
+      "CORRECTIVE_RECEIPT_DRY_RUN_PUBLICATION",
+    );
+    assertHex40(
+      String(receipt.dry_run_authorization_publication_blob_oid || "").toLowerCase(),
+      "CORRECTIVE_RECEIPT_DRY_RUN_BLOB",
+    );
+    if (!/^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/.test(String(receipt.dry_run_attempt_id || ""))) {
+      return { ok: false, code: "CORRECTIVE_RECEIPT_DRY_RUN_ATTEMPT" };
+    }
 
     for (const prefix of ["ceremony", "bundle"]) {
       if (typeof receipt[`${prefix}_path`] !== "string" || !receipt[`${prefix}_path`]) {
@@ -248,6 +259,13 @@ function sealCeremonyReceipt(measurements) {
     sealed_evidence_bytes: asInt(m.sealed_evidence_bytes),
     execution_tip: String(m.execution_tip || "").toLowerCase(),
     pin_tip: String(m.pin_tip || "").toLowerCase(),
+    dry_run_authorization_publication_commit: String(
+      m.dry_run_authorization_publication_commit || "",
+    ).toLowerCase(),
+    dry_run_authorization_publication_blob_oid: String(
+      m.dry_run_authorization_publication_blob_oid || "",
+    ).toLowerCase(),
+    dry_run_attempt_id: String(m.dry_run_attempt_id || ""),
     ceremony_path: String(m.ceremony_path || ""),
     ceremony_oid: String(m.ceremony_oid || "").toLowerCase(),
     ceremony_sha256: String(m.ceremony_sha256 || "").toLowerCase(),

@@ -102,10 +102,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Bundle seals — updated by assemble script after rebuild (non-circular). */
 const STANDALONE_BUNDLE_OID =
-  "7dd76441077445ae9181150d01114cfc73a23b55";
+  "2a6d2791aed9658541b84d4ffaf3274e88939d94";
 const STANDALONE_BUNDLE_SHA256 =
-  "cf7fe49e3a54720d448f6a7dc037dc057c5b93136d2f07e0d75950c0d70571ca";
-const STANDALONE_BUNDLE_BYTES = 427845;
+  "cf7974077a08e55d08aa93e67bef9496352bd4e78dcc88efe4eba931083e666a";
+const STANDALONE_BUNDLE_BYTES = 459079;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",

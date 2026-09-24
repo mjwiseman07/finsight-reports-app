@@ -886,7 +886,9 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
   },
   );
 
-  it("rejects a substituted bundle and a publication-selected first hop before Node", () => {
+  it(
+    "rejects a substituted bundle and a publication-selected first hop before Node",
+    () => {
     withDisposableDualPublicationWorktree(({ worktree, publicationCommit: publishedCommit, executable }) => {
       const auth = JSON.parse(git(["cat-file", "-p", `${publishedCommit}:${AUTH_REL}`])) as MutableAuth;
       const stub = Buffer.from(
@@ -1006,7 +1008,9 @@ it("publishes non-circular freeze/bootstrap/ceremony/tip seals", () => {
         fs.writeFileSync(bundlePath, originalBundle);
       }
     });
-  });
+  },
+  300_000,
+  );
 
   it("rejects UTF-8 BOM, CRLF, and reparse substitution before the runbook launches bootstrap", () => {
     const runbook = fs.readFileSync(

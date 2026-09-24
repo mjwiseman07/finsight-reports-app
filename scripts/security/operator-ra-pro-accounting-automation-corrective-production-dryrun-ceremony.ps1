@@ -14,13 +14,17 @@ param(
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$ExecutableCommit,
+  [string]$DryRunAuthorizationPublication,
 
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
 
   [Parameter(Mandatory = $false)]
-  [string]$EvidenceOutDir = ""
+  [string]$EvidenceOutDir = "",
+
+  # Set only after bootstrap tip-seal materialize. Direct worktree -File is forbidden.
+  [Parameter(Mandatory = $false)]
+  [switch]$SealedMaterialInvocation
 )
 
 Set-StrictMode -Version Latest
@@ -28,23 +32,23 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 try { Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue | Out-Null } catch {}
 
+if (-not $SealedMaterialInvocation) {
+  throw "CEREMONY_DIRECT_EXEC_FORBIDDEN: materialize via corrective bootstrap Git-blob first hop only"
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
   $RepoRoot = (git rev-parse --show-toplevel).Trim()
 }
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 $PinTip = $PinTip.ToLowerInvariant()
-$ExecutableCommit = $ExecutableCommit.ToLowerInvariant()
-# PinTip is the immutable evidence pin authority; ExecutableCommit is the remediation tip.
+$DryRunAuthorizationPublication = $DryRunAuthorizationPublication.ToLowerInvariant()
 $EvidenceAuthorityCommit = $PinTip
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
 if ($EvidenceAuthorityCommit -ne $ExpectedEvidenceAuthority) {
   throw ("EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN: expected " + $ExpectedEvidenceAuthority + " got " + $EvidenceAuthorityCommit)
 }
-git -C $RepoRoot merge-base --is-ancestor $EvidenceAuthorityCommit $ExecutableCommit
-if ($LASTEXITCODE -ne 0) {
-  throw "EVIDENCE_AUTHORITY_ANCESTRY: ExecutableCommit must descend evidence pin authority"
-}
 $DbEnv = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL"
+$AuthRel = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs"
 $EvidenceModRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence.js"
 $DecodeRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js"
@@ -181,14 +185,60 @@ $cleanupErrors = New-Object 'System.Collections.Generic.List[string]'
 $executionTip = $null
 $ceremonySeal = $null
 $bundleSeal = $null
+$AuthorizationBlobOid = $null
+$AttemptId = $null
+$ExecutableCommit = $null
+
+function New-CorrectiveDryRunMarkerAtomic([string]$Executable, [string]$AttemptId, [string]$OutDir) {
+  if ($AttemptId -notmatch '^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$') {
+    throw "DRY_RUN_ATTEMPT_ID_INVALID"
+  }
+  $name = $AttemptId + ".marker"
+  $path = Join-Path $OutDir $name
+  $body = "corrective-dry-run`n{0}`n{1}`n" -f $Executable, $AttemptId
+  $bytes = [Text.Encoding]::UTF8.GetBytes($body)
+  try {
+    $fs = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try { $fs.Write($bytes, 0, $bytes.Length) } finally { $fs.Dispose() }
+  } catch [IO.IOException] {
+    throw "CORRECTIVE_DRY_RUN_ATTEMPT_CONSUMED"
+  }
+  return $path
+}
 
 try {
+  # Trust root: dry-run authorization publication (Git), not caller-selected executable.
+  $pubBytes = Get-GitBlobBytes "${DryRunAuthorizationPublication}:${AuthRel}"
+  $pubAuth = ([Text.Encoding]::UTF8.GetString($pubBytes)) | ConvertFrom-Json
+  $dryRecord = $pubAuth.production_dry_run_authorization
+  if ($null -eq $dryRecord -or [string]$dryRecord.status -ne "AUTHORIZED" -or -not [bool]$dryRecord.dry_run_authorized) {
+    throw "DRY_RUN_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production_dry_run_authorization is UNPUBLISHED"
+  }
+  $ExecutableCommit = ([string]$dryRecord.authorized_executable_commit).ToLowerInvariant()
+  $AttemptId = [string]$dryRecord.attempt_id
+  if ($ExecutableCommit -notmatch '^[0-9a-f]{40}$') { throw "DRY_RUN_AUTHORIZATION_EXECUTABLE_INVALID" }
+  if ($AttemptId -notmatch '^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$') { throw "DRY_RUN_ATTEMPT_ID_INVALID" }
+  if ($ExecutableCommit -eq $DryRunAuthorizationPublication) { throw "DRY_RUN_AUTHORIZATION_CIRCULAR_TIP" }
+  git -C $RepoRoot merge-base --is-ancestor $EvidenceAuthorityCommit $ExecutableCommit
+  if ($LASTEXITCODE -ne 0) { throw "EVIDENCE_AUTHORITY_ANCESTRY" }
+  git -C $RepoRoot merge-base --is-ancestor $ExecutableCommit $DryRunAuthorizationPublication
+  if ($LASTEXITCODE -ne 0) { throw "DRY_RUN_AUTHORIZATION_ANCESTRY" }
+  $deltaNames = @(git -C $RepoRoot diff --name-only $ExecutableCommit $DryRunAuthorizationPublication)
+  if ($deltaNames.Count -ne 1 -or $deltaNames[0] -ne $AuthRel) {
+    throw ("DRY_RUN_AUTHORIZATION_ALLOWLIST: " + ($deltaNames -join ","))
+  }
+  $AuthorizationBlobOid = (Get-GitBlobOid "${DryRunAuthorizationPublication}:${AuthRel}").ToLowerInvariant()
+  $ExpectedBundleOid = ([string]$dryRecord.bundle.oid).ToLowerInvariant()
+
   # Executable tip is explicit — never infer authority from mutable HEAD.
   $executionTip = $ExecutableCommit
   $ceremonySeal = Get-CommittedCeremonySeal -Tip $ExecutableCommit -RelPath $CeremonyRel
   $bundleBytes = Get-GitBlobBytes "${ExecutableCommit}:${BundleRel}"
   $bundleOid = Get-GitBlobOid "${ExecutableCommit}:${BundleRel}"
   $bundleSha = Get-Sha256Bytes $bundleBytes
+  if ($bundleOid.ToLowerInvariant() -ne $ExpectedBundleOid) {
+    throw "DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH: publication seal does not match executable tip blob"
+  }
   $bundleSeal = [ordered]@{
     path = $BundleRel
     oid = $bundleOid
@@ -208,6 +258,10 @@ try {
   Write-Host ("Channel: " + $DbEnv)
   $secure = Read-Host -Prompt $DbEnv -AsSecureString
   if ($null -eq $secure -or $secure.Length -le 0) { throw "BLOCKED_CREDENTIAL_UNAVAILABLE" }
+
+  # Marker only after SecureString acquisition, before credential transfer / Node / DB.
+  $markerPath = New-CorrectiveDryRunMarkerAtomic -Executable $ExecutableCommit -AttemptId $AttemptId -OutDir $EvidenceOutDir
+
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   if ([string]::IsNullOrWhiteSpace($plain)) { throw "BLOCKED_CREDENTIAL_UNAVAILABLE" }
@@ -215,7 +269,15 @@ try {
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Command node.exe).Source
-  $psi.Arguments = "`"$BundleFile`" --dry-run --executable-commit $ExecutableCommit"
+  # --executable-commit is a recheck only; trust came from dry-run authorization publication.
+  $psi.Arguments = (
+    "`"$BundleFile`" --dry-run" +
+    " --dry-run-authorization-publication $DryRunAuthorizationPublication" +
+    " --expect-authorization-blob-oid $AuthorizationBlobOid" +
+    " --expect-executable $ExecutableCommit" +
+    " --expect-bundle-oid $ExpectedBundleOid" +
+    " --expect-attempt-id $AttemptId"
+  )
   $psi.WorkingDirectory = $RepoRoot
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -457,6 +519,9 @@ finally {
     sealed_evidence_bytes = $(if ($retainedBytes -gt 0) { [int]$retainedBytes } else { 0 })
     execution_tip = $executionTip
     pin_tip = $EvidenceAuthorityCommit
+    dry_run_authorization_publication_commit = $DryRunAuthorizationPublication
+    dry_run_authorization_publication_blob_oid = $(if ($AuthorizationBlobOid) { $AuthorizationBlobOid } else { ("0" * 40) })
+    dry_run_attempt_id = $(if ($AttemptId) { $AttemptId } else { "" })
     ceremony_path = [string]$ceremonySeal.path
     ceremony_oid = [string]$ceremonySeal.oid
     ceremony_sha256 = [string]$ceremonySeal.sha256

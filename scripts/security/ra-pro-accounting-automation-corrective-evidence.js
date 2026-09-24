@@ -162,6 +162,31 @@ function validateCorrectiveDryRunEvidenceSchema(evidence) {
       return { ok: false, code: "CORRECTIVE_EVIDENCE_PROJECT", phase: "schema" };
     }
     assertHex40(String(evidence.execution_tip || "").toLowerCase(), "CORRECTIVE_EVIDENCE_EXECUTION_TIP");
+    const dryAuth = evidence.dry_run_authorization;
+    if (!dryAuth || typeof dryAuth !== "object") {
+      return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_AUTHORIZATION", phase: "schema" };
+    }
+    assertHex40(
+      String(dryAuth.publication_commit || "").toLowerCase(),
+      "CORRECTIVE_EVIDENCE_DRY_RUN_PUBLICATION",
+    );
+    assertHex40(
+      String(dryAuth.authorization_publication_blob_oid || "").toLowerCase(),
+      "CORRECTIVE_EVIDENCE_DRY_RUN_BLOB",
+    );
+    assertHex40(
+      String(dryAuth.authorized_executable_commit || "").toLowerCase(),
+      "CORRECTIVE_EVIDENCE_DRY_RUN_EXECUTABLE",
+    );
+    if (
+      String(dryAuth.authorized_executable_commit || "").toLowerCase() !==
+      String(evidence.execution_tip || "").toLowerCase()
+    ) {
+      return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_EXECUTABLE", phase: "schema" };
+    }
+    if (!/^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/.test(String(dryAuth.attempt_id || ""))) {
+      return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_ATTEMPT", phase: "schema" };
+    }
     assertSeal(evidence.bundle, "CORRECTIVE_EVIDENCE_BUNDLE");
     if (
       evidence.bundle.path !== STANDALONE_BUNDLE_PATH ||
@@ -531,6 +556,30 @@ function sealCorrectiveDryRunEvidence(partial, auth, options = {}) {
     evidence_source: partial.evidence_source || "sealed_applicator",
     authorization_scope: "corrective_dry_run",
     execution_tip: executionTip,
+    dry_run_authorization: {
+      publication_commit: String(
+        options.dryRunAuthorizationPublication ||
+          (partial.dry_run_authorization && partial.dry_run_authorization.publication_commit) ||
+          "",
+      ).toLowerCase(),
+      authorization_publication_blob_oid: String(
+        options.dryRunAuthorizationBlobOid ||
+          (partial.dry_run_authorization &&
+            partial.dry_run_authorization.authorization_publication_blob_oid) ||
+          "",
+      ).toLowerCase(),
+      authorized_executable_commit: executionTip,
+      attempt_id: String(
+        options.dryRunAttemptId ||
+          (partial.dry_run_authorization && partial.dry_run_authorization.attempt_id) ||
+          "",
+      ),
+      bundle_oid: String(
+        (partial.dry_run_authorization && partial.dry_run_authorization.bundle_oid) ||
+          bundle.oid ||
+          "",
+      ).toLowerCase(),
+    },
     project_ref: EXPECTED_PROJECT_REF,
     database_url_env: DATABASE_URL_ENV,
     feature_flag_env: FEATURE_FLAG_ENV,

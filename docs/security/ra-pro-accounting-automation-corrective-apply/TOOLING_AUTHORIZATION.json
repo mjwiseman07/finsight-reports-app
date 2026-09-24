@@ -186,6 +186,22 @@
     "publication_role": "later_descendant_commit",
     "note": "Corrective apply authorization is unpublished until a separate reviewed publication. Evidence and the apply token do not authorize apply. Never reuse the consumed dual-package attempt."
   },
+  "production_dry_run_authorization": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1",
+    "dry_run_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "bundle": null,
+    "bootstrap": null,
+    "ceremony": null,
+    "evidence_pin_authority": null,
+    "precondition_evidence": null,
+    "pre_apply_live_evidence": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. --executable-commit alone is never authority."
+  },
   "evidence_pin_authority": {
     "commit": "f550842cd6dd837671599ee8c65bb6ba3932aa62",
     "auth_path": "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json",
@@ -208,13 +224,13 @@
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels.",
     "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection.",
-    "Corrective precondition and pre-apply live evidence pins remain PUBLISHED at evidence pin authority f550842c… (source a055228c…). Runtime dry-run/apply must load that AUTH blob via git cat-file only — never worktree JSON. This executable tip remediates mutable-worktree authority; production_apply_authorization remains UNPUBLISHED. Pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation. Reviewed tooling lineage tip: 99dc4cc3…."
+    "Corrective precondition and pre-apply live evidence pins remain PUBLISHED at evidence pin authority f550842c… (source a055228c…). Runtime dry-run/apply must load that AUTH blob via git cat-file only — never worktree JSON. production_dry_run_authorization and production_apply_authorization remain UNPUBLISHED. Dry-run trust requires a later AUTH-only one-attempt publication (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1); --executable-commit alone is never authority. Authenticated first hop materializes bootstrap from Git blob seals only. Pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation. Reviewed tooling lineage tip: 99dc4cc3…."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "7dd76441077445ae9181150d01114cfc73a23b55",
-    "sha256": "cf7fe49e3a54720d448f6a7dc037dc057c5b93136d2f07e0d75950c0d70571ca",
-    "bytes": 427845,
+    "oid": "2a6d2791aed9658541b84d4ffaf3274e88939d94",
+    "sha256": "cf7974077a08e55d08aa93e67bef9496352bd4e78dcc88efe4eba931083e666a",
+    "bytes": 459079,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

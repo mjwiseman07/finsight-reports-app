@@ -104,10 +104,10 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
     expect(FEATURE_FLAG_ENV).toBe("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION");
   });
 
-  it("blocks dry-run before credentials when executable commit is missing", async () => {
+  it("blocks dry-run before credentials when dry-run authorization pin is missing", async () => {
     const result = await runDryRun({});
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("EXECUTABLE_COMMIT_REQUIRED");
+    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
     expect(result.productionContact).not.toBe(true);
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
@@ -121,11 +121,11 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
       argv: ["node", "apply"],
     });
     expect(result.verdict).toBe("APPLY_BLOCKED");
-    // Evidence may expire (wall clock) or apply remains unpublished — either fails before DB.
     expect([
       "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS",
       "CORRECTIVE_PRECONDITION_EXPIRED",
       "CORRECTIVE_PRE_APPLY_EXPIRED",
+      "DRY_RUN_AUTHORIZATION_REQUIRED",
       "EXECUTABLE_COMMIT_REQUIRED",
     ]).toContain(result.error_code);
     expect(result.productionContact).not.toBe(true);

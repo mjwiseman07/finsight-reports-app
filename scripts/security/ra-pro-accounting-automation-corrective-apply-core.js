@@ -55,6 +55,10 @@ const {
   resolveExecutableCommit,
 } = require("./ra-pro-accounting-automation-corrective-apply-authorization");
 const {
+  assertDryRunAuthorizedBeforeCredentials,
+  recheckDryRunAuthorizationPin,
+} = require("./ra-pro-accounting-automation-corrective-dry-run-authorization");
+const {
   assertCorrectivePreconditionEvidencePublished,
 } = require("./ra-pro-accounting-automation-corrective-precondition-gates");
 const {
@@ -512,7 +516,9 @@ function assertNoHarnessEnvOrArgv(inputs = {}) {
 
 function assertTestOnlyHarnessContext(inputs = {}) {
   const harness =
-    inputs.allowLocalhostForHarness === true || inputs.allowDisposablePublicationCommit === true;
+    inputs.allowLocalhostForHarness === true ||
+    inputs.allowDisposablePublicationCommit === true ||
+    inputs.allowDisposableDryRunPublicationCommit === true;
   if (!harness) return;
   if (inputs.testOnlyHarnessContext !== true) {
     const e = new Error("HARNESS_CONTEXT_REQUIRED: testOnlyHarnessContext required for harness flags");
@@ -550,6 +556,8 @@ function assertTestOnlyHarnessContext(inputs = {}) {
 function isPublishedHexOid(value) {
   return typeof value === "string" && /^[0-9a-f]{40}$/i.test(value);
 }
+
+const HEX40_LOCAL = /^[0-9a-f]{40}$/;
 
 function isPublishedHexSha256(value) {
   return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value) && !value.startsWith("PENDING_");
@@ -991,6 +999,48 @@ async function runDryRun(inputs = {}) {
   evidence.migration_sql_attempts = 0;
   try {
     refuseAuthIfOriginalsTargeted(inputs);
+    // Dry-run execution trust comes only from a validated authorization publication map.
+    // Bare --executable-commit / missing pin fails here before evidence gates / credentials / DB.
+    let dryRunMap = inputs.dryRunAuthorizationMap || null;
+    if (!dryRunMap && inputs.publicationCommit && HEX40_LOCAL.test(String(inputs.publicationCommit))) {
+      dryRunMap = assertDryRunAuthorizedBeforeCredentials({
+        cwd: resolveRepoRoot(inputs),
+        publicationCommit: inputs.publicationCommit,
+        env: inputs.env || {},
+      });
+    }
+    if (dryRunMap) {
+      if (
+        inputs.expectAuthorizationBlobOid ||
+        inputs.expectBundleOid ||
+        inputs.expectAttemptId ||
+        inputs.expectExecutable
+      ) {
+        recheckDryRunAuthorizationPin({
+          cwd: resolveRepoRoot(inputs),
+          expectExecutable:
+            inputs.expectExecutable || dryRunMap.authorized_executable_commit,
+          expectCommit: dryRunMap.publication_commit,
+          expectBlobOid:
+            inputs.expectAuthorizationBlobOid || dryRunMap.authorization_publication_blob_oid,
+          expectBundleOid: inputs.expectBundleOid || dryRunMap.bundle_oid,
+          expectAttemptId: inputs.expectAttemptId || dryRunMap.attempt_id,
+          expectLiveRef: inputs.expectLiveRef,
+        });
+      }
+      inputs = {
+        ...inputs,
+        dryRunAuthorizationMap: dryRunMap,
+        executableCommit: dryRunMap.authorized_executable_commit,
+      };
+      evidence.dry_run_authorization = {
+        publication_commit: dryRunMap.publication_commit,
+        authorization_publication_blob_oid: dryRunMap.authorization_publication_blob_oid,
+        authorized_executable_commit: dryRunMap.authorized_executable_commit,
+        attempt_id: dryRunMap.attempt_id,
+        bundle_oid: dryRunMap.bundle_oid,
+      };
+    }
     // Evidence pins fail closed before bundle/credentials/DB — Git authority only.
     evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
     evidence.bundle_authority = assertBundleAuthority(inputs);
@@ -1015,6 +1065,17 @@ async function runDryRun(inputs = {}) {
       ...inputs,
       cwd: resolveRepoRoot(inputs),
     });
+    if (dryRunMap) {
+      recheckDryRunAuthorizationPin({
+        cwd: resolveRepoRoot(inputs),
+        expectExecutable: dryRunMap.authorized_executable_commit,
+        expectCommit: dryRunMap.publication_commit,
+        expectBlobOid: dryRunMap.authorization_publication_blob_oid,
+        expectBundleOid: dryRunMap.bundle_oid,
+        expectAttemptId: dryRunMap.attempt_id,
+        expectLiveRef: inputs.expectLiveRef,
+      });
+    }
     evidence.databaseConnectionAttempts = 1;
     evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
     evidence.read_only = true;
@@ -1060,25 +1121,26 @@ async function runDryRun(inputs = {}) {
 
 async function runApply(inputs = {}) {
   const evidence = buildEvidenceBase({ ...inputs, mode: "apply" });
+  const applyInputs = { ...inputs, applyMode: true };
   let clientConfig;
   let packed;
   let commitPhase = "pre_commit";
 
   try {
-    refuseAuthIfOriginalsTargeted(inputs);
+    refuseAuthIfOriginalsTargeted(applyInputs);
     // Evidence pins fail closed before bundle/apply-auth/credentials/DB.
-    evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "apply");
-    evidence.bundle_authority = assertBundleAuthority(inputs);
+    evidence.evidence_gates = enforceCorrectiveEvidenceGates(applyInputs, "apply");
+    evidence.bundle_authority = assertBundleAuthority(applyInputs);
     evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
-      ...inputs,
-      cwd: resolveRepoRoot(inputs),
+      ...applyInputs,
+      cwd: resolveRepoRoot(applyInputs),
     });
     evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-      ...inputs,
-      cwd: resolveRepoRoot(inputs),
-      executableCommit: inputs.executableCommit || resolveExecutableCommit(inputs),
+      ...applyInputs,
+      cwd: resolveRepoRoot(applyInputs),
+      executableCommit: applyInputs.executableCommit || resolveExecutableCommit(applyInputs),
     });
-    packed = loadSealedMigrations(inputs);
+    packed = loadSealedMigrations(applyInputs);
     assertCorrectiveMigrationsAllowlist(packed);
     evidence.source_authority = packed.map((p) => ({
       version: p.migration.version,

@@ -226,26 +226,59 @@ function loadEvidencePinAuthority(inputs = {}) {
 }
 
 /**
- * Executable tip must be explicit in production (never implicit mutable HEAD).
+ * Executable tip must come from a validated dry-run authorization map in production.
+ * Caller --executable-commit alone is never trusted.
  */
 function resolveExecutableCommit(inputs = {}) {
-  if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
-    const commit = String(inputs.executableCommit).toLowerCase();
+  if (inputs.dryRunAuthorizationMap && inputs.dryRunAuthorizationMap.authorized_executable_commit) {
+    const commit = String(inputs.dryRunAuthorizationMap.authorized_executable_commit).toLowerCase();
     if (!HEX40.test(commit)) {
       throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+    }
+    if (
+      inputs.executableCommit &&
+      String(inputs.executableCommit).toLowerCase() !== commit
+    ) {
+      throw blocked(
+        "EXECUTABLE_COMMIT_RECHECK_MISMATCH",
+        "recheck executable does not match dry-run authorization map",
+      );
     }
     return commit;
   }
   if (
     inputs.testOnlyHarnessContext === true &&
     (inputs.allowDisposablePublicationCommit === true ||
-      inputs.allowLocalhostForHarness === true)
+      inputs.allowLocalhostForHarness === true ||
+      inputs.allowDisposableDryRunPublicationCommit === true)
   ) {
+    if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+      const commit = String(inputs.executableCommit).toLowerCase();
+      if (!HEX40.test(commit)) {
+        throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+      }
+      return commit;
+    }
     return gitText(["rev-parse", "HEAD"], inputs.cwd || process.cwd()).toLowerCase();
   }
+  // Apply mode may name an executable tip for Git AUTH/bundle load; apply authorization
+  // remains a separate gate and stays UNPUBLISHED until a later publication.
+  if (inputs.applyMode === true && inputs.executableCommit != null && String(inputs.executableCommit).length) {
+    const commit = String(inputs.executableCommit).toLowerCase();
+    if (!HEX40.test(commit)) {
+      throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+    }
+    return commit;
+  }
+  if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+    throw blocked(
+      "DRY_RUN_AUTHORIZATION_REQUIRED",
+      "--executable-commit alone is not authority; validated dry-run authorization publication required",
+    );
+  }
   throw blocked(
-    "EXECUTABLE_COMMIT_REQUIRED",
-    "explicit executable commit required before credentials",
+    "DRY_RUN_AUTHORIZATION_REQUIRED",
+    "validated dry-run authorization map required before credentials",
   );
 }
 
@@ -487,6 +520,8 @@ function createDisposablePublicationCommit(inputs = {}) {
  * (disposable harness only until a reviewed publication exists).
  */
 function assertCorrectiveApplyAuthorized(inputs = {}) {
+  // Apply path may name an executable tip for Git AUTH load; never trusts dry-run authorization.
+  inputs = { ...inputs, applyMode: true };
   const cwd = inputs.cwd || process.cwd();
   assertNoAuthEnvOverride(inputs.env || process.env);
 
