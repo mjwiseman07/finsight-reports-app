@@ -88,15 +88,17 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
 
 const STANDALONE_BUNDLE_OID =
-  "8b8baf52b5528073550a59b0aa0fe3fc0b2e8020";
+  "d308fd8acd5d86d3004bf74af25f7091e39ea329";
 const STANDALONE_BUNDLE_SHA256 =
-  "1b641ce6b41dc5c04e2902bf46f953bc98c33afa491654037fa7023cc609622e";
-const STANDALONE_BUNDLE_BYTES = 388718;
+  "4a3f236bb53ce7bb9527fb7b0bbd2713b78df15be57875056658756571b9b8f7";
+const STANDALONE_BUNDLE_BYTES = 414769;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
   "scripts/security/ra-pro-accounting-automation-corrective-apply-core.js",
   "scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js",
+  "scripts/security/ra-pro-accounting-automation-corrective-evidence.js",
+  "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js",
   "scripts/security/git-blob-authority.js",
   "scripts/security/verify-ra-pro-accounting-automation-corrective-apply-authority.js",
 ]);

@@ -53,4 +53,20 @@ node scripts/security/assemble-ra-pro-accounting-automation-corrective-applicato
 node scripts/security/apply-ra-pro-accounting-automation-corrective.js --dry-run
 ```
 
+### Dry-run evidence retention (mandatory)
+
+Dry-run stdout is exactly one sealed frame:
+
+`RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_DRY_RUN_EVIDENCE_V1:<base64url>`
+
+The retained file must be the **exact decoded canonical JSON payload bytes** (UTF-8, LF-only, one trailing LF, no BOM). Capture stdout binary-safe; extract/retain via `ra-pro-accounting-automation-corrective-evidence-decode-frame.js`. **Never** `ConvertFrom-Json` / `ConvertTo-Json` the sealed frame. A ceremony summary may bind the frame by SHA-256/bytes only.
+
+Rejected / non-pin-ready: any prior CRLF or PowerShell-reserialized artifact (e.g. temp dry-run `bec0a81f…` / 4701 bytes with CR). Do not normalize it — require a new authorized dry run after this tooling passes review.
+
+Operator ceremony (visible SecureString; dry-run only):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1 -PinTip <40-hex-pin-tip>
+```
+
 Do not run apply against production until authorization is separately published after review.

@@ -108,11 +108,16 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
       const key = String(k).toLowerCase();
+      // Preserve non-secret channel-name metadata (database_url_env / feature_flag_env).
+      if (key === "database_url_env" || key === "feature_flag_env" || key === "authorization_scope") {
+        out[k] = sanitizeValue(v, depth + 1, seen);
+        continue;
+      }
       if (
         key.includes("password") ||
         key.includes("connectionstring") ||
-        key.includes("database_url") ||
-        key.includes("databaseurl") ||
+        key === "database_url" ||
+        key === "databaseurl" ||
         key === "argv" ||
         key === "config"
       ) {

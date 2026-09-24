@@ -184,9 +184,9 @@
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "8b8baf52b5528073550a59b0aa0fe3fc0b2e8020",
-    "sha256": "1b641ce6b41dc5c04e2902bf46f953bc98c33afa491654037fa7023cc609622e",
-    "bytes": 388718,
+    "oid": "d308fd8acd5d86d3004bf74af25f7091e39ea329",
+    "sha256": "4a3f236bb53ce7bb9527fb7b0bbd2713b78df15be57875056658756571b9b8f7",
+    "bytes": 414769,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

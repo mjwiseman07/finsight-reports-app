@@ -1,8 +1,8 @@
-# B2 ó suppress generatedAt-only churn in evidence JSON diffs (G7-C7b)
+# B2 ? suppress generatedAt-only churn in evidence JSON diffs (G7-C7b)
 evidence/*-d0.json -diff
 wiring-verifier-evidence.json -diff
 
-# Option D isolated replay ó path-scoped LF (no repo-wide renormalization)
+# Option D isolated replay ? path-scoped LF (no repo-wide renormalization)
 docs/migration-remediation/option-d-replay-manifest.json text eol=lf
 supabase/migrations-draft/option-d-isolated-replay/assembled/*.sql text eol=lf
 supabase/migrations-draft/option-d-isolated-replay/substitutions/*.sql text eol=lf
@@ -10,11 +10,11 @@ supabase/migrations-draft/option-d-isolated-replay/derived-baseline/*.sql text e
 supabase/migrations-draft/20260701043599_foundations_baseline.sql text eol=lf
 supabase/migrations-draft/recovered-production-history/*.sql text eol=lf
 
-# Stage-1 credential browser containment ó force LF for seal-critical artifacts
+# Stage-1 credential browser containment ? force LF for seal-critical artifacts
 supabase/migrations/20260908031736_connection_credential_browser_containment.sql text eol=lf
-# RA Pro billing-company migration ó LF-authoritative Git blob for seal ceremonies
+# RA Pro billing-company migration ? LF-authoritative Git blob for seal ceremonies
 supabase/migrations/20260915004500_ra_pro_firm_billing_company_id.sql text eol=lf
-# RA Pro cutover operator decision ó committed LF blob is the only digest authority
+# RA Pro cutover operator decision ? committed LF blob is the only digest authority
 docs/security/ra-pro-cutover-operator-decision.json text eol=lf
 docs/security/ra-pro-*.md text eol=lf
 tests/security/ra-pro-*.test.ts text eol=lf
@@ -48,25 +48,25 @@ tests/security/helpers/fixtures/prior-production-dry-run-evidence.json -text
 tests/security/containment-tls-ca.test.ts text eol=lf
 tests/security/containment-evidence-protocol.test.ts text eol=lf
 
-# FRLS prior-dry-run evidence fixture ó intentionally CRLF, byte-authoritative pin
-# (SHA-256 b27e927bÖ / 110391 bytes). Distinct from LF-authoritative migration blobs.
+# FRLS prior-dry-run evidence fixture ? intentionally CRLF, byte-authoritative pin
+# (SHA-256 b27e927b? / 110391 bytes). Distinct from LF-authoritative migration blobs.
 tests/security/helpers/fixtures/frls-prior-production-dry-run-evidence.json -text
 
-# RA Pro fresh precondition evidence ó LF-authoritative Git blob (SHA-256 fb3625f9Ö / 1407 bytes)
+# RA Pro fresh precondition evidence ? LF-authoritative Git blob (SHA-256 fb3625f9? / 1407 bytes)
 tests/security/helpers/fixtures/ra-pro-cutover-precondition-evidence.json text eol=lf
 tests/security/helpers/fixtures/ra-pro-precondition-evidence.synthetic.json text eol=lf
 docs/security/ra-pro-cutover-apply/** text eol=lf
 scripts/security/operator-ra-pro-cutover-production-dryrun-ceremony.ps1 text eol=lf
 scripts/security/ra-pro-cutover-precondition-gates.ps1 text eol=lf
 
-# RA Pro prior-dry-run evidence fixture ù intentionally CRLF, byte-authoritative pin
+# RA Pro prior-dry-run evidence fixture ? intentionally CRLF, byte-authoritative pin
 tests/security/helpers/fixtures/ra-pro-cutover-prior-production-dry-run-evidence.json -text
 
 
-# RA Pro pre-apply live evidence ù LF-authoritative Git blob (SHA-256 98e8824bù / 2309 bytes)
+# RA Pro pre-apply live evidence ? LF-authoritative Git blob (SHA-256 98e8824b? / 2309 bytes)
 tests/security/helpers/fixtures/ra-pro-cutover-pre-apply-live-evidence.json text eol=lf
 
-# RA Pro accounting-automation applicator ù LF-authoritative seals
+# RA Pro accounting-automation applicator ? LF-authoritative seals
 docs/security/ra-pro-accounting-automation-apply/** text eol=lf
 docs/security/ra-pro-accounting-automation-corrective-apply/** text eol=lf
 scripts/security/ra-pro-accounting-automation-*.js text eol=lf
@@ -83,6 +83,12 @@ scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs 
 scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs text eol=lf
 tests/security/ra-pro-accounting-automation-*.test.ts text eol=lf
 tests/security/helpers/fixtures/ra-pro-accounting-automation-corrective-*.json text eol=lf
+# Intentionally retain CR bytes of the rejected non-pin-ready dry-run artifact.
+# -diff avoids false-positive trailing-whitespace on intentional CR.
+tests/security/helpers/fixtures/ra-pro-accounting-automation-corrective-dry-run-evidence.rejected-crlf.json -text -diff
+scripts/security/ra-pro-accounting-automation-corrective-evidence.js text eol=lf
+scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js text eol=lf
+scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1 text eol=lf
 supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql text eol=lf
 supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql text eol=lf
 supabase/migrations/20260922003200_ra_pro_accounting_automation_service_role_least_privilege.sql text eol=lf
