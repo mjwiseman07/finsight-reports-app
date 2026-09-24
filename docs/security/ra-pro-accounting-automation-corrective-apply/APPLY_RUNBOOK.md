@@ -24,8 +24,8 @@ The consumed dual-package attempt id `apply-b9926961e32c-8aecb1bd2f5f17dec0483dd
 | Mode | Required authority |
 |---|---|
 | **evidence collection** | Published `production_collection_authorization` (AUTHORIZED) naming `authorized_executable_commit` as a strict ancestor executable tip; AUTH-object-only descendant publication; contracts/schema/gates/collector/bundle seals loaded from the executable tip via `git cat-file` |
-| **dry-run** | Bundle seals (when published) + published corrective **precondition** evidence pins + corrective credential channel |
-| **apply** | Published corrective **precondition** + **pre-apply live** evidence pins + published `production_apply_authorization` (AUTHORIZED) + apply token |
+| **dry-run** | Explicit `--executable-commit` (remediation tip) + evidence pins loaded **only** from immutable evidence pin authority `f550842c…` via `git cat-file` (AUTH blob OID `5f3845b1…`) + bundle seals from the executable tip’s committed AUTH + corrective credential channel. Worktree `TOOLING_AUTHORIZATION.json` is never authority. |
+| **apply** | Same evidence authority as dry-run + executable tip’s Git AUTH (while unpublished: `APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS`) or a future AUTH-only AUTHORIZED apply publication commit + apply token |
 
 Corrective evidence gates (`RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1` and `RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1`) are schema v3 and bind `authorized_executable_commit` + `authorization_publication_commit` + `authorization_publication_blob_oid`. Free-form attestations such as `collection_tooling_tip` are never authority.
 

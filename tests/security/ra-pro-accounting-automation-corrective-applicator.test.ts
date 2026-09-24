@@ -104,13 +104,32 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
     expect(FEATURE_FLAG_ENV).toBe("ENABLE_RA_PRO_ACCOUNTING_AUTOMATION");
   });
 
-  it("blocks dry-run before credentials when apply authorization remains UNPUBLISHED", async () => {
+  it("blocks dry-run before credentials when executable commit is missing", async () => {
     const result = await runDryRun({});
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    // Published evidence pins; dry-run still stops before DB URL / production contact.
-    expect(result.error_code).toBe("MISSING_INPUT");
-    expect(result.phase).toBe("uri_validate");
+    expect(result.error_code).toBe("EXECUTABLE_COMMIT_REQUIRED");
     expect(result.productionContact).not.toBe(true);
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
+  });
+
+  it("blocks apply before credentials from executable Git AUTH while unpublished", async () => {
+    const tip = gitTip();
+    const result = await runApplicator({
+      mode: "apply",
+      executableCommit: tip,
+      env: {},
+      argv: ["node", "apply"],
+    });
+    expect(result.verdict).toBe("APPLY_BLOCKED");
+    // Evidence may expire (wall clock) or apply remains unpublished — either fails before DB.
+    expect([
+      "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS",
+      "CORRECTIVE_PRECONDITION_EXPIRED",
+      "CORRECTIVE_PRE_APPLY_EXPIRED",
+      "EXECUTABLE_COMMIT_REQUIRED",
+    ]).toContain(result.error_code);
+    expect(result.productionContact).not.toBe(true);
+    expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 });
 

@@ -4,6 +4,10 @@
 /**
  * Minimal apply authorization for the CORRECTIVE accounting-automation package.
  * Production record starts UNPUBLISHED. Disposable publication is for tests only.
+ *
+ * Authority loads via git cat-file / loadAndVerifyGitBlob only in production.
+ * Worktree filesystem reads require explicit in-process testOnlyHarnessContext
+ * and allowWorktreeAuthLoad — never argv/env/CLI activation.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,6 +16,10 @@ const {
   APPLY_AUTHORIZATION_TOKEN,
   CONSUMED_ORIGINAL_ATTEMPT_ID,
   DATABASE_URL_ENV,
+  EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
+  EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+  EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+  EVIDENCE_PIN_AUTHORITY_COMMIT,
   EXPECTED_PROJECT_REF,
   MIGRATIONS,
   ORIGINAL_COMMITTED_MIGRATIONS,
@@ -49,6 +57,31 @@ function gitText(args, cwd) {
   return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
 }
 
+function isAncestor(ancestor, descendant, cwd) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+      cwd,
+      env: gitEnv(cwd),
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertNoAuthEnvOverride(env) {
+  for (const key of Object.keys(env || {})) {
+    if (
+      /CORRECTIVE.*(AUTH|AUTHORITY|PUBLICATION_COMMIT|EXECUTABLE_COMMIT|EVIDENCE_AUTHORITY)/i.test(key) &&
+      env[key] &&
+      !/DATABASE_URL|APPLY_TOKEN|APPLY_DATABASE/i.test(key)
+    ) {
+      throw blocked("AUTHORITY_ENV_OVERRIDE_FORBIDDEN", key);
+    }
+  }
+}
+
 function canonicalUnpublishedAuthorization() {
   return {
     status: "UNPUBLISHED",
@@ -66,13 +99,218 @@ function canonicalUnpublishedAuthorization() {
   };
 }
 
-function loadToolingAuthorization(cwd = process.cwd(), commit) {
-  if (commit) {
-    const loaded = loadAndVerifyGitBlob({ commit, path: AUTH_REL, cwd });
-    return JSON.parse(loaded.buffer.toString("utf8"));
+/**
+ * Load TOOLING_AUTHORIZATION.json.
+ *
+ * Production: commit is mandatory; bytes come only from git cat-file.
+ * Test-only worktree: require testOnlyHarnessContext === true AND allowWorktreeAuthLoad === true.
+ *
+ * @param {object} inputs
+ * @param {string} [inputs.cwd]
+ * @param {string} [inputs.commit] full 40-hex commit (required in production)
+ * @param {string} [inputs.expectedOid]
+ * @param {string} [inputs.expectedSha256]
+ * @param {number} [inputs.expectedBytes]
+ * @param {boolean} [inputs.testOnlyHarnessContext]
+ * @param {boolean} [inputs.allowWorktreeAuthLoad]
+ * @param {object} [inputs.env]
+ * @returns {{ auth: object, loaded: object, source: 'git_blob'|'worktree_harness' }}
+ */
+function loadToolingAuthorization(inputs = {}) {
+  // Legacy positional form used only when commit is provided: (cwd, commit)
+  if (typeof inputs === "string") {
+    const cwd = inputs;
+    const commit = arguments[1];
+    if (!commit) {
+      throw blocked(
+        "AUTHORITY_COMMIT_REQUIRED",
+        "loadToolingAuthorization requires an explicit commit; worktree reads are harness-only",
+      );
+    }
+    return loadToolingAuthorization({ cwd, commit });
   }
-  const abs = path.join(cwd, AUTH_REL);
-  return JSON.parse(fs.readFileSync(abs, "utf8"));
+
+  assertNoAuthEnvOverride(inputs.env || process.env);
+  const cwd = inputs.cwd || process.cwd();
+
+  if (inputs.allowWorktreeAuthLoad === true) {
+    if (inputs.testOnlyHarnessContext !== true) {
+      throw blocked(
+        "HARNESS_CONTEXT_REQUIRED",
+        "worktree AUTH load requires testOnlyHarnessContext === true",
+      );
+    }
+    const abs = path.join(cwd, AUTH_REL);
+    const buffer = fs.readFileSync(abs);
+    const auth = JSON.parse(buffer.toString("utf8"));
+    return {
+      auth,
+      loaded: {
+        buffer,
+        oid: null,
+        sha256: null,
+        bytes: buffer.length,
+        source: "worktree_harness",
+        path: AUTH_REL,
+      },
+      source: "worktree_harness",
+    };
+  }
+
+  const commit = String(inputs.commit || "").toLowerCase();
+  if (!HEX40.test(commit)) {
+    throw blocked(
+      "AUTHORITY_COMMIT_REQUIRED",
+      "explicit 40-hex commit required for tooling authorization before credentials",
+    );
+  }
+
+  const loaded = loadAndVerifyGitBlob({
+    commit,
+    path: AUTH_REL,
+    cwd,
+    expectedOid: inputs.expectedOid,
+    expectedSha256: inputs.expectedSha256,
+    expectedBytes: inputs.expectedBytes,
+  });
+  return {
+    auth: JSON.parse(loaded.buffer.toString("utf8")),
+    loaded,
+    source: "git_blob",
+  };
+}
+
+/**
+ * Resolve the immutable evidence pin authority commit.
+ * Caller override of a different commit is forbidden outside disposable harness.
+ */
+function resolveEvidenceAuthorityCommit(inputs = {}) {
+  if (inputs.evidenceAuthorityCommit != null && String(inputs.evidenceAuthorityCommit).length) {
+    const got = String(inputs.evidenceAuthorityCommit).toLowerCase();
+    if (!HEX40.test(got)) {
+      throw blocked("EVIDENCE_AUTHORITY_COMMIT_INVALID", got);
+    }
+    if (got !== EVIDENCE_PIN_AUTHORITY_COMMIT) {
+      if (
+        !(
+          inputs.testOnlyHarnessContext === true &&
+          inputs.allowDisposableEvidenceAuthority === true
+        )
+      ) {
+        throw blocked(
+          "EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN",
+          `only ${EVIDENCE_PIN_AUTHORITY_COMMIT} is evidence pin authority`,
+        );
+      }
+      return got;
+    }
+  }
+  return EVIDENCE_PIN_AUTHORITY_COMMIT;
+}
+
+/**
+ * Load and verify the sealed evidence-pin AUTH blob at f550842c… (or disposable override).
+ */
+function loadEvidencePinAuthority(inputs = {}) {
+  const cwd = inputs.cwd || process.cwd();
+  const commit = resolveEvidenceAuthorityCommit(inputs);
+  const usePinnedSeals = commit === EVIDENCE_PIN_AUTHORITY_COMMIT;
+  return loadToolingAuthorization({
+    cwd,
+    commit,
+    env: inputs.env,
+    expectedOid: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_OID : inputs.expectedOid,
+    expectedSha256: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 : inputs.expectedSha256,
+    expectedBytes: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_BYTES : inputs.expectedBytes,
+  });
+}
+
+/**
+ * Executable tip must be explicit in production (never implicit mutable HEAD).
+ */
+function resolveExecutableCommit(inputs = {}) {
+  if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+    const commit = String(inputs.executableCommit).toLowerCase();
+    if (!HEX40.test(commit)) {
+      throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+    }
+    return commit;
+  }
+  if (
+    inputs.testOnlyHarnessContext === true &&
+    (inputs.allowDisposablePublicationCommit === true ||
+      inputs.allowLocalhostForHarness === true)
+  ) {
+    return gitText(["rev-parse", "HEAD"], inputs.cwd || process.cwd()).toLowerCase();
+  }
+  throw blocked(
+    "EXECUTABLE_COMMIT_REQUIRED",
+    "explicit executable commit required before credentials",
+  );
+}
+
+/**
+ * Apply-authorization publication commit (future AUTHORIZED tip) or executable tip while unpublished.
+ */
+function resolveApplyAuthorizationCommit(inputs = {}) {
+  if (inputs.applyAuthorizationCommit != null && String(inputs.applyAuthorizationCommit).length) {
+    const commit = String(inputs.applyAuthorizationCommit).toLowerCase();
+    if (!HEX40.test(commit)) {
+      throw blocked("APPLY_AUTHORIZATION_COMMIT_INVALID", commit);
+    }
+    return commit;
+  }
+  if (inputs.publicationCommit != null && String(inputs.publicationCommit).length) {
+    const commit = String(inputs.publicationCommit).toLowerCase();
+    if (!HEX40.test(commit)) {
+      throw blocked("APPLY_AUTHORIZATION_COMMIT_INVALID", commit);
+    }
+    if (
+      inputs.allowDisposablePublicationCommit === true &&
+      inputs.testOnlyHarnessContext === true
+    ) {
+      return commit;
+    }
+    // Production: publicationCommit alone is not enough without applying the allowlist path.
+    return commit;
+  }
+  return resolveExecutableCommit(inputs);
+}
+
+function assertEvidenceAuthorityAncestry(evidenceAuthorityCommit, executableCommit, cwd) {
+  if (evidenceAuthorityCommit === executableCommit) return;
+  if (!isAncestor(evidenceAuthorityCommit, executableCommit, cwd)) {
+    throw blocked(
+      "EVIDENCE_AUTHORITY_ANCESTRY",
+      "executable must be equal to or a descendant of evidence pin authority",
+    );
+  }
+}
+
+/**
+ * Recheck evidence pin authority blob identity (pre-credentials / pre-DB trust boundaries).
+ */
+function recheckEvidencePinAuthority(inputs = {}) {
+  const loaded = loadEvidencePinAuthority(inputs);
+  const commit = resolveEvidenceAuthorityCommit(inputs);
+  if (commit === EVIDENCE_PIN_AUTHORITY_COMMIT) {
+    if (loaded.loaded.oid !== EVIDENCE_PIN_AUTHORITY_AUTH_OID) {
+      throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", loaded.loaded.oid);
+    }
+    if (loaded.loaded.sha256 !== EVIDENCE_PIN_AUTHORITY_AUTH_SHA256) {
+      throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", loaded.loaded.sha256);
+    }
+    if (loaded.loaded.bytes !== EVIDENCE_PIN_AUTHORITY_AUTH_BYTES) {
+      throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", String(loaded.loaded.bytes));
+    }
+  }
+  return {
+    evidence_authority_commit: commit,
+    evidence_authority_auth_oid: loaded.loaded.oid,
+    evidence_authority_auth_sha256: loaded.loaded.sha256,
+    evidence_authority_auth_bytes: loaded.loaded.bytes,
+    source: loaded.source,
+  };
 }
 
 function assertAttemptNotConsumed(attemptId) {
@@ -156,7 +394,6 @@ function replacePathInTree(tree, parts, blob, cwd) {
     return `040000 tree ${child}\t${name}`;
   });
   if (!found) {
-    // Corrective auth path may not yet exist on the parent tip — create it.
     if (parts.length === 1) {
       next.push(`100644 blob ${blob}\t${name}`);
     } else {
@@ -188,25 +425,26 @@ function commitPublicationTree(cwd, parent, authObject) {
 
 /**
  * Tests ONLY. Builds a disposable AUTHORIZED publication commit.
- * Requires inputs.allowDisposablePublicationCommit === true.
+ * Requires inputs.allowDisposablePublicationCommit === true and testOnlyHarnessContext.
+ * Loads base AUTH only via git (no worktree fallback).
  */
 function createDisposablePublicationCommit(inputs = {}) {
   if (inputs.allowDisposablePublicationCommit !== true) {
     throw blocked("DISPOSABLE_PUBLICATION_FORBIDDEN", "harness flag required");
   }
+  if (inputs.testOnlyHarnessContext !== true) {
+    throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
+  }
   const cwd = inputs.cwd || process.cwd();
-  const executable = String(inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)).toLowerCase();
+  const executable = String(
+    inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd),
+  ).toLowerCase();
   if (!HEX40.test(executable)) throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable");
   const attemptId = String(inputs.attemptId || "");
   if (!ATTEMPT_RE.test(attemptId)) throw blocked("APPLY_ATTEMPT_ID_INVALID", attemptId);
   assertAttemptNotConsumed(attemptId);
 
-  let auth;
-  try {
-    auth = loadToolingAuthorization(cwd, executable);
-  } catch {
-    auth = loadToolingAuthorization(cwd);
-  }
+  const { auth } = loadToolingAuthorization({ cwd, commit: executable });
   if ((auth.production_apply_authorization || {}).status === "AUTHORIZED") {
     throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
   }
@@ -242,24 +480,59 @@ function createDisposablePublicationCommit(inputs = {}) {
   return { publicationCommit: publication, executableCommit: executable, headUnchanged: true };
 }
 
+/**
+ * Assert apply authorization from an explicit Git commit (never worktree).
+ * While unpublished, load the executable tip’s AUTH via Git and fail closed.
+ * Future AUTHORIZED publications: pass applyAuthorizationCommit / publicationCommit
+ * (disposable harness only until a reviewed publication exists).
+ */
 function assertCorrectiveApplyAuthorized(inputs = {}) {
   const cwd = inputs.cwd || process.cwd();
-  if (inputs.allowDisposablePublicationCommit === true && inputs.publicationCommit) {
-    const auth = loadToolingAuthorization(cwd, inputs.publicationCommit);
+  assertNoAuthEnvOverride(inputs.env || process.env);
+
+  if (inputs.allowDisposablePublicationCommit === true) {
+    if (inputs.testOnlyHarnessContext !== true) {
+      throw blocked("HARNESS_CONTEXT_REQUIRED", "disposable apply auth");
+    }
+    const commit = resolveApplyAuthorizationCommit(inputs);
+    const { auth } = loadToolingAuthorization({ cwd, commit, env: inputs.env });
     return assertApplyBlockedWhenUnpublished(auth);
   }
-  const auth = loadToolingAuthorization(cwd);
+
+  const commit = resolveApplyAuthorizationCommit(inputs);
+  const executable = resolveExecutableCommit(inputs);
+  if (commit !== executable) {
+    // Future AUTHORIZED apply publication: must be strict descendant with AUTH-only delta.
+    if (!isAncestor(executable, commit, cwd) || commit === executable) {
+      throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "publication must strictly descend executable");
+    }
+    const names = gitText(["diff", "--name-only", executable, commit], cwd)
+      .split(/\n/)
+      .filter(Boolean);
+    if (names.length !== 1 || names[0] !== AUTH_REL) {
+      throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", names.join(",") || "empty");
+    }
+  }
+
+  const { auth } = loadToolingAuthorization({ cwd, commit, env: inputs.env });
   return assertApplyBlockedWhenUnpublished(auth);
 }
 
 module.exports = {
   AUTH_REL,
   PROTOCOL,
+  EVIDENCE_PIN_AUTHORITY_COMMIT,
   assertApplyBlockedWhenUnpublished,
   assertAttemptNotConsumed,
   assertCorrectiveApplyAuthorized,
   assertCorrectiveMigrationsAllowlist,
+  assertEvidenceAuthorityAncestry,
   canonicalUnpublishedAuthorization,
   createDisposablePublicationCommit,
+  loadEvidencePinAuthority,
   loadToolingAuthorization,
+  recheckEvidencePinAuthority,
+  resolveApplyAuthorizationCommit,
+  resolveEvidenceAuthorityCommit,
+  resolveExecutableCommit,
 };

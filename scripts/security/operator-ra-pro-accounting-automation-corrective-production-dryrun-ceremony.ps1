@@ -12,6 +12,10 @@ param(
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$PinTip,
 
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$ExecutableCommit,
+
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
 
@@ -29,6 +33,17 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 $PinTip = $PinTip.ToLowerInvariant()
+$ExecutableCommit = $ExecutableCommit.ToLowerInvariant()
+# PinTip is the immutable evidence pin authority; ExecutableCommit is the remediation tip.
+$EvidenceAuthorityCommit = $PinTip
+$ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
+if ($EvidenceAuthorityCommit -ne $ExpectedEvidenceAuthority) {
+  throw ("EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN: expected " + $ExpectedEvidenceAuthority + " got " + $EvidenceAuthorityCommit)
+}
+git -C $RepoRoot merge-base --is-ancestor $EvidenceAuthorityCommit $ExecutableCommit
+if ($LASTEXITCODE -ne 0) {
+  throw "EVIDENCE_AUTHORITY_ANCESTRY: ExecutableCommit must descend evidence pin authority"
+}
 $DbEnv = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs"
 $EvidenceModRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence.js"
@@ -168,10 +183,11 @@ $ceremonySeal = $null
 $bundleSeal = $null
 
 try {
-  $executionTip = (git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant()
-  $ceremonySeal = Get-CommittedCeremonySeal -Tip $PinTip -RelPath $CeremonyRel
-  $bundleBytes = Get-GitBlobBytes "${PinTip}:${BundleRel}"
-  $bundleOid = Get-GitBlobOid "${PinTip}:${BundleRel}"
+  # Executable tip is explicit — never infer authority from mutable HEAD.
+  $executionTip = $ExecutableCommit
+  $ceremonySeal = Get-CommittedCeremonySeal -Tip $ExecutableCommit -RelPath $CeremonyRel
+  $bundleBytes = Get-GitBlobBytes "${ExecutableCommit}:${BundleRel}"
+  $bundleOid = Get-GitBlobOid "${ExecutableCommit}:${BundleRel}"
   $bundleSha = Get-Sha256Bytes $bundleBytes
   $bundleSeal = [ordered]@{
     path = $BundleRel
@@ -184,9 +200,9 @@ try {
   $rb = [IO.File]::ReadAllBytes($BundleFile)
   if ((Get-Sha256Bytes $rb) -ne $bundleSha) { throw "BUNDLE_MATERIALIZE_MISMATCH" }
 
-  [IO.File]::WriteAllBytes($EvidenceModFile, (Get-GitBlobBytes "${PinTip}:${EvidenceModRel}"))
-  [IO.File]::WriteAllBytes($DecodeFile, (Get-GitBlobBytes "${PinTip}:${DecodeRel}"))
-  [IO.File]::WriteAllBytes($ReceiptModFile, (Get-GitBlobBytes "${PinTip}:${ReceiptModRel}"))
+  [IO.File]::WriteAllBytes($EvidenceModFile, (Get-GitBlobBytes "${ExecutableCommit}:${EvidenceModRel}"))
+  [IO.File]::WriteAllBytes($DecodeFile, (Get-GitBlobBytes "${ExecutableCommit}:${DecodeRel}"))
+  [IO.File]::WriteAllBytes($ReceiptModFile, (Get-GitBlobBytes "${ExecutableCommit}:${ReceiptModRel}"))
 
   Write-Host "Paste Session Pooler URL into SecureString only. Never into chat."
   Write-Host ("Channel: " + $DbEnv)
@@ -199,7 +215,7 @@ try {
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Command node.exe).Source
-  $psi.Arguments = "`"$BundleFile`" --dry-run"
+  $psi.Arguments = "`"$BundleFile`" --dry-run --executable-commit $ExecutableCommit"
   $psi.WorkingDirectory = $RepoRoot
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -410,17 +426,17 @@ finally {
 
   # Tip seals for reporting (from git cat-file only)
   if ($null -eq $ceremonySeal) {
-    try { $ceremonySeal = Get-CommittedCeremonySeal -Tip $PinTip -RelPath $CeremonyRel } catch {
+    try { $ceremonySeal = Get-CommittedCeremonySeal -Tip $ExecutableCommit -RelPath $CeremonyRel } catch {
       Add-CleanupError $cleanupErrors ("CEREMONY_SEAL:" + $_.Exception.Message)
       $ceremonySeal = [ordered]@{ path = $CeremonyRel; oid = ("0" * 40); sha256 = ("0" * 64); bytes = 0 }
     }
   }
   if ($null -eq $bundleSeal) {
     try {
-      $bb = Get-GitBlobBytes "${PinTip}:${BundleRel}"
+      $bb = Get-GitBlobBytes "${ExecutableCommit}:${BundleRel}"
       $bundleSeal = [ordered]@{
         path = $BundleRel
-        oid = (Get-GitBlobOid "${PinTip}:${BundleRel}")
+        oid = (Get-GitBlobOid "${ExecutableCommit}:${BundleRel}")
         sha256 = (Get-Sha256Bytes $bb)
         bytes = [int]$bb.Length
       }
@@ -430,10 +446,7 @@ finally {
     }
   }
   if ([string]::IsNullOrWhiteSpace($executionTip)) {
-    try { $executionTip = (git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant() } catch {
-      $executionTip = ("0" * 40)
-      Add-CleanupError $cleanupErrors "EXECUTION_TIP_UNAVAILABLE"
-    }
+    $executionTip = $ExecutableCommit
   }
 
   # Non-authoritative measurements for receipt CLI (written then removed as sidecar)
@@ -443,7 +456,7 @@ finally {
     sealed_evidence_sha256 = $(if ($retainedSha) { $retainedSha } else { ("0" * 64) })
     sealed_evidence_bytes = $(if ($retainedBytes -gt 0) { [int]$retainedBytes } else { 0 })
     execution_tip = $executionTip
-    pin_tip = $PinTip
+    pin_tip = $EvidenceAuthorityCommit
     ceremony_path = [string]$ceremonySeal.path
     ceremony_oid = [string]$ceremonySeal.oid
     ceremony_sha256 = [string]$ceremonySeal.sha256
@@ -471,11 +484,11 @@ finally {
   $receiptSha = $null
   $receiptBytes = 0
 
-  # Receipt write requires tip-bound receipt module; re-materialize from tip if sidecar was removed
+  # Receipt write requires tip-bound receipt module; re-materialize from executable tip if sidecar was removed
   try {
     $receiptJs = Join-Path $EvidenceOutDir "ceremony-receipt.js"
     if (-not (Test-Path -LiteralPath $receiptJs)) {
-      [IO.File]::WriteAllBytes($receiptJs, (Get-GitBlobBytes "${PinTip}:${ReceiptModRel}"))
+      [IO.File]::WriteAllBytes($receiptJs, (Get-GitBlobBytes "${ExecutableCommit}:${ReceiptModRel}"))
     }
     # Serialize measurements via Node for UTF-8 LF JSON (non-authoritative)
     $measTmpPs = Join-Path $EvidenceOutDir "measurements.ps.json"

@@ -78,6 +78,19 @@ const CORRECTIVE_TABLES = Object.freeze([
 const TOOLING_AUTHORIZATION_PATH =
   "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
 
+/**
+ * Immutable evidence pin authority (reviewed pin publication).
+ * Dry-run/apply evidence gates load AUTH only from this commit’s Git blob.
+ * Never substitute worktree JSON or an unvalidated descendant.
+ */
+const EVIDENCE_PIN_AUTHORITY_COMMIT =
+  "f550842cd6dd837671599ee8c65bb6ba3932aa62";
+const EVIDENCE_PIN_AUTHORITY_AUTH_OID =
+  "5f3845b14f12b715019e785f40702814a1471b45";
+const EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 =
+  "1c94fea33c01d6ce4fae0e596abbcec81bb59bb55f77fd70207e78ff0940450e";
+const EVIDENCE_PIN_AUTHORITY_AUTH_BYTES = 11452;
+
 const STANDALONE_BUNDLE_PATH =
   "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs";
 
@@ -87,11 +100,12 @@ const STANDALONE_BUNDLE_PATH =
 const EXPECTED_STANDALONE_BUNDLE_SHA256 =
   "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
 
+/** Bundle seals — updated by assemble script after rebuild (non-circular). */
 const STANDALONE_BUNDLE_OID =
-  "c4fa871167f30ed1b066671d62d0fc0090f3cb2e";
+  "7dd76441077445ae9181150d01114cfc73a23b55";
 const STANDALONE_BUNDLE_SHA256 =
-  "f1266434745059302d01b92a1059a05050cd74929152e1fa297e110eb3520f28";
-const STANDALONE_BUNDLE_BYTES = 416073;
+  "cf7fe49e3a54720d448f6a7dc037dc057c5b93136d2f07e0d75950c0d70571ca";
+const STANDALONE_BUNDLE_BYTES = 427845;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
@@ -111,6 +125,10 @@ module.exports = {
   CONSUMED_ORIGINAL_ATTEMPT_ID,
   CORRECTIVE_TABLES,
   DATABASE_URL_ENV,
+  EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
+  EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+  EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+  EVIDENCE_PIN_AUTHORITY_COMMIT,
   EXPECTED_PROJECT_REF,
   EXPECTED_STANDALONE_BUNDLE_SHA256,
   FEATURE_FLAG_ENV,

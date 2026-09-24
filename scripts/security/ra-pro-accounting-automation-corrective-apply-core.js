@@ -17,6 +17,7 @@ const {
   APPLY_AUTHORIZATION_TOKEN,
   ARTIFACT_COMMIT,
   DATABASE_URL_ENV,
+  EVIDENCE_PIN_AUTHORITY_COMMIT,
   EXPECTED_PROJECT_REF,
   EXPECTED_STANDALONE_BUNDLE_SHA256,
   FEATURE_FLAG_ENV,
@@ -46,7 +47,12 @@ const {
 const {
   assertCorrectiveApplyAuthorized,
   assertCorrectiveMigrationsAllowlist,
+  assertEvidenceAuthorityAncestry,
+  loadEvidencePinAuthority,
   loadToolingAuthorization,
+  recheckEvidencePinAuthority,
+  resolveEvidenceAuthorityCommit,
+  resolveExecutableCommit,
 } = require("./ra-pro-accounting-automation-corrective-apply-authorization");
 const {
   assertCorrectivePreconditionEvidencePublished,
@@ -550,15 +556,30 @@ function isPublishedHexSha256(value) {
 }
 
 function resolveBundleSeals(inputs = {}) {
-  if (inputs.bundleSealsOverride) return inputs.bundleSealsOverride;
-  const auth = loadToolingAuthorization(resolveRepoRoot(inputs));
+  if (inputs.bundleSealsOverride) {
+    if (inputs.testOnlyHarnessContext !== true) {
+      const e = new Error("HARNESS_CONTEXT_REQUIRED: bundleSealsOverride");
+      e.code = "HARNESS_CONTEXT_REQUIRED";
+      e.phase = "bundle_authority";
+      throw e;
+    }
+    return inputs.bundleSealsOverride;
+  }
+  const cwd = resolveRepoRoot(inputs);
+  const executableCommit = resolveExecutableCommit({ ...inputs, cwd });
+  const { auth } = loadToolingAuthorization({
+    cwd,
+    commit: executableCommit,
+    env: inputs.env,
+  });
   const fromAuth = auth.standalone_bundle || {};
   return {
     path: fromAuth.path || STANDALONE_BUNDLE_PATH,
     oid: fromAuth.oid || STANDALONE_BUNDLE_OID,
     sha256: fromAuth.sha256 || STANDALONE_BUNDLE_SHA256,
     bytes: fromAuth.bytes != null ? fromAuth.bytes : STANDALONE_BUNDLE_BYTES,
-    source: "tooling_authorization+constants",
+    source: "executable_git_auth",
+    executableCommit,
   };
 }
 
@@ -603,21 +624,10 @@ function assertBundleAuthority(inputs = {}) {
     throw e;
   }
   const cwd = resolveRepoRoot(inputs);
-  let commit = inputs.bundleAuthorityCommit;
-  if (!commit) {
-    commit = execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd,
-      encoding: "utf8",
-      env: (() => {
-        const env = { ...process.env };
-        const n = Number(env.GIT_CONFIG_COUNT || 0);
-        env.GIT_CONFIG_COUNT = String(n + 1);
-        env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-        env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
-        return env;
-      })(),
-    }).trim();
-  }
+  const commit =
+    inputs.bundleAuthorityCommit ||
+    seals.executableCommit ||
+    resolveExecutableCommit({ ...inputs, cwd });
   const loaded = loadAndVerifyGitBlob({
     commit,
     path: seals.path,
@@ -893,9 +903,21 @@ function enforceCorrectiveEvidenceGates(inputs = {}, mode = "dry-run") {
     return { skipped_for_harness: true, phase: "evidence_gates" };
   }
   const cwd = resolveRepoRoot(inputs);
-  const auth = loadToolingAuthorization(cwd);
+  const executableCommit = resolveExecutableCommit({ ...inputs, cwd });
+  const evidenceAuthorityCommit = resolveEvidenceAuthorityCommit(inputs);
+  const evidenceAuthority = loadEvidencePinAuthority({ ...inputs, cwd });
+  assertEvidenceAuthorityAncestry(evidenceAuthorityCommit, executableCommit, cwd);
+  if (
+    evidenceAuthorityCommit === EVIDENCE_PIN_AUTHORITY_COMMIT &&
+    evidenceAuthority.source !== "git_blob"
+  ) {
+    const e = new Error("EVIDENCE_AUTHORITY_SOURCE_FORBIDDEN: worktree AUTH rejected");
+    e.code = "EVIDENCE_AUTHORITY_SOURCE_FORBIDDEN";
+    e.phase = "evidence_gates";
+    throw e;
+  }
   const gateInputs = {
-    auth,
+    auth: evidenceAuthority.auth,
     cwd,
     now: inputs.now,
     env: inputs.env || process.env,
@@ -907,15 +929,44 @@ function enforceCorrectiveEvidenceGates(inputs = {}, mode = "dry-run") {
   if (mode === "apply") {
     assertCorrectivePreApplyLiveEvidencePublished(gateInputs);
   }
-  return { phase: "evidence_gates", mode };
+  return {
+    phase: "evidence_gates",
+    mode,
+    evidence_authority_commit: evidenceAuthorityCommit,
+    evidence_authority_auth_oid: evidenceAuthority.loaded.oid,
+    evidence_authority_source: evidenceAuthority.source,
+    executable_commit: executableCommit,
+  };
 }
 
 function refuseAuthIfOriginalsTargeted(inputs = {}) {
   try {
     const cwd = resolveRepoRoot(inputs);
-    const auth = inputs.publicationCommit
-      ? loadToolingAuthorization(cwd, inputs.publicationCommit)
-      : loadToolingAuthorization(cwd);
+    let auth;
+    if (inputs.allowDisposablePublicationCommit === true && inputs.publicationCommit) {
+      assertTestOnlyHarnessContext(inputs);
+      auth = loadToolingAuthorization({
+        cwd,
+        commit: inputs.publicationCommit,
+        env: inputs.env,
+      }).auth;
+    } else if (inputs.executableCommit || inputs.applyAuthorizationCommit) {
+      auth = loadToolingAuthorization({
+        cwd,
+        commit: inputs.applyAuthorizationCommit || inputs.executableCommit,
+        env: inputs.env,
+      }).auth;
+    } else if (inputs.testOnlyHarnessContext === true && inputs.allowWorktreeAuthLoad === true) {
+      auth = loadToolingAuthorization({
+        cwd,
+        testOnlyHarnessContext: true,
+        allowWorktreeAuthLoad: true,
+        env: inputs.env,
+      }).auth;
+    } else {
+      // Production without commits: skip soft check; mandatory gates fail closed later.
+      return;
+    }
     const record = auth.production_apply_authorization || {};
     const migrations = record.migrations || auth.migrations || [];
     if (Array.isArray(migrations)) {
@@ -930,7 +981,7 @@ function refuseAuthIfOriginalsTargeted(inputs = {}) {
     }
   } catch (err) {
     if (err.code === "CORRECTIVE_ORIGINAL_MIGRATION_REEXECUTION_FORBIDDEN") throw err;
-    // Auth file may be unpublished / missing migrations — fine for dry-run.
+    // Auth may be unpublished / missing migrations — fine for dry-run soft refuse.
   }
 }
 
@@ -940,9 +991,13 @@ async function runDryRun(inputs = {}) {
   evidence.migration_sql_attempts = 0;
   try {
     refuseAuthIfOriginalsTargeted(inputs);
-    // Evidence pins fail closed before bundle/credentials/DB.
+    // Evidence pins fail closed before bundle/credentials/DB — Git authority only.
     evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
     evidence.bundle_authority = assertBundleAuthority(inputs);
+    evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
+      ...inputs,
+      cwd: resolveRepoRoot(inputs),
+    });
     assertFeatureFlagUntouched(inputs.env || process.env);
     const packed = loadSealedMigrations(inputs);
     assertCorrectiveMigrationsAllowlist(packed);
@@ -956,6 +1011,10 @@ async function runDryRun(inputs = {}) {
       allowLocalhostForHarness: inputs.allowLocalhostForHarness === true,
     });
     evidence.uri_diagnostics = resolved.uri_diagnostics;
+    evidence.evidence_authority_recheck_pre_db = recheckEvidencePinAuthority({
+      ...inputs,
+      cwd: resolveRepoRoot(inputs),
+    });
     evidence.databaseConnectionAttempts = 1;
     evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
     evidence.read_only = true;
@@ -1010,16 +1069,15 @@ async function runApply(inputs = {}) {
     // Evidence pins fail closed before bundle/apply-auth/credentials/DB.
     evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "apply");
     evidence.bundle_authority = assertBundleAuthority(inputs);
-    if (inputs.allowDisposablePublicationCommit === true) {
-      evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-        ...inputs,
-        cwd: resolveRepoRoot(inputs),
-      });
-    } else {
-      evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-        cwd: resolveRepoRoot(inputs),
-      });
-    }
+    evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
+      ...inputs,
+      cwd: resolveRepoRoot(inputs),
+    });
+    evidence.apply_authorization = assertCorrectiveApplyAuthorized({
+      ...inputs,
+      cwd: resolveRepoRoot(inputs),
+      executableCommit: inputs.executableCommit || resolveExecutableCommit(inputs),
+    });
     packed = loadSealedMigrations(inputs);
     assertCorrectiveMigrationsAllowlist(packed);
     evidence.source_authority = packed.map((p) => ({
@@ -1179,6 +1237,7 @@ module.exports = {
   classifyDatabaseUrl,
   buildPgClientConfig,
   loadSealedMigrations,
+  resolveBundleSeals,
   resolveDatabaseUrlFromEnv,
   runApplicator,
   runApply,

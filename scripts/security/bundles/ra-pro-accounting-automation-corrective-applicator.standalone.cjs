@@ -63,7 +63,11 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       "ra_pro_weekly_completeness_findings",
       "ra_pro_month_end_review_packages"
     ]);
-    var TOOLING_AUTHORIZATION_PATH2 = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
+    var TOOLING_AUTHORIZATION_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
+    var EVIDENCE_PIN_AUTHORITY_COMMIT2 = "f550842cd6dd837671599ee8c65bb6ba3932aa62";
+    var EVIDENCE_PIN_AUTHORITY_AUTH_OID = "5f3845b14f12b715019e785f40702814a1471b45";
+    var EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 = "1c94fea33c01d6ce4fae0e596abbcec81bb59bb55f77fd70207e78ff0940450e";
+    var EVIDENCE_PIN_AUTHORITY_AUTH_BYTES = 11452;
     var STANDALONE_BUNDLE_PATH = "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs";
     var EXPECTED_STANDALONE_BUNDLE_SHA256 = "PENDING_BUNDLE_BUILD_SHA256_PLACEHOLDER_00000000000000000000000000000000";
     var STANDALONE_BUNDLE_OID = "PENDING_BUNDLE_OID_PLACEHOLDER_000000000000";
@@ -86,6 +90,10 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       CONSUMED_ORIGINAL_ATTEMPT_ID,
       CORRECTIVE_TABLES,
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
+      EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
+      EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+      EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+      EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       EXPECTED_PROJECT_REF,
       EXPECTED_STANDALONE_BUNDLE_SHA256,
       FEATURE_FLAG_ENV,
@@ -99,7 +107,7 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_PATH,
       STANDALONE_BUNDLE_SHA256,
-      TOOLING_AUTHORIZATION_PATH: TOOLING_AUTHORIZATION_PATH2
+      TOOLING_AUTHORIZATION_PATH
     };
   }
 });
@@ -1692,15 +1700,15 @@ var require_pg_connection_string = __commonJS({
       if (config.sslcert || config.sslkey || config.sslrootcert || config.sslmode) {
         config.ssl = {};
       }
-      const fs2 = config.sslcert || config.sslkey || config.sslrootcert ? require("fs") : null;
+      const fs = config.sslcert || config.sslkey || config.sslrootcert ? require("fs") : null;
       if (config.sslcert) {
-        config.ssl.cert = fs2.readFileSync(config.sslcert).toString();
+        config.ssl.cert = fs.readFileSync(config.sslcert).toString();
       }
       if (config.sslkey) {
-        config.ssl.key = fs2.readFileSync(config.sslkey).toString();
+        config.ssl.key = fs.readFileSync(config.sslkey).toString();
       }
       if (config.sslrootcert) {
-        config.ssl.ca = fs2.readFileSync(config.sslrootcert).toString();
+        config.ssl.ca = fs.readFileSync(config.sslrootcert).toString();
       }
       if (options.useLibpqCompat && config.uselibpqcompat) {
         throw new Error("Both useLibpqCompat and uselibpqcompat are set. Please use only one of them.");
@@ -3465,7 +3473,7 @@ var require_split2 = __commonJS({
 var require_helper = __commonJS({
   "../../../../../finsight-reports-ra321/node_modules/pgpass/lib/helper.js"(exports2, module2) {
     "use strict";
-    var path2 = require("path");
+    var path = require("path");
     var Stream = require("stream").Stream;
     var split = require_split2();
     var util = require("util");
@@ -3504,7 +3512,7 @@ var require_helper = __commonJS({
     };
     module2.exports.getFileName = function(rawEnv) {
       var env = rawEnv || process.env;
-      var file = env.PGPASSFILE || (isWin ? path2.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path2.join(env.HOME || "./", ".pgpass"));
+      var file = env.PGPASSFILE || (isWin ? path.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path.join(env.HOME || "./", ".pgpass"));
       return file;
     };
     module2.exports.usePgPass = function(stats, fname) {
@@ -3636,16 +3644,16 @@ var require_helper = __commonJS({
 var require_lib = __commonJS({
   "../../../../../finsight-reports-ra321/node_modules/pgpass/lib/index.js"(exports2, module2) {
     "use strict";
-    var path2 = require("path");
-    var fs2 = require("fs");
+    var path = require("path");
+    var fs = require("fs");
     var helper = require_helper();
     module2.exports = function(connInfo, cb) {
       var file = helper.getFileName();
-      fs2.stat(file, function(err, stat) {
+      fs.stat(file, function(err, stat) {
         if (err || !helper.usePgPass(stat, file)) {
           return cb(void 0);
         }
-        var st = fs2.createReadStream(file);
+        var st = fs.createReadStream(file);
         helper.getPassword(connInfo, st, cb);
       });
     };
@@ -5209,8 +5217,8 @@ var require_git_blob_authority = __commonJS({
     "use strict";
     var { createHash } = require("node:crypto");
     var { execFileSync } = require("node:child_process");
-    var path2 = require("node:path");
-    var ROOT = path2.resolve(__dirname, "../..");
+    var path = require("node:path");
+    var ROOT = path.resolve(__dirname, "../..");
     function sha256Buffer(buf) {
       return createHash("sha256").update(buf).digest("hex");
     }
@@ -5224,14 +5232,14 @@ var require_git_blob_authority = __commonJS({
       const n = Number(env.GIT_CONFIG_COUNT || 0);
       env.GIT_CONFIG_COUNT = String(n + 1);
       env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-      env[`GIT_CONFIG_VALUE_${n}`] = path2.resolve(cwd).replace(/\\/g, "/");
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
       return env;
     }
     function loadGitBlob(commit, pathRel, opts = {}) {
       if (!commit || !/^[0-9a-f]{7,40}$/i.test(commit)) {
         throw new Error(`invalid commit for git blob load: ${String(commit)}`);
       }
-      if (!pathRel || pathRel.includes("\0") || path2.isAbsolute(pathRel)) {
+      if (!pathRel || pathRel.includes("\0") || path.isAbsolute(pathRel)) {
         throw new Error(`invalid path for git blob load: ${String(pathRel)}`);
       }
       const cwd = opts.cwd || ROOT;
@@ -5537,21 +5545,25 @@ var require_ra_pro_accounting_automation_tls_ca = __commonJS({
 var require_ra_pro_accounting_automation_corrective_apply_authorization = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-apply-authorization.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("node:fs");
-    var path2 = require("node:path");
+    var fs = require("node:fs");
+    var path = require("node:path");
     var { execFileSync } = require("node:child_process");
     var {
       APPLY_AUTHORIZATION_TOKEN: APPLY_AUTHORIZATION_TOKEN2,
       CONSUMED_ORIGINAL_ATTEMPT_ID,
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
+      EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
+      EVIDENCE_PIN_AUTHORITY_AUTH_OID,
+      EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
+      EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       EXPECTED_PROJECT_REF,
       MIGRATIONS,
       ORIGINAL_COMMITTED_MIGRATIONS,
-      TOOLING_AUTHORIZATION_PATH: TOOLING_AUTHORIZATION_PATH2
+      TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1";
-    var AUTH_REL = TOOLING_AUTHORIZATION_PATH2;
+    var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
     var ATTEMPT_RE = /^apply-[0-9a-f]{12}-[0-9a-f]{32}$/;
     var HEX40 = /^[0-9a-f]{40}$/;
     var ORIGINAL_VERSIONS = new Set(ORIGINAL_COMMITTED_MIGRATIONS.map((m) => m.version));
@@ -5566,7 +5578,7 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       const n = Number(env.GIT_CONFIG_COUNT || 0);
       env.GIT_CONFIG_COUNT = String(n + 1);
       env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-      env[`GIT_CONFIG_VALUE_${n}`] = path2.resolve(cwd).replace(/\\/g, "/");
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
       env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-corrective-disposable";
       env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-corrective-disposable@invalid";
       env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-corrective-disposable";
@@ -5575,6 +5587,25 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
     }
     function gitText(args, cwd) {
       return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
+    }
+    function isAncestor(ancestor, descendant, cwd) {
+      try {
+        execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+          cwd,
+          env: gitEnv(cwd),
+          stdio: "ignore"
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function assertNoAuthEnvOverride(env) {
+      for (const key of Object.keys(env || {})) {
+        if (/CORRECTIVE.*(AUTH|AUTHORITY|PUBLICATION_COMMIT|EXECUTABLE_COMMIT|EVIDENCE_AUTHORITY)/i.test(key) && env[key] && !/DATABASE_URL|APPLY_TOKEN|APPLY_DATABASE/i.test(key)) {
+          throw blocked("AUTHORITY_ENV_OVERRIDE_FORBIDDEN", key);
+        }
+      }
     }
     function canonicalUnpublishedAuthorization() {
       return {
@@ -5592,13 +5623,161 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
         note: "Corrective apply authorization is unpublished until a separate reviewed publication. Evidence and the apply token do not authorize apply. Never reuse the consumed dual-package attempt."
       };
     }
-    function loadToolingAuthorization(cwd = process.cwd(), commit) {
-      if (commit) {
-        const loaded = loadAndVerifyGitBlob({ commit, path: AUTH_REL, cwd });
-        return JSON.parse(loaded.buffer.toString("utf8"));
+    function loadToolingAuthorization(inputs = {}) {
+      if (typeof inputs === "string") {
+        const cwd2 = inputs;
+        const commit2 = arguments[1];
+        if (!commit2) {
+          throw blocked(
+            "AUTHORITY_COMMIT_REQUIRED",
+            "loadToolingAuthorization requires an explicit commit; worktree reads are harness-only"
+          );
+        }
+        return loadToolingAuthorization({ cwd: cwd2, commit: commit2 });
       }
-      const abs = path2.join(cwd, AUTH_REL);
-      return JSON.parse(fs2.readFileSync(abs, "utf8"));
+      assertNoAuthEnvOverride(inputs.env || process.env);
+      const cwd = inputs.cwd || process.cwd();
+      if (inputs.allowWorktreeAuthLoad === true) {
+        if (inputs.testOnlyHarnessContext !== true) {
+          throw blocked(
+            "HARNESS_CONTEXT_REQUIRED",
+            "worktree AUTH load requires testOnlyHarnessContext === true"
+          );
+        }
+        const abs = path.join(cwd, AUTH_REL);
+        const buffer = fs.readFileSync(abs);
+        const auth = JSON.parse(buffer.toString("utf8"));
+        return {
+          auth,
+          loaded: {
+            buffer,
+            oid: null,
+            sha256: null,
+            bytes: buffer.length,
+            source: "worktree_harness",
+            path: AUTH_REL
+          },
+          source: "worktree_harness"
+        };
+      }
+      const commit = String(inputs.commit || "").toLowerCase();
+      if (!HEX40.test(commit)) {
+        throw blocked(
+          "AUTHORITY_COMMIT_REQUIRED",
+          "explicit 40-hex commit required for tooling authorization before credentials"
+        );
+      }
+      const loaded = loadAndVerifyGitBlob({
+        commit,
+        path: AUTH_REL,
+        cwd,
+        expectedOid: inputs.expectedOid,
+        expectedSha256: inputs.expectedSha256,
+        expectedBytes: inputs.expectedBytes
+      });
+      return {
+        auth: JSON.parse(loaded.buffer.toString("utf8")),
+        loaded,
+        source: "git_blob"
+      };
+    }
+    function resolveEvidenceAuthorityCommit(inputs = {}) {
+      if (inputs.evidenceAuthorityCommit != null && String(inputs.evidenceAuthorityCommit).length) {
+        const got = String(inputs.evidenceAuthorityCommit).toLowerCase();
+        if (!HEX40.test(got)) {
+          throw blocked("EVIDENCE_AUTHORITY_COMMIT_INVALID", got);
+        }
+        if (got !== EVIDENCE_PIN_AUTHORITY_COMMIT2) {
+          if (!(inputs.testOnlyHarnessContext === true && inputs.allowDisposableEvidenceAuthority === true)) {
+            throw blocked(
+              "EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN",
+              `only ${EVIDENCE_PIN_AUTHORITY_COMMIT2} is evidence pin authority`
+            );
+          }
+          return got;
+        }
+      }
+      return EVIDENCE_PIN_AUTHORITY_COMMIT2;
+    }
+    function loadEvidencePinAuthority2(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const commit = resolveEvidenceAuthorityCommit(inputs);
+      const usePinnedSeals = commit === EVIDENCE_PIN_AUTHORITY_COMMIT2;
+      return loadToolingAuthorization({
+        cwd,
+        commit,
+        env: inputs.env,
+        expectedOid: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_OID : inputs.expectedOid,
+        expectedSha256: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 : inputs.expectedSha256,
+        expectedBytes: usePinnedSeals ? EVIDENCE_PIN_AUTHORITY_AUTH_BYTES : inputs.expectedBytes
+      });
+    }
+    function resolveExecutableCommit(inputs = {}) {
+      if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
+        const commit = String(inputs.executableCommit).toLowerCase();
+        if (!HEX40.test(commit)) {
+          throw blocked("EXECUTABLE_COMMIT_INVALID", commit);
+        }
+        return commit;
+      }
+      if (inputs.testOnlyHarnessContext === true && (inputs.allowDisposablePublicationCommit === true || inputs.allowLocalhostForHarness === true)) {
+        return gitText(["rev-parse", "HEAD"], inputs.cwd || process.cwd()).toLowerCase();
+      }
+      throw blocked(
+        "EXECUTABLE_COMMIT_REQUIRED",
+        "explicit executable commit required before credentials"
+      );
+    }
+    function resolveApplyAuthorizationCommit(inputs = {}) {
+      if (inputs.applyAuthorizationCommit != null && String(inputs.applyAuthorizationCommit).length) {
+        const commit = String(inputs.applyAuthorizationCommit).toLowerCase();
+        if (!HEX40.test(commit)) {
+          throw blocked("APPLY_AUTHORIZATION_COMMIT_INVALID", commit);
+        }
+        return commit;
+      }
+      if (inputs.publicationCommit != null && String(inputs.publicationCommit).length) {
+        const commit = String(inputs.publicationCommit).toLowerCase();
+        if (!HEX40.test(commit)) {
+          throw blocked("APPLY_AUTHORIZATION_COMMIT_INVALID", commit);
+        }
+        if (inputs.allowDisposablePublicationCommit === true && inputs.testOnlyHarnessContext === true) {
+          return commit;
+        }
+        return commit;
+      }
+      return resolveExecutableCommit(inputs);
+    }
+    function assertEvidenceAuthorityAncestry(evidenceAuthorityCommit, executableCommit, cwd) {
+      if (evidenceAuthorityCommit === executableCommit) return;
+      if (!isAncestor(evidenceAuthorityCommit, executableCommit, cwd)) {
+        throw blocked(
+          "EVIDENCE_AUTHORITY_ANCESTRY",
+          "executable must be equal to or a descendant of evidence pin authority"
+        );
+      }
+    }
+    function recheckEvidencePinAuthority(inputs = {}) {
+      const loaded = loadEvidencePinAuthority2(inputs);
+      const commit = resolveEvidenceAuthorityCommit(inputs);
+      if (commit === EVIDENCE_PIN_AUTHORITY_COMMIT2) {
+        if (loaded.loaded.oid !== EVIDENCE_PIN_AUTHORITY_AUTH_OID) {
+          throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", loaded.loaded.oid);
+        }
+        if (loaded.loaded.sha256 !== EVIDENCE_PIN_AUTHORITY_AUTH_SHA256) {
+          throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", loaded.loaded.sha256);
+        }
+        if (loaded.loaded.bytes !== EVIDENCE_PIN_AUTHORITY_AUTH_BYTES) {
+          throw blocked("EVIDENCE_AUTHORITY_BLOB_MISMATCH", String(loaded.loaded.bytes));
+        }
+      }
+      return {
+        evidence_authority_commit: commit,
+        evidence_authority_auth_oid: loaded.loaded.oid,
+        evidence_authority_auth_sha256: loaded.loaded.sha256,
+        evidence_authority_auth_bytes: loaded.loaded.bytes,
+        source: loaded.source
+      };
     }
     function assertAttemptNotConsumed(attemptId) {
       if (String(attemptId || "") === CONSUMED_ORIGINAL_ATTEMPT_ID) {
@@ -5707,18 +5886,18 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       if (inputs.allowDisposablePublicationCommit !== true) {
         throw blocked("DISPOSABLE_PUBLICATION_FORBIDDEN", "harness flag required");
       }
+      if (inputs.testOnlyHarnessContext !== true) {
+        throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
+      }
       const cwd = inputs.cwd || process.cwd();
-      const executable = String(inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)).toLowerCase();
+      const executable = String(
+        inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)
+      ).toLowerCase();
       if (!HEX40.test(executable)) throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "executable");
       const attemptId = String(inputs.attemptId || "");
       if (!ATTEMPT_RE.test(attemptId)) throw blocked("APPLY_ATTEMPT_ID_INVALID", attemptId);
       assertAttemptNotConsumed(attemptId);
-      let auth;
-      try {
-        auth = loadToolingAuthorization(cwd, executable);
-      } catch {
-        auth = loadToolingAuthorization(cwd);
-      }
+      const { auth } = loadToolingAuthorization({ cwd, commit: executable });
       if ((auth.production_apply_authorization || {}).status === "AUTHORIZED") {
         throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", "refusing to broaden an authorized record");
       }
@@ -5752,23 +5931,46 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
     }
     function assertCorrectiveApplyAuthorized(inputs = {}) {
       const cwd = inputs.cwd || process.cwd();
-      if (inputs.allowDisposablePublicationCommit === true && inputs.publicationCommit) {
-        const auth2 = loadToolingAuthorization(cwd, inputs.publicationCommit);
+      assertNoAuthEnvOverride(inputs.env || process.env);
+      if (inputs.allowDisposablePublicationCommit === true) {
+        if (inputs.testOnlyHarnessContext !== true) {
+          throw blocked("HARNESS_CONTEXT_REQUIRED", "disposable apply auth");
+        }
+        const commit2 = resolveApplyAuthorizationCommit(inputs);
+        const { auth: auth2 } = loadToolingAuthorization({ cwd, commit: commit2, env: inputs.env });
         return assertApplyBlockedWhenUnpublished(auth2);
       }
-      const auth = loadToolingAuthorization(cwd);
+      const commit = resolveApplyAuthorizationCommit(inputs);
+      const executable = resolveExecutableCommit(inputs);
+      if (commit !== executable) {
+        if (!isAncestor(executable, commit, cwd) || commit === executable) {
+          throw blocked("APPLY_AUTHORIZATION_ANCESTRY", "publication must strictly descend executable");
+        }
+        const names = gitText(["diff", "--name-only", executable, commit], cwd).split(/\n/).filter(Boolean);
+        if (names.length !== 1 || names[0] !== AUTH_REL) {
+          throw blocked("APPLY_AUTHORIZATION_ALLOWLIST", names.join(",") || "empty");
+        }
+      }
+      const { auth } = loadToolingAuthorization({ cwd, commit, env: inputs.env });
       return assertApplyBlockedWhenUnpublished(auth);
     }
     module2.exports = {
       AUTH_REL,
       PROTOCOL,
+      EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       assertApplyBlockedWhenUnpublished,
       assertAttemptNotConsumed,
       assertCorrectiveApplyAuthorized,
       assertCorrectiveMigrationsAllowlist,
+      assertEvidenceAuthorityAncestry,
       canonicalUnpublishedAuthorization,
       createDisposablePublicationCommit,
-      loadToolingAuthorization
+      loadEvidencePinAuthority: loadEvidencePinAuthority2,
+      loadToolingAuthorization,
+      recheckEvidencePinAuthority,
+      resolveApplyAuthorizationCommit,
+      resolveEvidenceAuthorityCommit,
+      resolveExecutableCommit
     };
   }
 });
@@ -6660,7 +6862,7 @@ var require_ra_pro_accounting_automation_corrective_evidence_schema = __commonJS
 var require_ra_pro_accounting_automation_corrective_collection_authorization = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-collection-authorization.js"(exports2, module2) {
     "use strict";
-    var path2 = require("node:path");
+    var path = require("node:path");
     var { execFileSync } = require("node:child_process");
     var {
       EXPECTED_PROJECT_REF,
@@ -6668,11 +6870,11 @@ var require_ra_pro_accounting_automation_corrective_collection_authorization = _
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_SHA256,
       STANDALONE_BUNDLE_BYTES,
-      TOOLING_AUTHORIZATION_PATH: TOOLING_AUTHORIZATION_PATH2
+      TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EVIDENCE_COLLECTION_AUTHORIZATION_V1";
-    var AUTH_REL = TOOLING_AUTHORIZATION_PATH2;
+    var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
     var RECORD_KEY = "production_collection_authorization";
     var BLOCKED_UNPUBLISHED = "COLLECTION_REMAINS_BLOCKED_BEFORE_PRODUCTION_CONTACT";
     var HEX40 = /^[0-9a-f]{40}$/;
@@ -6715,7 +6917,7 @@ var require_ra_pro_accounting_automation_corrective_collection_authorization = _
       const n = Number(env.GIT_CONFIG_COUNT || 0);
       env.GIT_CONFIG_COUNT = String(n + 1);
       env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-      env[`GIT_CONFIG_VALUE_${n}`] = path2.resolve(cwd).replace(/\\/g, "/");
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
       env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-corrective-collection-disposable";
       env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-corrective-collection-disposable@invalid";
       env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-corrective-collection-disposable";
@@ -8781,8 +8983,8 @@ var require_ra_pro_accounting_automation_corrective_schema_probes = __commonJS({
 var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-apply-core.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("node:fs");
-    var path2 = require("node:path");
+    var fs = require("node:fs");
+    var path = require("node:path");
     var { Client } = require_lib2();
     var { execFileSync } = require("node:child_process");
     var {
@@ -8790,6 +8992,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       APPLY_AUTHORIZATION_TOKEN: APPLY_AUTHORIZATION_TOKEN2,
       ARTIFACT_COMMIT,
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
+      EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       EXPECTED_PROJECT_REF,
       EXPECTED_STANDALONE_BUNDLE_SHA256,
       FEATURE_FLAG_ENV,
@@ -8802,7 +9005,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_PATH,
       STANDALONE_BUNDLE_SHA256,
-      TOOLING_AUTHORIZATION_PATH: TOOLING_AUTHORIZATION_PATH2
+      TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var {
       loadAndVerifyGitBlob,
@@ -8819,7 +9022,12 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
     var {
       assertCorrectiveApplyAuthorized,
       assertCorrectiveMigrationsAllowlist,
-      loadToolingAuthorization
+      assertEvidenceAuthorityAncestry,
+      loadEvidencePinAuthority: loadEvidencePinAuthority2,
+      loadToolingAuthorization,
+      recheckEvidencePinAuthority,
+      resolveEvidenceAuthorityCommit,
+      resolveExecutableCommit
     } = require_ra_pro_accounting_automation_corrective_apply_authorization();
     var {
       assertCorrectivePreconditionEvidencePublished
@@ -9208,12 +9416,12 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       const candidates = [
         process.cwd(),
         ROOT,
-        path2.resolve(__dirname, "../.."),
-        path2.resolve(__dirname, "../../..")
+        path.resolve(__dirname, "../.."),
+        path.resolve(__dirname, "../../..")
       ];
       for (const candidate of candidates) {
         try {
-          if (fs2.existsSync(path2.join(candidate, TOOLING_AUTHORIZATION_PATH2))) {
+          if (fs.existsSync(path.join(candidate, TOOLING_AUTHORIZATION_PATH))) {
             return candidate;
           }
         } catch {
@@ -9286,15 +9494,30 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value) && !value.startsWith("PENDING_");
     }
     function resolveBundleSeals(inputs = {}) {
-      if (inputs.bundleSealsOverride) return inputs.bundleSealsOverride;
-      const auth = loadToolingAuthorization(resolveRepoRoot(inputs));
+      if (inputs.bundleSealsOverride) {
+        if (inputs.testOnlyHarnessContext !== true) {
+          const e = new Error("HARNESS_CONTEXT_REQUIRED: bundleSealsOverride");
+          e.code = "HARNESS_CONTEXT_REQUIRED";
+          e.phase = "bundle_authority";
+          throw e;
+        }
+        return inputs.bundleSealsOverride;
+      }
+      const cwd = resolveRepoRoot(inputs);
+      const executableCommit = resolveExecutableCommit({ ...inputs, cwd });
+      const { auth } = loadToolingAuthorization({
+        cwd,
+        commit: executableCommit,
+        env: inputs.env
+      });
       const fromAuth = auth.standalone_bundle || {};
       return {
         path: fromAuth.path || STANDALONE_BUNDLE_PATH,
         oid: fromAuth.oid || STANDALONE_BUNDLE_OID,
         sha256: fromAuth.sha256 || STANDALONE_BUNDLE_SHA256,
         bytes: fromAuth.bytes != null ? fromAuth.bytes : STANDALONE_BUNDLE_BYTES,
-        source: "tooling_authorization+constants"
+        source: "executable_git_auth",
+        executableCommit
       };
     }
     function assertBundleAuthority(inputs = {}) {
@@ -9326,21 +9549,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
         throw e;
       }
       const cwd = resolveRepoRoot(inputs);
-      let commit = inputs.bundleAuthorityCommit;
-      if (!commit) {
-        commit = execFileSync("git", ["rev-parse", "HEAD"], {
-          cwd,
-          encoding: "utf8",
-          env: (() => {
-            const env = { ...process.env };
-            const n = Number(env.GIT_CONFIG_COUNT || 0);
-            env.GIT_CONFIG_COUNT = String(n + 1);
-            env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-            env[`GIT_CONFIG_VALUE_${n}`] = path2.resolve(cwd).replace(/\\/g, "/");
-            return env;
-          })()
-        }).trim();
-      }
+      const commit = inputs.bundleAuthorityCommit || seals.executableCommit || resolveExecutableCommit({ ...inputs, cwd });
       const loaded = loadAndVerifyGitBlob({
         commit,
         path: seals.path,
@@ -9405,8 +9614,8 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
         forbidOriginalMigrationSelection(migration);
         let loaded;
         if (allowWorktree) {
-          const abs = path2.join(cwd, migration.path);
-          const buffer = fs2.readFileSync(abs);
+          const abs = path.join(cwd, migration.path);
+          const buffer = fs.readFileSync(abs);
           if (buffer.includes(13)) {
             const e = new Error("BUNDLE_NOT_LF_ONLY: migration contains CR");
             e.code = "BUNDLE_CRLF_FORBIDDEN";
@@ -9422,7 +9631,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
               const n = Number(env.GIT_CONFIG_COUNT || 0);
               env.GIT_CONFIG_COUNT = String(n + 1);
               env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
-              env[`GIT_CONFIG_VALUE_${n}`] = path2.resolve(cwd).replace(/\\/g, "/");
+              env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
               return env;
             })()
           }).trim();
@@ -9591,9 +9800,18 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
         return { skipped_for_harness: true, phase: "evidence_gates" };
       }
       const cwd = resolveRepoRoot(inputs);
-      const auth = loadToolingAuthorization(cwd);
+      const executableCommit = resolveExecutableCommit({ ...inputs, cwd });
+      const evidenceAuthorityCommit = resolveEvidenceAuthorityCommit(inputs);
+      const evidenceAuthority = loadEvidencePinAuthority2({ ...inputs, cwd });
+      assertEvidenceAuthorityAncestry(evidenceAuthorityCommit, executableCommit, cwd);
+      if (evidenceAuthorityCommit === EVIDENCE_PIN_AUTHORITY_COMMIT2 && evidenceAuthority.source !== "git_blob") {
+        const e = new Error("EVIDENCE_AUTHORITY_SOURCE_FORBIDDEN: worktree AUTH rejected");
+        e.code = "EVIDENCE_AUTHORITY_SOURCE_FORBIDDEN";
+        e.phase = "evidence_gates";
+        throw e;
+      }
       const gateInputs = {
-        auth,
+        auth: evidenceAuthority.auth,
         cwd,
         now: inputs.now,
         env: inputs.env || process.env,
@@ -9605,12 +9823,42 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       if (mode === "apply") {
         assertCorrectivePreApplyLiveEvidencePublished(gateInputs);
       }
-      return { phase: "evidence_gates", mode };
+      return {
+        phase: "evidence_gates",
+        mode,
+        evidence_authority_commit: evidenceAuthorityCommit,
+        evidence_authority_auth_oid: evidenceAuthority.loaded.oid,
+        evidence_authority_source: evidenceAuthority.source,
+        executable_commit: executableCommit
+      };
     }
     function refuseAuthIfOriginalsTargeted(inputs = {}) {
       try {
         const cwd = resolveRepoRoot(inputs);
-        const auth = inputs.publicationCommit ? loadToolingAuthorization(cwd, inputs.publicationCommit) : loadToolingAuthorization(cwd);
+        let auth;
+        if (inputs.allowDisposablePublicationCommit === true && inputs.publicationCommit) {
+          assertTestOnlyHarnessContext(inputs);
+          auth = loadToolingAuthorization({
+            cwd,
+            commit: inputs.publicationCommit,
+            env: inputs.env
+          }).auth;
+        } else if (inputs.executableCommit || inputs.applyAuthorizationCommit) {
+          auth = loadToolingAuthorization({
+            cwd,
+            commit: inputs.applyAuthorizationCommit || inputs.executableCommit,
+            env: inputs.env
+          }).auth;
+        } else if (inputs.testOnlyHarnessContext === true && inputs.allowWorktreeAuthLoad === true) {
+          auth = loadToolingAuthorization({
+            cwd,
+            testOnlyHarnessContext: true,
+            allowWorktreeAuthLoad: true,
+            env: inputs.env
+          }).auth;
+        } else {
+          return;
+        }
         const record = auth.production_apply_authorization || {};
         const migrations = record.migrations || auth.migrations || [];
         if (Array.isArray(migrations)) {
@@ -9635,6 +9883,10 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
         refuseAuthIfOriginalsTargeted(inputs);
         evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
         evidence.bundle_authority = assertBundleAuthority(inputs);
+        evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
+          ...inputs,
+          cwd: resolveRepoRoot(inputs)
+        });
         assertFeatureFlagUntouched(inputs.env || process.env);
         const packed = loadSealedMigrations(inputs);
         assertCorrectiveMigrationsAllowlist(packed);
@@ -9648,6 +9900,10 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
           allowLocalhostForHarness: inputs.allowLocalhostForHarness === true
         });
         evidence.uri_diagnostics = resolved.uri_diagnostics;
+        evidence.evidence_authority_recheck_pre_db = recheckEvidencePinAuthority({
+          ...inputs,
+          cwd: resolveRepoRoot(inputs)
+        });
         evidence.databaseConnectionAttempts = 1;
         evidence.productionContact = inputs.allowLocalhostForHarness === true ? false : true;
         evidence.read_only = true;
@@ -9700,16 +9956,15 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
         refuseAuthIfOriginalsTargeted(inputs);
         evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "apply");
         evidence.bundle_authority = assertBundleAuthority(inputs);
-        if (inputs.allowDisposablePublicationCommit === true) {
-          evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-            ...inputs,
-            cwd: resolveRepoRoot(inputs)
-          });
-        } else {
-          evidence.apply_authorization = assertCorrectiveApplyAuthorized({
-            cwd: resolveRepoRoot(inputs)
-          });
-        }
+        evidence.evidence_authority_recheck_pre_credentials = recheckEvidencePinAuthority({
+          ...inputs,
+          cwd: resolveRepoRoot(inputs)
+        });
+        evidence.apply_authorization = assertCorrectiveApplyAuthorized({
+          ...inputs,
+          cwd: resolveRepoRoot(inputs),
+          executableCommit: inputs.executableCommit || resolveExecutableCommit(inputs)
+        });
         packed = loadSealedMigrations(inputs);
         assertCorrectiveMigrationsAllowlist(packed);
         evidence.source_authority = packed.map((p) => ({
@@ -9852,6 +10107,7 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
       classifyDatabaseUrl,
       buildPgClientConfig,
       loadSealedMigrations,
+      resolveBundleSeals,
       resolveDatabaseUrlFromEnv,
       runApplicator: runApplicator2,
       runApply,
@@ -9868,7 +10124,7 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-evidence.js"(exports2, module2) {
     "use strict";
     var crypto = require("node:crypto");
-    var fs2 = require("node:fs");
+    var fs = require("node:fs");
     var {
       DATABASE_URL_ENV: DATABASE_URL_ENV2,
       EXPECTED_PROJECT_REF,
@@ -9881,7 +10137,7 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_PATH,
       STANDALONE_BUNDLE_SHA256,
-      TOOLING_AUTHORIZATION_PATH: TOOLING_AUTHORIZATION_PATH2
+      TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var {
       OFFICIAL_SUPABASE_PROD_CA_2021_DER_SHA256,
@@ -10243,12 +10499,12 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
       }
       const beforeSha = extracted.sha256;
       const beforeBytes = extracted.bytes;
-      fs2.writeFileSync(destPath, extracted.payloadBytes);
-      const after = fs2.readFileSync(destPath);
+      fs.writeFileSync(destPath, extracted.payloadBytes);
+      const after = fs.readFileSync(destPath);
       const afterSha = sha256Buffer(after);
       if (afterSha !== beforeSha || after.length !== beforeBytes) {
         try {
-          fs2.unlinkSync(destPath);
+          fs.unlinkSync(destPath);
         } catch {
         }
         return {
@@ -10399,7 +10655,7 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
         error: partial.error,
         error_code: partial.error_code,
         phase: partial.phase,
-        tooling_authorization_path: TOOLING_AUTHORIZATION_PATH2
+        tooling_authorization_path: TOOLING_AUTHORIZATION_PATH
       };
       if (partial.producer_cleanup && typeof partial.producer_cleanup === "object" && !Array.isArray(partial.producer_cleanup)) {
         sealed.producer_cleanup = partial.producer_cleanup;
@@ -10429,31 +10685,40 @@ var require_ra_pro_accounting_automation_corrective_evidence = __commonJS({
 });
 
 // scripts/security/apply-ra-pro-accounting-automation-corrective.js
-var fs = require("node:fs");
-var path = require("node:path");
 var {
   APPLY_AUTHORIZATION_TOKEN,
   DATABASE_URL_ENV,
-  TOOLING_AUTHORIZATION_PATH
+  EVIDENCE_PIN_AUTHORITY_COMMIT
 } = require_ra_pro_accounting_automation_corrective_apply_constants();
 var { runApplicator } = require_ra_pro_accounting_automation_corrective_apply_core();
 var {
   sealCorrectiveDryRunEvidence,
   writeEvidenceFrameToStdout
 } = require_ra_pro_accounting_automation_corrective_evidence();
+var {
+  loadEvidencePinAuthority
+} = require_ra_pro_accounting_automation_corrective_apply_authorization();
 function readFlags(raw) {
-  const flags = { apply: false, dryRun: false, unknown: false };
+  const flags = {
+    apply: false,
+    dryRun: false,
+    unknown: false,
+    executableCommit: null,
+    evidenceAuthorityCommit: null
+  };
   for (let i = 0; i < raw.length; i += 1) {
     const arg = raw[i];
     if (arg === "--apply") flags.apply = true;
     else if (arg === "--dry-run") flags.dryRun = true;
-    else flags.unknown = true;
+    else if (arg === "--executable-commit") {
+      flags.executableCommit = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--evidence-authority-commit") {
+      flags.evidenceAuthorityCommit = raw[i + 1] || null;
+      i += 1;
+    } else flags.unknown = true;
   }
   return flags;
-}
-function loadAuth(cwd) {
-  const p = path.join(cwd, TOOLING_AUTHORIZATION_PATH);
-  return JSON.parse(fs.readFileSync(p, "utf8"));
 }
 async function main() {
   const flags = readFlags(process.argv.slice(2));
@@ -10470,23 +10735,41 @@ async function main() {
     mode,
     authorizationToken: process.env.RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_TOKEN,
     env: process.env,
-    argv: process.argv
+    argv: process.argv,
+    executableCommit: flags.executableCommit,
+    evidenceAuthorityCommit: flags.evidenceAuthorityCommit || void 0
   });
   if (mode === "dry-run") {
-    const cwd = process.cwd();
-    let auth = {};
-    try {
-      auth = loadAuth(cwd);
-    } catch (err) {
-      process.stderr.write(
-        `${JSON.stringify({ phase: "auth_load", error: String(err && err.message ? err.message : err) })}
+    if (result.verdict === "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION") {
+      let auth = {};
+      try {
+        const loaded = loadEvidencePinAuthority({
+          cwd: process.cwd(),
+          evidenceAuthorityCommit: flags.evidenceAuthorityCommit || EVIDENCE_PIN_AUTHORITY_COMMIT,
+          env: process.env
+        });
+        auth = loaded.auth;
+      } catch (err) {
+        process.stderr.write(
+          `${JSON.stringify({
+            phase: "auth_load",
+            error: String(err && err.message ? err.message : err),
+            code: err && err.code ? err.code : void 0
+          })}
 `
-      );
+        );
+        process.exitCode = 1;
+        return;
+      }
+      const sealed = sealCorrectiveDryRunEvidence(result, auth, {
+        executionTip: result.bundle_authority && result.bundle_authority.commit,
+        evidenceAuthorityCommit: EVIDENCE_PIN_AUTHORITY_COMMIT
+      });
+      writeEvidenceFrameToStdout(sealed);
+    } else {
+      process.stdout.write(`${JSON.stringify(result)}
+`);
     }
-    const sealed = sealCorrectiveDryRunEvidence(result, auth, {
-      executionTip: result.bundle_authority && result.bundle_authority.commit
-    });
-    writeEvidenceFrameToStdout(sealed);
   } else {
     process.stdout.write(`${JSON.stringify(result)}
 `);
