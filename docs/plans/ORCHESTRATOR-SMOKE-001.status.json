@@ -1,10 +1,8 @@
 {
   "planId": "ORCHESTRATOR-SMOKE-001",
-  "planPath": "docs/plans/ORCHESTRATOR-SMOKE-001.md",
-  "status": "APPROVED_FOR_IMPLEMENTATION",
-  "phase": "planning",
-  "updatedAt": "2026-09-25T05:11:00.000Z",
-  "notes": "Human-approved for controlled Cloud Agent smoke launch only",
-  "merge": false,
-  "deploy": false
+  "planPath": "/workspace/docs/plans/ORCHESTRATOR-SMOKE-001.md",
+  "status": "IN_PROGRESS",
+  "phase": "implementation",
+  "startedAt": "2026-09-25T05:14:35.960Z",
+  "updatedAt": "2026-09-25T05:14:35.961Z"
 }
