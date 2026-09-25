@@ -1,8 +1,10 @@
 {
   "planId": "ORCHESTRATOR-SMOKE-001",
   "planPath": "docs/plans/ORCHESTRATOR-SMOKE-001.md",
-  "status": "DRAFT",
+  "status": "APPROVED_FOR_IMPLEMENTATION",
   "phase": "planning",
-  "updatedAt": "2026-09-24T00:00:00.000Z",
-  "notes": "Intentionally DRAFT — smoke plan for future orchestrator validation only"
+  "updatedAt": "2026-09-25T05:11:00.000Z",
+  "notes": "Human-approved for controlled Cloud Agent smoke launch only",
+  "merge": false,
+  "deploy": false
 }
