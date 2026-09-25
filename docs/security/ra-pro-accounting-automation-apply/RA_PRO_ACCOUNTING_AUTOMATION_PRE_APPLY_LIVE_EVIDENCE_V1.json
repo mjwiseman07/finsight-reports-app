@@ -1,0 +1,106 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_V1",
+  "schema_version": 1,
+  "source_channel_classification": "fresh_read_only_github_vercel_status_and_supabase_select",
+  "collection_started_at_utc": "2026-09-21T04:55:07Z",
+  "collection_ended_at_utc": "2026-09-21T04:58:32Z",
+  "valid_from_utc": "2026-09-21T04:55:07Z",
+  "valid_until_utc": "2026-09-22T04:55:07Z",
+  "authorization": {
+    "pr_number": 324,
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
+    "scope": "read_only_production_pre_apply_live_collection",
+    "committed_pre_apply_pins": "UNPUBLISHED",
+    "disposable_pin_scope": "in_memory_file_sha_only"
+  },
+  "prior_dry_run_pin": {
+    "status": "PUBLISHED",
+    "evidence_sha256": "f89c3e701703d199f56577a65ae6f28b5ba120be45ee482f2ab75c284d763d18",
+    "evidence_source_commit": "195c76060f0fc8aa7b81dc4718d7357c3be8eba6",
+    "reviewed_tip": "99e6ed195c95b5cdcd27a6690f2441df4e7ae6a9",
+    "bound_to_expected_sha": true
+  },
+  "serving_deployment": {
+    "environment": "Production",
+    "state": "success",
+    "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d",
+    "vercel_deployment_id": "FTe8t7bxyMVV6imEFAatkmBau1R7",
+    "github_deployment_id": 6513747695,
+    "observed_at_utc": "2026-09-21T04:58:32Z",
+    "pr_head_is_serving_production": false
+  },
+  "preview_deployment": {
+    "environment": "Preview",
+    "pr_head": "62d58f905729f054a36b771b90721a84ab54c4d6",
+    "github_deployment_id": 6561383976,
+    "state": "success",
+    "is_production_serving": false
+  },
+  "automation_gate": {
+    "key": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "production_presence": "absent",
+    "effective_state": "closed",
+    "value_read": false
+  },
+  "database_readonly": {
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "observed_at_utc": "2026-09-21T04:55:07Z",
+    "history_count": 188,
+    "weekly_version": "20260917044537",
+    "weekly_version_count": 0,
+    "month_end_version": "20260917180140",
+    "month_end_version_count": 0,
+    "target_relation_count": 0,
+    "target_policy_count": 0,
+    "weekly_persist_absent": true,
+    "month_end_persist_absent": true,
+    "partial_accounting_automation_state": false,
+    "prerequisite_shape": {
+      "firms_id_uuid_key": true,
+      "companies_id_uuid_key": true,
+      "firm_clients_id_uuid_key": true,
+      "firm_clients_firm_id_uuid": true,
+      "accounting_syncs_id_uuid_key": true,
+      "firm_memberships_shape": true,
+      "auth_uid_uuid": true,
+      "roles_compatible": true,
+      "gen_random_uuid_present": true
+    },
+    "linked_firms_count": 0,
+    "authorizing_inventory": {
+      "predicate": "review_assist_pro_active_and_complimentary",
+      "total": 4,
+      "company_owned": 3,
+      "firm_owned": 1,
+      "dual_owner": 0
+    },
+    "webhook_non_terminal_count": 0,
+    "webhook_non_terminal_statuses": [
+      "received",
+      "processing",
+      "retryable"
+    ]
+  },
+  "safety": {
+    "read_only": true,
+    "select_only": true,
+    "production_writes": 0,
+    "sql_application_attempts": 0,
+    "dry_run_attempts": 0,
+    "migration_apply_attempts": 0,
+    "provider_writes": 0,
+    "automation_enabled": false,
+    "merge_or_deploy_performed": false,
+    "credential_prompt_opened": false,
+    "marker_created": false,
+    "pins_published": false
+  },
+  "visibility_limitations": [
+    "Production environment listing was checked by exact key name only. The key value was not read.",
+    "Database results are aggregate counts and booleans. No customer, firm, user, or webhook identifiers were retained.",
+    "The serving deployment identity is the opaque Vercel path id from the current Production status. Hostnames were not retained.",
+    "This artifact is a new observation. The passed precondition artifact and the rejected pre-apply artifact were not reused as its bytes.",
+    "This collection's pre-apply pins remain null. The disposable pin is the SHA-256 of this file and is not written into TOOLING_AUTHORIZATION."
+  ],
+  "validator_result": "PASS_DISPOSABLE_PRE_APPLY_LIVE_VALIDATION"
+}

@@ -1,0 +1,820 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+  Sealed entry for RA Pro accounting-automation dry-run / apply.
+  Must be launched via supervise-visible-ra-pro-accounting-automation-ceremony.ps1
+  (or harness with -SealedMaterialInvocation after tip-blob materialize).
+  Materializes operator dry-run ceremony from ceremony_source_commit seals and launches
+  only the temporary materialized ceremony — never the worktree ceremony path.
+#>
+[CmdletBinding()]
+param(
+  [ValidateSet("dry-run", "apply")]
+  [string]$Mode = "dry-run",
+
+  [Parameter(Mandatory = $false)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$PrHead = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$RepoRoot = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$EvidenceOutDir = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$TestSyntheticDatabaseUrl = "",
+
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("", "success", "hang", "fail", "malformed")]
+  [string]$TestHarnessChildStub = "",
+
+  [Parameter(Mandatory = $false)]
+  [int]$ChildTimeoutMs = 120000,
+
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("", "empty_blob_index", "envvars_null", "pub_null_index")]
+  [string]$TestForcePrePromptNullIndex = "",
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceCleanupFailure,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForceTerminateFailure,
+
+  # Harness-only: open the ceremony as a visible interactive prompt probe. Requires ALLOW_SYNTHETIC=1.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe,
+
+  # Operator SecureString window. Separate from -ChildTimeoutMs. Default 10 minutes.
+  [Parameter(Mandatory = $false)]
+  [int]$PromptInputTimeoutMs = 600000,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestTimeoutBudgetProbe,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptTimeout,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptWindowClose,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestForcePromptCancel,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$TestHangBeforeEvidence,
+
+  # Harness-only one-attempt id. Operator-supplied attempt ids are not authorization.
+  [Parameter(Mandatory = $false)]
+  [string]$TestApplyAttemptId = "",
+
+  # Read-only map probe. Requires the synthetic ceremony env and does not launch apply.
+  [Parameter(Mandatory = $false)]
+  [switch]$EmitAuthorizationMap,
+
+  [Parameter(Mandatory = $false)]
+  [string]$TestPublicationCommit = "",
+
+  # Set only by sealed supervisor (or authority harness) after tip-blob materialize of this entry.
+  [Parameter(Mandatory = $false)]
+  [switch]$SealedMaterialInvocation
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$AuthRel = "docs/security/ra-pro-accounting-automation-apply/TOOLING_AUTHORIZATION.json"
+$CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
+$BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+$script:MaterialRoot = $null
+$script:ApplyLaunch = $false
+$script:AuthorizationPublicationCommit = ""
+$script:AuthorizationBlobOid = ""
+$script:ImmutableExecutable = ""
+$script:ExecutableBundleOid = ""
+
+function Get-Sha256Hex([byte[]]$Bytes) {
+  if ($null -eq $Bytes) { throw "CEREMONY_BLOB_BYTES_NULL" }
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace "-", "").ToLowerInvariant()
+  } finally { $sha.Dispose() }
+}
+
+function Set-GitSafeDirectoryEnv([Diagnostics.ProcessStartInfo]$Psi, [string]$Root) {
+  $Psi.UseShellExecute = $false
+  $envMap = $Psi.EnvironmentVariables
+  if ($null -eq $envMap) { throw "CEREMONY_PROCESS_ENV_UNAVAILABLE" }
+  $envMap["GIT_CONFIG_COUNT"] = "1"
+  $envMap["GIT_CONFIG_KEY_0"] = "safe.directory"
+  $envMap["GIT_CONFIG_VALUE_0"] = ($Root -replace "\\", "/")
+}
+
+function Invoke-GitBytes([string[]]$GitArgs, [string]$WorkDir) {
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = ($GitArgs | ForEach-Object {
+      if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+    }) -join " "
+  $psi.WorkingDirectory = $WorkDir
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  Set-GitSafeDirectoryEnv -Psi $psi -Root $WorkDir
+  $p = [Diagnostics.Process]::Start($psi)
+  $ms = New-Object IO.MemoryStream
+  $p.StandardOutput.BaseStream.CopyTo($ms)
+  $err = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) { try { $p.Kill() } catch {}; throw "git timed out" }
+  if ($p.ExitCode -ne 0) { throw "git failed: $err" }
+  return , $ms.ToArray()
+}
+
+function Invoke-GitExit([string[]]$GitArgs, [string]$WorkDir) {
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = "git"
+  $psi.Arguments = ($GitArgs | ForEach-Object {
+      if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+    }) -join " "
+  $psi.WorkingDirectory = $WorkDir
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  Set-GitSafeDirectoryEnv -Psi $psi -Root $WorkDir
+  $p = [Diagnostics.Process]::Start($psi)
+  $null = $p.StandardOutput.ReadToEnd()
+  $null = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) { try { $p.Kill() } catch {}; return 124 }
+  return [int]$p.ExitCode
+}
+
+function Get-NoteProperty($Object, [string]$Name) {
+  if ($null -eq $Object) { return $null }
+  $prop = $Object.PSObject.Properties[$Name]
+  if ($null -eq $prop) { return $null }
+  return $prop.Value
+}
+
+function ConvertTo-CanonicalJson($Value) {
+  if ($null -eq $Value) { return "null" }
+  if ($Value -is [string] -or $Value -is [bool] -or $Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal]) {
+    return ($Value | ConvertTo-Json -Compress)
+  }
+  if ($Value -is [System.Collections.IList]) {
+    $items = @($Value | ForEach-Object { ConvertTo-CanonicalJson $_ })
+    return "[" + ($items -join ",") + "]"
+  }
+  $parts = @()
+  foreach ($prop in @($Value.PSObject.Properties | Sort-Object Name)) {
+    $parts += ((ConvertTo-CanonicalJson $prop.Name) + ":" + (ConvertTo-CanonicalJson $prop.Value))
+  }
+  return "{" + ($parts -join ",") + "}"
+}
+
+function Get-GitBlobOid([string]$Commit, [string]$Rel, [string]$WorkDir) {
+  try {
+    return (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${Commit}:${Rel}") -WorkDir $WorkDir).ToLowerInvariant()
+  } catch {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle path is not the immutable executable blob"
+  }
+}
+
+function Assert-PublicationDelta([string]$Executable, [string]$Publication, [string]$WorkDir) {
+  if ($Publication -eq $Executable) { return }
+  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $Executable, $Publication) -WorkDir $WorkDir) -ne 0) {
+    throw "APPLY_AUTHORIZATION_ANCESTRY: executable is not a strict ancestor"
+  }
+  $execOid = Get-GitBlobOid -Commit $Executable -Rel $BundleRel -WorkDir $WorkDir
+  $pubOid = Get-GitBlobOid -Commit $Publication -Rel $BundleRel -WorkDir $WorkDir
+  if ($execOid -ne $pubOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication replaced the executable bundle"
+  }
+  $rawNames = Invoke-GitText -GitArgs @("diff", "--name-only", $Executable, $Publication) -WorkDir $WorkDir
+  $names = @($rawNames -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($names.Count -ne 1 -or $names[0] -ne $AuthRel) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: publication tree delta"
+  }
+  $leftBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Executable}:${AuthRel}") -WorkDir $WorkDir
+  $rightBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Publication}:${AuthRel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $leftBytes -Label $AuthRel
+  Assert-Utf8LfNoBom -Bytes $rightBytes -Label $AuthRel
+  $left = ([Text.Encoding]::UTF8.GetString($leftBytes)) | ConvertFrom-Json
+  $right = ([Text.Encoding]::UTF8.GetString($rightBytes)) | ConvertFrom-Json
+  $prior = $left.production_apply_authorization
+  if ($null -eq $prior -or [string]$prior.status -ne "UNPUBLISHED" -or [bool]$prior.apply_authorized -or $prior.authorized_executable_commit) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: executable record is not unpublished"
+  }
+  $bundleSeal = Get-NoteProperty $right "standalone_bundle"
+  $sealOid = Get-NoteProperty $bundleSeal "oid"
+  $sealSha = Get-NoteProperty $bundleSeal "sha256"
+  $sealBytes = Get-NoteProperty $bundleSeal "bytes"
+  $sealPath = Get-NoteProperty $bundleSeal "path"
+  if (-not $sealOid -or -not $sealSha -or -not $sealBytes) {
+    throw "APPLY_AUTHORIZATION_SEAL_MISSING: standalone bundle"
+  }
+  if ([string]$sealPath -ne $BundleRel) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: bundle path"
+  }
+  if (([string]$sealOid).ToLowerInvariant() -ne $execOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: publication seal is not the executable blob"
+  }
+  $record = $right.production_apply_authorization
+  if ($null -eq $record -or ([string]$record.authorized_executable_commit).ToLowerInvariant() -ne $Executable) {
+    throw "APPLY_AUTHORIZATION_ANCESTRY: publication does not name the executable tip"
+  }
+  $left.PSObject.Properties.Remove("production_apply_authorization")
+  $right.PSObject.Properties.Remove("production_apply_authorization")
+  if ((ConvertTo-CanonicalJson $left) -ne (ConvertTo-CanonicalJson $right)) {
+    throw "APPLY_AUTHORIZATION_ALLOWLIST: non-authorization json changed"
+  }
+}
+
+function Resolve-ImmutableExecutable([string]$Asserted, [string]$Head, [string]$WorkDir) {
+  $asserted = $Asserted.ToLowerInvariant()
+  $head = $Head.ToLowerInvariant()
+  if ($asserted -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: -PrHead must be an exact commit" }
+  $resolved = ""
+  try {
+    $resolved = (Invoke-GitText -GitArgs @("rev-parse", "--verify", "${asserted}^{commit}") -WorkDir $WorkDir).ToLowerInvariant()
+  } catch {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead did not resolve"
+  }
+  if ($resolved -ne $asserted) { throw "BLOCKED_PIN_MISMATCH: ambiguous executable ref" }
+  if ($asserted -eq $head) { return $asserted }
+  if ((Invoke-GitExit -GitArgs @("merge-base", "--is-ancestor", $asserted, $head) -WorkDir $WorkDir) -ne 0) {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead is not HEAD or an ancestor"
+  }
+  Assert-PublicationDelta -Executable $asserted -Publication $head -WorkDir $WorkDir
+  return $asserted
+}
+
+function Invoke-SealedBundlePreflight([string]$WorkDir, [string]$PublicationCommit) {
+  $executable = ([string]$script:ImmutableExecutable).ToLowerInvariant()
+  if ($executable -notmatch '^[0-9a-f]{40}$') { throw "BLOCKED_PIN_MISMATCH: executable tip is not established" }
+  $publication = $PublicationCommit.ToLowerInvariant()
+  if ([string]::IsNullOrWhiteSpace($publication)) {
+    $publication = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
+  }
+  Assert-PublicationDelta -Executable $executable -Publication $publication -WorkDir $WorkDir
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${executable}:${AuthRel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
+  $execAuth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
+  if ([string]$execAuth.standalone_bundle.path -ne $BundleRel) { throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle path" }
+  $execOid = (Invoke-GitText -GitArgs @("rev-parse", "${executable}:${BundleRel}") -WorkDir $WorkDir).ToLowerInvariant()
+  if (([string]$execAuth.standalone_bundle.oid).ToLowerInvariant() -ne $execOid) {
+    throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable seal"
+  }
+  $dest = Join-Path $script:MaterialRoot "preflight-bundle.cjs"
+  [void](Assert-BlobSeal -Commit $executable -Rel $BundleRel -Seal $execAuth.standalone_bundle -Dest $dest -WorkDir $WorkDir)
+  $script:ExecutableBundleOid = $execOid
+  $head = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $WorkDir).ToLowerInvariant()
+  $node = (Get-Command node.exe).Source
+  # Real interactive descendant publication: HEAD is the AUTHORIZED publication tip and
+  # -PrHead names the immutable executable. --preflight reads HEAD. Synthetic harness
+  # env is only for disposable / non-HEAD credential-free probes.
+  $nodeArgs = @($dest, "--preflight")
+  if ($publication -ne $executable -and $publication -ne $head) {
+    $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowSynthetic -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    $nodeArgs += @("--credential-free-probe", "--publication-commit", $publication)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($script:CredentialFreeAsOf)) {
+    $nodeArgs += @("--as-of", [string]$script:CredentialFreeAsOf)
+  }
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = $node
+  $psi.Arguments = ($nodeArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+  $psi.WorkingDirectory = $WorkDir
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  $p = [Diagnostics.Process]::Start($psi)
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  if (-not $p.WaitForExit(120000)) {
+    try { $p.Kill() } catch {}
+    throw "APPLY_AUTHORIZATION_PREFLIGHT_FAILED: timeout"
+  }
+  return @{ stdout = ([string]$stdout).Trim(); stderr = ([string]$stderr).Trim(); exit = [int]$p.ExitCode }
+}
+
+function Invoke-GitText([string[]]$GitArgs, [string]$WorkDir) {
+  $bytes = Invoke-GitBytes -GitArgs $GitArgs -WorkDir $WorkDir
+  return [Text.Encoding]::UTF8.GetString($bytes).Trim()
+}
+
+function Assert-Utf8LfNoBom([byte[]]$Bytes, [string]$Label) {
+  if ($null -eq $Bytes) { throw ("{0}: null bytes" -f $Label) }
+  if ($Bytes.Length -ge 3 -and $Bytes[0] -eq 0xef -and $Bytes[1] -eq 0xbb -and $Bytes[2] -eq 0xbf) {
+    throw ("{0}: UTF-8 BOM forbidden" -f $Label)
+  }
+  if ([Array]::IndexOf($Bytes, [byte]0x0d) -ge 0) {
+    throw ("{0}: CR/CRLF bytes forbidden; require LF-only" -f $Label)
+  }
+  $null = [Text.Encoding]::UTF8.GetString($Bytes)
+}
+
+function Format-Win32Argument([string]$Value) {
+  if ($null -eq $Value) { return '""' }
+  if ($Value -match '[\s"]') {
+    return '"' + ($Value -replace '"', '\"') + '"'
+  }
+  return $Value
+}
+
+function Assert-BlobSeal([string]$Commit, [string]$Rel, $Seal, [string]$Dest, [string]$WorkDir) {
+  if (-not ($Commit -match '^[0-9a-fA-F]{40}$')) { throw "commit identity must be exact 40-hex for $Rel" }
+  if (-not $Seal -or -not $Seal.oid -or -not $Seal.sha256 -or -not $Seal.bytes -or -not $Seal.path) {
+    throw "missing seal metadata for $Rel"
+  }
+  if ([string]$Seal.path -ne $Rel) { throw "seal path mismatch for $Rel" }
+  if ($Seal.PSObject.Properties["source_commit"] -and $Seal.source_commit) {
+    if ([string]$Seal.source_commit.ToLowerInvariant() -ne $Commit.ToLowerInvariant()) {
+      throw "seal source_commit mismatch for $Rel"
+    }
+  }
+  if ($Seal.PSObject.Properties["line_endings"] -and [string]$Seal.line_endings -ne "LF") {
+    throw "seal line_endings must be LF for $Rel"
+  }
+  $resolved = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($Commit + "^{commit}")) -WorkDir $WorkDir
+  if ($resolved.ToLowerInvariant() -ne $Commit.ToLowerInvariant()) {
+    throw ("commit not fully resolved for " + $Rel + ": " + $Commit)
+  }
+  $oid = Invoke-GitText -GitArgs @("rev-parse", "${Commit}:${Rel}") -WorkDir $WorkDir
+  if ($oid -ne [string]$Seal.oid) { throw "OID mismatch for $Rel" }
+  $bytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${Commit}:${Rel}") -WorkDir $WorkDir
+  Assert-Utf8LfNoBom -Bytes $bytes -Label $Rel
+  if ($bytes.Length -ne [int]$Seal.bytes) { throw "bytes mismatch for $Rel" }
+  $sha = Get-Sha256Hex -Bytes $bytes
+  if ($sha -ne ([string]$Seal.sha256).ToLowerInvariant()) { throw "SHA-256 mismatch for $Rel" }
+  $parent = Split-Path -Parent $Dest
+  if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+  [IO.File]::WriteAllBytes($Dest, $bytes)
+  $item = Get-Item -LiteralPath $Dest -Force
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "materialized file is reparse point" }
+  return @{ oid = $oid; sha256 = $sha; bytes = $bytes.Length; commit = $Commit.ToLowerInvariant() }
+}
+
+function Assert-PublicationTipAncestry([string]$PublicationTip, [string]$Freeze, [string]$BootstrapSource, [string]$CeremonySource, [string]$WorkDir) {
+  if (-not ($PublicationTip -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: tip must be exact 40-hex" }
+  if (-not ($Freeze -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: freeze must be exact 40-hex" }
+  if (-not ($BootstrapSource -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: bootstrap_source must be exact 40-hex" }
+  if (-not ($CeremonySource -match '^[0-9a-fA-F]{40}$')) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source must be exact 40-hex" }
+  $tipResolved = Invoke-GitText -GitArgs @("rev-parse", "--verify", ($PublicationTip + "^{commit}")) -WorkDir $WorkDir
+  if ($tipResolved.ToLowerInvariant() -ne $PublicationTip.ToLowerInvariant()) {
+    throw "BLOCKED_PUBLICATION_TIP: tip did not resolve to itself"
+  }
+  $ids = @($PublicationTip, $Freeze, $BootstrapSource, $CeremonySource) | ForEach-Object { $_.ToLowerInvariant() }
+  if (($ids | Select-Object -Unique).Count -ne 4) {
+    throw "BLOCKED_PUBLICATION_TIP: freeze, bootstrap_source, ceremony_source, and tip must be pairwise distinct"
+  }
+  $safe = ($WorkDir -replace "\\", "/")
+  $p1 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$safe","merge-base","--is-ancestor",$Freeze,$BootstrapSource) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p1.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: bootstrap_source is not a descendant of freeze" }
+  $p2 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$safe","merge-base","--is-ancestor",$BootstrapSource,$CeremonySource) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p2.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: ceremony_source is not a descendant of bootstrap_source" }
+  $p3 = Start-Process -FilePath "git" -ArgumentList @("-c","safe.directory=$safe","merge-base","--is-ancestor",$CeremonySource,$PublicationTip) -WorkingDirectory $WorkDir -Wait -PassThru -WindowStyle Hidden
+  if ($p3.ExitCode -ne 0) { throw "BLOCKED_PUBLICATION_TIP: publication tip is not a descendant of ceremony_source" }
+}
+
+function Clear-MaterialRoot {
+  # Materialized scripts only. Never remove PRODUCTION_DRY_RUN_EVIDENCE.json or attempt markers.
+  if ($script:MaterialRoot -and (Test-Path -LiteralPath $script:MaterialRoot)) {
+    try { Remove-Item -LiteralPath $script:MaterialRoot -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  }
+}
+
+function Get-SupervisedWaitMs([int]$PromptMs, [int]$ChildMs, [int]$HarnessBufferMs, [int]$ProductionBufferMs) {
+  if ($PromptMs -lt 1000) { $PromptMs = 1000 }
+  if ($ChildMs -lt 1) { $ChildMs = 1 }
+  $buffer = $ProductionBufferMs
+  if ($PromptMs -ne 600000 -or $ChildMs -ne 120000) { $buffer = $HarnessBufferMs }
+  return ($PromptMs + $ChildMs + $buffer)
+}
+
+function Protect-SanitizedText([string]$Text) {
+  if (-not $Text) { return "" }
+  $t = [regex]::Replace($Text, "postgres(?:ql)?://\S+", "postgres://***")
+  $t = [regex]::Replace($t, "password=[^&\s]+", "password=***")
+  $livePrefix = "sk_" + "live_"
+  $t = [regex]::Replace($t, ($livePrefix + "\w+"), ($livePrefix + "***"))
+  return $t
+}
+
+function Write-ParentFallbackEvidence([string]$Reason, [string]$Termination) {
+  if (-not $EvidenceOutDir) { return }
+  if (-not (Test-Path -LiteralPath $EvidenceOutDir)) { return }
+  $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+  if (Test-Path -LiteralPath $evidenceFile) { return }
+  $readyPath = Join-Path $EvidenceOutDir "PROMPT_READY.json"
+  $ready = $null
+  if (Test-Path -LiteralPath $readyPath) {
+    try { $ready = Get-Content -LiteralPath $readyPath -Raw | ConvertFrom-Json } catch { $ready = $null }
+  }
+  $markers = @(Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "attempt-*.marker" -ErrorAction SilentlyContinue)
+  $markerName = $null
+  if ($markers.Count -gt 0) { $markerName = [string]$markers[0].Name }
+  $preSha = $null
+  $opened = $null
+  $readyAt = $null
+  $deadline = $null
+  if ($null -ne $ready) {
+    try { $preSha = [string]$ready.precondition_sha256 } catch {}
+    try { $opened = [string]$ready.prompt_opened_utc } catch {}
+    try { $readyAt = [string]$ready.prompt_ready_utc } catch {}
+    try { $deadline = [string]$ready.prompt_deadline_utc } catch {}
+  }
+  $frame = [ordered]@{
+    protocol = "RA_PRO_ACCOUNTING_AUTOMATION_PRODUCTION_DRY_RUN_CEREMONY_V1"
+    verdict = "BLOCKED"
+    result_code = "PROMPT_PARENT_TERMINATED"
+    pre_prompt_phase = "prompt_host"
+    termination_reason = $Termination
+    reason = (Protect-SanitizedText $Reason)
+    pr_tip = $PrHead
+    prompt_opened_utc = $opened
+    prompt_ready_utc = $readyAt
+    prompt_deadline_utc = $deadline
+    prompt_input_timeout_ms = [int]$PromptInputTimeoutMs
+    child_runtime_timeout_ms = [int]$ChildTimeoutMs
+    securestring_acquired = $false
+    attempt_marker = $markerName
+    marker_before_child = $false
+    productionContact = $false
+    node_started = $false
+    database_connection_attempts = 0
+    sql_application_attempts = 0
+    precondition_sha256 = $preSha
+    fallback_frame = $true
+    cleanup = [ordered]@{
+      completed = $false
+      credential_cleared = $true
+      secure_string_zero_freed = $true
+      raw_stdout_removed = $true
+      material_removed = $true
+      child_terminated = $true
+      orphan_check_completed = $true
+    }
+    child_supervision = [ordered]@{
+      timed_out = $true
+      timeout_ms = [int]$ChildTimeoutMs
+      orphan_count = 0
+      orphan_free = $true
+      termination_confirmed = $true
+    }
+  }
+  $json = Protect-SanitizedText (($frame | ConvertTo-Json -Depth 8 -Compress))
+  [IO.File]::WriteAllText($evidenceFile, ($json + "`n"))
+  if (Test-Path -LiteralPath $readyPath) {
+    Remove-Item -LiteralPath $readyPath -Force -ErrorAction SilentlyContinue
+  }
+  Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "raw-*" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+  }
+  Get-ChildItem -LiteralPath $EvidenceOutDir -Filter "bundle-*.cjs" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Write-Blocked([string]$Reason) {
+  $payload = [ordered]@{
+    verdict = "BLOCKED"
+    reason = $Reason
+    mode = $Mode
+    productionContact = $false
+    featureFlagTouched = $false
+  } | ConvertTo-Json -Compress
+  Write-Output $payload
+}
+
+try {
+  if (-not $SealedMaterialInvocation) {
+    throw "ENTRY_DIRECT_EXEC_FORBIDDEN: launch only via supervise-visible-ra-pro-accounting-automation-ceremony.ps1"
+  }
+
+  foreach ($forbiddenEnv in @(
+      "RA_PRO_ACCOUNTING_AUTOMATION_BOOTSTRAP_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_ENTRY_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_SUPERVISOR_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_SOURCE_COMMIT",
+      "RA_PRO_ACCOUNTING_AUTOMATION_BOOTSTRAP_SOURCE_COMMIT",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PUBLICATION_TIP",
+      "RA_PRO_ACCOUNTING_AUTOMATION_BUNDLE_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRECONDITION_EVIDENCE_SHA256",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_PATH",
+      "RA_PRO_ACCOUNTING_AUTOMATION_PRE_APPLY_LIVE_EVIDENCE_SHA256"
+    )) {
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($forbiddenEnv, "Process"))) {
+      throw "BLOCKED_INPUT_INVALID: forbidden env $forbiddenEnv"
+    }
+  }
+
+  if (-not $RepoRoot) {
+    $RepoRoot = [string](Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+  }
+  $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
+
+  if (-not $EvidenceOutDir) {
+    $EvidenceOutDir = Join-Path $env:TEMP ("ra-acct-enter-" + [guid]::NewGuid().ToString("N"))
+  }
+  New-Item -ItemType Directory -Force -Path $EvidenceOutDir | Out-Null
+  $script:MaterialRoot = Join-Path $EvidenceOutDir ("material-enter-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $script:MaterialRoot | Out-Null
+
+  $tip = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot).ToLowerInvariant()
+  if ($Mode -eq "apply") {
+    if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
+    $script:ImmutableExecutable = Resolve-ImmutableExecutable -Asserted $PrHead -Head $tip -WorkDir $RepoRoot
+    $PrHead = $script:ImmutableExecutable
+  }
+  $authCommit = if ($script:ImmutableExecutable) { $script:ImmutableExecutable } else { $tip }
+  $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${authCommit}:${AuthRel}") -WorkDir $RepoRoot
+  Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
+  $auth = ([Text.Encoding]::UTF8.GetString($authBytes)) | ConvertFrom-Json
+
+  if ($Mode -eq "apply") {
+    $freeze = [string]$auth.authorized_pr_head
+    $bootSrc = [string]$auth.bootstrap_source_commit
+    $source = [string]$auth.ceremony_source_commit
+    if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
+      throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
+    }
+    Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
+    $syntheticAttempt = -not [string]::IsNullOrWhiteSpace($TestApplyAttemptId)
+    if ($syntheticAttempt -or (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit) -and -not $EmitAuthorizationMap)) {
+      Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
+      exit 1
+    }
+    $script:CredentialFreeAsOf = ""
+    if ($EmitAuthorizationMap) {
+      $allowSyntheticMap = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+      if ($allowSyntheticMap -ne "1") {
+        Write-Blocked "SYNTHETIC_URL_NOT_ALLOWED"
+        exit 1
+      }
+      # Credential-free map only. A real apply keeps the wall clock and does not accept this instant.
+      $script:CredentialFreeAsOf = "2026-09-21T12:00:00Z"
+    }
+    $gateRel = "scripts/security/ra-pro-accounting-automation-pre-apply-gates.ps1"
+    $gateSeal = $auth.pre_apply_live_gates
+    if (-not $gateSeal) {
+      Write-Blocked "PRE_APPLY_LIVE_GATE_UNSEALED"
+      exit 1
+    }
+    $gateDest = Join-Path $script:MaterialRoot "ra-pro-accounting-automation-pre-apply-gates.ps1"
+    [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $gateRel -Seal $gateSeal -Dest $gateDest -WorkDir $RepoRoot)
+    . $gateDest
+    try {
+      Assert-AccountingPreApplyLiveEvidence -Auth $auth -RepoRoot $RepoRoot -NowUtc $script:CredentialFreeAsOf
+    } catch {
+      $gateMessage = [string]$_.Exception.Message
+      if ($gateMessage -eq "AUTHORIZATION_PINS_UNPUBLISHED" -or $gateMessage.StartsWith("AUTHORIZATION_PINS_UNPUBLISHED")) {
+        Write-Blocked "AUTHORIZATION_PINS_UNPUBLISHED"
+      } else {
+        Write-Blocked $gateMessage
+      }
+      exit 1
+    }
+    $publicationCommit = $tip
+    if ($EmitAuthorizationMap) {
+      $allowSynthetic = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+      if ($allowSynthetic -ne "1") {
+        Write-Blocked "SYNTHETIC_URL_NOT_ALLOWED"
+        exit 1
+      }
+      if ($TestPublicationCommit -notmatch '^[0-9a-f]{40}$') {
+        Write-Blocked "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN"
+        exit 1
+      }
+      $publicationCommit = $TestPublicationCommit.ToLowerInvariant()
+    }
+    $probe = Invoke-SealedBundlePreflight -WorkDir $RepoRoot -PublicationCommit $publicationCommit
+    if ($EmitAuthorizationMap) {
+      if (-not [string]::IsNullOrWhiteSpace($probe.stdout)) { Write-Output $probe.stdout }
+      if ($probe.exit -ne 0) { exit 1 }
+      exit 0
+    }
+    if ([string]::IsNullOrWhiteSpace($probe.stdout)) {
+      Write-Blocked "APPLY_AUTHORIZATION_PREFLIGHT_FAILED"
+      exit 1
+    }
+    $decision = $probe.stdout | ConvertFrom-Json
+    if ($probe.exit -ne 0 -or $decision.blocked) {
+      $blockedCode = [string]$decision.blocked
+      if ([string]::IsNullOrWhiteSpace($blockedCode)) { $blockedCode = "APPLY_AUTHORIZATION_PREFLIGHT_FAILED" }
+      Write-Blocked $blockedCode
+      exit 1
+    }
+    $TestApplyAttemptId = [string]$decision.attempt_id
+    if (([string]$decision.authorized_executable_commit).ToLowerInvariant() -ne $script:ImmutableExecutable) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: preflight executable mismatch"
+    }
+    if (([string]$decision.publication_commit).ToLowerInvariant() -ne $publicationCommit) {
+      throw "APPLY_AUTHORIZATION_REF_OVERRIDE_FORBIDDEN: preflight publication mismatch"
+    }
+    $script:AuthorizedExecutableCommit = $script:ImmutableExecutable
+    $script:AuthorizationPublicationCommit = $publicationCommit
+    $script:AuthorizationBlobOid = [string]$decision.authorization_blob_oid
+    if ($script:ExecutableBundleOid -notmatch '^[0-9a-f]{40}$' -or ([string]$decision.bundle_oid).ToLowerInvariant() -ne $script:ExecutableBundleOid) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle oid"
+    }
+    $script:ApplyLaunch = $true
+  }
+
+  $pre = $auth.precondition_publication
+  if ($null -eq $pre -or [string]$pre.status -ne "PUBLISHED") {
+    Write-Blocked "PRECONDITION_PINS_UNPUBLISHED"
+    exit 1
+  }
+
+  $freeze = [string]$auth.authorized_pr_head
+  $bootSrc = [string]$auth.bootstrap_source_commit
+  $source = [string]$auth.ceremony_source_commit
+  if ([string]::IsNullOrWhiteSpace($freeze) -or [string]::IsNullOrWhiteSpace($bootSrc) -or [string]::IsNullOrWhiteSpace($source)) {
+    throw "BLOCKED_PUBLICATION_TIP: authorized_pr_head / bootstrap_source_commit / ceremony_source_commit missing"
+  }
+  if ([string]::IsNullOrWhiteSpace($PrHead)) { $PrHead = $tip }
+  if ($Mode -eq "apply") {
+    if ($PrHead.ToLowerInvariant() -ne $script:ImmutableExecutable) {
+      throw "BLOCKED_PIN_MISMATCH: -PrHead is not the immutable executable"
+    }
+  } elseif ($PrHead.ToLowerInvariant() -ne $tip.ToLowerInvariant()) {
+    throw "BLOCKED_PIN_MISMATCH: -PrHead must equal HEAD (publication tip)"
+  }
+  Assert-PublicationTipAncestry -PublicationTip $tip -Freeze $freeze.ToLowerInvariant() -BootstrapSource $bootSrc.ToLowerInvariant() -CeremonySource $source.ToLowerInvariant() -WorkDir $RepoRoot
+
+  $oc = $auth.operator_ceremony
+  if (-not $oc) { throw "missing operator_ceremony seals" }
+  if ($script:ApplyLaunch) {
+    $exec = [string]$script:AuthorizedExecutableCommit
+    $cerOid = Invoke-GitText -GitArgs @("rev-parse", "${exec}:${CeremonyRel}") -WorkDir $RepoRoot
+    if ($cerOid -ne [string]$oc.oid) {
+      throw "APPLY_AUTHORIZATION_ALLOWLIST: ceremony blob at executable commit"
+    }
+    $bundleRel = "scripts/security/bundles/ra-pro-accounting-automation-applicator.standalone.cjs"
+    $bundleOid = Invoke-GitText -GitArgs @("rev-parse", "${exec}:${bundleRel}") -WorkDir $RepoRoot
+    if ($bundleOid -ne [string]$auth.standalone_bundle.oid) {
+      throw "APPLY_AUTHORIZATION_BUNDLE_MISMATCH: executable bundle"
+    }
+  }
+  $ceremonyDest = Join-Path $script:MaterialRoot "operator-ra-pro-accounting-automation-production-dryrun-ceremony.ps1"
+  [void](Assert-BlobSeal -Commit $source.ToLowerInvariant() -Rel $CeremonyRel -Seal $oc -Dest $ceremonyDest -WorkDir $RepoRoot)
+
+  $psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+  if ($TestVisiblePromptProbe) {
+    $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    $headNow = (Invoke-GitText -GitArgs @("rev-parse", "HEAD") -WorkDir $RepoRoot).ToLowerInvariant()
+    $realApplyAtHead = (
+      $Mode -eq "apply" -and
+      $script:ApplyLaunch -and
+      ([string]$script:AuthorizationPublicationCommit).ToLowerInvariant() -eq $headNow
+    )
+    if (-not $realApplyAtHead -and $allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    if (
+      -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or
+      -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -or
+      -not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex) -or
+      $TestForceCleanupFailure -or
+      $TestForceTerminateFailure
+    ) {
+      throw "PROMPT_PROBE_REJECTS_HARNESS_INPUT"
+    }
+  }
+  $harnessLaunch = (
+    -not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl) -or
+    -not [string]::IsNullOrWhiteSpace($TestHarnessChildStub) -or
+    -not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex) -or
+    $TestForceCleanupFailure -or
+    $TestForceTerminateFailure -or
+    $TestTimeoutBudgetProbe -or
+    $TestForcePromptTimeout -or
+    $TestForcePromptWindowClose -or
+    $TestForcePromptCancel -or
+    $TestHangBeforeEvidence
+  )
+  $visiblePrompt = $TestVisiblePromptProbe -or -not $harnessLaunch
+  $ceremonyTail = @(
+    "-File", $ceremonyDest,
+    "-PrHead", $PrHead,
+    "-RepoRoot", $RepoRoot,
+    "-EvidenceOutDir", $EvidenceOutDir,
+    "-SealedMaterialInvocation"
+  )
+  if (-not [string]::IsNullOrWhiteSpace($TestSyntheticDatabaseUrl)) {
+    $ceremonyTail += @("-TestSyntheticDatabaseUrl", $TestSyntheticDatabaseUrl)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($TestHarnessChildStub)) {
+    $ceremonyTail += @("-TestHarnessChildStub", $TestHarnessChildStub)
+  }
+  if ($ChildTimeoutMs -ne 120000) {
+    $ceremonyTail += @("-ChildTimeoutMs", "$ChildTimeoutMs")
+  }
+  if (-not [string]::IsNullOrWhiteSpace($TestForcePrePromptNullIndex)) {
+    $ceremonyTail += @("-TestForcePrePromptNullIndex", $TestForcePrePromptNullIndex)
+  }
+  if ($TestForceCleanupFailure) { $ceremonyTail += "-TestForceCleanupFailure" }
+  if ($TestForceTerminateFailure) { $ceremonyTail += "-TestForceTerminateFailure" }
+  if ($TestVisiblePromptProbe) { $ceremonyTail += "-TestVisiblePromptProbe" }
+  if ($PromptInputTimeoutMs -ne 600000) { $ceremonyTail += @("-PromptInputTimeoutMs", "$PromptInputTimeoutMs") }
+  if ($TestTimeoutBudgetProbe) { $ceremonyTail += "-TestTimeoutBudgetProbe" }
+  if ($TestForcePromptTimeout) { $ceremonyTail += "-TestForcePromptTimeout" }
+  if ($TestForcePromptWindowClose) { $ceremonyTail += "-TestForcePromptWindowClose" }
+  if ($TestForcePromptCancel) { $ceremonyTail += "-TestForcePromptCancel" }
+  if ($TestHangBeforeEvidence) { $ceremonyTail += "-TestHangBeforeEvidence" }
+  if ($script:ApplyLaunch) {
+    $ceremonyTail += @(
+      "-Mode", "apply",
+      "-ApplyAttemptId", $TestApplyAttemptId,
+      "-AuthorizationPublicationCommit", $script:AuthorizationPublicationCommit,
+      "-AuthorizationBlobOid", $script:AuthorizationBlobOid,
+      "-ExecutableBundleOid", $script:ExecutableBundleOid
+    )
+  }
+  if ($visiblePrompt) {
+    $ceremonyArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass") + $ceremonyTail
+  } else {
+    $ceremonyArgs = @("-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass") + $ceremonyTail
+  }
+
+  if ($visiblePrompt) {
+    $visible = New-Object Diagnostics.ProcessStartInfo
+    $visible.FileName = $psExe
+    $visible.Arguments = ($ceremonyArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+    $visible.WorkingDirectory = $RepoRoot
+    $visible.UseShellExecute = $true
+    $visible.WindowStyle = [Diagnostics.ProcessWindowStyle]::Normal
+    $p = [Diagnostics.Process]::Start($visible)
+    if ($null -eq $p) { throw "VISIBLE_PROMPT_LAUNCH_FAILED" }
+    $waitMs = Get-SupervisedWaitMs $PromptInputTimeoutMs $ChildTimeoutMs 8000 60000
+    if (-not $p.WaitForExit($waitMs)) {
+      try {
+        Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") -ArgumentList @("/PID", "$($p.Id)", "/T", "/F") -Wait -WindowStyle Hidden | Out-Null
+      } catch {
+        try { $p.Kill() } catch {}
+      }
+      Write-ParentFallbackEvidence "sealed ceremony child timed out" "forced_parent_termination"
+      $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+      if (Test-Path -LiteralPath $evidenceFile) {
+        Write-Output ([IO.File]::ReadAllText($evidenceFile).TrimEnd())
+      } else {
+        Write-Blocked "sealed ceremony child timed out"
+      }
+      exit 1
+    }
+    $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+    if (-not (Test-Path -LiteralPath $evidenceFile)) {
+      Write-ParentFallbackEvidence "ceremony exited without terminal evidence" "missing_terminal_evidence"
+    }
+    if (Test-Path -LiteralPath $evidenceFile) {
+      Write-Output ([IO.File]::ReadAllText($evidenceFile).TrimEnd())
+    }
+    exit $p.ExitCode
+  }
+
+  $psi = New-Object Diagnostics.ProcessStartInfo
+  $psi.FileName = $psExe
+  $psi.Arguments = ($ceremonyArgs | ForEach-Object { Format-Win32Argument $_ }) -join " "
+  $psi.WorkingDirectory = $RepoRoot
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+  Set-GitSafeDirectoryEnv -Psi $psi -Root $RepoRoot
+  $p = [Diagnostics.Process]::Start($psi)
+  $outTask = $p.StandardOutput.ReadToEndAsync()
+  $errTask = $p.StandardError.ReadToEndAsync()
+  $waitMs = Get-SupervisedWaitMs $PromptInputTimeoutMs $ChildTimeoutMs 8000 60000
+  if (-not $p.WaitForExit($waitMs)) {
+    try {
+      Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") -ArgumentList @("/PID", "$($p.Id)", "/T", "/F") -Wait -WindowStyle Hidden | Out-Null
+    } catch {
+      try { $p.Kill() } catch {}
+    }
+    try { $stdout = [string]$outTask.Result } catch { $stdout = "" }
+    try { $stderr = [string]$errTask.Result } catch { $stderr = "" }
+    Write-ParentFallbackEvidence "sealed ceremony child timed out" "forced_parent_termination"
+    $evidenceFile = Join-Path $EvidenceOutDir "PRODUCTION_DRY_RUN_EVIDENCE.json"
+    if (Test-Path -LiteralPath $evidenceFile) {
+      Write-Output ([IO.File]::ReadAllText($evidenceFile).TrimEnd())
+    } else {
+      Write-Blocked "sealed ceremony child timed out"
+    }
+    exit 1
+  }
+  try { $stdout = [string]$outTask.Result } catch { $stdout = "" }
+  try { $stderr = [string]$errTask.Result } catch { $stderr = "" }
+  if (-not [string]::IsNullOrWhiteSpace($stdout)) { Write-Output $stdout.TrimEnd() }
+  if (-not [string]::IsNullOrWhiteSpace($stderr)) { [Console]::Error.WriteLine($stderr.TrimEnd()) }
+  exit $p.ExitCode
+}
+catch {
+  Write-Blocked ([string]$_.Exception.Message)
+  exit 1
+}
+finally {
+  Clear-MaterialRoot
+}

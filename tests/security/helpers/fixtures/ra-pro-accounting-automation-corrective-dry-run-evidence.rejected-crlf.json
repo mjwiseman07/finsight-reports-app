@@ -1,0 +1,94 @@
+{
+    "package":  "ra-pro-accounting-automation-corrective-apply",
+    "mode":  "dry-run",
+    "artifact_commit":  "772911b236bb24fbb9b06b104732a7495c790a07",
+    "database_url_env":  "[redacted]",
+    "advisory_lock":  {
+                          "name":  "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY",
+                          "key1":  1380008769,
+                          "key2":  539363618
+                      },
+    "history_contract":  {
+                             "prior":  190,
+                             "post":  191
+                         },
+    "migrations":  [
+                       {
+                           "version":  "20260922003200",
+                           "name":  "ra_pro_accounting_automation_service_role_least_privilege",
+                           "oid":  "2c24cdfdd087db0020296ebf3b1d077513b4744c"
+                       }
+                   ],
+    "feature_flag_env":  "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "feature_flag_touched":  false,
+    "session_role_model":  "set_role_not_jwt",
+    "jwt_service_role_claimed":  false,
+    "sqlApplicationAttempts":  0,
+    "databaseConnectionAttempts":  1,
+    "productionContact":  true,
+    "authorization_scope":  "corrective_dry_run",
+    "migration_sql_attempts":  0,
+    "evidence_gates":  {
+                           "phase":  "evidence_gates",
+                           "mode":  "dry-run"
+                       },
+    "bundle_authority":  {
+                             "path":  "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
+                             "oid":  "8b8baf52b5528073550a59b0aa0fe3fc0b2e8020",
+                             "sha256":  "1b641ce6b41dc5c04e2902bf46f953bc98c33afa491654037fa7023cc609622e",
+                             "bytes":  388718,
+                             "commit":  "18fa394b477ca728c2c53c3f504f421087ac47eb",
+                             "phase":  "bundle_authority"
+                         },
+    "source_authority":  [
+                             {
+                                 "version":  "20260922003200",
+                                 "oid":  "2c24cdfdd087db0020296ebf3b1d077513b4744c",
+                                 "sha256":  "34f81879c8e5a457ea4025ac36f9961cfcab2e275ae73d71337aa69887dd407f",
+                                 "bytes":  3982
+                             }
+                         ],
+    "uri_diagnostics":  {
+                            "ok":  true,
+                            "host_class":  "session_pooler",
+                            "username_class":  "project_bound",
+                            "is_local":  false,
+                            "matches_expected_project_ref":  true,
+                            "database_name_match":  true,
+                            "ssl_requirement_match":  true,
+                            "port_class_match":  true,
+                            "expected_project_ref":  "jzmdgwwiestcmmeuhhkr"
+                        },
+    "read_only":  true,
+    "transaction_mutation":  false,
+    "advisory_lock_acquired":  true,
+    "schema_probes":  {
+                          "read_only":  true,
+                          "history_count":  190,
+                          "history_contract":  {
+                                                   "prior":  190,
+                                                   "post":  191
+                                               },
+                          "originals_present_once":  true,
+                          "corrective_absent":  true,
+                          "tables_rls_postgres":  true,
+                          "policies_present":  true,
+                          "functions_present":  true,
+                          "excess_service_role_dml":  true,
+                          "automation_enabled":  false,
+                          "checks":  {
+                                         "history_count":  true,
+                                         "originals_present_once":  true,
+                                         "corrective_absent":  true,
+                                         "tables_rls_postgres":  true,
+                                         "policies_present":  true,
+                                         "functions_present":  true
+                                     },
+                          "failed_checks":  [
+
+                                            ]
+                      },
+    "prior_history_count":  190,
+    "verdict":  "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION",
+    "result_code":  "DRY_RUN_READY_FOR_SEPARATE_APPLY_AUTHORIZATION"
+}

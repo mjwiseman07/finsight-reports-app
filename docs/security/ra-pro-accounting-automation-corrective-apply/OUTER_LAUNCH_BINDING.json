@@ -1,0 +1,9 @@
+{
+  "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1",
+  "status": "UNBOUND",
+  "expected_executable_commit": null,
+  "executable_authority_publication_commit": null,
+  "executable_authority_blob": null,
+  "seals": null,
+  "note": "Outer launch binding remains UNBOUND on the clean executable tip. A separate reviewed launcher tip binds the expected executable and artifact seals after the executable SHA is known. The launcher tip is never an executable and never an authorization-publication parent."
+}

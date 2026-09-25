@@ -1,0 +1,255 @@
+{
+  "package": "ra-pro-accounting-automation-corrective-apply-tooling",
+  "artifact_commit": "772911b236bb24fbb9b06b104732a7495c790a07",
+  "project_ref": "jzmdgwwiestcmmeuhhkr",
+  "database_url_env": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL",
+  "apply_authorization_token": "I_AUTHORIZE_RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_20260922",
+  "advisory_lock": {
+    "name": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY",
+    "key1": 1380008769,
+    "key2": 539363618
+  },
+  "history_contract": {
+    "prior": 190,
+    "post": 191
+  },
+  "migrations": [
+    {
+      "version": "20260922003200",
+      "name": "ra_pro_accounting_automation_service_role_least_privilege",
+      "path": "supabase/migrations/20260922003200_ra_pro_accounting_automation_service_role_least_privilege.sql",
+      "oid": "2c24cdfdd087db0020296ebf3b1d077513b4744c",
+      "sha256": "34f81879c8e5a457ea4025ac36f9961cfcab2e275ae73d71337aa69887dd407f",
+      "bytes": 3982
+    }
+  ],
+  "original_committed_migrations_verify_only": [
+    {
+      "version": "20260917044537",
+      "path": "supabase/migrations/20260917044537_ra_pro_weekly_completeness_findings.sql",
+      "oid": "788de3e4b600c0aac57738c9ca3509d1b7e76d49",
+      "sha256": "7ce512e9e58a589766db12e6179300bf7f8ba8918a50685cfff5820989925430",
+      "bytes": 6952
+    },
+    {
+      "version": "20260917180140",
+      "path": "supabase/migrations/20260917180140_ra_pro_month_end_review_packages.sql",
+      "oid": "929054aec3d08bbf45d13d2a23f187f6200005dd",
+      "sha256": "ea22749b259a9b14a8cb8c5c575495430262057179d148496d506aaeebbbff10",
+      "bytes": 3997
+    }
+  ],
+  "publication": {
+    "status": "PUBLISHED",
+    "required_prior_dry_run_evidence_sha256": null,
+    "required_prior_dry_run_evidence_oid": null,
+    "required_prior_dry_run_evidence_bytes": null,
+    "required_pre_apply_live_evidence_sha256": "a05f652705cee954ea141250619e7ad3ed4d4466fc6cfe040d516155a887f371",
+    "required_pre_apply_live_evidence_oid": "f353e7461cc2f1160bef903fb347a6feabdb0fbc",
+    "required_pre_apply_live_evidence_bytes": 66428
+  },
+  "precondition_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRECONDITION_EVIDENCE_V1.json",
+    "evidence_source_commit": "a055228c3ad704507cbd00613bd1c5b09cf4798c",
+    "evidence_blob_oid": "7df037fe248519fbd10b07f59745992e48bbdaf3",
+    "evidence_sha256": "e37c2112fd0246945c78ac936d0615feebb781f2d89249f03daa8388e8b288da",
+    "evidence_bytes": 66258,
+    "valid_from_utc": "2026-09-24T04:55:21Z",
+    "valid_until_utc": "2026-09-25T04:55:21Z",
+    "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321",
+    "reviewed_tooling_lineage_tip": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
+    "production_deployment": {
+      "vercel_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
+      "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d"
+    },
+    "preview_deployment": {
+      "vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+      "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98"
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr"
+  },
+  "pre_apply_live_publication": {
+    "status": "PUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1",
+    "evidence_path": "docs/security/ra-pro-accounting-automation-corrective-apply/RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRE_APPLY_LIVE_EVIDENCE_V1.json",
+    "evidence_source_commit": "a055228c3ad704507cbd00613bd1c5b09cf4798c",
+    "evidence_blob_oid": "f353e7461cc2f1160bef903fb347a6feabdb0fbc",
+    "evidence_sha256": "a05f652705cee954ea141250619e7ad3ed4d4466fc6cfe040d516155a887f371",
+    "evidence_bytes": 66428,
+    "valid_from_utc": "2026-09-24T04:55:21Z",
+    "valid_until_utc": "2026-09-25T04:55:21Z",
+    "apply_authorized": false,
+    "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "authorization_publication_commit": "15732f7034596e64f724901d15225efa257f08c5",
+    "authorization_publication_blob_oid": "cd94d9bd32f23125e149e40ee90c185aa02d3321",
+    "reviewed_tooling_lineage_tip": "99dc4cc35240beab1a0c3a12098c177dde06bd98",
+    "production_deployment": {
+      "vercel_deployment_id": "dpl_FTe8t7bxyMVV6imEFAatkmBau1R7",
+      "production_commit": "854fd2920cd1c77a411918a617d10a8fb3ce591d"
+    },
+    "preview_deployment": {
+      "vercel_deployment_id": "dpl_DeGsV4XcceRWfERD4ov5TC6BfhiG",
+      "preview_commit": "99dc4cc35240beab1a0c3a12098c177dde06bd98"
+    },
+    "project_ref": "jzmdgwwiestcmmeuhhkr"
+  },
+  "precondition_evidence_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
+    "source_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "seal_binding": "authorized_executable_commit",
+    "oid": "ae96e62710b0a8a32d3d2020a6b879401216d388",
+    "sha256": "34235f77e387e609f2fda345485d16a9a836c5dca21bbcd123c951696fdf97cd",
+    "bytes": 5128,
+    "line_endings": "LF"
+  },
+  "pre_apply_live_evidence_contract": {
+    "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+    "source_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "seal_binding": "authorized_executable_commit",
+    "oid": "5226d76a80596ed448827f108b00cb1b24e19cb4",
+    "sha256": "dc9b60ce8dee13c96fbf646592c9f53749e84a1524d500eb9e6aa12a0127fccc",
+    "bytes": 5204,
+    "line_endings": "LF"
+  },
+  "production_collection_authorization": {
+    "status": "AUTHORIZED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EVIDENCE_COLLECTION_AUTHORIZATION_V1",
+    "collection_authorized": true,
+    "authorized_executable_commit": "2617f2e4075a9b7b59bc2b3c9c4c3239fc3efc94",
+    "project_ref": "jzmdgwwiestcmmeuhhkr",
+    "bundle": {
+      "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
+      "oid": "5185b6320dc783f255c29c68e3e9f7b43234bc07",
+      "sha256": "fc4dd676a5a1cb3758739303d19691cf87e6cf9de5c0fe7ea5d4663f4c0f69e4",
+      "bytes": 383908
+    },
+    "precondition_evidence_contract": {
+      "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRECONDITION_EVIDENCE_CONTRACT.json",
+      "oid": "ae96e62710b0a8a32d3d2020a6b879401216d388",
+      "sha256": "34235f77e387e609f2fda345485d16a9a836c5dca21bbcd123c951696fdf97cd",
+      "bytes": 5128,
+      "line_endings": "LF"
+    },
+    "pre_apply_live_evidence_contract": {
+      "path": "docs/security/ra-pro-accounting-automation-corrective-apply/PRE_APPLY_LIVE_EVIDENCE_CONTRACT.json",
+      "oid": "5226d76a80596ed448827f108b00cb1b24e19cb4",
+      "sha256": "dc9b60ce8dee13c96fbf646592c9f53749e84a1524d500eb9e6aa12a0127fccc",
+      "bytes": 5204,
+      "line_endings": "LF"
+    },
+    "schema": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-evidence-schema.js",
+      "oid": "7015a2b5bb45111712c83cd068c05e8f216adfe2",
+      "sha256": "9887ee3c9c51e8363cc1bf833dafba84d8e45e0227ac0491b785edf91e672742",
+      "bytes": 37219,
+      "line_endings": "LF"
+    },
+    "precondition_gates": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-precondition-gates.js",
+      "oid": "24e24ffcbda69416b28a15d23e3bd256a81d0f42",
+      "sha256": "455a0d787c7266963e3198c00816968573365c298261b5ec3adefb81cb5b27a1",
+      "bytes": 16477,
+      "line_endings": "LF"
+    },
+    "pre_apply_gates": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-pre-apply-gates.js",
+      "oid": "b096d358553a58d463fb78d4837ce55bb79fc142",
+      "sha256": "99552debd74f79bebc38019c2146e273dc489a051428e9dc9efc10c82bfe7f19",
+      "bytes": 14753,
+      "line_endings": "LF"
+    },
+    "collector": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-evidence-collector.js",
+      "oid": "4911493c959b60bfa8125c310570212b8c1502ea",
+      "sha256": "efdfb8ca4e4971ad19f42f6a1b9cbaae32182bd30fbf6104d0f215c7a2192fa0",
+      "bytes": 12776,
+      "line_endings": "LF"
+    },
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective evidence-collection authorization is AUTHORIZED for the named immutable executable tip. The publication commit SHA is not stored here. Offline authority recheck is required before any production contact."
+  },
+  "production_apply_authorization": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_APPLY_AUTHORIZATION_V1",
+    "apply_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "database_url_env": null,
+    "apply_authorization_token": null,
+    "bundle": null,
+    "migrations": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective apply authorization is unpublished until a separate reviewed publication. Evidence and the apply token do not authorize apply. Never reuse the consumed dual-package attempt."
+  },
+  "production_dry_run_authorization": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1",
+    "dry_run_authorized": false,
+    "authorized_executable_commit": null,
+    "attempt_id": null,
+    "project_ref": null,
+    "bundle": null,
+    "bootstrap": null,
+    "ceremony": null,
+    "evidence_pin_authority": null,
+    "precondition_evidence": null,
+    "pre_apply_live_evidence": null,
+    "executable_authority_publication_commit": null,
+    "executable_authority_publication_blob_oid": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip — a validated production_executable_authority publication must bind the clean executable first. Historical tip 9f31c355… is rejected for the remediated protocol. --executable-commit alone is never authority."
+  },
+  "production_executable_authority": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1",
+    "executable_authorized": false,
+    "authorized_executable_commit": null,
+    "project_ref": null,
+    "bundle": null,
+    "bootstrap": null,
+    "entry": null,
+    "ceremony": null,
+    "frame": null,
+    "receipt": null,
+    "evidence_pin_authority": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective executable authority is unpublished until a separate reviewed one-object publication names a clean executable generation that contains the full remediated sealed chain. The publication commit SHA is not stored here. Historical tip 9f31c355… is rejected. Dry-run AUTH may not independently choose an executable tip."
+  },
+  "evidence_pin_authority": {
+    "commit": "f550842cd6dd837671599ee8c65bb6ba3932aa62",
+    "auth_path": "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json",
+    "auth_blob_oid": "5f3845b14f12b715019e785f40702814a1471b45",
+    "auth_blob_sha256": "1c94fea33c01d6ce4fae0e596abbcec81bb59bb55f77fd70207e78ff0940450e",
+    "auth_blob_bytes": 11452,
+    "note": "Dry-run/apply evidence pins load only from this commit’s Git blob via cat-file. Worktree JSON, path overrides, and unvalidated descendants are rejected. This executable tip must not rewrite those pin identities."
+  },
+  "feature_flag": {
+    "env": "ENABLE_RA_PRO_ACCOUNTING_AUTOMATION",
+    "must_remain": "absent_or_not_true",
+    "applicator_may_enable": false
+  },
+  "consumed_original_attempt_id": "apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f",
+  "notes": [
+    "Original dual migrations 20260917044537 and 20260917180140 remain committed in production (history 190). This package applies ONLY the corrective least-privilege migration 20260922003200 (190→191).",
+    "Never re-run or re-include the original dual migration SQL through this tooling.",
+    "Consumed dual-package attempt apply-b9926961e32c-8aecb1bd2f5f17dec0483dd550bb395f must never be reused.",
+    "production_apply_authorization remains UNPUBLISHED until a separate review publishes an AUTHORIZED record.",
+    "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
+    "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels.",
+    "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection.",
+    "Corrective precondition and pre-apply live evidence pins remain PUBLISHED at evidence pin authority f550842c… (source a055228c…). Runtime dry-run/apply must load that AUTH blob via git cat-file only — never worktree JSON. production_executable_authority, production_dry_run_authorization, and production_apply_authorization remain UNPUBLISHED. Dry-run trust requires: (1) an authenticated outer-launch binding tip that supplies expectedExecutableCommit without embedding that tip SHA in the executable, (2) a validated AUTH-only executable-authority publication naming that expected tip (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1), and (3) a later AUTH-only one-attempt dry-run publication (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1). Historical tip 9f31c355… is rejected. Dry-run AUTH may not independently choose an executable tip; --executable-commit alone is never authority. The outer-launch binding tip is never an executable and never an authorization-publication parent. Authenticated first hop materializes bootstrap from Git blob seals only. Pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation."
+  ],
+  "standalone_bundle": {
+    "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
+    "oid": "876b9a1592c0551919dadb3b91defdaa52a1a4fb",
+    "sha256": "2712d3ab666646a58f5725c29bdd5f66924b82fc47cec738ee7c17eeda330188",
+    "bytes": 521001,
+    "line_endings": "LF",
+    "authority": "git_blob_cat_file"
+  }
+}
