@@ -425,6 +425,58 @@ describe("corrective dry-run execution authorization", () => {
     );
   });
 
+  it("rejects AUTH-only publication parented on current test HEAD (test-file delta vs executable)", () => {
+    const testHead = git(["rev-parse", "HEAD"]);
+    expect(testHead).not.toBe(IMMUTABLE_EXECUTABLE);
+    expect(testHead).not.toBe(CLEAN_REVIEW_TIP);
+    expect(git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, testHead])).toBe(
+      "tests/security/ra-pro-accounting-automation-corrective-dry-run-authorization.test.ts",
+    );
+
+    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
+    const created = createDisposableDryRunPublicationCommit({
+      cwd: ROOT,
+      executableCommit: IMMUTABLE_EXECUTABLE,
+      attemptId: attempt,
+      allowDisposableDryRunPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
+    expect(auth.production_dry_run_authorization.authorized_executable_commit).toBe(
+      IMMUTABLE_EXECUTABLE,
+    );
+
+    const fromTestHead = commitAuthOnlyFromParent(testHead, auth);
+    expect(git(["merge-base", "--is-ancestor", testHead, fromTestHead])).toBe("");
+    const delta = git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, fromTestHead])
+      .split(/\n/)
+      .filter(Boolean);
+    expect(delta).toContain(AUTH_REL);
+    expect(delta).toContain(
+      "tests/security/ra-pro-accounting-automation-corrective-dry-run-authorization.test.ts",
+    );
+    expect(delta.length).toBeGreaterThan(1);
+
+    expectCode(
+      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: fromTestHead }),
+      /DRY_RUN_AUTHORIZATION_ALLOWLIST/,
+    );
+  });
+
+  it("rejects bare current test HEAD as executable", () => {
+    const testHead = git(["rev-parse", "HEAD"]);
+    const unpublished = describeDryRunArtifactMap({
+      cwd: ROOT,
+      publicationCommit: testHead,
+    });
+    expect(unpublished.blocked).toBe(BLOCKED_UNPUBLISHED);
+    expect(unpublished.dry_run_authorized).toBe(false);
+    expectCode(
+      () => resolveExecutableCommit({ executableCommit: testHead }),
+      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+    );
+  });
+
   it("successful publication never names clean review tip as executable", () => {
     const cleanTip = CLEAN_REVIEW_TIP;
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
