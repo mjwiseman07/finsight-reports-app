@@ -32,8 +32,27 @@ Automated phase transitions update **both** the companion JSON and the markdown 
 | `startedAt` | ISO-8601 | no | Phase start timestamp |
 | `implementation` | object | no | `{ completedAt, results }` — required for late statuses |
 | `review` | object | no | `{ completedAt, verdict, notes }` — verdict `PASS`\|`NEEDS_CHANGES`\|`BLOCKED` |
+| `cursor_agent` | object | no | Safe Cloud Agent builder metadata (see below) |
 | `merge` | boolean | no | Must be `false` or absent |
 | `deploy` | boolean | no | Must be `false` or absent |
+
+## `cursor_agent` fields (builder)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent_id` | string | Durable Cursor agent id (`bc-…`) |
+| `run_id` | string | Initial / latest run id (`run-…`) |
+| `status` | string | Convenience status (usually run status) |
+| `agent_status` | string | Agent lifecycle (`ACTIVE`/`IDLE`/`ARCHIVED`) |
+| `run_status` | string | Run status (`CREATING`/`RUNNING`/`FINISHED`/…) |
+| `branch` | string | Isolated `cursor/...` branch when known |
+| `pr_url` | string | Auto-created PR URL when known |
+| `agent_url` | string | Cursor agent UI URL |
+| `latest_run_id` | string | From agent record |
+| `launched_at` | ISO-8601 | Set on successful create |
+| `last_checked_at` | ISO-8601 | Updated on status poll |
+
+Never store API keys, Authorization headers, or other secrets in this object.
 
 ## Valid status values
 

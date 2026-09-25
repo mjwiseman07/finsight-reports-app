@@ -7,12 +7,21 @@ Use this guide when executing an **approved** plan (`STATUS: APPROVED_FOR_IMPLEM
 ```bash
 node scripts/orchestrator/validate-plan.js docs/plans/<PLAN-ID>.md
 node scripts/orchestrator/confirm-approval.js docs/plans/<PLAN-ID>.md
+```
+
+Cloud Agent builder (preferred for autonomous implementation):
+
+```bash
+npm run orchestrator:launch -- docs/plans/<PLAN-ID>.md
+```
+
+Local prepare payload only (does not call Cursor):
+
+```bash
 node scripts/orchestrator/prepare-implementation.js docs/plans/<PLAN-ID>.md
 ```
 
-If `confirm-approval.js` fails, STOP — do not implement.
-
-`prepare-implementation.js` advances STATUS to `IN_PROGRESS` (markdown + companion).
+If `confirm-approval.js` or `orchestrator:launch` fails, STOP — do not implement.
 
 ## Implementation rules
 
