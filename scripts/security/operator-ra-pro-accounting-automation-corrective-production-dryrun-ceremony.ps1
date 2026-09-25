@@ -8,21 +8,25 @@
 #>
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$PinTip,
+  # Validated in-body AFTER SealedMaterialInvocation so direct -File returns
+  # CEREMONY_DIRECT_EXEC_FORBIDDEN before mandatory-parameter errors.
+  [Parameter(Mandatory = $false)]
+  [string]$PinTip = "",
 
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$DryRunAuthorizationPublication,
+  [Parameter(Mandatory = $false)]
+  [string]$DryRunAuthorizationPublication = "",
 
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$ExecutableAuthorityPublication,
+  [Parameter(Mandatory = $false)]
+  [string]$OuterLaunchBindingPublication = "",
 
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$ExpectExecutableAuthorityBlobOid,
+  [Parameter(Mandatory = $false)]
+  [string]$ExpectOuterLaunchBindingBlobOid = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExecutableAuthorityPublication = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExpectExecutableAuthorityBlobOid = "",
 
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
@@ -32,7 +36,11 @@ param(
 
   # Set only after bootstrap tip-seal materialize. Direct worktree -File is forbidden.
   [Parameter(Mandatory = $false)]
-  [switch]$SealedMaterialInvocation
+  [switch]$SealedMaterialInvocation,
+
+  # Harness-only: prove gates reach the credential boundary, then stop before SecureString.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe
 )
 
 Set-StrictMode -Version Latest
@@ -44,12 +52,25 @@ if (-not $SealedMaterialInvocation) {
   throw "CEREMONY_DIRECT_EXEC_FORBIDDEN: materialize via corrective bootstrap Git-blob first hop only"
 }
 
+if ($PinTip -notmatch '^[0-9a-fA-F]{40}$') { throw "CEREMONY_PARAM_REQUIRED: PinTip" }
+if ($DryRunAuthorizationPublication -notmatch '^[0-9a-fA-F]{40}$') { throw "CEREMONY_PARAM_REQUIRED: DryRunAuthorizationPublication" }
+if ($OuterLaunchBindingPublication -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: OuterLaunchBindingPublication"
+}
+if ($ExpectOuterLaunchBindingBlobOid -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: ExpectOuterLaunchBindingBlobOid"
+}
+if ($ExecutableAuthorityPublication -notmatch '^[0-9a-fA-F]{40}$') { throw "CEREMONY_PARAM_REQUIRED: ExecutableAuthorityPublication" }
+if ($ExpectExecutableAuthorityBlobOid -notmatch '^[0-9a-fA-F]{40}$') { throw "CEREMONY_PARAM_REQUIRED: ExpectExecutableAuthorityBlobOid" }
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
   $RepoRoot = (git rev-parse --show-toplevel).Trim()
 }
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 $PinTip = $PinTip.ToLowerInvariant()
 $DryRunAuthorizationPublication = $DryRunAuthorizationPublication.ToLowerInvariant()
+$OuterLaunchBindingPublication = $OuterLaunchBindingPublication.ToLowerInvariant()
+$ExpectOuterLaunchBindingBlobOid = $ExpectOuterLaunchBindingBlobOid.ToLowerInvariant()
 $ExecutableAuthorityPublication = $ExecutableAuthorityPublication.ToLowerInvariant()
 $ExpectExecutableAuthorityBlobOid = $ExpectExecutableAuthorityBlobOid.ToLowerInvariant()
 $EvidenceAuthorityCommit = $PinTip
@@ -60,6 +81,7 @@ if ($EvidenceAuthorityCommit -ne $ExpectedEvidenceAuthority) {
 }
 $DbEnv = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL"
 $AuthRel = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json"
+$OuterBindingRel = "docs/security/ra-pro-accounting-automation-corrective-apply/OUTER_LAUNCH_BINDING.json"
 $BundleRel = "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs"
 $EvidenceModRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence.js"
 $DecodeRel = "scripts/security/ra-pro-accounting-automation-corrective-evidence-decode-frame.js"
@@ -224,6 +246,27 @@ function New-CorrectiveDryRunMarkerAtomic(
 }
 
 try {
+  # Trust root 0: authenticated outer-launch binding supplies expected executable.
+  $outerOid = (Get-GitBlobOid "${OuterLaunchBindingPublication}:${OuterBindingRel}").ToLowerInvariant()
+  if ($outerOid -ne $ExpectOuterLaunchBindingBlobOid) {
+    throw "OUTER_LAUNCH_BINDING_PIN_MISMATCH: blob oid"
+  }
+  $outerBytes = Get-GitBlobBytes "${OuterLaunchBindingPublication}:${OuterBindingRel}"
+  $outerBinding = ([Text.Encoding]::UTF8.GetString($outerBytes)) | ConvertFrom-Json
+  if ([string]$outerBinding.protocol -ne "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1") {
+    throw "OUTER_LAUNCH_BINDING_PROTOCOL_MISSING"
+  }
+  if ([string]$outerBinding.status -ne "BOUND") {
+    throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: outer binding not BOUND"
+  }
+  $expectedExecutable = ([string]$outerBinding.expected_executable_commit).ToLowerInvariant()
+  if ($expectedExecutable -notmatch '^[0-9a-f]{40}$') {
+    throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: expected_executable_commit"
+  }
+  if ($expectedExecutable -eq $OuterLaunchBindingPublication) {
+    throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: launcher tip cannot be the expected executable"
+  }
+
   # Trust root 1: executable-authority publication (Git), before dry-run AUTH.
   $execAuthOid = (Get-GitBlobOid "${ExecutableAuthorityPublication}:${AuthRel}").ToLowerInvariant()
   if ($execAuthOid -ne $ExpectExecutableAuthorityBlobOid) {
@@ -239,6 +282,9 @@ try {
   if ($boundExecutable -notmatch '^[0-9a-f]{40}$') {
     throw "EXECUTABLE_AUTHORITY_SEAL_MISSING: authorized_executable_commit"
   }
+  if ($boundExecutable -ne $expectedExecutable) {
+    throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must equal outer expected executable"
+  }
   if ($boundExecutable -eq $HistoricalRejectedExecutable) {
     throw "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED: historical executable 9f31c355… lacks remediated sealed protocol"
   }
@@ -253,14 +299,16 @@ try {
   $allowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js"
   $allowProbe = Start-Process -FilePath $nodeExe -ArgumentList @(
     "-e",
-    "require(process.argv[1]).assertPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+    "require(process.argv[1]).assertExecutableAuthorityBeforeCredentials({publicationCommit:process.argv[2],expectBlobOid:process.argv[3],outerLaunchBindingPublication:process.argv[4],expectOuterLaunchBindingBlobOid:process.argv[5],cwd:process.argv[6]})",
     $allowJs,
-    $boundExecutable,
     $ExecutableAuthorityPublication,
+    $ExpectExecutableAuthorityBlobOid,
+    $OuterLaunchBindingPublication,
+    $ExpectOuterLaunchBindingBlobOid,
     $RepoRoot
   ) -Wait -PassThru -NoNewWindow -WorkingDirectory $RepoRoot
   if ($allowProbe.ExitCode -ne 0) {
-    throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta rejected before SecureString"
+    throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta or outer expected binding rejected before SecureString"
   }
 
   # Trust root 2: dry-run authorization publication (Git), bound to executable-authority.
@@ -330,6 +378,27 @@ try {
   [IO.File]::WriteAllBytes($DecodeFile, (Get-GitBlobBytes "${ExecutableCommit}:${DecodeRel}"))
   [IO.File]::WriteAllBytes($ReceiptModFile, (Get-GitBlobBytes "${ExecutableCommit}:${ReceiptModRel}"))
 
+  if ($TestVisiblePromptProbe) {
+    $allowProbe = [Environment]::GetEnvironmentVariable("RA_PRO_ACCOUNTING_AUTOMATION_CEREMONY_ALLOW_SYNTHETIC_URL", "Process")
+    if ($allowProbe -ne "1") { throw "SYNTHETIC_URL_NOT_ALLOWED" }
+    Write-Output (@{
+      protocol = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_PRODUCTION_DRY_RUN_CEREMONY_V1"
+      result_code = "VISIBLE_PROMPT_READY"
+      verdict = "VISIBLE_PROMPT_READY"
+      expected_executable_commit = $expectedExecutable
+      authorized_executable_commit = $ExecutableCommit
+      outer_launch_binding_publication = $OuterLaunchBindingPublication
+      executable_authority_publication = $ExecutableAuthorityPublication
+      dry_run_authorization_publication = $DryRunAuthorizationPublication
+      securestring_acquired = $false
+      marker_created = $false
+      productionContact = $false
+      databaseConnectionAttempts = 0
+      sqlApplicationAttempts = 0
+    } | ConvertTo-Json -Compress)
+    exit 0
+  }
+
   Write-Host "Paste Session Pooler URL into SecureString only. Never into chat."
   Write-Host ("Channel: " + $DbEnv)
   $secure = Read-Host -Prompt $DbEnv -AsSecureString
@@ -345,9 +414,11 @@ try {
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Command node.exe).Source
-  # --executable-commit / --expect-executable are rechecks only; trust came from exe-auth + dry-run pubs.
+  # --executable-commit / --expect-executable are rechecks only; trust came from outer binding + exe-auth + dry-run pubs.
   $psi.Arguments = (
     "`"$BundleFile`" --dry-run" +
+    " --outer-launch-binding-publication $OuterLaunchBindingPublication" +
+    " --expect-outer-launch-binding-blob-oid $ExpectOuterLaunchBindingBlobOid" +
     " --executable-authority-publication $ExecutableAuthorityPublication" +
     " --expect-executable-authority-blob-oid $ExpectExecutableAuthorityBlobOid" +
     " --dry-run-authorization-publication $DryRunAuthorizationPublication" +

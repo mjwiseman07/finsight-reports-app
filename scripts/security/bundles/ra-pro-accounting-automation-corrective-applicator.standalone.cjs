@@ -72,6 +72,11 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
     var EXECUTABLE_AUTHORITY_MODULE_REL = "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js";
     var EXECUTABLE_AUTHORITY_PROTOCOL_ID = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1";
     var DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
+    var OUTER_LAUNCH_BINDING_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/OUTER_LAUNCH_BINDING.json";
+    var OUTER_LAUNCH_BINDING_MODULE_REL = "scripts/security/ra-pro-accounting-automation-corrective-outer-launch-binding.js";
+    var OUTER_LAUNCH_BINDING_PROTOCOL_ID = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1";
+    var EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED = "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED";
+    var EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH = "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH";
     var EVIDENCE_PIN_AUTHORITY_COMMIT2 = "f550842cd6dd837671599ee8c65bb6ba3932aa62";
     var EVIDENCE_PIN_AUTHORITY_AUTH_OID = "5f3845b14f12b715019e785f40702814a1471b45";
     var EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 = "1c94fea33c01d6ce4fae0e596abbcec81bb59bb55f77fd70207e78ff0940450e";
@@ -103,6 +108,8 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
       EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE,
+      EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+      EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH,
       EXECUTABLE_AUTHORITY_MODULE_REL,
       EXECUTABLE_AUTHORITY_PROTOCOL_ID,
       EXPECTED_PROJECT_REF,
@@ -114,6 +121,9 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       FORBIDDEN_DATABASE_URL_ENVS,
       MIGRATIONS,
       ORIGINAL_COMMITTED_MIGRATIONS,
+      OUTER_LAUNCH_BINDING_MODULE_REL,
+      OUTER_LAUNCH_BINDING_PATH,
+      OUTER_LAUNCH_BINDING_PROTOCOL_ID,
       POST_HISTORY_COUNT,
       PRIOR_HISTORY_COUNT,
       SELF_AUTHORITY_MODULES,
@@ -5759,12 +5769,12 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
       }
       if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
         throw blocked(
-          "DRY_RUN_AUTHORIZATION_REQUIRED",
+          "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
           "--executable-commit alone is not authority; validated dry-run authorization publication required"
         );
       }
       throw blocked(
-        "DRY_RUN_AUTHORIZATION_REQUIRED",
+        "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
         "validated dry-run authorization map required before credentials"
       );
     }
@@ -6016,6 +6026,374 @@ var require_ra_pro_accounting_automation_corrective_apply_authorization = __comm
   }
 });
 
+// scripts/security/ra-pro-accounting-automation-corrective-outer-launch-binding.js
+var require_ra_pro_accounting_automation_corrective_outer_launch_binding = __commonJS({
+  "scripts/security/ra-pro-accounting-automation-corrective-outer-launch-binding.js"(exports2, module2) {
+    "use strict";
+    var path = require("node:path");
+    var { execFileSync } = require("node:child_process");
+    var {
+      EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+      OUTER_LAUNCH_BINDING_PATH,
+      OUTER_LAUNCH_BINDING_PROTOCOL_ID,
+      STANDALONE_BUNDLE_PATH,
+      TOOLING_AUTHORIZATION_PATH
+    } = require_ra_pro_accounting_automation_corrective_apply_constants();
+    var { loadAndVerifyGitBlob } = require_git_blob_authority();
+    var PROTOCOL = OUTER_LAUNCH_BINDING_PROTOCOL_ID;
+    var BINDING_REL = OUTER_LAUNCH_BINDING_PATH;
+    var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
+    var HEX40 = /^[0-9a-f]{40}$/;
+    var HEX64 = /^[0-9a-f]{64}$/;
+    var BOOTSTRAP_REL = "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
+    var CEREMONY_REL = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
+    var ENTRY_REL = "scripts/security/apply-ra-pro-accounting-automation-corrective.js";
+    var FRAME_REL = "scripts/security/ra-pro-accounting-automation-corrective-evidence.js";
+    var RECEIPT_REL = "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js";
+    var SEAL_PAIRS = Object.freeze([
+      ["bootstrap", BOOTSTRAP_REL],
+      ["entry", ENTRY_REL],
+      ["ceremony", CEREMONY_REL],
+      ["bundle", STANDALONE_BUNDLE_PATH],
+      ["frame", FRAME_REL],
+      ["receipt", RECEIPT_REL]
+    ]);
+    function blocked(code, message) {
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      error.phase = "outer_launch_binding";
+      return error;
+    }
+    function gitEnv(cwd) {
+      const env = { ...process.env };
+      const n = Number(env.GIT_CONFIG_COUNT || 0);
+      env.GIT_CONFIG_COUNT = String(n + 1);
+      env[`GIT_CONFIG_KEY_${n}`] = "safe.directory";
+      env[`GIT_CONFIG_VALUE_${n}`] = path.resolve(cwd).replace(/\\/g, "/");
+      env.GIT_AUTHOR_NAME = env.GIT_AUTHOR_NAME || "ra-acct-corrective-outer-bind-disposable";
+      env.GIT_AUTHOR_EMAIL = env.GIT_AUTHOR_EMAIL || "ra-acct-corrective-outer-bind-disposable@invalid";
+      env.GIT_COMMITTER_NAME = env.GIT_COMMITTER_NAME || "ra-acct-corrective-outer-bind-disposable";
+      env.GIT_COMMITTER_EMAIL = env.GIT_COMMITTER_EMAIL || "ra-acct-corrective-outer-bind-disposable@invalid";
+      return env;
+    }
+    function gitText(args, cwd) {
+      return execFileSync("git", args, { cwd, env: gitEnv(cwd), encoding: "utf8" }).trim();
+    }
+    function canonicalUnboundOuterLaunchBinding() {
+      return {
+        protocol: PROTOCOL,
+        status: "UNBOUND",
+        expected_executable_commit: null,
+        executable_authority_publication_commit: null,
+        executable_authority_blob: null,
+        seals: null,
+        note: "Outer launch binding remains UNBOUND on the clean executable tip. A separate reviewed launcher tip binds the expected executable and artifact seals after the executable SHA is known. The launcher tip is never an executable and never an authorization-publication parent."
+      };
+    }
+    function requireSeal(seal, label) {
+      if (!seal || seal.path == null || !HEX40.test(String(seal.oid || "")) || !HEX64.test(String(seal.sha256 || "")) || !Number.isInteger(seal.bytes)) {
+        throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", label);
+      }
+    }
+    function assertSealAgainstTip(commit, rel, seal, cwd) {
+      requireSeal(seal, rel);
+      if (seal.path !== rel) {
+        throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", `${rel} path`);
+      }
+      try {
+        loadAndVerifyGitBlob({
+          commit,
+          path: rel,
+          expectedOid: seal.oid,
+          expectedSha256: seal.sha256,
+          expectedBytes: seal.bytes,
+          cwd
+        });
+      } catch (err) {
+        throw blocked(
+          "OUTER_LAUNCH_BINDING_SEAL_MISMATCH",
+          err && err.message ? err.message : rel
+        );
+      }
+    }
+    function sealAtCommit(commit, rel, cwd) {
+      const loaded = loadAndVerifyGitBlob({ commit, path: rel, cwd });
+      return {
+        path: rel,
+        oid: loaded.oid,
+        sha256: loaded.sha256,
+        bytes: loaded.bytes,
+        line_endings: "LF"
+      };
+    }
+    function loadBindingFromGit(commit, cwd, expect = {}) {
+      const loaded = loadAndVerifyGitBlob({
+        commit,
+        path: BINDING_REL,
+        expectedOid: expect.expectBlobOid,
+        expectedSha256: expect.expectBlobSha256,
+        expectedBytes: expect.expectBlobBytes,
+        cwd
+      });
+      const binding = JSON.parse(loaded.buffer.toString("utf8"));
+      if (binding.protocol !== PROTOCOL) {
+        throw blocked("OUTER_LAUNCH_BINDING_PROTOCOL_MISSING", "protocol");
+      }
+      return { binding, loaded };
+    }
+    function assertBoundBindingShape(binding, cwd) {
+      if (binding.status !== "BOUND") {
+        throw blocked(EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED, "outer binding not BOUND");
+      }
+      const expected = String(binding.expected_executable_commit || "").toLowerCase();
+      if (!HEX40.test(expected)) {
+        throw blocked(EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED, "expected_executable_commit");
+      }
+      const seals = binding.seals || {};
+      for (const [key, rel] of SEAL_PAIRS) {
+        assertSealAgainstTip(expected, rel, seals[key], cwd);
+      }
+      const authPub = binding.executable_authority_publication_commit;
+      const authBlob = binding.executable_authority_blob;
+      if (authPub != null || authBlob != null) {
+        const pub = String(authPub || "").toLowerCase();
+        if (!HEX40.test(pub)) {
+          throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", "executable_authority_publication_commit");
+        }
+        requireSeal(authBlob, "executable_authority_blob");
+        if (authBlob.path && authBlob.path !== AUTH_REL) {
+          throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", "executable_authority_blob path");
+        }
+        loadAndVerifyGitBlob({
+          commit: pub,
+          path: AUTH_REL,
+          expectedOid: authBlob.oid,
+          expectedSha256: authBlob.sha256,
+          expectedBytes: authBlob.bytes,
+          cwd
+        });
+      }
+      return expected;
+    }
+    function resolveAuthenticatedExpectedExecutable(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      if (inputs.fromArgv === true) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "argv cannot supply trusted expectedExecutableCommit"
+        );
+      }
+      if (inputs.fromEnv === true) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "env cannot supply trusted expectedExecutableCommit"
+        );
+      }
+      if (inputs.fromWorktree === true || inputs.worktreeBinding != null) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "worktree cannot supply trusted expectedExecutableCommit"
+        );
+      }
+      if (inputs.fromAuthorizationRecord === true) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "authorization record cannot supply trusted expectedExecutableCommit"
+        );
+      }
+      if (inputs.testOnlyHarnessContext === true && inputs.allowInProcessExpectedExecutable === true) {
+        const tip = String(inputs.expectedExecutableCommit || "").toLowerCase();
+        if (!HEX40.test(tip)) {
+          throw blocked(
+            EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+            "harness expectedExecutableCommit shape"
+          );
+        }
+        return {
+          expected_executable_commit: tip,
+          source: "in_process_harness",
+          binding_publication_commit: null,
+          binding_blob_oid: null,
+          binding: null
+        };
+      }
+      const publication = String(
+        inputs.outerLaunchBindingPublication || inputs.outerLaunchBindingCommit || ""
+      ).toLowerCase();
+      if (!HEX40.test(publication)) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "outerLaunchBindingPublication required"
+        );
+      }
+      const { binding, loaded } = loadBindingFromGit(publication, cwd, {
+        expectBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+        expectBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+        expectBlobBytes: inputs.expectOuterLaunchBindingBlobBytes
+      });
+      if (inputs.binding && JSON.stringify(inputs.binding) !== JSON.stringify(binding)) {
+        throw blocked("OUTER_LAUNCH_BINDING_WORKTREE_SUBSTITUTE", "binding object");
+      }
+      const expected = assertBoundBindingShape(binding, cwd);
+      if (expected === publication) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "launcher tip cannot be the expected executable"
+        );
+      }
+      if (inputs.expectExecutableRecheck != null && String(inputs.expectExecutableRecheck).length) {
+        const recheck = String(inputs.expectExecutableRecheck).toLowerCase();
+        if (!HEX40.test(recheck) || recheck !== expected) {
+          throw blocked("OUTER_LAUNCH_BINDING_PIN_MISMATCH", "expectExecutableRecheck");
+        }
+      }
+      return {
+        expected_executable_commit: expected,
+        source: "outer_launch_binding_git",
+        binding_publication_commit: publication,
+        binding_blob_oid: loaded.oid,
+        binding_blob_sha256: loaded.sha256,
+        binding_blob_bytes: loaded.bytes,
+        binding,
+        executable_authority_publication_commit: binding.executable_authority_publication_commit || null,
+        executable_authority_blob: binding.executable_authority_blob || null,
+        seals: binding.seals
+      };
+    }
+    function describeOuterLaunchBinding(inputs = {}) {
+      return resolveAuthenticatedExpectedExecutable(inputs);
+    }
+    function mktree(lines, cwd) {
+      const input = lines.length ? `${lines.join("\n")}
+` : "";
+      return execFileSync("git", ["mktree"], {
+        cwd,
+        env: gitEnv(cwd),
+        input,
+        encoding: "utf8"
+      }).trim();
+    }
+    function replacePathInTree(tree, parts, blob, cwd) {
+      const lines = gitText(["ls-tree", tree], cwd).split(/\n/).filter(Boolean);
+      const name = parts[0];
+      let found = false;
+      const next = lines.map((line) => {
+        const tab = line.indexOf("	");
+        if (line.slice(tab + 1) !== name) return line;
+        found = true;
+        if (parts.length === 1) return `100644 blob ${blob}	${name}`;
+        const old = line.slice(0, tab).split(" ")[2];
+        const child = replacePathInTree(old, parts.slice(1), blob, cwd);
+        return `040000 tree ${child}	${name}`;
+      });
+      if (!found) {
+        if (parts.length === 1) next.push(`100644 blob ${blob}	${name}`);
+        else {
+          const emptyTree = mktree([], cwd);
+          const child = replacePathInTree(emptyTree, parts.slice(1), blob, cwd);
+          next.push(`040000 tree ${child}	${name}`);
+        }
+      }
+      return mktree(next, cwd);
+    }
+    function commitBindingTree(cwd, parent, bindingObject) {
+      const text = `${JSON.stringify(bindingObject, null, 2)}
+`;
+      if (text.includes("\r")) throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", "crlf");
+      const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+        cwd,
+        env: gitEnv(cwd),
+        input: text,
+        encoding: "utf8"
+      }).trim();
+      const tree = gitText(["log", "-1", "--format=%T", parent], cwd);
+      const newTree = replacePathInTree(tree, BINDING_REL.split("/"), blob, cwd);
+      return execFileSync(
+        "git",
+        ["commit-tree", newTree, "-p", parent, "-m", "disposable corrective outer launch binding"],
+        { cwd, env: gitEnv(cwd), encoding: "utf8" }
+      ).trim();
+    }
+    function createDisposableOuterLaunchBindingCommit(inputs = {}) {
+      if (inputs.allowDisposableOuterLaunchBindingCommit !== true) {
+        throw blocked("DISPOSABLE_OUTER_LAUNCH_BINDING_FORBIDDEN", "harness flag required");
+      }
+      if (inputs.testOnlyHarnessContext !== true) {
+        throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
+      }
+      const cwd = inputs.cwd || process.cwd();
+      const expected = String(inputs.expectedExecutableCommit || "").toLowerCase();
+      if (!HEX40.test(expected)) {
+        throw blocked(
+          EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+          "expectedExecutableCommit required"
+        );
+      }
+      const seals = {};
+      for (const [key, rel] of SEAL_PAIRS) {
+        seals[key] = sealAtCommit(expected, rel, cwd);
+      }
+      let executableAuthorityPublicationCommit = null;
+      let executableAuthorityBlob = null;
+      if (inputs.executableAuthorityPublicationCommit) {
+        const pub = String(inputs.executableAuthorityPublicationCommit).toLowerCase();
+        if (!HEX40.test(pub)) {
+          throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", "executableAuthorityPublicationCommit");
+        }
+        const loaded = loadAndVerifyGitBlob({ commit: pub, path: AUTH_REL, cwd });
+        executableAuthorityPublicationCommit = pub;
+        executableAuthorityBlob = {
+          path: AUTH_REL,
+          oid: loaded.oid,
+          sha256: loaded.sha256,
+          bytes: loaded.bytes
+        };
+      }
+      const binding = {
+        protocol: PROTOCOL,
+        status: "BOUND",
+        expected_executable_commit: expected,
+        executable_authority_publication_commit: executableAuthorityPublicationCommit,
+        executable_authority_blob: executableAuthorityBlob,
+        seals,
+        note: "Disposable outer-launch binding for harness only. Launcher tip is not executable and not an authorization-publication parent."
+      };
+      const before = gitText(["rev-parse", "HEAD"], cwd);
+      const publication = commitBindingTree(cwd, expected, binding);
+      const after = gitText(["rev-parse", "HEAD"], cwd);
+      if (before !== after) throw blocked("OUTER_LAUNCH_BINDING_SEAL_MISSING", "HEAD moved");
+      if (publication === expected) {
+        throw blocked(EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED, "circular launcher");
+      }
+      return {
+        outerLaunchBindingPublication: publication,
+        expectedExecutableCommit: expected,
+        binding_blob_oid: gitText(["rev-parse", `${publication}:${BINDING_REL}`], cwd),
+        headUnchanged: true,
+        binding
+      };
+    }
+    module2.exports = {
+      AUTH_REL,
+      BINDING_REL,
+      BOOTSTRAP_REL,
+      CEREMONY_REL,
+      ENTRY_REL,
+      FRAME_REL,
+      PROTOCOL,
+      RECEIPT_REL,
+      SEAL_PAIRS,
+      assertBoundBindingShape,
+      canonicalUnboundOuterLaunchBinding,
+      createDisposableOuterLaunchBindingCommit,
+      describeOuterLaunchBinding,
+      loadBindingFromGit,
+      resolveAuthenticatedExpectedExecutable,
+      sealAtCommit
+    };
+  }
+});
+
 // scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js
 var require_ra_pro_accounting_automation_corrective_executable_authority = __commonJS({
   "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js"(exports2, module2) {
@@ -6028,9 +6406,13 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       EVIDENCE_PIN_AUTHORITY_AUTH_OID,
       EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
       EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
+      EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+      EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH,
       EXECUTABLE_AUTHORITY_MODULE_REL,
       EXECUTABLE_AUTHORITY_PROTOCOL_ID,
       EXPECTED_PROJECT_REF,
+      OUTER_LAUNCH_BINDING_MODULE_REL,
+      OUTER_LAUNCH_BINDING_PROTOCOL_ID,
       REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       STANDALONE_BUNDLE_BYTES,
       STANDALONE_BUNDLE_OID,
@@ -6039,12 +6421,17 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
+    var {
+      resolveAuthenticatedExpectedExecutable
+    } = require_ra_pro_accounting_automation_corrective_outer_launch_binding();
     var PROTOCOL = EXECUTABLE_AUTHORITY_PROTOCOL_ID;
     var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
     var RECORD_KEY = "production_executable_authority";
     var BLOCKED_UNPUBLISHED = "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED";
     var HISTORICAL_REJECTED = "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED";
     var PROTOCOL_MISSING = "EXECUTABLE_AUTHORITY_PROTOCOL_MISSING";
+    var EXPECTED_EXECUTABLE_REQUIRED = EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED;
+    var IMMUTABLE_MISMATCH = EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH;
     var HEX40 = /^[0-9a-f]{40}$/;
     var HEX64 = /^[0-9a-f]{64}$/;
     var BOOTSTRAP_REL = "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
@@ -6188,6 +6575,20 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       }
       if (!bundleText.includes(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE)) {
         throw blocked(PROTOCOL_MISSING, "bundle missing DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
+      }
+      if (!bundleText.includes(OUTER_LAUNCH_BINDING_PROTOCOL_ID)) {
+        throw blocked(PROTOCOL_MISSING, "bundle missing outer-launch binding protocol id");
+      }
+      if (!bundleText.includes(EXPECTED_EXECUTABLE_REQUIRED)) {
+        throw blocked(PROTOCOL_MISSING, "bundle missing EXPECTED_EXECUTABLE_REQUIRED");
+      }
+      if (!bundleText.includes(IMMUTABLE_MISMATCH)) {
+        throw blocked(PROTOCOL_MISSING, "bundle missing IMMUTABLE_MISMATCH");
+      }
+      try {
+        gitText(["rev-parse", "--verify", `${tip}:${OUTER_LAUNCH_BINDING_MODULE_REL}`], cwd);
+      } catch {
+        throw blocked(PROTOCOL_MISSING, "outer-launch binding module absent from executable tip");
       }
     }
     function assertPublicationAllowlist(inputs = {}) {
@@ -6338,6 +6739,30 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       if (!HEX40.test(executable)) {
         throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "authorized_executable_commit");
       }
+      const expectedResolved = resolveAuthenticatedExpectedExecutable({
+        cwd,
+        outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+        outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+        expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+        expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+        expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+        binding: inputs.outerLaunchBinding,
+        expectedExecutableCommit: inputs.expectedExecutableCommit,
+        testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+        allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
+        fromArgv: inputs.fromArgv,
+        fromEnv: inputs.fromEnv,
+        fromWorktree: inputs.fromWorktree,
+        fromAuthorizationRecord: inputs.fromAuthorizationRecord,
+        expectExecutableRecheck: inputs.expectExecutableRecheck
+      });
+      const expected = expectedResolved.expected_executable_commit;
+      if (executable !== expected) {
+        throw blocked(
+          IMMUTABLE_MISMATCH,
+          `authorized_executable_commit ${executable} != outer expected ${expected}`
+        );
+      }
       assertNotHistoricalExecutable(executable);
       assertExecutableHasRemediatedProtocol(executable, cwd);
       assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
@@ -6346,6 +6771,9 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       return {
         ...base,
         authorized_executable_commit: executable,
+        expected_executable_commit: expected,
+        outer_launch_binding_publication: expectedResolved.binding_publication_commit,
+        outer_launch_binding_blob_oid: expectedResolved.binding_blob_oid,
         bundle_oid: record.bundle.oid,
         bundle_sha256: record.bundle.sha256,
         bundle_bytes: record.bundle.bytes,
@@ -6399,7 +6827,15 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
         publicationCommit: expectCommit,
         expectBlobOid: expectOid,
         expectBlobSha256: inputs.expectBlobSha256,
-        expectBlobBytes: inputs.expectBlobBytes
+        expectBlobBytes: inputs.expectBlobBytes,
+        outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+        outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+        expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+        expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+        expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+        expectedExecutableCommit: inputs.expectedExecutableCommit,
+        testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+        allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable
       });
       if (decision.blocked) throw blocked(decision.blocked, "recheck");
       if (decision.publication_commit !== expectCommit || decision.authorization_publication_blob_oid !== expectOid || decision.authorized_executable_commit !== expectExecutable) {
@@ -6534,8 +6970,10 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       BOOTSTRAP_REL,
       CEREMONY_REL,
       ENTRY_REL,
+      EXPECTED_EXECUTABLE_REQUIRED,
       FRAME_REL,
       HISTORICAL_REJECTED,
+      IMMUTABLE_MISMATCH,
       PROTOCOL,
       PROTOCOL_MISSING,
       RECEIPT_REL,
@@ -6725,7 +7163,15 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
         expectBlobOid: inputs.expectExecutableAuthorityBlobOid,
         expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
         expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
-        auth: inputs.executableAuthorityAuth
+        auth: inputs.executableAuthorityAuth,
+        outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+        outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+        expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+        expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+        expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+        expectedExecutableCommit: inputs.expectedExecutableCommit,
+        testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+        allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable
       });
     }
     function assertNotCircularPin(publication, executable, blobText) {
@@ -11111,12 +11557,19 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
             env: inputs.env || {},
             expectBlobOid: inputs.expectExecutableAuthorityBlobOid,
             expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
-            expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes
+            expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
+            outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+            expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+            expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+            expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+            expectedExecutableCommit: inputs.expectedExecutableCommit,
+            testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+            allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable
           });
         }
         if (!executableAuthorityMap || executableAuthorityMap.executable_authorized !== true) {
           const err = new Error(
-            "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated executable-authority publication required before dry-run AUTH"
+            "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated outer-launch binding + executable-authority publication required before dry-run AUTH"
           );
           err.code = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
           throw err;
@@ -11128,7 +11581,12 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
             expectCommit: inputs.expectExecutableAuthorityCommit || inputs.executableAuthorityPublication || executableAuthorityMap.publication_commit,
             expectBlobOid: inputs.expectExecutableAuthorityBlobOid || executableAuthorityMap.authorization_publication_blob_oid,
             expectBundleOid: inputs.expectBundleOid || executableAuthorityMap.bundle_oid,
-            expectLiveRef: inputs.expectExecutableAuthorityLiveRef
+            expectLiveRef: inputs.expectExecutableAuthorityLiveRef,
+            outerLaunchBindingPublication: inputs.outerLaunchBindingPublication || executableAuthorityMap.outer_launch_binding_publication,
+            expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid || executableAuthorityMap.outer_launch_binding_blob_oid,
+            expectedExecutableCommit: inputs.expectedExecutableCommit,
+            testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+            allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable
           });
         }
         let dryRunMap = inputs.dryRunAuthorizationMap || null;
@@ -11174,9 +11632,9 @@ var require_ra_pro_accounting_automation_corrective_apply_core = __commonJS({
           };
         } else {
           const err = new Error(
-            "DRY_RUN_AUTHORIZATION_REQUIRED: validated dry-run authorization publication required; --executable-commit alone is not authority"
+            "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated dry-run authorization publication required; --executable-commit alone is not authority"
           );
-          err.code = "DRY_RUN_AUTHORIZATION_REQUIRED";
+          err.code = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
           throw err;
         }
         evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
@@ -12085,7 +12543,11 @@ function readFlags(raw) {
     executableAuthorityPublication: null,
     expectExecutableAuthorityBlobOid: null,
     expectExecutableAuthorityBlobSha256: null,
-    expectExecutableAuthorityBlobBytes: null
+    expectExecutableAuthorityBlobBytes: null,
+    outerLaunchBindingPublication: null,
+    expectOuterLaunchBindingBlobOid: null,
+    expectOuterLaunchBindingBlobSha256: null,
+    expectOuterLaunchBindingBlobBytes: null
   };
   for (let i = 0; i < raw.length; i += 1) {
     const arg = raw[i];
@@ -12125,6 +12587,18 @@ function readFlags(raw) {
     } else if (arg === "--expect-executable-authority-blob-bytes") {
       flags.expectExecutableAuthorityBlobBytes = raw[i + 1] || null;
       i += 1;
+    } else if (arg === "--outer-launch-binding-publication") {
+      flags.outerLaunchBindingPublication = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-oid") {
+      flags.expectOuterLaunchBindingBlobOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-sha256") {
+      flags.expectOuterLaunchBindingBlobSha256 = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-bytes") {
+      flags.expectOuterLaunchBindingBlobBytes = raw[i + 1] || null;
+      i += 1;
     } else flags.unknown = true;
   }
   return flags;
@@ -12143,13 +12617,13 @@ async function main() {
   let dryRunMap = null;
   let executableAuthorityMap = null;
   if (mode === "dry-run") {
-    const hasFullPin = flags.executableAuthorityPublication && flags.expectExecutableAuthorityBlobOid && flags.dryRunAuthorizationPublication && flags.expectAuthorizationBlobOid && flags.expectExecutable && flags.expectBundleOid && flags.expectAttemptId;
+    const hasFullPin = flags.outerLaunchBindingPublication && flags.expectOuterLaunchBindingBlobOid && flags.executableAuthorityPublication && flags.expectExecutableAuthorityBlobOid && flags.dryRunAuthorizationPublication && flags.expectAuthorizationBlobOid && flags.expectExecutable && flags.expectBundleOid && flags.expectAttemptId;
     if (!hasFullPin) {
       process.stdout.write(
         `${JSON.stringify({
           verdict: "DRY_RUN_BLOCKED",
           error_code: "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
-          error: "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated executable-authority + dry-run authorization publication pins required; --executable-commit alone is not authority",
+          error: "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated outer-launch binding + executable-authority + dry-run authorization publication pins required; --executable-commit alone is not authority",
           apply_authorized: false,
           productionContact: false,
           databaseConnectionAttempts: 0
@@ -12164,20 +12638,30 @@ async function main() {
       env: process.env,
       expectBlobOid: flags.expectExecutableAuthorityBlobOid,
       expectBlobSha256: flags.expectExecutableAuthorityBlobSha256,
-      expectBlobBytes: flags.expectExecutableAuthorityBlobBytes ? Number(flags.expectExecutableAuthorityBlobBytes) : void 0
+      expectBlobBytes: flags.expectExecutableAuthorityBlobBytes ? Number(flags.expectExecutableAuthorityBlobBytes) : void 0,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
+      expectOuterLaunchBindingBlobSha256: flags.expectOuterLaunchBindingBlobSha256,
+      expectOuterLaunchBindingBlobBytes: flags.expectOuterLaunchBindingBlobBytes ? Number(flags.expectOuterLaunchBindingBlobBytes) : void 0
     });
     recheckExecutableAuthorityPin({
       cwd: process.cwd(),
       expectExecutable: flags.expectExecutable,
       expectCommit: flags.executableAuthorityPublication,
       expectBlobOid: flags.expectExecutableAuthorityBlobOid,
-      expectBundleOid: flags.expectBundleOid
+      expectBundleOid: flags.expectBundleOid,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
+      expectOuterLaunchBindingBlobSha256: flags.expectOuterLaunchBindingBlobSha256,
+      expectOuterLaunchBindingBlobBytes: flags.expectOuterLaunchBindingBlobBytes ? Number(flags.expectOuterLaunchBindingBlobBytes) : void 0
     });
     dryRunMap = assertDryRunAuthorizedBeforeCredentials({
       cwd: process.cwd(),
       publicationCommit: flags.dryRunAuthorizationPublication,
       env: process.env,
-      executableAuthorityMap
+      executableAuthorityMap,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid
     });
     recheckDryRunAuthorizationPin({
       cwd: process.cwd(),
@@ -12188,14 +12672,29 @@ async function main() {
       expectAttemptId: flags.expectAttemptId,
       expectExecutableAuthorityCommit: flags.executableAuthorityPublication,
       expectExecutableAuthorityBlobOid: flags.expectExecutableAuthorityBlobOid,
-      executableAuthorityMap
+      executableAuthorityMap,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid
     });
     if (dryRunMap.authorized_executable_commit !== String(flags.expectExecutable).toLowerCase()) {
       process.stdout.write(
         `${JSON.stringify({
           verdict: "DRY_RUN_BLOCKED",
           error_code: "DRY_RUN_AUTHORIZATION_PIN_MISMATCH",
-          error: "expect-executable does not match authorization map",
+          error: "expect-executable recheck does not match authorization map",
+          productionContact: false
+        })}
+`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    if (executableAuthorityMap.expected_executable_commit !== String(flags.expectExecutable).toLowerCase()) {
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH",
+          error: "expect-executable recheck does not match outer-launch expected executable",
           productionContact: false
         })}
 `

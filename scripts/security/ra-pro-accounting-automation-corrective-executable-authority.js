@@ -9,6 +9,9 @@
  * that contains the full remediated sealed chain, without storing the
  * publication SHA in the AUTH blob.
  *
+ * authorized_executable_commit is never trusted alone: an authenticated
+ * outer-launch binding must supply expectedExecutableCommit for comparison.
+ *
  * Historical tip 9f31c355… is rejected: its sealed hops lack this protocol.
  * Dry-run authorization must bind a validated executable-authority map and may
  * not independently choose authorized_executable_commit.
@@ -21,9 +24,13 @@ const {
   EVIDENCE_PIN_AUTHORITY_AUTH_OID,
   EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
   EVIDENCE_PIN_AUTHORITY_COMMIT,
+  EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+  EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH,
   EXECUTABLE_AUTHORITY_MODULE_REL,
   EXECUTABLE_AUTHORITY_PROTOCOL_ID,
   EXPECTED_PROJECT_REF,
+  OUTER_LAUNCH_BINDING_MODULE_REL,
+  OUTER_LAUNCH_BINDING_PROTOCOL_ID,
   REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
   STANDALONE_BUNDLE_BYTES,
   STANDALONE_BUNDLE_OID,
@@ -32,6 +39,9 @@ const {
   TOOLING_AUTHORIZATION_PATH,
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
+const {
+  resolveAuthenticatedExpectedExecutable,
+} = require("./ra-pro-accounting-automation-corrective-outer-launch-binding");
 
 const PROTOCOL = EXECUTABLE_AUTHORITY_PROTOCOL_ID;
 const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
@@ -39,6 +49,8 @@ const RECORD_KEY = "production_executable_authority";
 const BLOCKED_UNPUBLISHED = "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED";
 const HISTORICAL_REJECTED = "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED";
 const PROTOCOL_MISSING = "EXECUTABLE_AUTHORITY_PROTOCOL_MISSING";
+const EXPECTED_EXECUTABLE_REQUIRED = EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED;
+const IMMUTABLE_MISMATCH = EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH;
 const HEX40 = /^[0-9a-f]{40}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -207,6 +219,20 @@ function assertExecutableHasRemediatedProtocol(executable, cwd) {
   }
   if (!bundleText.includes(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE)) {
     throw blocked(PROTOCOL_MISSING, "bundle missing DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
+  }
+  if (!bundleText.includes(OUTER_LAUNCH_BINDING_PROTOCOL_ID)) {
+    throw blocked(PROTOCOL_MISSING, "bundle missing outer-launch binding protocol id");
+  }
+  if (!bundleText.includes(EXPECTED_EXECUTABLE_REQUIRED)) {
+    throw blocked(PROTOCOL_MISSING, "bundle missing EXPECTED_EXECUTABLE_REQUIRED");
+  }
+  if (!bundleText.includes(IMMUTABLE_MISMATCH)) {
+    throw blocked(PROTOCOL_MISSING, "bundle missing IMMUTABLE_MISMATCH");
+  }
+  try {
+    gitText(["rev-parse", "--verify", `${tip}:${OUTER_LAUNCH_BINDING_MODULE_REL}`], cwd);
+  } catch {
+    throw blocked(PROTOCOL_MISSING, "outer-launch binding module absent from executable tip");
   }
 }
 
@@ -378,6 +404,32 @@ function describeExecutableAuthorityMap(inputs = {}) {
   if (!HEX40.test(executable)) {
     throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "authorized_executable_commit");
   }
+  // Expected tip comes only from authenticated outer-launch binding (or harness).
+  // Never trust the AUTH record, argv, env, or worktree as the expected source.
+  const expectedResolved = resolveAuthenticatedExpectedExecutable({
+    cwd,
+    outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+    outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+    expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+    expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+    expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+    binding: inputs.outerLaunchBinding,
+    expectedExecutableCommit: inputs.expectedExecutableCommit,
+    testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+    allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
+    fromArgv: inputs.fromArgv,
+    fromEnv: inputs.fromEnv,
+    fromWorktree: inputs.fromWorktree,
+    fromAuthorizationRecord: inputs.fromAuthorizationRecord,
+    expectExecutableRecheck: inputs.expectExecutableRecheck,
+  });
+  const expected = expectedResolved.expected_executable_commit;
+  if (executable !== expected) {
+    throw blocked(
+      IMMUTABLE_MISMATCH,
+      `authorized_executable_commit ${executable} != outer expected ${expected}`,
+    );
+  }
   assertNotHistoricalExecutable(executable);
   assertExecutableHasRemediatedProtocol(executable, cwd);
   assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
@@ -386,6 +438,9 @@ function describeExecutableAuthorityMap(inputs = {}) {
   return {
     ...base,
     authorized_executable_commit: executable,
+    expected_executable_commit: expected,
+    outer_launch_binding_publication: expectedResolved.binding_publication_commit,
+    outer_launch_binding_blob_oid: expectedResolved.binding_blob_oid,
     bundle_oid: record.bundle.oid,
     bundle_sha256: record.bundle.sha256,
     bundle_bytes: record.bundle.bytes,
@@ -443,6 +498,14 @@ function recheckExecutableAuthorityPin(inputs = {}) {
     expectBlobOid: expectOid,
     expectBlobSha256: inputs.expectBlobSha256,
     expectBlobBytes: inputs.expectBlobBytes,
+    outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+    outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+    expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+    expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+    expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+    expectedExecutableCommit: inputs.expectedExecutableCommit,
+    testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+    allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
   });
   if (decision.blocked) throw blocked(decision.blocked, "recheck");
   if (
@@ -588,8 +651,10 @@ module.exports = {
   BOOTSTRAP_REL,
   CEREMONY_REL,
   ENTRY_REL,
+  EXPECTED_EXECUTABLE_REQUIRED,
   FRAME_REL,
   HISTORICAL_REJECTED,
+  IMMUTABLE_MISMATCH,
   PROTOCOL,
   PROTOCOL_MISSING,
   RECEIPT_REL,

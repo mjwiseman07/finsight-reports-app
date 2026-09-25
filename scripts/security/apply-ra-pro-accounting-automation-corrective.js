@@ -45,6 +45,10 @@ function readFlags(raw) {
     expectExecutableAuthorityBlobOid: null,
     expectExecutableAuthorityBlobSha256: null,
     expectExecutableAuthorityBlobBytes: null,
+    outerLaunchBindingPublication: null,
+    expectOuterLaunchBindingBlobOid: null,
+    expectOuterLaunchBindingBlobSha256: null,
+    expectOuterLaunchBindingBlobBytes: null,
   };
   for (let i = 0; i < raw.length; i += 1) {
     const arg = raw[i];
@@ -85,6 +89,18 @@ function readFlags(raw) {
     } else if (arg === "--expect-executable-authority-blob-bytes") {
       flags.expectExecutableAuthorityBlobBytes = raw[i + 1] || null;
       i += 1;
+    } else if (arg === "--outer-launch-binding-publication") {
+      flags.outerLaunchBindingPublication = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-oid") {
+      flags.expectOuterLaunchBindingBlobOid = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-sha256") {
+      flags.expectOuterLaunchBindingBlobSha256 = raw[i + 1] || null;
+      i += 1;
+    } else if (arg === "--expect-outer-launch-binding-blob-bytes") {
+      flags.expectOuterLaunchBindingBlobBytes = raw[i + 1] || null;
+      i += 1;
     } else flags.unknown = true;
   }
   return flags;
@@ -105,6 +121,8 @@ async function main() {
   let executableAuthorityMap = null;
   if (mode === "dry-run") {
     const hasFullPin =
+      flags.outerLaunchBindingPublication &&
+      flags.expectOuterLaunchBindingBlobOid &&
       flags.executableAuthorityPublication &&
       flags.expectExecutableAuthorityBlobOid &&
       flags.dryRunAuthorizationPublication &&
@@ -118,7 +136,7 @@ async function main() {
           verdict: "DRY_RUN_BLOCKED",
           error_code: "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
           error:
-            "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated executable-authority + dry-run authorization publication pins required; --executable-commit alone is not authority",
+            "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated outer-launch binding + executable-authority + dry-run authorization publication pins required; --executable-commit alone is not authority",
           apply_authorized: false,
           productionContact: false,
           databaseConnectionAttempts: 0,
@@ -135,6 +153,12 @@ async function main() {
       expectBlobBytes: flags.expectExecutableAuthorityBlobBytes
         ? Number(flags.expectExecutableAuthorityBlobBytes)
         : undefined,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
+      expectOuterLaunchBindingBlobSha256: flags.expectOuterLaunchBindingBlobSha256,
+      expectOuterLaunchBindingBlobBytes: flags.expectOuterLaunchBindingBlobBytes
+        ? Number(flags.expectOuterLaunchBindingBlobBytes)
+        : undefined,
     });
     recheckExecutableAuthorityPin({
       cwd: process.cwd(),
@@ -142,12 +166,20 @@ async function main() {
       expectCommit: flags.executableAuthorityPublication,
       expectBlobOid: flags.expectExecutableAuthorityBlobOid,
       expectBundleOid: flags.expectBundleOid,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
+      expectOuterLaunchBindingBlobSha256: flags.expectOuterLaunchBindingBlobSha256,
+      expectOuterLaunchBindingBlobBytes: flags.expectOuterLaunchBindingBlobBytes
+        ? Number(flags.expectOuterLaunchBindingBlobBytes)
+        : undefined,
     });
     dryRunMap = assertDryRunAuthorizedBeforeCredentials({
       cwd: process.cwd(),
       publicationCommit: flags.dryRunAuthorizationPublication,
       env: process.env,
       executableAuthorityMap,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
     });
     recheckDryRunAuthorizationPin({
       cwd: process.cwd(),
@@ -159,13 +191,30 @@ async function main() {
       expectExecutableAuthorityCommit: flags.executableAuthorityPublication,
       expectExecutableAuthorityBlobOid: flags.expectExecutableAuthorityBlobOid,
       executableAuthorityMap,
+      outerLaunchBindingPublication: flags.outerLaunchBindingPublication,
+      expectOuterLaunchBindingBlobOid: flags.expectOuterLaunchBindingBlobOid,
     });
     if (dryRunMap.authorized_executable_commit !== String(flags.expectExecutable).toLowerCase()) {
       process.stdout.write(
         `${JSON.stringify({
           verdict: "DRY_RUN_BLOCKED",
           error_code: "DRY_RUN_AUTHORIZATION_PIN_MISMATCH",
-          error: "expect-executable does not match authorization map",
+          error: "expect-executable recheck does not match authorization map",
+          productionContact: false,
+        })}\n`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    if (
+      executableAuthorityMap.expected_executable_commit !==
+      String(flags.expectExecutable).toLowerCase()
+    ) {
+      process.stdout.write(
+        `${JSON.stringify({
+          verdict: "DRY_RUN_BLOCKED",
+          error_code: "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH",
+          error: "expect-executable recheck does not match outer-launch expected executable",
           productionContact: false,
         })}\n`,
       );

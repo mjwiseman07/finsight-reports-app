@@ -8,20 +8,30 @@
 #>
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$PrHead,
-
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$ExecutableAuthorityPublication,
-
-  [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-fA-F]{40}$')]
-  [string]$ExpectExecutableAuthorityBlobOid,
+  # All pins are validated in-body AFTER SealedMaterialInvocation so direct
+  # worktree -File returns BOOTSTRAP_DIRECT_EXEC_FORBIDDEN before param binding errors.
+  [Parameter(Mandatory = $false)]
+  [string]$PrHead = "",
 
   [Parameter(Mandatory = $false)]
-  [ValidatePattern('^[0-9a-fA-F]{64}$')]
+  [string]$OuterLaunchBindingPublication = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExpectOuterLaunchBindingBlobOid = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExpectOuterLaunchBindingBlobSha256 = "",
+
+  [Parameter(Mandatory = $false)]
+  [int]$ExpectOuterLaunchBindingBlobBytes = 0,
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExecutableAuthorityPublication = "",
+
+  [Parameter(Mandatory = $false)]
+  [string]$ExpectExecutableAuthorityBlobOid = "",
+
+  [Parameter(Mandatory = $false)]
   [string]$ExpectExecutableAuthorityBlobSha256 = "",
 
   [Parameter(Mandatory = $false)]
@@ -39,27 +49,50 @@ param(
 
   # Harness-only disposable publication override (never production argv trust).
   [Parameter(Mandatory = $false)]
-  [string]$TestPublicationCommit = ""
+  [string]$TestPublicationCommit = "",
+
+  # Harness-only: stop at VISIBLE_PROMPT_READY after gates, before SecureString.
+  [Parameter(Mandatory = $false)]
+  [switch]$TestVisiblePromptProbe
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
+# DIRECT_EXEC must run before mandatory-parameter validation.
+if (-not $SealedMaterialInvocation) {
+  throw "BOOTSTRAP_DIRECT_EXEC_FORBIDDEN: materialize from tip seals via APPLY_RUNBOOK authenticated launch only"
+}
+
+if ($PrHead -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "BOOTSTRAP_PARAM_REQUIRED: PrHead"
+}
+if ($OuterLaunchBindingPublication -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: OuterLaunchBindingPublication"
+}
+if ($ExpectOuterLaunchBindingBlobOid -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: ExpectOuterLaunchBindingBlobOid"
+}
+if ($ExecutableAuthorityPublication -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "BOOTSTRAP_PARAM_REQUIRED: ExecutableAuthorityPublication"
+}
+if ($ExpectExecutableAuthorityBlobOid -notmatch '^[0-9a-fA-F]{40}$') {
+  throw "BOOTSTRAP_PARAM_REQUIRED: ExpectExecutableAuthorityBlobOid"
+}
+if (-not [string]::IsNullOrWhiteSpace($ExpectExecutableAuthorityBlobSha256) -and $ExpectExecutableAuthorityBlobSha256 -notmatch '^[0-9a-fA-F]{64}$') {
+  throw "BOOTSTRAP_PARAM_REQUIRED: ExpectExecutableAuthorityBlobSha256"
+}
+if (-not [string]::IsNullOrWhiteSpace($ExpectOuterLaunchBindingBlobSha256) -and $ExpectOuterLaunchBindingBlobSha256 -notmatch '^[0-9a-fA-F]{64}$') {
+  throw "BOOTSTRAP_PARAM_REQUIRED: ExpectOuterLaunchBindingBlobSha256"
+}
+
 $AuthRel = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json"
+$OuterBindingRel = "docs/security/ra-pro-accounting-automation-corrective-apply/OUTER_LAUNCH_BINDING.json"
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1"
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
 $HistoricalRejectedExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
 $script:MaterialRoot = $null
-
-try {
-  if (-not $SealedMaterialInvocation) {
-    throw "BOOTSTRAP_DIRECT_EXEC_FORBIDDEN: materialize from tip seals via APPLY_RUNBOOK authenticated launch only"
-  }
-} catch {
-  if ($_.Exception.Message -like "BOOTSTRAP_DIRECT_EXEC_FORBIDDEN*") { throw }
-  throw "BOOTSTRAP_DIRECT_EXEC_FORBIDDEN: materialize from tip seals via APPLY_RUNBOOK authenticated launch only"
-}
 
 function Get-Sha256Hex([byte[]]$Bytes) {
   $sha = [Security.Cryptography.SHA256]::Create()
@@ -153,6 +186,43 @@ if (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit)) {
   throw "BOOTSTRAP_TEST_PUBLICATION_FORBIDDEN: harness publication overrides are not accepted on bootstrap"
 }
 
+# --- Outer-launch binding (trusted expected executable) before exe-auth ---
+$OuterLaunchBindingPublication = $OuterLaunchBindingPublication.ToLowerInvariant()
+$ExpectOuterLaunchBindingBlobOid = $ExpectOuterLaunchBindingBlobOid.ToLowerInvariant()
+$ExecutableAuthorityPublication = $ExecutableAuthorityPublication.ToLowerInvariant()
+$ExpectExecutableAuthorityBlobOid = $ExpectExecutableAuthorityBlobOid.ToLowerInvariant()
+$PrHead = $PrHead.ToLowerInvariant()
+
+$outerBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${OuterLaunchBindingPublication}:${OuterBindingRel}") -WorkDir $RepoRoot
+Assert-Utf8LfNoBom -Bytes $outerBytes -Label $OuterBindingRel
+$outerOid = ([Text.Encoding]::UTF8.GetString((Invoke-GitBytes -GitArgs @("rev-parse", "${OuterLaunchBindingPublication}:${OuterBindingRel}") -WorkDir $RepoRoot))).Trim().ToLowerInvariant()
+if ($outerOid -ne $ExpectOuterLaunchBindingBlobOid) {
+  throw "OUTER_LAUNCH_BINDING_PIN_MISMATCH: blob oid"
+}
+if (-not [string]::IsNullOrWhiteSpace($ExpectOuterLaunchBindingBlobSha256)) {
+  $gotOuterSha = Get-Sha256Hex $outerBytes
+  if ($gotOuterSha -ne $ExpectOuterLaunchBindingBlobSha256.ToLowerInvariant()) {
+    throw "OUTER_LAUNCH_BINDING_PIN_MISMATCH: blob sha256"
+  }
+}
+if ($ExpectOuterLaunchBindingBlobBytes -gt 0 -and $outerBytes.Length -ne $ExpectOuterLaunchBindingBlobBytes) {
+  throw "OUTER_LAUNCH_BINDING_PIN_MISMATCH: blob bytes"
+}
+$outerBinding = ([Text.Encoding]::UTF8.GetString($outerBytes)) | ConvertFrom-Json
+if ([string]$outerBinding.protocol -ne "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1") {
+  throw "OUTER_LAUNCH_BINDING_PROTOCOL_MISSING"
+}
+if ([string]$outerBinding.status -ne "BOUND") {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: outer binding not BOUND"
+}
+$expectedExecutable = ([string]$outerBinding.expected_executable_commit).ToLowerInvariant()
+if ($expectedExecutable -notmatch '^[0-9a-f]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: expected_executable_commit"
+}
+if ($expectedExecutable -eq $OuterLaunchBindingPublication) {
+  throw "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED: launcher tip cannot be the expected executable"
+}
+
 # --- Executable authority first (before dry-run AUTH) ---
 $execAuthBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${ExecutableAuthorityPublication}:${AuthRel}") -WorkDir $RepoRoot
 Assert-Utf8LfNoBom -Bytes $execAuthBytes -Label $AuthRel
@@ -178,6 +248,9 @@ $executable = ([string]$execRecord.authorized_executable_commit).ToLowerInvarian
 if ($executable -notmatch '^[0-9a-f]{40}$') {
   throw "EXECUTABLE_AUTHORITY_SEAL_MISSING: authorized_executable_commit"
 }
+if ($executable -ne $expectedExecutable) {
+  throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must equal outer expected executable"
+}
 if ($executable -eq $HistoricalRejectedExecutable) {
   throw "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED: historical executable 9f31c355… lacks remediated sealed protocol"
 }
@@ -188,21 +261,23 @@ $execDelta = @(git -C $RepoRoot diff --name-only $executable $ExecutableAuthorit
 if ($execDelta.Count -ne 1 -or $execDelta[0] -ne $AuthRel) {
   throw ("EXECUTABLE_AUTHORITY_ALLOWLIST: " + ($execDelta -join ","))
 }
-# Semantic allowlist (identical to Node assertPublicationAllowlist) before materializing ceremony.
+# Semantic allowlist + outer expected binding (identical to Node) before materializing ceremony.
 $nodeExe = (Get-Command node.exe).Source
 $allowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js"
 $allowArgs = @(
   "-e",
-  "require(process.argv[1]).assertPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+  "require(process.argv[1]).assertExecutableAuthorityBeforeCredentials({publicationCommit:process.argv[2],expectBlobOid:process.argv[3],outerLaunchBindingPublication:process.argv[4],expectOuterLaunchBindingBlobOid:process.argv[5],cwd:process.argv[6]})",
   $allowJs,
-  $executable,
   $ExecutableAuthorityPublication,
+  $ExpectExecutableAuthorityBlobOid,
+  $OuterLaunchBindingPublication,
+  $ExpectOuterLaunchBindingBlobOid,
   $RepoRoot
 )
 $allow = Start-Process -FilePath $nodeExe -ArgumentList $allowArgs -Wait -PassThru -NoNewWindow `
   -WorkingDirectory $RepoRoot -RedirectStandardError (Join-Path $env:TEMP ("ra-exeauth-allow-err-" + [guid]::NewGuid().ToString("N") + ".txt"))
 if ($allow.ExitCode -ne 0) {
-  throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta rejected before ceremony materialize"
+  throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta or outer expected binding rejected before ceremony materialize"
 }
 
 # --- Dry-run authorization (must match executable tip) ---
@@ -269,12 +344,17 @@ try {
     "-File", "`"$cerDest`"",
     "-PinTip", $ExpectedEvidenceAuthority,
     "-DryRunAuthorizationPublication", $publication,
+    "-OuterLaunchBindingPublication", $OuterLaunchBindingPublication,
+    "-ExpectOuterLaunchBindingBlobOid", $ExpectOuterLaunchBindingBlobOid,
     "-ExecutableAuthorityPublication", $ExecutableAuthorityPublication,
     "-ExpectExecutableAuthorityBlobOid", $ExpectExecutableAuthorityBlobOid,
     "-RepoRoot", "`"$RepoRoot`"",
     "-EvidenceOutDir", "`"$EvidenceOutDir`"",
     "-SealedMaterialInvocation"
   ) -join " "
+  if ($TestVisiblePromptProbe) {
+    $psi.Arguments = $psi.Arguments + " -TestVisiblePromptProbe"
+  }
   $psi.WorkingDirectory = $RepoRoot
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $false

@@ -207,6 +207,14 @@ function resolveBoundExecutableAuthority(inputs = {}) {
     expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
     expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
     auth: inputs.executableAuthorityAuth,
+    outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+    outerLaunchBindingCommit: inputs.outerLaunchBindingCommit,
+    expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+    expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+    expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+    expectedExecutableCommit: inputs.expectedExecutableCommit,
+    testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+    allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
   });
 }
 

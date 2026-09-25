@@ -1018,11 +1018,18 @@ async function runDryRun(inputs = {}) {
         expectBlobOid: inputs.expectExecutableAuthorityBlobOid,
         expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
         expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
+        outerLaunchBindingPublication: inputs.outerLaunchBindingPublication,
+        expectOuterLaunchBindingBlobOid: inputs.expectOuterLaunchBindingBlobOid,
+        expectOuterLaunchBindingBlobSha256: inputs.expectOuterLaunchBindingBlobSha256,
+        expectOuterLaunchBindingBlobBytes: inputs.expectOuterLaunchBindingBlobBytes,
+        expectedExecutableCommit: inputs.expectedExecutableCommit,
+        testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+        allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
       });
     }
     if (!executableAuthorityMap || executableAuthorityMap.executable_authorized !== true) {
       const err = new Error(
-        "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated executable-authority publication required before dry-run AUTH",
+        "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated outer-launch binding + executable-authority publication required before dry-run AUTH",
       );
       err.code = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
       throw err;
@@ -1045,6 +1052,15 @@ async function runDryRun(inputs = {}) {
           executableAuthorityMap.authorization_publication_blob_oid,
         expectBundleOid: inputs.expectBundleOid || executableAuthorityMap.bundle_oid,
         expectLiveRef: inputs.expectExecutableAuthorityLiveRef,
+        outerLaunchBindingPublication:
+          inputs.outerLaunchBindingPublication ||
+          executableAuthorityMap.outer_launch_binding_publication,
+        expectOuterLaunchBindingBlobOid:
+          inputs.expectOuterLaunchBindingBlobOid ||
+          executableAuthorityMap.outer_launch_binding_blob_oid,
+        expectedExecutableCommit: inputs.expectedExecutableCommit,
+        testOnlyHarnessContext: inputs.testOnlyHarnessContext,
+        allowInProcessExpectedExecutable: inputs.allowInProcessExpectedExecutable,
       });
     }
 
@@ -1103,9 +1119,9 @@ async function runDryRun(inputs = {}) {
       };
     } else {
       const err = new Error(
-        "DRY_RUN_AUTHORIZATION_REQUIRED: validated dry-run authorization publication required; --executable-commit alone is not authority",
+        "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated dry-run authorization publication required; --executable-commit alone is not authority",
       );
-      err.code = "DRY_RUN_AUTHORIZATION_REQUIRED";
+      err.code = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
       throw err;
     }
     // Evidence pins fail closed before bundle/credentials/DB — Git authority only.

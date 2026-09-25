@@ -82,8 +82,9 @@ const TOOLING_AUTHORIZATION_PATH =
  * Historical pre-remediation executable tip.
  * Rejected for the remediated executable-authority protocol: its sealed
  * bootstrap/ceremony/bundle do not implement production_executable_authority.
- * The outer binding is a later independently reviewed AUTH-only publication
- * that names a clean executable generation containing the full sealed chain.
+ * A separate authenticated outer-launch binding tip (not the executable)
+ * supplies expectedExecutableCommit. Executable-authority publications remain
+ * AUTH-only descendants of the clean executable and must match that outer tip.
  */
 const HISTORICAL_CORRECTIVE_EXECUTABLE_COMMIT_9F31 =
   "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
@@ -109,6 +110,21 @@ const EXECUTABLE_AUTHORITY_PROTOCOL_ID =
 const DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE =
   "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
 
+const OUTER_LAUNCH_BINDING_PATH =
+  "docs/security/ra-pro-accounting-automation-corrective-apply/OUTER_LAUNCH_BINDING.json";
+
+const OUTER_LAUNCH_BINDING_MODULE_REL =
+  "scripts/security/ra-pro-accounting-automation-corrective-outer-launch-binding.js";
+
+const OUTER_LAUNCH_BINDING_PROTOCOL_ID =
+  "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1";
+
+const EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED =
+  "EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED";
+
+const EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH =
+  "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH";
+
 /**
  * Immutable evidence pin authority (reviewed pin publication).
  * Dry-run/apply evidence gates load AUTH only from this commit’s Git blob.
@@ -133,10 +149,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Bundle seals — updated by assemble script after rebuild (non-circular). */
 const STANDALONE_BUNDLE_OID =
-  "a54d987fe25a49902e98edfe4d531ac52b593220";
+  "876b9a1592c0551919dadb3b91defdaa52a1a4fb";
 const STANDALONE_BUNDLE_SHA256 =
-  "409612b5886d06d10e41dd88da0e85aedd70b44d435cff911cd0feb047e20c11";
-const STANDALONE_BUNDLE_BYTES = 497591;
+  "2712d3ab666646a58f5725c29bdd5f66924b82fc47cec738ee7c17eeda330188";
+const STANDALONE_BUNDLE_BYTES = 521001;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
@@ -161,6 +177,8 @@ module.exports = {
   EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
   EVIDENCE_PIN_AUTHORITY_COMMIT,
   DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE,
+  EXECUTABLE_AUTHORITY_EXPECTED_EXECUTABLE_REQUIRED,
+  EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH,
   EXECUTABLE_AUTHORITY_MODULE_REL,
   EXECUTABLE_AUTHORITY_PROTOCOL_ID,
   EXPECTED_PROJECT_REF,
@@ -172,6 +190,9 @@ module.exports = {
   FORBIDDEN_DATABASE_URL_ENVS,
   MIGRATIONS,
   ORIGINAL_COMMITTED_MIGRATIONS,
+  OUTER_LAUNCH_BINDING_MODULE_REL,
+  OUTER_LAUNCH_BINDING_PATH,
+  OUTER_LAUNCH_BINDING_PROTOCOL_ID,
   POST_HISTORY_COUNT,
   PRIOR_HISTORY_COUNT,
   SELF_AUTHORITY_MODULES,

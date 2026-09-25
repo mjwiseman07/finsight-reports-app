@@ -272,12 +272,12 @@ function resolveExecutableCommit(inputs = {}) {
   }
   if (inputs.executableCommit != null && String(inputs.executableCommit).length) {
     throw blocked(
-      "DRY_RUN_AUTHORIZATION_REQUIRED",
+      "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
       "--executable-commit alone is not authority; validated dry-run authorization publication required",
     );
   }
   throw blocked(
-    "DRY_RUN_AUTHORIZATION_REQUIRED",
+    "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
     "validated dry-run authorization map required before credentials",
   );
 }
