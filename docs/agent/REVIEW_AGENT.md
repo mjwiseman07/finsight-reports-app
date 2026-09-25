@@ -19,6 +19,8 @@ npm run orchestrator:dry-run-reviewer -- docs/plans/<PLAN-ID>.md --dry-run
 
 See `docs/agent/CLOUD_AGENT_REVIEWER.md`.
 
+On `NEEDS_CHANGES`, automation may enter the resolver → remediation → **new** reviewer loop (`docs/agent/AUTONOMOUS_REMEDIATION.md`). Never reuse a prior PASS against a changed head SHA.
+
 ## Local prepare payload (optional)
 
 ```bash

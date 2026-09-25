@@ -112,6 +112,23 @@ npm run orchestrator:human-summary -- docs/plans/<PLAN-ID>.md
 
 Reviewer uses a **separate** Cloud Agent (`autoCreatePR: false`, `repos[].prUrl` = builder PR). Validated `PASS` advances to `READY_FOR_HUMAN_APPROVAL`. See `docs/agent/CLOUD_AGENT_REVIEWER.md`.
 
+## 7c. Autonomous remediation + overnight
+
+```bash
+npm run orchestrator:resolve -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:status-resolver -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:remediate -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:status-remediation -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:run -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:resume -- docs/plans/<PLAN-ID>.md
+```
+
+See `docs/agent/AUTONOMOUS_REMEDIATION.md`, `BLOCKER_RESOLVER.md`, `OVERNIGHT_CONTROLLER.md`.
+
+**Exception:** verified remediation may set `workOnCurrentBranch: true` **only** after confirming the target is the recorded isolated builder PR branch (never `main`). Initial builders and resolvers still use `workOnCurrentBranch: false`.
+
+Do **not** enable a live overnight feature run until Matthew explicitly authorizes it.
+
 ## 8. Expected Cloud Agent branch behavior
 
 - `startingRef: main`

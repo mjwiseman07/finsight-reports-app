@@ -56,8 +56,14 @@ node scripts/orchestrator/prepare-review.js docs/plans/<PLAN-ID>.md
 
 - Implementing from `DRAFT` or any non-approved status
 - Recording implementation without `prepare-implementation` first
+After `IMPLEMENTATION_COMPLETE`, prefer the independent Cloud reviewer (`orchestrator:launch-reviewer`). On `NEEDS_CHANGES`, the overnight controller may launch the resolver and remediation loop — see `docs/agent/AUTONOMOUS_REMEDIATION.md`. Do not manually expand scope while remediating.
+
+## Prohibited
+
 - Claiming success when lint/typecheck/tests/build failed
 - Disabling tests or lint rules to pass
+- Merging, deploying, or setting `COMPLETED`
+- Targeting `main` for remediation work
 - Auto-deploying or auto-merging
 - Setting `STATUS: COMPLETED`
 - Modifying production Supabase/Stripe without explicit human instruction

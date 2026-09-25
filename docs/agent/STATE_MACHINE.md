@@ -1,61 +1,43 @@
-# Orchestrator state machine (V1)
+# Orchestrator state machine (V1 + autonomous remediation)
 
 ```mermaid
 stateDiagram-v2
   [*] --> DRAFT
-  DRAFT --> READY_FOR_REVIEW: human / plan ready
-  DRAFT --> BLOCKED: blocked
-  READY_FOR_REVIEW --> APPROVED_FOR_IMPLEMENTATION: human approves
-  READY_FOR_REVIEW --> DRAFT: needs revision
-  READY_FOR_REVIEW --> BLOCKED: blocked
-  APPROVED_FOR_IMPLEMENTATION --> IN_PROGRESS: launch-builder / prepare-implementation
-  APPROVED_FOR_IMPLEMENTATION --> BLOCKED: blocked
-  IN_PROGRESS --> IMPLEMENTATION_COMPLETE: status-builder / record-implementation
-  IN_PROGRESS --> BLOCKED: blocked
-  IMPLEMENTATION_COMPLETE --> REVIEW_PASSED: reviewer PASS (via status-reviewer)
-  IMPLEMENTATION_COMPLETE --> REVIEW_FAILED: reviewer NEEDS_CHANGES
+  DRAFT --> READY_FOR_REVIEW
+  READY_FOR_REVIEW --> APPROVED_FOR_IMPLEMENTATION: human
+  APPROVED_FOR_IMPLEMENTATION --> IN_PROGRESS: launch-builder
+  IN_PROGRESS --> IMPLEMENTATION_COMPLETE: status-builder
+  IN_PROGRESS --> ANALYZING_BLOCKER: technical failure
+  IMPLEMENTATION_COMPLETE --> REVIEW_PASSED: reviewer PASS
+  IMPLEMENTATION_COMPLETE --> REVIEW_FAILED: NEEDS_CHANGES
   IMPLEMENTATION_COMPLETE --> BLOCKED: reviewer BLOCKED
-  IMPLEMENTATION_COMPLETE --> IN_PROGRESS: rework
-  REVIEW_FAILED --> IN_PROGRESS: fix and re-implement
-  REVIEW_FAILED --> BLOCKED: blocked
-  REVIEW_PASSED --> READY_FOR_HUMAN_APPROVAL: status-reviewer advance
-  REVIEW_PASSED --> BLOCKED: blocked
+  REVIEW_PASSED --> READY_FOR_HUMAN_APPROVAL
   READY_FOR_HUMAN_APPROVAL --> COMPLETED: human only
-  READY_FOR_HUMAN_APPROVAL --> BLOCKED: blocked
-  BLOCKED --> DRAFT: unblock
-  BLOCKED --> READY_FOR_REVIEW: unblock
+  REVIEW_FAILED --> ANALYZING_BLOCKER: launch-resolver
+  BLOCKED --> ANALYZING_BLOCKER: reclassify
+  ANALYZING_BLOCKER --> RESOLUTION_PROPOSED: AUTONOMOUSLY_RESOLVABLE
+  ANALYZING_BLOCKER --> HUMAN_DECISION_REQUIRED: human-only / fatal
+  RESOLUTION_PROPOSED --> REMEDIATION_IN_PROGRESS: launch-remediation
+  REMEDIATION_IN_PROGRESS --> REMEDIATION_COMPLETE: status-remediation
+  REMEDIATION_COMPLETE --> IMPLEMENTATION_COMPLETE: clear prior review
+  IMPLEMENTATION_COMPLETE --> REVIEW_PASSED: re-review PASS
+  HUMAN_DECISION_REQUIRED --> [*]: wait for Matthew
 ```
 
-## Transition guards
-
-| From | To | Guard |
-|------|-----|-------|
-| DRAFT / READY_FOR_REVIEW | APPROVED_FOR_IMPLEMENTATION | **Human only** |
-| APPROVED_FOR_IMPLEMENTATION | IN_PROGRESS | `launch-builder` / `prepare-implementation` after approval gate |
-| IN_PROGRESS | IMPLEMENTATION_COMPLETE | Builder FINISHED + PR URL (`status-builder`) or `record-implementation` |
-| IMPLEMENTATION_COMPLETE | REVIEW_PASSED → READY_FOR_HUMAN_APPROVAL | Validated Cloud reviewer `PASS` (`status-reviewer`) |
-| IMPLEMENTATION_COMPLETE | REVIEW_FAILED | Validated `NEEDS_CHANGES` |
-| IMPLEMENTATION_COMPLETE | BLOCKED | Validated reviewer `BLOCKED` |
-| * | COMPLETED | **Human only** |
-| IMPLEMENTATION_COMPLETE | READY_FOR_HUMAN_APPROVAL | **BLOCKED** without REVIEW_PASSED |
-
-## CLI reference
-
-| Script | Purpose |
-|--------|---------|
-| `validate-plan.js` | Structure + sections + companion integrity |
-| `confirm-approval.js` | APPROVED_FOR_IMPLEMENTATION gate |
-| `launch-builder.js` | Cursor builder create → IN_PROGRESS |
-| `status-builder.js` | Poll builder; may → IMPLEMENTATION_COMPLETE |
-| `launch-reviewer.js` | Separate Cursor reviewer (status stays IMPLEMENTATION_COMPLETE) |
-| `status-reviewer.js` | Poll reviewer; ingest validated result; advance |
-| `prepare-review.js` / `record-review.js` | Local/manual review helpers |
-| `human-summary.js` | Human approval packet (no COMPLETED write) |
-
-## Human-only transitions
+## Human-only
 
 - → `APPROVED_FOR_IMPLEMENTATION`
 - → `COMPLETED`
-- Merge to `main` and production deploy
+- Merge to `main`
+- Production deploy
+- Answering `HUMAN_DECISION_REQUIRED` (no automatic assumption)
 
-Automations must never perform these. Scripts refuse to write human-only statuses.
+## CLI
+
+| Command | Role |
+|---------|------|
+| `orchestrator:launch` / `status` | Builder |
+| `orchestrator:launch-reviewer` / `status-reviewer` | Reviewer |
+| `orchestrator:resolve` / `status-resolver` | Resolver |
+| `orchestrator:remediate` / `status-remediation` | Remediation builder |
+| `orchestrator:run` / `resume` | Overnight controller |

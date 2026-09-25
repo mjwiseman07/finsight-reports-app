@@ -62,7 +62,22 @@ Never store API keys, Authorization headers, or other secrets in these objects.
 
 ## Valid status values
 
-`DRAFT`, `READY_FOR_REVIEW`, `APPROVED_FOR_IMPLEMENTATION`, `IN_PROGRESS`, `IMPLEMENTATION_COMPLETE`, `REVIEW_FAILED`, `REVIEW_PASSED`, `READY_FOR_HUMAN_APPROVAL`, `COMPLETED`, `BLOCKED`
+`DRAFT`, `READY_FOR_REVIEW`, `APPROVED_FOR_IMPLEMENTATION`, `IN_PROGRESS`, `IMPLEMENTATION_COMPLETE`, `REVIEW_FAILED`, `REVIEW_PASSED`, `READY_FOR_HUMAN_APPROVAL`, `COMPLETED`, `BLOCKED`, `ANALYZING_BLOCKER`, `RESOLUTION_PROPOSED`, `REMEDIATION_IN_PROGRESS`, `REMEDIATION_COMPLETE`, `HUMAN_DECISION_REQUIRED`
+
+## Additional companion fields (remediation)
+
+| Field | Description |
+|-------|-------------|
+| `cursor_resolver` | Safe resolver agent metadata |
+| `cursor_remediation` | Safe remediation builder metadata |
+| `builder_head_sha` | Current builder PR head SHA |
+| `blocker` / `.blocker.json` | Concise blocker packet (no secrets) |
+| `resolver` | Ingested resolver classification + result |
+| `resolution` | Proposed remediation_plan |
+| `remediation` | `{ cycle_number, max_cycles, attempts, *_attempts }` |
+| `human_decision` / `.human-decision.json` | One precise human question |
+| `audit_trail` / `.audit.jsonl` | Append-only events (capped, no secrets) |
+| `previous_review` / `previous_cursor_reviewer` | Cleared review after remediation |
 
 ## Integrity rules (fail closed)
 
