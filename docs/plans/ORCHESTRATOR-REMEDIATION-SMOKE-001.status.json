@@ -1,0 +1,9 @@
+{
+  "planId": "ORCHESTRATOR-REMEDIATION-SMOKE-001",
+  "planPath": "docs/plans/ORCHESTRATOR-REMEDIATION-SMOKE-001.md",
+  "status": "APPROVED_FOR_IMPLEMENTATION",
+  "phase": "planning",
+  "merge": false,
+  "deploy": false,
+  "updatedAt": "2026-09-25T06:20:33.119Z"
+}
