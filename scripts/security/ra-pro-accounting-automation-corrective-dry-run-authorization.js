@@ -20,6 +20,7 @@ const {
   EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
   EVIDENCE_PIN_AUTHORITY_COMMIT,
   EXPECTED_PROJECT_REF,
+  IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
   STANDALONE_BUNDLE_BYTES,
   STANDALONE_BUNDLE_OID,
   STANDALONE_BUNDLE_PATH,
@@ -27,12 +28,17 @@ const {
   TOOLING_AUTHORIZATION_PATH,
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
+const {
+  assertExecutableAuthorityBeforeCredentials,
+  IMMUTABLE_EXECUTABLE_COMMIT,
+} = require("./ra-pro-accounting-automation-corrective-executable-authority");
 
 const PROTOCOL =
   "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1";
 const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
 const RECORD_KEY = "production_dry_run_authorization";
 const BLOCKED_UNPUBLISHED = "DRY_RUN_REMAINS_BLOCKED_BEFORE_CREDENTIALS";
+const DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
 const HEX40 = /^[0-9a-f]{40}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const ATTEMPT_RE = /^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/;
@@ -41,6 +47,10 @@ const BOOTSTRAP_REL =
   "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
 const CEREMONY_REL =
   "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
+
+const FROZEN_EXECUTABLE = String(
+  IMMUTABLE_EXECUTABLE_COMMIT || IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+).toLowerCase();
 
 const RECORD_KEYS = Object.freeze([
   "status",
@@ -55,6 +65,8 @@ const RECORD_KEYS = Object.freeze([
   "evidence_pin_authority",
   "precondition_evidence",
   "pre_apply_live_evidence",
+  "executable_authority_publication_commit",
+  "executable_authority_publication_blob_oid",
   "publication_role",
   "note",
 ]);
@@ -102,9 +114,11 @@ function canonicalUnpublishedDryRunAuthorization() {
     evidence_pin_authority: null,
     precondition_evidence: null,
     pre_apply_live_evidence: null,
+    executable_authority_publication_commit: null,
+    executable_authority_publication_blob_oid: null,
     publication_role: "later_descendant_commit",
     note:
-      "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. --executable-commit alone is never authority.",
+      "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip — a validated production_executable_authority publication must bind tip 9f31c355… first. --executable-commit alone is never authority.",
   };
 }
 
@@ -147,6 +161,43 @@ function resolvePublicationCommit(inputs, cwd) {
     return commit;
   }
   return gitText(["rev-parse", "HEAD"], cwd).toLowerCase();
+}
+
+/**
+ * Executable tip comes only from a validated executable-authority map.
+ * Dry-run AUTH may recheck that tip; it must not independently choose one.
+ */
+function resolveBoundExecutableAuthority(inputs = {}) {
+  if (inputs.executableAuthorityMap) {
+    const map = inputs.executableAuthorityMap;
+    if (map.blocked || map.executable_authorized !== true) {
+      throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable authority map blocked");
+    }
+    const executable = String(map.authorized_executable_commit || "").toLowerCase();
+    if (executable !== FROZEN_EXECUTABLE) {
+      throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
+    }
+    return map;
+  }
+  const pub =
+    inputs.executableAuthorityPublication ||
+    inputs.executableAuthorityPublicationCommit ||
+    null;
+  if (!pub || !HEX40.test(String(pub).toLowerCase())) {
+    throw blocked(
+      DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED,
+      "validated executableAuthorityMap or executableAuthorityPublication required",
+    );
+  }
+  return assertExecutableAuthorityBeforeCredentials({
+    cwd: inputs.cwd || process.cwd(),
+    publicationCommit: String(pub).toLowerCase(),
+    env: inputs.env || {},
+    expectBlobOid: inputs.expectExecutableAuthorityBlobOid,
+    expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
+    expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
+    auth: inputs.executableAuthorityAuth,
+  });
 }
 
 function assertNotCircularPin(publication, executable, blobText) {
@@ -269,6 +320,9 @@ function assertRecordSeals(record, executable, cwd) {
 function describeDryRunArtifactMap(inputs = {}) {
   const cwd = inputs.cwd || process.cwd();
   assertNoAuthorizationEnv(inputs.env || {});
+  const executableAuthority = resolveBoundExecutableAuthority({ ...inputs, cwd });
+  const boundExecutable = String(executableAuthority.authorized_executable_commit).toLowerCase();
+
   const publication = resolvePublicationCommit(inputs, cwd);
   const { auth, loaded } = loadAuthFromGit(publication, cwd);
   if (inputs.auth && JSON.stringify(inputs.auth) !== JSON.stringify(auth)) {
@@ -285,6 +339,9 @@ function describeDryRunArtifactMap(inputs = {}) {
     dry_run_authorized: false,
     artifact_map: ARTIFACT_MAP,
     blocked: null,
+    executable_authority_publication_commit: executableAuthority.publication_commit,
+    executable_authority_publication_blob_oid:
+      executableAuthority.authorization_publication_blob_oid,
   };
   if (record.status !== "AUTHORIZED" || record.dry_run_authorized !== true) {
     return { ...base, blocked: BLOCKED_UNPUBLISHED };
@@ -299,6 +356,28 @@ function describeDryRunArtifactMap(inputs = {}) {
     }
   }
   const executable = String(record.authorized_executable_commit || "").toLowerCase();
+  if (executable !== boundExecutable) {
+    throw blocked(
+      "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH",
+      "dry-run authorized_executable_commit must match executable-authority map",
+    );
+  }
+  const recordExecAuthCommit = String(
+    record.executable_authority_publication_commit || "",
+  ).toLowerCase();
+  const recordExecAuthOid = String(
+    record.executable_authority_publication_blob_oid || "",
+  ).toLowerCase();
+  if (
+    recordExecAuthCommit !== String(executableAuthority.publication_commit).toLowerCase() ||
+    recordExecAuthOid !==
+      String(executableAuthority.authorization_publication_blob_oid).toLowerCase()
+  ) {
+    throw blocked(
+      "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH",
+      "dry-run record executable-authority tuple must match validated map",
+    );
+  }
   assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
   assertAllowlist(executable, publication, cwd);
   assertRecordSeals(record, executable, cwd);
@@ -321,6 +400,13 @@ function describeDryRunArtifactMap(inputs = {}) {
       pre_apply_live_evidence: record.pre_apply_live_evidence,
       evidence_pin_authority: record.evidence_pin_authority,
     },
+    executable_authority: {
+      publication_commit: executableAuthority.publication_commit,
+      authorization_publication_blob_oid:
+        executableAuthority.authorization_publication_blob_oid,
+      authorized_executable_commit: boundExecutable,
+      bundle_oid: executableAuthority.bundle_oid,
+    },
   };
 }
 
@@ -335,6 +421,8 @@ function preflightDryRunAuthorization(inputs = {}) {
       authorization_publication_blob_oid: null,
       authorized_executable_commit: null,
       attempt_id: null,
+      executable_authority_publication_commit: null,
+      executable_authority_publication_blob_oid: null,
     };
   }
 }
@@ -346,11 +434,25 @@ function recheckDryRunAuthorizationPin(inputs = {}) {
   const expectOid = String(inputs.expectBlobOid || "").toLowerCase();
   const expectBundle = String(inputs.expectBundleOid || "").toLowerCase();
   const expectAttempt = String(inputs.expectAttemptId || "");
+  const expectExecAuthCommit = String(
+    inputs.expectExecutableAuthorityCommit ||
+      inputs.expectExecutableAuthorityPublication ||
+      "",
+  ).toLowerCase();
+  const expectExecAuthOid = String(
+    inputs.expectExecutableAuthorityBlobOid || "",
+  ).toLowerCase();
   if (![expectExecutable, expectCommit, expectOid, expectBundle].every((value) => HEX40.test(value))) {
     throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "pin shape");
   }
   if (!ATTEMPT_RE.test(expectAttempt)) {
     throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "attempt shape");
+  }
+  if (expectExecutable !== FROZEN_EXECUTABLE) {
+    throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", expectExecutable);
+  }
+  if (!HEX40.test(expectExecAuthCommit) || !HEX40.test(expectExecAuthOid)) {
+    throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable-authority pin shape");
   }
   // Pin is the immutable publication commit OID (may be orphan/disposable). Live refs are optional.
   if (inputs.expectLiveRef != null && String(inputs.expectLiveRef).length) {
@@ -385,14 +487,22 @@ function recheckDryRunAuthorizationPin(inputs = {}) {
   if (loaded.oid !== expectOid) {
     throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "authorization blob changed");
   }
-  const decision = describeDryRunArtifactMap({ cwd, publicationCommit: expectCommit });
+  const decision = describeDryRunArtifactMap({
+    cwd,
+    publicationCommit: expectCommit,
+    executableAuthorityPublication: expectExecAuthCommit,
+    expectExecutableAuthorityBlobOid: expectExecAuthOid,
+    executableAuthorityMap: inputs.executableAuthorityMap,
+  });
   if (decision.blocked) throw blocked(decision.blocked, "recheck");
   if (
     decision.publication_commit !== expectCommit ||
     decision.authorization_publication_blob_oid !== expectOid ||
     decision.authorized_executable_commit !== expectExecutable ||
     decision.bundle_oid !== expectBundle ||
-    decision.attempt_id !== expectAttempt
+    decision.attempt_id !== expectAttempt ||
+    decision.executable_authority_publication_commit !== expectExecAuthCommit ||
+    decision.executable_authority_publication_blob_oid !== expectExecAuthOid
   ) {
     throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "map drift");
   }
@@ -473,6 +583,7 @@ function sealAtCommit(commit, rel, cwd) {
 
 /**
  * Tests ONLY. Builds a disposable AUTHORIZED one-object dry-run publication.
+ * authorized_executable_commit is taken only from a validated executable-authority map.
  */
 function createDisposableDryRunPublicationCommit(inputs = {}) {
   if (inputs.allowDisposableDryRunPublicationCommit !== true) {
@@ -482,8 +593,20 @@ function createDisposableDryRunPublicationCommit(inputs = {}) {
     throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
   }
   const cwd = inputs.cwd || process.cwd();
-  const executable = String(inputs.executableCommit || gitText(["rev-parse", "HEAD"], cwd)).toLowerCase();
-  if (!HEX40.test(executable)) throw blocked("DRY_RUN_AUTHORIZATION_ANCESTRY", "executable");
+  const executableAuthority = resolveBoundExecutableAuthority({ ...inputs, cwd });
+  const executable = String(executableAuthority.authorized_executable_commit).toLowerCase();
+  if (executable !== FROZEN_EXECUTABLE) {
+    throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
+  }
+  if (inputs.executableCommit != null) {
+    const recheck = String(inputs.executableCommit).toLowerCase();
+    if (recheck !== executable) {
+      throw blocked(
+        "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH",
+        "caller executableCommit recheck does not match executable-authority map",
+      );
+    }
+  }
   const attemptId = String(inputs.attemptId || "");
   if (!ATTEMPT_RE.test(attemptId)) throw blocked("DRY_RUN_ATTEMPT_ID_INVALID", attemptId);
 
@@ -531,9 +654,12 @@ function createDisposableDryRunPublicationCommit(inputs = {}) {
       sha256: livePub.evidence_sha256,
       bytes: livePub.evidence_bytes,
     },
+    executable_authority_publication_commit: executableAuthority.publication_commit,
+    executable_authority_publication_blob_oid:
+      executableAuthority.authorization_publication_blob_oid,
     publication_role: "later_descendant_commit",
     note:
-      "Disposable corrective dry-run publication for harness only. Publication SHA is not stored here.",
+      "Disposable corrective dry-run publication for harness only. Publication SHA is not stored here. Executable tip bound from executable-authority map.",
   };
 
   const before = gitText(["rev-parse", "HEAD"], cwd);
@@ -548,7 +674,31 @@ function createDisposableDryRunPublicationCommit(inputs = {}) {
     executableCommit: executable,
     attemptId,
     authorization_publication_blob_oid: gitText(["rev-parse", `${publication}:${AUTH_REL}`], cwd),
+    executable_authority_publication_commit: executableAuthority.publication_commit,
+    executable_authority_publication_blob_oid:
+      executableAuthority.authorization_publication_blob_oid,
     headUnchanged: true,
+  };
+}
+
+function expectedDryRunAuthorityFromMap(map) {
+  if (!map || map.blocked || map.dry_run_authorized !== true) {
+    throw blocked(BLOCKED_UNPUBLISHED, "expected dry-run authority unavailable");
+  }
+  if (
+    !map.executable_authority_publication_commit ||
+    !map.executable_authority_publication_blob_oid
+  ) {
+    throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable-authority tuple missing");
+  }
+  return {
+    authorized_executable_commit: map.authorized_executable_commit,
+    authorization_publication_commit: map.publication_commit,
+    authorization_publication_blob_oid: map.authorization_publication_blob_oid,
+    attempt_id: map.attempt_id,
+    bundle_oid: map.bundle_oid,
+    executable_authority_publication_commit: map.executable_authority_publication_commit,
+    executable_authority_publication_blob_oid: map.executable_authority_publication_blob_oid,
   };
 }
 
@@ -559,6 +709,8 @@ module.exports = {
   BLOCKED_UNPUBLISHED,
   BOOTSTRAP_REL,
   CEREMONY_REL,
+  DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED,
+  FROZEN_EXECUTABLE,
   PROTOCOL,
   RECORD_KEY,
   RECORD_KEYS,
@@ -567,7 +719,9 @@ module.exports = {
   canonicalUnpublishedDryRunAuthorization,
   createDisposableDryRunPublicationCommit,
   describeDryRunArtifactMap,
+  expectedDryRunAuthorityFromMap,
   loadAuthFromGit,
   preflightDryRunAuthorization,
   recheckDryRunAuthorizationPin,
+  resolveBoundExecutableAuthority,
 };

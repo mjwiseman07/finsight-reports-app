@@ -16,6 +16,14 @@ param(
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$DryRunAuthorizationPublication,
 
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$ExecutableAuthorityPublication,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$ExpectExecutableAuthorityBlobOid,
+
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
 
@@ -42,8 +50,11 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 $PinTip = $PinTip.ToLowerInvariant()
 $DryRunAuthorizationPublication = $DryRunAuthorizationPublication.ToLowerInvariant()
+$ExecutableAuthorityPublication = $ExecutableAuthorityPublication.ToLowerInvariant()
+$ExpectExecutableAuthorityBlobOid = $ExpectExecutableAuthorityBlobOid.ToLowerInvariant()
 $EvidenceAuthorityCommit = $PinTip
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
+$ImmutableExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
 if ($EvidenceAuthorityCommit -ne $ExpectedEvidenceAuthority) {
   throw ("EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN: expected " + $ExpectedEvidenceAuthority + " got " + $EvidenceAuthorityCommit)
 }
@@ -189,13 +200,19 @@ $AuthorizationBlobOid = $null
 $AttemptId = $null
 $ExecutableCommit = $null
 
-function New-CorrectiveDryRunMarkerAtomic([string]$Executable, [string]$AttemptId, [string]$OutDir) {
+function New-CorrectiveDryRunMarkerAtomic(
+  [string]$Executable,
+  [string]$AttemptId,
+  [string]$OutDir,
+  [string]$ExecutableAuthorityPublication,
+  [string]$ExecutableAuthorityBlobOid
+) {
   if ($AttemptId -notmatch '^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$') {
     throw "DRY_RUN_ATTEMPT_ID_INVALID"
   }
   $name = $AttemptId + ".marker"
   $path = Join-Path $OutDir $name
-  $body = "corrective-dry-run`n{0}`n{1}`n" -f $Executable, $AttemptId
+  $body = "corrective-dry-run`n{0}`n{1}`n{2}`n{3}`n" -f $Executable, $AttemptId, $ExecutableAuthorityPublication, $ExecutableAuthorityBlobOid
   $bytes = [Text.Encoding]::UTF8.GetBytes($body)
   try {
     $fs = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
@@ -207,7 +224,30 @@ function New-CorrectiveDryRunMarkerAtomic([string]$Executable, [string]$AttemptI
 }
 
 try {
-  # Trust root: dry-run authorization publication (Git), not caller-selected executable.
+  # Trust root 1: executable-authority publication (Git), before dry-run AUTH.
+  $execAuthOid = (Get-GitBlobOid "${ExecutableAuthorityPublication}:${AuthRel}").ToLowerInvariant()
+  if ($execAuthOid -ne $ExpectExecutableAuthorityBlobOid) {
+    throw "EXECUTABLE_AUTHORITY_PIN_MISMATCH: blob oid"
+  }
+  $execAuthBytes = Get-GitBlobBytes "${ExecutableAuthorityPublication}:${AuthRel}"
+  $execAuth = ([Text.Encoding]::UTF8.GetString($execAuthBytes)) | ConvertFrom-Json
+  $execRecord = $execAuth.production_executable_authority
+  if ($null -eq $execRecord -or [string]$execRecord.status -ne "AUTHORIZED" -or -not [bool]$execRecord.executable_authorized) {
+    throw "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED: production_executable_authority is UNPUBLISHED"
+  }
+  $boundExecutable = ([string]$execRecord.authorized_executable_commit).ToLowerInvariant()
+  if ($boundExecutable -ne $ImmutableExecutable) {
+    throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must be $ImmutableExecutable"
+  }
+  if ($boundExecutable -eq $ExecutableAuthorityPublication) { throw "EXECUTABLE_AUTHORITY_CIRCULAR_TIP" }
+  git -C $RepoRoot merge-base --is-ancestor $boundExecutable $ExecutableAuthorityPublication
+  if ($LASTEXITCODE -ne 0) { throw "EXECUTABLE_AUTHORITY_ANCESTRY" }
+  $execDelta = @(git -C $RepoRoot diff --name-only $boundExecutable $ExecutableAuthorityPublication)
+  if ($execDelta.Count -ne 1 -or $execDelta[0] -ne $AuthRel) {
+    throw ("EXECUTABLE_AUTHORITY_ALLOWLIST: " + ($execDelta -join ","))
+  }
+
+  # Trust root 2: dry-run authorization publication (Git), bound to executable-authority.
   $pubBytes = Get-GitBlobBytes "${DryRunAuthorizationPublication}:${AuthRel}"
   $pubAuth = ([Text.Encoding]::UTF8.GetString($pubBytes)) | ConvertFrom-Json
   $dryRecord = $pubAuth.production_dry_run_authorization
@@ -216,6 +256,14 @@ try {
   }
   $ExecutableCommit = ([string]$dryRecord.authorized_executable_commit).ToLowerInvariant()
   $AttemptId = [string]$dryRecord.attempt_id
+  if ($ExecutableCommit -ne $boundExecutable) {
+    throw "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH: dry-run authorized_executable_commit must match executable-authority"
+  }
+  $recordExecAuthCommit = ([string]$dryRecord.executable_authority_publication_commit).ToLowerInvariant()
+  $recordExecAuthOid = ([string]$dryRecord.executable_authority_publication_blob_oid).ToLowerInvariant()
+  if ($recordExecAuthCommit -ne $ExecutableAuthorityPublication -or $recordExecAuthOid -ne $ExpectExecutableAuthorityBlobOid) {
+    throw "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH: dry-run record executable-authority tuple mismatch"
+  }
   if ($ExecutableCommit -notmatch '^[0-9a-f]{40}$') { throw "DRY_RUN_AUTHORIZATION_EXECUTABLE_INVALID" }
   if ($AttemptId -notmatch '^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$') { throw "DRY_RUN_ATTEMPT_ID_INVALID" }
   if ($ExecutableCommit -eq $DryRunAuthorizationPublication) { throw "DRY_RUN_AUTHORIZATION_CIRCULAR_TIP" }
@@ -260,7 +308,7 @@ try {
   if ($null -eq $secure -or $secure.Length -le 0) { throw "BLOCKED_CREDENTIAL_UNAVAILABLE" }
 
   # Marker only after SecureString acquisition, before credential transfer / Node / DB.
-  $markerPath = New-CorrectiveDryRunMarkerAtomic -Executable $ExecutableCommit -AttemptId $AttemptId -OutDir $EvidenceOutDir
+  $markerPath = New-CorrectiveDryRunMarkerAtomic -Executable $ExecutableCommit -AttemptId $AttemptId -OutDir $EvidenceOutDir -ExecutableAuthorityPublication $ExecutableAuthorityPublication -ExecutableAuthorityBlobOid $ExpectExecutableAuthorityBlobOid
 
   $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
@@ -269,9 +317,11 @@ try {
 
   $psi = New-Object Diagnostics.ProcessStartInfo
   $psi.FileName = (Get-Command node.exe).Source
-  # --executable-commit is a recheck only; trust came from dry-run authorization publication.
+  # --executable-commit / --expect-executable are rechecks only; trust came from exe-auth + dry-run pubs.
   $psi.Arguments = (
     "`"$BundleFile`" --dry-run" +
+    " --executable-authority-publication $ExecutableAuthorityPublication" +
+    " --expect-executable-authority-blob-oid $ExpectExecutableAuthorityBlobOid" +
     " --dry-run-authorization-publication $DryRunAuthorizationPublication" +
     " --expect-authorization-blob-oid $AuthorizationBlobOid" +
     " --expect-executable $ExecutableCommit" +
@@ -521,6 +571,8 @@ finally {
     pin_tip = $EvidenceAuthorityCommit
     dry_run_authorization_publication_commit = $DryRunAuthorizationPublication
     dry_run_authorization_publication_blob_oid = $(if ($AuthorizationBlobOid) { $AuthorizationBlobOid } else { ("0" * 40) })
+    executable_authority_publication_commit = $ExecutableAuthorityPublication
+    executable_authority_publication_blob_oid = $ExpectExecutableAuthorityBlobOid
     dry_run_attempt_id = $(if ($AttemptId) { $AttemptId } else { "" })
     ceremony_path = [string]$ceremonySeal.path
     ceremony_oid = [string]$ceremonySeal.oid

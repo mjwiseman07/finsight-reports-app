@@ -1,5 +1,7 @@
 /**
  * Corrective dry-run execution authorization — non-circular one-attempt publication.
+ * Dry-run must bind a validated production_executable_authority map; it may not
+ * independently choose authorized_executable_commit.
  */
 import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -12,12 +14,17 @@ import {
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js";
 import {
   BLOCKED_UNPUBLISHED,
+  DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED,
   PROTOCOL,
   createDisposableDryRunPublicationCommit,
   describeDryRunArtifactMap,
   loadAuthFromGit,
   recheckDryRunAuthorizationPin,
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js";
+import {
+  assertExecutableAuthorityBeforeCredentials,
+  createDisposableExecutableAuthorityPublicationCommit,
+} from "../../scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js";
 import {
   assertCorrectiveApplyAuthorized,
   resolveExecutableCommit,
@@ -34,6 +41,8 @@ const REJECTED_NOTES_TIP = "98dfe61ee521a5177bfbda42be3e5ee0e6b6b082";
  * Tests-only descendants may exist after this tip; they are not the publication baseline.
  */
 const CLEAN_REVIEW_TIP = "b287fd85defa04b3c7895e2d1397d5cc69a33a04";
+/** Historical test-head tip referenced by remediation cases — never executable. */
+const HISTORICAL_TEST_HEAD = "820d784d7d04a83198f8941ac6989f3870635d2b";
 const EXEC_AUTH_OID = "0f64efc038f13459a2140d339c02794f934fa25f";
 const EXEC_AUTH_SHA = "25dac9806a4b45434d6a4e068a64328b90f383de000385f61b3be0c70b7199b8";
 const EXEC_AUTH_BYTES = 13022;
@@ -114,6 +123,84 @@ function commitAuthOnlyFromParent(parent: string, authObject: object) {
   );
 }
 
+function makeExeAuth() {
+  const created = createDisposableExecutableAuthorityPublicationCommit({
+    cwd: ROOT,
+    allowDisposableExecutableAuthorityPublicationCommit: true,
+    testOnlyHarnessContext: true,
+  });
+  const map = assertExecutableAuthorityBeforeCredentials({
+    cwd: ROOT,
+    publicationCommit: created.publicationCommit,
+    expectBlobOid: created.authorization_publication_blob_oid,
+  });
+  return { created, map };
+}
+
+function sealBootstrap(commit: string) {
+  const rel =
+    "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
+  const buf = gitBuf(["cat-file", "blob", `${commit}:${rel}`]);
+  return {
+    path: rel,
+    oid: git(["rev-parse", `${commit}:${rel}`]),
+    sha256: createHash("sha256").update(buf).digest("hex"),
+    bytes: buf.length,
+    line_endings: "LF",
+  };
+}
+
+function sealCeremony(commit: string) {
+  const rel =
+    "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
+  const buf = gitBuf(["cat-file", "blob", `${commit}:${rel}`]);
+  return {
+    path: rel,
+    oid: git(["rev-parse", `${commit}:${rel}`]),
+    sha256: createHash("sha256").update(buf).digest("hex"),
+    bytes: buf.length,
+    line_endings: "LF",
+  };
+}
+
+function buildAuthorizedDryRunRecord(
+  auth: Record<string, any>,
+  attempt: string,
+  exe: ReturnType<typeof makeExeAuth>,
+  executableCommit = IMMUTABLE_EXECUTABLE,
+) {
+  return {
+    status: "AUTHORIZED",
+    protocol: PROTOCOL,
+    dry_run_authorized: true,
+    authorized_executable_commit: executableCommit,
+    attempt_id: attempt,
+    project_ref: auth.project_ref,
+    bundle: auth.standalone_bundle,
+    bootstrap: sealBootstrap(IMMUTABLE_EXECUTABLE),
+    ceremony: sealCeremony(IMMUTABLE_EXECUTABLE),
+    evidence_pin_authority: auth.evidence_pin_authority,
+    precondition_evidence: {
+      path: auth.precondition_publication.evidence_path,
+      source_commit: auth.precondition_publication.evidence_source_commit,
+      oid: auth.precondition_publication.evidence_blob_oid,
+      sha256: auth.precondition_publication.evidence_sha256,
+      bytes: auth.precondition_publication.evidence_bytes,
+    },
+    pre_apply_live_evidence: {
+      path: auth.pre_apply_live_publication.evidence_path,
+      source_commit: auth.pre_apply_live_publication.evidence_source_commit,
+      oid: auth.pre_apply_live_publication.evidence_blob_oid,
+      sha256: auth.pre_apply_live_publication.evidence_sha256,
+      bytes: auth.pre_apply_live_publication.evidence_bytes,
+    },
+    executable_authority_publication_commit: exe.created.publicationCommit,
+    executable_authority_publication_blob_oid: exe.created.authorization_publication_blob_oid,
+    publication_role: "later_descendant_commit",
+    note: "manual craft",
+  };
+}
+
 describe("corrective dry-run execution authorization", () => {
   it("protocol id is the one-attempt dry-run authorization v1", () => {
     expect(PROTOCOL).toBe(
@@ -121,9 +208,22 @@ describe("corrective dry-run execution authorization", () => {
     );
   });
 
-  it("unpublished tip blocks before credentials", () => {
+  it("dry-run without executable authority fails closed", () => {
     const tip = git(["rev-parse", "HEAD"]);
-    const map = describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: tip });
+    expectCode(
+      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: tip }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
+    );
+  });
+
+  it("unpublished tip blocks before credentials once exe-auth is bound", () => {
+    const exe = makeExeAuth();
+    const tip = git(["rev-parse", "HEAD"]);
+    const map = describeDryRunArtifactMap({
+      cwd: ROOT,
+      publicationCommit: tip,
+      executableAuthorityMap: exe.map,
+    });
     expect(map.blocked).toBe(BLOCKED_UNPUBLISHED);
     expect(map.dry_run_authorized).toBe(false);
   });
@@ -143,7 +243,9 @@ describe("corrective dry-run execution authorization", () => {
       argv: ["node"],
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(result.error_code).toMatch(
+      /DRY_RUN_AUTHORIZATION_REQUIRED|DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
+    );
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
@@ -163,10 +265,12 @@ describe("corrective dry-run execution authorization", () => {
   });
 
   it("production argv/env cannot enable disposable dry-run harness", () => {
+    const exe = makeExeAuth();
     expectCode(
       () =>
         createDisposableDryRunPublicationCommit({
           cwd: ROOT,
+          executableAuthorityMap: exe.map,
           executableCommit: IMMUTABLE_EXECUTABLE,
           attemptId: attemptFor(IMMUTABLE_EXECUTABLE),
           allowDisposableDryRunPublicationCommit: true,
@@ -203,11 +307,93 @@ describe("corrective dry-run execution authorization", () => {
     expect(JSON.stringify(execAuth.notes)).not.toBe(JSON.stringify(rejectedAuth.notes));
   });
 
+  it("rejects naming test tip or HEAD as executable (immutable + binding)", () => {
+    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
+    expect(testHead).not.toBe(IMMUTABLE_EXECUTABLE);
+    expect(HISTORICAL_TEST_HEAD).not.toBe(IMMUTABLE_EXECUTABLE);
+
+    expectCode(
+      () =>
+        createDisposableExecutableAuthorityPublicationCommit({
+          cwd: ROOT,
+          executableCommit: testHead,
+          allowDisposableExecutableAuthorityPublicationCommit: true,
+          testOnlyHarnessContext: true,
+        }),
+      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+    );
+    expectCode(
+      () =>
+        createDisposableExecutableAuthorityPublicationCommit({
+          cwd: ROOT,
+          executableCommit: HISTORICAL_TEST_HEAD,
+          allowDisposableExecutableAuthorityPublicationCommit: true,
+          testOnlyHarnessContext: true,
+        }),
+      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+    );
+
+    // Dry-run AUTH alone cannot choose an executable tip without exe-auth binding.
+    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
+    const base = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT).auth;
+    base.production_dry_run_authorization = {
+      status: "AUTHORIZED",
+      protocol: PROTOCOL,
+      dry_run_authorized: true,
+      authorized_executable_commit: HISTORICAL_TEST_HEAD,
+      attempt_id: attempt,
+      project_ref: base.project_ref,
+      bundle: base.standalone_bundle,
+      bootstrap: sealBootstrap(IMMUTABLE_EXECUTABLE),
+      ceremony: sealCeremony(IMMUTABLE_EXECUTABLE),
+      evidence_pin_authority: base.evidence_pin_authority,
+      precondition_evidence: {
+        path: base.precondition_publication.evidence_path,
+        source_commit: base.precondition_publication.evidence_source_commit,
+        oid: base.precondition_publication.evidence_blob_oid,
+        sha256: base.precondition_publication.evidence_sha256,
+        bytes: base.precondition_publication.evidence_bytes,
+      },
+      pre_apply_live_evidence: {
+        path: base.pre_apply_live_publication.evidence_path,
+        source_commit: base.pre_apply_live_publication.evidence_source_commit,
+        oid: base.pre_apply_live_publication.evidence_blob_oid,
+        sha256: base.pre_apply_live_publication.evidence_sha256,
+        bytes: base.pre_apply_live_publication.evidence_bytes,
+      },
+      executable_authority_publication_commit: "a".repeat(40),
+      executable_authority_publication_blob_oid: "b".repeat(40),
+      publication_role: "later_descendant_commit",
+      note: "poison naming historical test head",
+    };
+    const poisoned = commitAuthOnlyFromParent(IMMUTABLE_EXECUTABLE, base);
+    expectCode(
+      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: poisoned }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
+    );
+
+    const exe = makeExeAuth();
+    expectCode(
+      () =>
+        createDisposableDryRunPublicationCommit({
+          cwd: ROOT,
+          executableAuthorityMap: exe.map,
+          executableCommit: testHead,
+          attemptId: attemptFor(IMMUTABLE_EXECUTABLE),
+          allowDisposableDryRunPublicationCommit: true,
+          testOnlyHarnessContext: true,
+        }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH/,
+    );
+  });
+
   it("accepts AUTH-only publication descended from clean review tip naming immutable executable", () => {
+    const exe = makeExeAuth();
     const cleanTip = CLEAN_REVIEW_TIP;
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -223,6 +409,7 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: fromClean,
+      executableAuthorityMap: exe.map,
     });
     expect(map.blocked).toBeNull();
     expect(map.dry_run_authorized).toBe(true);
@@ -231,6 +418,7 @@ describe("corrective dry-run execution authorization", () => {
     expect(map.authorized_executable_commit).not.toBe(REJECTED_NOTES_TIP);
     expect(map.attempt_id).toBe(attempt);
     expect(map.evidence_pin_authority_commit).toBe(EVIDENCE_PIN_AUTHORITY_COMMIT);
+    expect(map.executable_authority_publication_commit).toBe(exe.created.publicationCommit);
 
     const left = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT).auth;
     const right = loadAuthFromGit(fromClean, ROOT).auth;
@@ -240,164 +428,52 @@ describe("corrective dry-run execution authorization", () => {
   });
 
   it("rejects publication based on rejected-note JSON against executable baseline", () => {
+    const exe = makeExeAuth();
     const rejectedAuth = loadAuthFromGit(REJECTED_NOTES_TIP, ROOT).auth;
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
-    rejectedAuth.production_dry_run_authorization = {
-      status: "AUTHORIZED",
-      protocol: PROTOCOL,
-      dry_run_authorized: true,
-      authorized_executable_commit: IMMUTABLE_EXECUTABLE,
-      attempt_id: attempt,
-      project_ref: rejectedAuth.project_ref,
-      bundle: rejectedAuth.standalone_bundle,
-      bootstrap: {
-        path: "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1",
-        oid: git(["rev-parse", `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`]),
-        sha256: createHash("sha256")
-          .update(
-            gitBuf([
-              "cat-file",
-              "blob",
-              `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`,
-            ]),
-          )
-          .digest("hex"),
-        bytes: gitBuf([
-          "cat-file",
-          "blob",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`,
-        ]).length,
-        line_endings: "LF",
-      },
-      ceremony: {
-        path: "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1",
-        oid: git([
-          "rev-parse",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-        ]),
-        sha256: createHash("sha256")
-          .update(
-            gitBuf([
-              "cat-file",
-              "blob",
-              `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-            ]),
-          )
-          .digest("hex"),
-        bytes: gitBuf([
-          "cat-file",
-          "blob",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-        ]).length,
-        line_endings: "LF",
-      },
-      evidence_pin_authority: rejectedAuth.evidence_pin_authority,
-      precondition_evidence: {
-        path: rejectedAuth.precondition_publication.evidence_path,
-        source_commit: rejectedAuth.precondition_publication.evidence_source_commit,
-        oid: rejectedAuth.precondition_publication.evidence_blob_oid,
-        sha256: rejectedAuth.precondition_publication.evidence_sha256,
-        bytes: rejectedAuth.precondition_publication.evidence_bytes,
-      },
-      pre_apply_live_evidence: {
-        path: rejectedAuth.pre_apply_live_publication.evidence_path,
-        source_commit: rejectedAuth.pre_apply_live_publication.evidence_source_commit,
-        oid: rejectedAuth.pre_apply_live_publication.evidence_blob_oid,
-        sha256: rejectedAuth.pre_apply_live_publication.evidence_sha256,
-        bytes: rejectedAuth.pre_apply_live_publication.evidence_bytes,
-      },
-      publication_role: "later_descendant_commit",
-      note: "poisoned notes baseline",
-    };
+    rejectedAuth.production_dry_run_authorization = buildAuthorizedDryRunRecord(
+      rejectedAuth,
+      attempt,
+      exe,
+    );
+    rejectedAuth.production_dry_run_authorization.note = "poisoned notes baseline";
     const poisoned = commitAuthOnlyFromParent(IMMUTABLE_EXECUTABLE, rejectedAuth);
     expectCode(
-      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: poisoned }),
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: poisoned,
+          executableAuthorityMap: exe.map,
+        }),
       /DRY_RUN_AUTHORIZATION_ALLOWLIST/,
     );
   });
 
   it("rejects top-level notes drift and other non-authorization JSON changes", () => {
+    const exe = makeExeAuth();
     const { auth } = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT);
     auth.notes = [...(auth.notes || []), "extraneous note drift"];
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
-    auth.production_dry_run_authorization = {
-      status: "AUTHORIZED",
-      protocol: PROTOCOL,
-      dry_run_authorized: true,
-      authorized_executable_commit: IMMUTABLE_EXECUTABLE,
-      attempt_id: attempt,
-      project_ref: auth.project_ref,
-      bundle: auth.standalone_bundle,
-      bootstrap: {
-        path: "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1",
-        oid: git(["rev-parse", `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`]),
-        sha256: createHash("sha256")
-          .update(
-            gitBuf([
-              "cat-file",
-              "blob",
-              `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`,
-            ]),
-          )
-          .digest("hex"),
-        bytes: gitBuf([
-          "cat-file",
-          "blob",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1`,
-        ]).length,
-        line_endings: "LF",
-      },
-      ceremony: {
-        path: "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1",
-        oid: git([
-          "rev-parse",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-        ]),
-        sha256: createHash("sha256")
-          .update(
-            gitBuf([
-              "cat-file",
-              "blob",
-              `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-            ]),
-          )
-          .digest("hex"),
-        bytes: gitBuf([
-          "cat-file",
-          "blob",
-          `${IMMUTABLE_EXECUTABLE}:scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1`,
-        ]).length,
-        line_endings: "LF",
-      },
-      evidence_pin_authority: auth.evidence_pin_authority,
-      precondition_evidence: {
-        path: auth.precondition_publication.evidence_path,
-        source_commit: auth.precondition_publication.evidence_source_commit,
-        oid: auth.precondition_publication.evidence_blob_oid,
-        sha256: auth.precondition_publication.evidence_sha256,
-        bytes: auth.precondition_publication.evidence_bytes,
-      },
-      pre_apply_live_evidence: {
-        path: auth.pre_apply_live_publication.evidence_path,
-        source_commit: auth.pre_apply_live_publication.evidence_source_commit,
-        oid: auth.pre_apply_live_publication.evidence_blob_oid,
-        sha256: auth.pre_apply_live_publication.evidence_sha256,
-        bytes: auth.pre_apply_live_publication.evidence_bytes,
-      },
-      publication_role: "later_descendant_commit",
-      note: "notes drift",
-    };
+    auth.production_dry_run_authorization = buildAuthorizedDryRunRecord(auth, attempt, exe);
+    auth.production_dry_run_authorization.note = "notes drift";
     const drifted = commitAuthOnlyFromParent(IMMUTABLE_EXECUTABLE, auth);
     expectCode(
-      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: drifted }),
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: drifted,
+          executableAuthorityMap: exe.map,
+        }),
       /DRY_RUN_AUTHORIZATION_ALLOWLIST/,
     );
   });
 
   it("rejects rejected notes tip as authorized_executable_commit via allowlist", () => {
+    const exe = makeExeAuth();
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -407,15 +483,22 @@ describe("corrective dry-run execution authorization", () => {
     good.production_dry_run_authorization.authorized_executable_commit = REJECTED_NOTES_TIP;
     const pub = commitAuthOnlyFromParent(REJECTED_NOTES_TIP, good);
     expectCode(
-      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: pub }),
-      /DRY_RUN_AUTHORIZATION_ALLOWLIST|DRY_RUN_AUTHORIZATION_ANCESTRY|DRY_RUN_AUTHORIZATION_BUNDLE|DRY_RUN_AUTHORIZATION_SEAL/,
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: pub,
+          executableAuthorityMap: exe.map,
+        }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH|DRY_RUN_AUTHORIZATION_ALLOWLIST|DRY_RUN_AUTHORIZATION_ANCESTRY|DRY_RUN_AUTHORIZATION_BUNDLE|DRY_RUN_AUTHORIZATION_SEAL/,
     );
   });
 
   it("rejects executable equal to the clean review tip", () => {
+    const exe = makeExeAuth();
     const unpublished = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: CLEAN_REVIEW_TIP,
+      executableAuthorityMap: exe.map,
     });
     expect(unpublished.blocked).toBe(BLOCKED_UNPUBLISHED);
     expect(unpublished.dry_run_authorized).toBe(false);
@@ -425,17 +508,20 @@ describe("corrective dry-run execution authorization", () => {
     );
   });
 
-  it("rejects AUTH-only publication parented on current test HEAD (test-file delta vs executable)", () => {
+  it("rejects AUTH-only publication parented on current test HEAD (extra files vs executable)", () => {
+    const exe = makeExeAuth();
     const testHead = git(["rev-parse", "HEAD"]);
     expect(testHead).not.toBe(IMMUTABLE_EXECUTABLE);
     expect(testHead).not.toBe(CLEAN_REVIEW_TIP);
-    expect(git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, testHead])).toBe(
-      "tests/security/ra-pro-accounting-automation-corrective-dry-run-authorization.test.ts",
-    );
+    const headDelta = git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, testHead])
+      .split(/\n/)
+      .filter(Boolean);
+    expect(headDelta.length).toBeGreaterThan(0);
 
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -452,22 +538,26 @@ describe("corrective dry-run execution authorization", () => {
       .split(/\n/)
       .filter(Boolean);
     expect(delta).toContain(AUTH_REL);
-    expect(delta).toContain(
-      "tests/security/ra-pro-accounting-automation-corrective-dry-run-authorization.test.ts",
-    );
     expect(delta.length).toBeGreaterThan(1);
 
     expectCode(
-      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: fromTestHead }),
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: fromTestHead,
+          executableAuthorityMap: exe.map,
+        }),
       /DRY_RUN_AUTHORIZATION_ALLOWLIST/,
     );
   });
 
   it("rejects bare current test HEAD as executable", () => {
+    const exe = makeExeAuth();
     const testHead = git(["rev-parse", "HEAD"]);
     const unpublished = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: testHead,
+      executableAuthorityMap: exe.map,
     });
     expect(unpublished.blocked).toBe(BLOCKED_UNPUBLISHED);
     expect(unpublished.dry_run_authorized).toBe(false);
@@ -478,10 +568,12 @@ describe("corrective dry-run execution authorization", () => {
   });
 
   it("successful publication never names clean review tip as executable", () => {
+    const exe = makeExeAuth();
     const cleanTip = CLEAN_REVIEW_TIP;
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -490,6 +582,7 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: created.publicationCommit,
+      executableAuthorityMap: exe.map,
     });
     expect(map.authorized_executable_commit).toBe(IMMUTABLE_EXECUTABLE);
     expect(map.authorized_executable_commit).not.toBe(cleanTip);
@@ -497,9 +590,11 @@ describe("corrective dry-run execution authorization", () => {
   });
 
   it("accepts synthetic AUTH-only dry-run publication offline and rejects worktree substitute", () => {
+    const exe = makeExeAuth();
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -508,12 +603,17 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: created.publicationCommit,
+      executableAuthorityMap: exe.map,
     });
     expect(map.blocked).toBeNull();
     expect(map.dry_run_authorized).toBe(true);
     expect(map.authorized_executable_commit).toBe(IMMUTABLE_EXECUTABLE);
     expect(map.attempt_id).toBe(attempt);
     expect(map.evidence_pin_authority_commit).toBe(EVIDENCE_PIN_AUTHORITY_COMMIT);
+    expect(map.executable_authority_publication_commit).toBe(exe.created.publicationCommit);
+    expect(map.executable_authority_publication_blob_oid).toBe(
+      exe.created.authorization_publication_blob_oid,
+    );
 
     const wt = JSON.parse(fs.readFileSync(path.join(ROOT, TOOLING_AUTHORIZATION_PATH), "utf8"));
     expectCode(
@@ -521,6 +621,7 @@ describe("corrective dry-run execution authorization", () => {
         describeDryRunArtifactMap({
           cwd: ROOT,
           publicationCommit: created.publicationCommit,
+          executableAuthorityMap: exe.map,
           auth: wt,
         }),
       /DRY_RUN_AUTHORIZATION_WORKTREE_SUBSTITUTE/,
@@ -533,23 +634,19 @@ describe("corrective dry-run execution authorization", () => {
       expectBlobOid: created.authorization_publication_blob_oid,
       expectBundleOid: map.bundle_oid,
       expectAttemptId: attempt,
+      expectExecutableAuthorityCommit: exe.created.publicationCommit,
+      expectExecutableAuthorityBlobOid: exe.created.authorization_publication_blob_oid,
+      executableAuthorityMap: exe.map,
     });
     expect(map.publication_commit).toBe(created.publicationCommit);
   });
 
-  it("rejects unpublished evidence-source tip as dry-run authority", () => {
-    const map = describeDryRunArtifactMap({
-      cwd: ROOT,
-      publicationCommit: "a055228c3ad704507cbd00613bd1c5b09cf4798c",
-    });
-    expect(map.blocked).toBe(BLOCKED_UNPUBLISHED);
-    expect(map.dry_run_authorized).toBe(false);
-  });
-
-  it("rejects wrong attempt id on recheck", () => {
+  it("positive: exe-auth + disposable dry-run reaches dry_run_authorized without credentials", async () => {
+    const exe = makeExeAuth();
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -558,6 +655,74 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: created.publicationCommit,
+      executableAuthorityMap: exe.map,
+    });
+    expect(map.blocked).toBeNull();
+    expect(map.dry_run_authorized).toBe(true);
+    expect(map.authorized_executable_commit).toBe(IMMUTABLE_EXECUTABLE);
+    expect(map.executable_authority_publication_commit).toBe(exe.created.publicationCommit);
+
+    const dry = await runDryRun({
+      cwd: ROOT,
+      env: {},
+      argv: ["node"],
+      executableAuthorityMap: exe.map,
+      dryRunAuthorizationPublication: created.publicationCommit,
+    });
+    expect(dry.verdict).toBe("DRY_RUN_BLOCKED");
+    expect(dry.databaseConnectionAttempts ?? 0).toBe(0);
+    expect(dry.promptAttempts ?? dry.operatorPromptAttempts ?? 0).toBe(0);
+  });
+
+  it("rejects substituted executable-authority publication or blob on dry-run", () => {
+    const exe1 = makeExeAuth();
+    const exe2 = makeExeAuth();
+    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
+    const created = createDisposableDryRunPublicationCommit({
+      cwd: ROOT,
+      executableAuthorityMap: exe1.map,
+      executableCommit: IMMUTABLE_EXECUTABLE,
+      attemptId: attempt,
+      allowDisposableDryRunPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    expectCode(
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: created.publicationCommit,
+          executableAuthorityMap: exe2.map,
+        }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH/,
+    );
+  });
+
+  it("rejects unpublished evidence-source tip as dry-run authority", () => {
+    const exe = makeExeAuth();
+    const map = describeDryRunArtifactMap({
+      cwd: ROOT,
+      publicationCommit: "a055228c3ad704507cbd00613bd1c5b09cf4798c",
+      executableAuthorityMap: exe.map,
+    });
+    expect(map.blocked).toBe(BLOCKED_UNPUBLISHED);
+    expect(map.dry_run_authorized).toBe(false);
+  });
+
+  it("rejects wrong attempt id on recheck", () => {
+    const exe = makeExeAuth();
+    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
+    const created = createDisposableDryRunPublicationCommit({
+      cwd: ROOT,
+      executableAuthorityMap: exe.map,
+      executableCommit: IMMUTABLE_EXECUTABLE,
+      attemptId: attempt,
+      allowDisposableDryRunPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const map = describeDryRunArtifactMap({
+      cwd: ROOT,
+      publicationCommit: created.publicationCommit,
+      executableAuthorityMap: exe.map,
     });
     expectCode(
       () =>
@@ -568,16 +733,21 @@ describe("corrective dry-run execution authorization", () => {
           expectBlobOid: map.authorization_publication_blob_oid,
           expectBundleOid: map.bundle_oid,
           expectAttemptId: attemptFor(IMMUTABLE_EXECUTABLE),
+          expectExecutableAuthorityCommit: exe.created.publicationCommit,
+          expectExecutableAuthorityBlobOid: exe.created.authorization_publication_blob_oid,
+          executableAuthorityMap: exe.map,
         }),
       /DRY_RUN_AUTHORIZATION_PIN_MISMATCH/,
     );
   });
 
   it("recheck fails when publication pin blob mismatches after preflight", () => {
+    const exe = makeExeAuth();
     const a1 = attemptFor(IMMUTABLE_EXECUTABLE);
     const a2 = attemptFor(IMMUTABLE_EXECUTABLE);
     const first = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: a1,
       allowDisposableDryRunPublicationCommit: true,
@@ -586,9 +756,11 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: first.publicationCommit,
+      executableAuthorityMap: exe.map,
     });
     const other = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: a2,
       allowDisposableDryRunPublicationCommit: true,
@@ -603,15 +775,20 @@ describe("corrective dry-run execution authorization", () => {
           expectBlobOid: map.authorization_publication_blob_oid,
           expectBundleOid: map.bundle_oid,
           expectAttemptId: map.attempt_id,
+          expectExecutableAuthorityCommit: exe.created.publicationCommit,
+          expectExecutableAuthorityBlobOid: exe.created.authorization_publication_blob_oid,
+          executableAuthorityMap: exe.map,
         }),
       /DRY_RUN_AUTHORIZATION_PIN_MISMATCH|DRY_RUN_AUTHORIZATION_BUNDLE_MISMATCH|DRY_RUN_AUTHORIZATION_ANCESTRY/,
     );
   });
 
   it("live ref swap after preflight is rejected", () => {
+    const exe = makeExeAuth();
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
+      executableAuthorityMap: exe.map,
       executableCommit: IMMUTABLE_EXECUTABLE,
       attemptId: attempt,
       allowDisposableDryRunPublicationCommit: true,
@@ -620,6 +797,7 @@ describe("corrective dry-run execution authorization", () => {
     const map = describeDryRunArtifactMap({
       cwd: ROOT,
       publicationCommit: created.publicationCommit,
+      executableAuthorityMap: exe.map,
     });
     expectCode(
       () =>
@@ -630,16 +808,47 @@ describe("corrective dry-run execution authorization", () => {
           expectBlobOid: map.authorization_publication_blob_oid,
           expectBundleOid: map.bundle_oid,
           expectAttemptId: map.attempt_id,
+          expectExecutableAuthorityCommit: exe.created.publicationCommit,
+          expectExecutableAuthorityBlobOid: exe.created.authorization_publication_blob_oid,
+          executableAuthorityMap: exe.map,
           expectLiveRef: "HEAD",
         }),
       /DRY_RUN_AUTHORIZATION_PIN_MISMATCH/,
     );
   });
 
+  it("dry-run AUTH alone cannot choose executable independently of exe-auth map", () => {
+    const exe = makeExeAuth();
+    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
+    const created = createDisposableDryRunPublicationCommit({
+      cwd: ROOT,
+      executableAuthorityMap: exe.map,
+      executableCommit: IMMUTABLE_EXECUTABLE,
+      attemptId: attempt,
+      allowDisposableDryRunPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
+    // Keep exe-auth tuple matching map, but try to rename executable tip.
+    auth.production_dry_run_authorization.authorized_executable_commit = CLEAN_REVIEW_TIP;
+    const pub = commitAuthOnlyFromParent(IMMUTABLE_EXECUTABLE, auth);
+    expectCode(
+      () =>
+        describeDryRunArtifactMap({
+          cwd: ROOT,
+          publicationCommit: pub,
+          executableAuthorityMap: exe.map,
+        }),
+      /DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH/,
+    );
+  });
+
   it("unpublished dry-run and apply remain blocked before credentials/DB", async () => {
     const dry = await runDryRun({ cwd: ROOT, env: {}, argv: ["node"] });
     expect(dry.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(dry.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(dry.error_code).toMatch(
+      /DRY_RUN_AUTHORIZATION_REQUIRED|DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
+    );
     expect(dry.databaseConnectionAttempts ?? 0).toBe(0);
     expectCode(
       () =>
@@ -649,5 +858,9 @@ describe("corrective dry-run execution authorization", () => {
         }),
       /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/,
     );
+  });
+
+  it("exports DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED constant", () => {
+    expect(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
   });
 });

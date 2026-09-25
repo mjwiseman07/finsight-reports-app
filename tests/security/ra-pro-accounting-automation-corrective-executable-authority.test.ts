@@ -1,0 +1,396 @@
+/**
+ * Corrective production_executable_authority — non-circular AUTH-only publication.
+ */
+import { createHash, randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import {
+  TOOLING_AUTHORIZATION_PATH,
+} from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js";
+import {
+  BLOCKED_UNPUBLISHED,
+  IMMUTABLE_EXECUTABLE_COMMIT,
+  PROTOCOL,
+  RECORD_KEY,
+  assertExecutableAuthorityBeforeCredentials,
+  createDisposableExecutableAuthorityPublicationCommit,
+  describeExecutableAuthorityMap,
+  loadAuthFromGit,
+  recheckExecutableAuthorityPin,
+} from "../../scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js";
+import {
+  BLOCKED_UNPUBLISHED as DRY_RUN_BLOCKED,
+  describeDryRunArtifactMap,
+} from "../../scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js";
+import { assertCorrectiveApplyAuthorized } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-authorization.js";
+
+const ROOT = process.cwd();
+const IMMUTABLE = IMMUTABLE_EXECUTABLE_COMMIT;
+const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
+
+function git(args: string[], input?: string) {
+  const r = spawnSync("git", ["-c", `safe.directory=${ROOT.replace(/\\/g, "/")}`, ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    windowsHide: true,
+    input,
+  });
+  if (r.status !== 0) throw new Error(String(r.stderr || r.stdout || args.join(" ")));
+  return (r.stdout || "").trim();
+}
+
+function expectCode(fn: () => unknown, re: RegExp) {
+  try {
+    fn();
+    throw new Error("expected throw");
+  } catch (err) {
+    const code = String((err as { code?: string }).code || (err as Error).message || err);
+    expect(code).toMatch(re);
+  }
+}
+
+function mktree(lines: string[]) {
+  const input = lines.length ? `${lines.join("\n")}\n` : "";
+  return git(["mktree"], input);
+}
+
+function replacePathInTree(tree: string, parts: string[], blob: string): string {
+  const lines = git(["ls-tree", tree]).split(/\n/).filter(Boolean);
+  const name = parts[0];
+  let found = false;
+  const next = lines.map((line) => {
+    const tab = line.indexOf("\t");
+    if (line.slice(tab + 1) !== name) return line;
+    found = true;
+    if (parts.length === 1) return `100644 blob ${blob}\t${name}`;
+    const old = line.slice(0, tab).split(" ")[2];
+    const child = replacePathInTree(old, parts.slice(1), blob);
+    return `040000 tree ${child}\t${name}`;
+  });
+  if (!found) {
+    if (parts.length === 1) next.push(`100644 blob ${blob}\t${name}`);
+    else {
+      const empty = mktree([]);
+      const child = replacePathInTree(empty, parts.slice(1), blob);
+      next.push(`040000 tree ${child}\t${name}`);
+    }
+  }
+  return mktree(next);
+}
+
+function commitAuthOnlyFromParent(parent: string, authObject: object) {
+  const text = `${JSON.stringify(authObject, null, 2)}\n`;
+  expect(text.includes("\r")).toBe(false);
+  const blob = git(["hash-object", "-w", "--stdin"], text);
+  const tree = git(["rev-parse", `${parent}^{tree}`]);
+  const newTree = replacePathInTree(tree, AUTH_REL.split("/"), blob);
+  return git([
+    "commit-tree",
+    newTree,
+    "-p",
+    parent,
+    "-m",
+    "disposable corrective executable authority test",
+  ]);
+}
+
+function sealAt(commit: string, rel: string) {
+  const oid = git(["rev-parse", `${commit}:${rel}`]);
+  const buf = spawnSync(
+    "git",
+    ["-c", `safe.directory=${ROOT.replace(/\\/g, "/")}`, "cat-file", "blob", `${commit}:${rel}`],
+    { cwd: ROOT, windowsHide: true },
+  ).stdout as Buffer;
+  return {
+    path: rel,
+    oid,
+    sha256: createHash("sha256").update(buf).digest("hex"),
+    bytes: buf.length,
+    line_endings: "LF",
+  };
+}
+
+describe("corrective executable authority", () => {
+  it("protocol id is executable-authority v1", () => {
+    expect(PROTOCOL).toBe(
+      "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1",
+    );
+    expect(IMMUTABLE).toBe("9f31c3552a2a06fc3b851bd722aad9311dde40f8");
+  });
+
+  it("unpublished tip blocks before credentials", () => {
+    const tip = git(["rev-parse", "HEAD"]);
+    const map = describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: tip });
+    expect(map.blocked).toBe(BLOCKED_UNPUBLISHED);
+    expect(map.executable_authorized).toBe(false);
+  });
+
+  it("rejects current test HEAD named as authorized_executable_commit (immutable mismatch)", () => {
+    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
+    expect(testHead).not.toBe(IMMUTABLE);
+    expectCode(
+      () =>
+        createDisposableExecutableAuthorityPublicationCommit({
+          cwd: ROOT,
+          executableCommit: testHead,
+          allowDisposableExecutableAuthorityPublicationCommit: true,
+          testOnlyHarnessContext: true,
+        }),
+      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+    );
+
+    const { auth } = loadAuthFromGit(IMMUTABLE, ROOT);
+    const bundle = auth.standalone_bundle;
+    auth[RECORD_KEY] = {
+      status: "AUTHORIZED",
+      protocol: PROTOCOL,
+      executable_authorized: true,
+      authorized_executable_commit: testHead,
+      project_ref: auth.project_ref,
+      bundle: {
+        path: bundle.path,
+        oid: bundle.oid,
+        sha256: bundle.sha256,
+        bytes: bundle.bytes,
+      },
+      bootstrap: sealAt(
+        IMMUTABLE,
+        "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1",
+      ),
+      entry: sealAt(IMMUTABLE, "scripts/security/apply-ra-pro-accounting-automation-corrective.js"),
+      ceremony: sealAt(
+        IMMUTABLE,
+        "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1",
+      ),
+      frame: sealAt(
+        IMMUTABLE,
+        "scripts/security/ra-pro-accounting-automation-corrective-evidence.js",
+      ),
+      receipt: sealAt(
+        IMMUTABLE,
+        "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js",
+      ),
+      evidence_pin_authority: auth.evidence_pin_authority,
+      publication_role: "later_descendant_commit",
+      note: "poison: names test HEAD as executable",
+    };
+    const poisoned = commitAuthOnlyFromParent(IMMUTABLE, auth);
+    expectCode(
+      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: poisoned }),
+      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+    );
+  });
+
+  it("rejects AUTH-only child of test HEAD via allowlist (extra files in delta)", () => {
+    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
+    expect(testHead).not.toBe(IMMUTABLE);
+    const delta = git(["diff", "--name-only", IMMUTABLE, testHead])
+      .split(/\n/)
+      .filter(Boolean);
+    expect(delta.length).toBeGreaterThan(0);
+
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
+    const fromTestHead = commitAuthOnlyFromParent(testHead, auth);
+    const pubDelta = git(["diff", "--name-only", IMMUTABLE, fromTestHead])
+      .split(/\n/)
+      .filter(Boolean);
+    expect(pubDelta).toContain(AUTH_REL);
+    expect(pubDelta.length).toBeGreaterThan(1);
+    expectCode(
+      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: fromTestHead }),
+      /EXECUTABLE_AUTHORITY_ALLOWLIST/,
+    );
+  });
+
+  it("rejects substituted executable-authority publication or blob pin", () => {
+    const first = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const map = assertExecutableAuthorityBeforeCredentials({
+      cwd: ROOT,
+      publicationCommit: first.publicationCommit,
+      expectBlobOid: first.authorization_publication_blob_oid,
+    });
+    // Deterministic AUTH content yields identical blob OIDs across disposables —
+    // pin mismatch requires an explicit wrong OID (or a mutated publication).
+    const wrongOid = "0".repeat(40);
+    expect(wrongOid).not.toBe(map.authorization_publication_blob_oid);
+    expectCode(
+      () =>
+        describeExecutableAuthorityMap({
+          cwd: ROOT,
+          publicationCommit: first.publicationCommit,
+          expectBlobOid: wrongOid,
+        }),
+      /EXECUTABLE_AUTHORITY_PIN_MISMATCH/,
+    );
+
+    const { auth } = loadAuthFromGit(first.publicationCommit, ROOT);
+    auth[RECORD_KEY].note = `substituted-blob-${randomBytes(4).toString("hex")}`;
+    const substituted = commitAuthOnlyFromParent(IMMUTABLE, auth);
+    const subOid = git(["rev-parse", `${substituted}:${AUTH_REL}`]);
+    expect(subOid).not.toBe(map.authorization_publication_blob_oid);
+    expectCode(
+      () =>
+        recheckExecutableAuthorityPin({
+          cwd: ROOT,
+          expectExecutable: map.authorized_executable_commit,
+          expectCommit: substituted,
+          expectBlobOid: map.authorization_publication_blob_oid,
+        }),
+      /EXECUTABLE_AUTHORITY_PIN_MISMATCH|EXECUTABLE_AUTHORITY_ALLOWLIST/,
+    );
+  });
+
+  it("rejects worktree AUTH poison (WORKTREE_SUBSTITUTE)", () => {
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const wt = JSON.parse(fs.readFileSync(path.join(ROOT, AUTH_REL), "utf8"));
+    expectCode(
+      () =>
+        describeExecutableAuthorityMap({
+          cwd: ROOT,
+          publicationCommit: created.publicationCommit,
+          auth: wt,
+        }),
+      /EXECUTABLE_AUTHORITY_WORKTREE_SUBSTITUTE/,
+    );
+  });
+
+  it("rejects live ref swap after preflight", () => {
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const map = assertExecutableAuthorityBeforeCredentials({
+      cwd: ROOT,
+      publicationCommit: created.publicationCommit,
+    });
+    expectCode(
+      () =>
+        recheckExecutableAuthorityPin({
+          cwd: ROOT,
+          expectExecutable: map.authorized_executable_commit,
+          expectCommit: map.publication_commit,
+          expectBlobOid: map.authorization_publication_blob_oid,
+          expectLiveRef: "HEAD",
+        }),
+      /EXECUTABLE_AUTHORITY_PIN_MISMATCH/,
+    );
+  });
+
+  it("rejects non-authorization JSON changes and extra record fields", () => {
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
+    auth.notes = [...(auth.notes || []), `extraneous-${randomBytes(4).toString("hex")}`];
+    const drifted = commitAuthOnlyFromParent(IMMUTABLE, auth);
+    expectCode(
+      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: drifted }),
+      /EXECUTABLE_AUTHORITY_ALLOWLIST/,
+    );
+
+    const again = loadAuthFromGit(created.publicationCommit, ROOT).auth;
+    again[RECORD_KEY].extra_poison_field = true;
+    const extra = commitAuthOnlyFromParent(IMMUTABLE, again);
+    expectCode(
+      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: extra }),
+      /EXECUTABLE_AUTHORITY_ALLOWLIST/,
+    );
+  });
+
+  it("executable authority alone cannot authorize dry-run or apply", () => {
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    const exeMap = assertExecutableAuthorityBeforeCredentials({
+      cwd: ROOT,
+      publicationCommit: created.publicationCommit,
+    });
+    expect(exeMap.executable_authorized).toBe(true);
+
+    const tip = git(["rev-parse", "HEAD"]);
+    const dry = describeDryRunArtifactMap({
+      cwd: ROOT,
+      publicationCommit: tip,
+      executableAuthorityMap: exeMap,
+    });
+    expect(dry.dry_run_authorized).toBe(false);
+    expect(dry.blocked).toBe(DRY_RUN_BLOCKED);
+
+    expectCode(
+      () =>
+        assertCorrectiveApplyAuthorized({
+          cwd: ROOT,
+          executableCommit: IMMUTABLE,
+          dryRunAuthorizationMap: {
+            authorized_executable_commit: IMMUTABLE,
+            dry_run_authorized: true,
+          },
+        }),
+      /APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS/,
+    );
+  });
+
+  it("accepts disposable exe-auth publication naming immutable tip; HEAD unchanged", () => {
+    const before = git(["rev-parse", "HEAD"]);
+    const created = createDisposableExecutableAuthorityPublicationCommit({
+      cwd: ROOT,
+      allowDisposableExecutableAuthorityPublicationCommit: true,
+      testOnlyHarnessContext: true,
+    });
+    expect(created.headUnchanged).toBe(true);
+    expect(created.executableCommit).toBe(IMMUTABLE);
+    expect(created.publicationCommit).not.toBe(IMMUTABLE);
+    expect(git(["rev-parse", "HEAD"])).toBe(before);
+
+    const map = assertExecutableAuthorityBeforeCredentials({
+      cwd: ROOT,
+      publicationCommit: created.publicationCommit,
+      expectBlobOid: created.authorization_publication_blob_oid,
+    });
+    expect(map.blocked).toBeNull();
+    expect(map.executable_authorized).toBe(true);
+    expect(map.authorized_executable_commit).toBe(IMMUTABLE);
+    expect(map.publication_commit).toBe(created.publicationCommit);
+    expect(git(["diff", "--name-only", IMMUTABLE, created.publicationCommit])).toBe(AUTH_REL);
+    expect(git(["merge-base", "--is-ancestor", IMMUTABLE, created.publicationCommit])).toBe("");
+
+    recheckExecutableAuthorityPin({
+      cwd: ROOT,
+      expectExecutable: IMMUTABLE,
+      expectCommit: created.publicationCommit,
+      expectBlobOid: created.authorization_publication_blob_oid,
+    });
+    expect(git(["rev-parse", "HEAD"])).toBe(before);
+  });
+
+  it("production argv/env cannot enable disposable exe-auth harness", () => {
+    expectCode(
+      () =>
+        createDisposableExecutableAuthorityPublicationCommit({
+          cwd: ROOT,
+          allowDisposableExecutableAuthorityPublicationCommit: true,
+        }),
+      /HARNESS_CONTEXT_REQUIRED/,
+    );
+  });
+});

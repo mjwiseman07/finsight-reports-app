@@ -124,6 +124,8 @@ function readyPartial() {
       authorized_executable_commit: "18fa394b477ca728c2c53c3f504f421087ac47eb",
       attempt_id: "corr-dryrun-18fa394b477c-cccccccccccccccccccccccccccccccc",
       bundle_oid: STANDALONE_BUNDLE_OID,
+      executable_authority_publication_commit: "c111111111111111111111111111111111111111",
+      executable_authority_publication_blob_oid: "c222222222222222222222222222222222222222",
     },
     source_authority: [
       {
@@ -167,6 +169,8 @@ function allCleanupTrue(overrides: Record<string, unknown> = {}) {
     pin_tip: tip,
     dry_run_authorization_publication_commit: "b111111111111111111111111111111111111111",
     dry_run_authorization_publication_blob_oid: "b222222222222222222222222222222222222222",
+    executable_authority_publication_commit: "c111111111111111111111111111111111111111",
+    executable_authority_publication_blob_oid: "c222222222222222222222222222222222222222",
     dry_run_attempt_id: "corr-dryrun-18fa394b477c-cccccccccccccccccccccccccccccccc",
     ceremony_path: CEREMONY_REL,
     ceremony_oid: "b".repeat(40),

@@ -79,6 +79,14 @@ const TOOLING_AUTHORIZATION_PATH =
   "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
 
 /**
+ * Sole reviewed immutable corrective executable tip.
+ * Executable-authority publications must name this commit only.
+ * Dry-run AUTH may not independently choose a different tip.
+ */
+const IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT =
+  "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
+
+/**
  * Immutable evidence pin authority (reviewed pin publication).
  * Dry-run/apply evidence gates load AUTH only from this commit’s Git blob.
  * Never substitute worktree JSON or an unvalidated descendant.
@@ -102,10 +110,10 @@ const EXPECTED_STANDALONE_BUNDLE_SHA256 =
 
 /** Bundle seals — updated by assemble script after rebuild (non-circular). */
 const STANDALONE_BUNDLE_OID =
-  "2a6d2791aed9658541b84d4ffaf3274e88939d94";
+  "112de9ad9ddf9241cae5ae0bdfbbb2fffd3237f9";
 const STANDALONE_BUNDLE_SHA256 =
-  "cf7974077a08e55d08aa93e67bef9496352bd4e78dcc88efe4eba931083e666a";
-const STANDALONE_BUNDLE_BYTES = 459079;
+  "63c29ff7bedcf1ceb15ae3773945a4331f87802440912ef8bdd1237880af64e2";
+const STANDALONE_BUNDLE_BYTES = 493773;
 
 const SELF_AUTHORITY_MODULES = Object.freeze([
   "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
@@ -132,6 +140,7 @@ module.exports = {
   EXPECTED_PROJECT_REF,
   EXPECTED_STANDALONE_BUNDLE_SHA256,
   FEATURE_FLAG_ENV,
+  IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
   FORBIDDEN_DATABASE_URL_ENVS,
   MIGRATIONS,
   ORIGINAL_COMMITTED_MIGRATIONS,

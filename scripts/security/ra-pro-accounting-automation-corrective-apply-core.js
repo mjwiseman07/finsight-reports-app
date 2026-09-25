@@ -59,6 +59,10 @@ const {
   recheckDryRunAuthorizationPin,
 } = require("./ra-pro-accounting-automation-corrective-dry-run-authorization");
 const {
+  assertExecutableAuthorityBeforeCredentials,
+  recheckExecutableAuthorityPin,
+} = require("./ra-pro-accounting-automation-corrective-executable-authority");
+const {
   assertCorrectivePreconditionEvidencePublished,
 } = require("./ra-pro-accounting-automation-corrective-precondition-gates");
 const {
@@ -999,14 +1003,63 @@ async function runDryRun(inputs = {}) {
   evidence.migration_sql_attempts = 0;
   try {
     refuseAuthIfOriginalsTargeted(inputs);
-    // Dry-run execution trust comes only from a validated authorization publication map.
-    // Bare --executable-commit / missing pin fails here before evidence gates / credentials / DB.
+    // Executable tip trust comes only from a validated executable-authority publication.
+    // Dry-run AUTH may recheck that tip; it must not independently choose one.
+    let executableAuthorityMap = inputs.executableAuthorityMap || null;
+    if (
+      !executableAuthorityMap &&
+      inputs.executableAuthorityPublication &&
+      HEX40_LOCAL.test(String(inputs.executableAuthorityPublication))
+    ) {
+      executableAuthorityMap = assertExecutableAuthorityBeforeCredentials({
+        cwd: resolveRepoRoot(inputs),
+        publicationCommit: inputs.executableAuthorityPublication,
+        env: inputs.env || {},
+        expectBlobOid: inputs.expectExecutableAuthorityBlobOid,
+        expectBlobSha256: inputs.expectExecutableAuthorityBlobSha256,
+        expectBlobBytes: inputs.expectExecutableAuthorityBlobBytes,
+      });
+    }
+    if (!executableAuthorityMap || executableAuthorityMap.executable_authorized !== true) {
+      const err = new Error(
+        "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED: validated executable-authority publication required before dry-run AUTH",
+      );
+      err.code = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
+      throw err;
+    }
+    if (
+      inputs.expectExecutableAuthorityBlobOid ||
+      inputs.expectExecutableAuthorityCommit ||
+      inputs.expectBundleOid
+    ) {
+      recheckExecutableAuthorityPin({
+        cwd: resolveRepoRoot(inputs),
+        expectExecutable:
+          inputs.expectExecutable || executableAuthorityMap.authorized_executable_commit,
+        expectCommit:
+          inputs.expectExecutableAuthorityCommit ||
+          inputs.executableAuthorityPublication ||
+          executableAuthorityMap.publication_commit,
+        expectBlobOid:
+          inputs.expectExecutableAuthorityBlobOid ||
+          executableAuthorityMap.authorization_publication_blob_oid,
+        expectBundleOid: inputs.expectBundleOid || executableAuthorityMap.bundle_oid,
+        expectLiveRef: inputs.expectExecutableAuthorityLiveRef,
+      });
+    }
+
+    // Dry-run execution trust comes only from a validated authorization publication map
+    // bound to the executable-authority map above.
     let dryRunMap = inputs.dryRunAuthorizationMap || null;
     if (!dryRunMap && inputs.publicationCommit && HEX40_LOCAL.test(String(inputs.publicationCommit))) {
       dryRunMap = assertDryRunAuthorizedBeforeCredentials({
         cwd: resolveRepoRoot(inputs),
         publicationCommit: inputs.publicationCommit,
         env: inputs.env || {},
+        executableAuthorityMap,
+        executableAuthorityPublication: executableAuthorityMap.publication_commit,
+        expectExecutableAuthorityBlobOid:
+          executableAuthorityMap.authorization_publication_blob_oid,
       });
     }
     if (dryRunMap) {
@@ -1026,11 +1079,16 @@ async function runDryRun(inputs = {}) {
           expectBundleOid: inputs.expectBundleOid || dryRunMap.bundle_oid,
           expectAttemptId: inputs.expectAttemptId || dryRunMap.attempt_id,
           expectLiveRef: inputs.expectLiveRef,
+          expectExecutableAuthorityCommit: executableAuthorityMap.publication_commit,
+          expectExecutableAuthorityBlobOid:
+            executableAuthorityMap.authorization_publication_blob_oid,
+          executableAuthorityMap,
         });
       }
       inputs = {
         ...inputs,
         dryRunAuthorizationMap: dryRunMap,
+        executableAuthorityMap,
         executableCommit: dryRunMap.authorized_executable_commit,
       };
       evidence.dry_run_authorization = {
@@ -1039,7 +1097,16 @@ async function runDryRun(inputs = {}) {
         authorized_executable_commit: dryRunMap.authorized_executable_commit,
         attempt_id: dryRunMap.attempt_id,
         bundle_oid: dryRunMap.bundle_oid,
+        executable_authority_publication_commit: executableAuthorityMap.publication_commit,
+        executable_authority_publication_blob_oid:
+          executableAuthorityMap.authorization_publication_blob_oid,
       };
+    } else {
+      const err = new Error(
+        "DRY_RUN_AUTHORIZATION_REQUIRED: validated dry-run authorization publication required; --executable-commit alone is not authority",
+      );
+      err.code = "DRY_RUN_AUTHORIZATION_REQUIRED";
+      throw err;
     }
     // Evidence pins fail closed before bundle/credentials/DB — Git authority only.
     evidence.evidence_gates = enforceCorrectiveEvidenceGates(inputs, "dry-run");
@@ -1074,6 +1141,10 @@ async function runDryRun(inputs = {}) {
         expectBundleOid: dryRunMap.bundle_oid,
         expectAttemptId: dryRunMap.attempt_id,
         expectLiveRef: inputs.expectLiveRef,
+        expectExecutableAuthorityCommit: executableAuthorityMap.publication_commit,
+        expectExecutableAuthorityBlobOid:
+          executableAuthorityMap.authorization_publication_blob_oid,
+        executableAuthorityMap,
       });
     }
     evidence.databaseConnectionAttempts = 1;

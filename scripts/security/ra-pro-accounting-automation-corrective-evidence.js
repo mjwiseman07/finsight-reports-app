@@ -184,6 +184,14 @@ function validateCorrectiveDryRunEvidenceSchema(evidence) {
     ) {
       return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_EXECUTABLE", phase: "schema" };
     }
+    assertHex40(
+      String(dryAuth.executable_authority_publication_commit || "").toLowerCase(),
+      "CORRECTIVE_EVIDENCE_EXECUTABLE_AUTHORITY_PUBLICATION",
+    );
+    assertHex40(
+      String(dryAuth.executable_authority_publication_blob_oid || "").toLowerCase(),
+      "CORRECTIVE_EVIDENCE_EXECUTABLE_AUTHORITY_BLOB",
+    );
     if (!/^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/.test(String(dryAuth.attempt_id || ""))) {
       return { ok: false, code: "CORRECTIVE_EVIDENCE_DRY_RUN_ATTEMPT", phase: "schema" };
     }
@@ -577,6 +585,18 @@ function sealCorrectiveDryRunEvidence(partial, auth, options = {}) {
       bundle_oid: String(
         (partial.dry_run_authorization && partial.dry_run_authorization.bundle_oid) ||
           bundle.oid ||
+          "",
+      ).toLowerCase(),
+      executable_authority_publication_commit: String(
+        options.executableAuthorityPublication ||
+          (partial.dry_run_authorization &&
+            partial.dry_run_authorization.executable_authority_publication_commit) ||
+          "",
+      ).toLowerCase(),
+      executable_authority_publication_blob_oid: String(
+        options.executableAuthorityBlobOid ||
+          (partial.dry_run_authorization &&
+            partial.dry_run_authorization.executable_authority_publication_blob_oid) ||
           "",
       ).toLowerCase(),
     },

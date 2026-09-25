@@ -4,12 +4,28 @@
   Sealed first-hop bootstrap for RA Pro accounting-automation CORRECTIVE dry-run.
   Materialized only from reviewed Git blob seals (see APPLY_RUNBOOK.md).
   Direct worktree -File is rejected. Never contacts production by itself.
+  Requires validated executable-authority publication pins before dry-run AUTH.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$PrHead,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$ExecutableAuthorityPublication,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
+  [string]$ExpectExecutableAuthorityBlobOid,
+
+  [Parameter(Mandatory = $false)]
+  [ValidatePattern('^[0-9a-fA-F]{64}$')]
+  [string]$ExpectExecutableAuthorityBlobSha256 = "",
+
+  [Parameter(Mandatory = $false)]
+  [int]$ExpectExecutableAuthorityBlobBytes = 0,
 
   [Parameter(Mandatory = $false)]
   [string]$RepoRoot = "",
@@ -33,6 +49,7 @@ $ProgressPreference = "SilentlyContinue"
 $AuthRel = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json"
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1"
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
+$ImmutableExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
 $script:MaterialRoot = $null
 
 try {
@@ -128,12 +145,48 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 $PrHead = $PrHead.ToLowerInvariant()
+$ExecutableAuthorityPublication = $ExecutableAuthorityPublication.ToLowerInvariant()
+$ExpectExecutableAuthorityBlobOid = $ExpectExecutableAuthorityBlobOid.ToLowerInvariant()
 
 $publication = $PrHead
 if (-not [string]::IsNullOrWhiteSpace($TestPublicationCommit)) {
   throw "BOOTSTRAP_TEST_PUBLICATION_FORBIDDEN: harness publication overrides are not accepted on bootstrap"
 }
 
+# --- Executable authority first (before dry-run AUTH) ---
+$execAuthBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${ExecutableAuthorityPublication}:${AuthRel}") -WorkDir $RepoRoot
+Assert-Utf8LfNoBom -Bytes $execAuthBytes -Label $AuthRel
+$execAuthOid = ([Text.Encoding]::UTF8.GetString((Invoke-GitBytes -GitArgs @("rev-parse", "${ExecutableAuthorityPublication}:${AuthRel}") -WorkDir $RepoRoot))).Trim().ToLowerInvariant()
+if ($execAuthOid -ne $ExpectExecutableAuthorityBlobOid) {
+  throw "EXECUTABLE_AUTHORITY_PIN_MISMATCH: blob oid"
+}
+if (-not [string]::IsNullOrWhiteSpace($ExpectExecutableAuthorityBlobSha256)) {
+  $gotSha = Get-Sha256Hex $execAuthBytes
+  if ($gotSha -ne $ExpectExecutableAuthorityBlobSha256.ToLowerInvariant()) {
+    throw "EXECUTABLE_AUTHORITY_PIN_MISMATCH: blob sha256"
+  }
+}
+if ($ExpectExecutableAuthorityBlobBytes -gt 0 -and $execAuthBytes.Length -ne $ExpectExecutableAuthorityBlobBytes) {
+  throw "EXECUTABLE_AUTHORITY_PIN_MISMATCH: blob bytes"
+}
+$execAuth = ([Text.Encoding]::UTF8.GetString($execAuthBytes)) | ConvertFrom-Json
+$execRecord = $execAuth.production_executable_authority
+if ($null -eq $execRecord -or [string]$execRecord.status -ne "AUTHORIZED" -or -not [bool]$execRecord.executable_authorized) {
+  throw "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED: production_executable_authority is UNPUBLISHED"
+}
+$executable = ([string]$execRecord.authorized_executable_commit).ToLowerInvariant()
+if ($executable -ne $ImmutableExecutable) {
+  throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must be $ImmutableExecutable"
+}
+if ($executable -eq $ExecutableAuthorityPublication) { throw "EXECUTABLE_AUTHORITY_CIRCULAR_TIP" }
+git -C $RepoRoot merge-base --is-ancestor $executable $ExecutableAuthorityPublication
+if ($LASTEXITCODE -ne 0) { throw "EXECUTABLE_AUTHORITY_ANCESTRY" }
+$execDelta = @(git -C $RepoRoot diff --name-only $executable $ExecutableAuthorityPublication)
+if ($execDelta.Count -ne 1 -or $execDelta[0] -ne $AuthRel) {
+  throw ("EXECUTABLE_AUTHORITY_ALLOWLIST: " + ($execDelta -join ","))
+}
+
+# --- Dry-run authorization (must match executable tip) ---
 $authBytes = Invoke-GitBytes -GitArgs @("cat-file", "blob", "${publication}:${AuthRel}") -WorkDir $RepoRoot
 Assert-Utf8LfNoBom -Bytes $authBytes -Label $AuthRel
 $authJson = [Text.Encoding]::UTF8.GetString($authBytes)
@@ -144,13 +197,16 @@ if ($null -eq $record -or [string]$record.status -ne "AUTHORIZED" -or -not [bool
   throw "DRY_RUN_REMAINS_BLOCKED_BEFORE_CREDENTIALS: production_dry_run_authorization is UNPUBLISHED"
 }
 
-$executable = ([string]$record.authorized_executable_commit).ToLowerInvariant()
-if ($executable -notmatch '^[0-9a-f]{40}$') { throw "DRY_RUN_AUTHORIZATION_EXECUTABLE_INVALID" }
-if ($executable -eq $publication) { throw "DRY_RUN_AUTHORIZATION_CIRCULAR_TIP" }
+$dryExecutable = ([string]$record.authorized_executable_commit).ToLowerInvariant()
+if ($dryExecutable -ne $executable) {
+  throw "DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH: dry-run authorized_executable_commit must match executable-authority"
+}
+if ($dryExecutable -notmatch '^[0-9a-f]{40}$') { throw "DRY_RUN_AUTHORIZATION_EXECUTABLE_INVALID" }
+if ($dryExecutable -eq $publication) { throw "DRY_RUN_AUTHORIZATION_CIRCULAR_TIP" }
 
-git -C $RepoRoot merge-base --is-ancestor $executable $publication
+git -C $RepoRoot merge-base --is-ancestor $dryExecutable $publication
 if ($LASTEXITCODE -ne 0) { throw "DRY_RUN_AUTHORIZATION_ANCESTRY" }
-$names = @(git -C $RepoRoot diff --name-only $executable $publication)
+$names = @(git -C $RepoRoot diff --name-only $dryExecutable $publication)
 if ($names.Count -ne 1 -or $names[0] -ne $AuthRel) {
   throw ("DRY_RUN_AUTHORIZATION_ALLOWLIST: " + ($names -join ","))
 }
@@ -180,6 +236,8 @@ try {
     "-File", "`"$cerDest`"",
     "-PinTip", $ExpectedEvidenceAuthority,
     "-DryRunAuthorizationPublication", $publication,
+    "-ExecutableAuthorityPublication", $ExecutableAuthorityPublication,
+    "-ExpectExecutableAuthorityBlobOid", $ExpectExecutableAuthorityBlobOid,
     "-RepoRoot", "`"$RepoRoot`"",
     "-EvidenceOutDir", "`"$EvidenceOutDir`"",
     "-SealedMaterialInvocation"

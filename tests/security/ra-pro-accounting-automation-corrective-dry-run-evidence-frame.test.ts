@@ -86,6 +86,8 @@ function readyPartial() {
       authorized_executable_commit: "18fa394b477ca728c2c53c3f504f421087ac47eb",
       attempt_id: "corr-dryrun-18fa394b477c-cccccccccccccccccccccccccccccccc",
       bundle_oid: STANDALONE_BUNDLE_OID,
+      executable_authority_publication_commit: "c111111111111111111111111111111111111111",
+      executable_authority_publication_blob_oid: "c222222222222222222222222222222222222222",
     },
     source_authority: [
       {

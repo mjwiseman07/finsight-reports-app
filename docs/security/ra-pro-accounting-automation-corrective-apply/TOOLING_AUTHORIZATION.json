@@ -199,8 +199,26 @@
     "evidence_pin_authority": null,
     "precondition_evidence": null,
     "pre_apply_live_evidence": null,
+    "executable_authority_publication_commit": null,
+    "executable_authority_publication_blob_oid": null,
     "publication_role": "later_descendant_commit",
-    "note": "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. --executable-commit alone is never authority."
+    "note": "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip — a validated production_executable_authority publication must bind tip 9f31c355… first. --executable-commit alone is never authority."
+  },
+  "production_executable_authority": {
+    "status": "UNPUBLISHED",
+    "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1",
+    "executable_authorized": false,
+    "authorized_executable_commit": null,
+    "project_ref": null,
+    "bundle": null,
+    "bootstrap": null,
+    "entry": null,
+    "ceremony": null,
+    "frame": null,
+    "receipt": null,
+    "evidence_pin_authority": null,
+    "publication_role": "later_descendant_commit",
+    "note": "Corrective executable authority is unpublished until a separate reviewed one-object publication names authorized_executable_commit as the immutable tip 9f31c355…. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip."
   },
   "evidence_pin_authority": {
     "commit": "f550842cd6dd837671599ee8c65bb6ba3932aa62",
@@ -224,13 +242,13 @@
     "Applicator never sets ENABLE_RA_PRO_ACCOUNTING_AUTOMATION.",
     "Credential channel: RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_APPLY_DATABASE_URL only. Forbidden: dual apply URL and other apply channels.",
     "production_collection_authorization is a non-circular later-descendant publication: it may name authorized_executable_commit but must never embed the publication commit SHA. dbdce968 is rejected/stale and must never authorize collection.",
-    "Corrective precondition and pre-apply live evidence pins remain PUBLISHED at evidence pin authority f550842c… (source a055228c…). Runtime dry-run/apply must load that AUTH blob via git cat-file only — never worktree JSON. production_dry_run_authorization and production_apply_authorization remain UNPUBLISHED. Dry-run trust requires a later AUTH-only one-attempt publication (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1); --executable-commit alone is never authority. Authenticated first hop materializes bootstrap from Git blob seals only. Pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation. Reviewed tooling lineage tip: 99dc4cc3…."
+    "Corrective precondition and pre-apply live evidence pins remain PUBLISHED at evidence pin authority f550842c… (source a055228c…). Runtime dry-run/apply must load that AUTH blob via git cat-file only — never worktree JSON. production_executable_authority, production_dry_run_authorization, and production_apply_authorization remain UNPUBLISHED. Dry-run trust requires a validated executable-authority publication naming tip 9f31c355… (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1) plus a later AUTH-only one-attempt dry-run publication (RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1); dry-run AUTH may not independently choose an executable tip; --executable-commit alone is never authority. Authenticated first hop materializes bootstrap from Git blob seals only. Pin publication does not authorize dry-run credentials, apply, merge, deploy, env changes, or automation. Reviewed tooling lineage tip: 99dc4cc3…."
   ],
   "standalone_bundle": {
     "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
-    "oid": "2a6d2791aed9658541b84d4ffaf3274e88939d94",
-    "sha256": "cf7974077a08e55d08aa93e67bef9496352bd4e78dcc88efe4eba931083e666a",
-    "bytes": 459079,
+    "oid": "112de9ad9ddf9241cae5ae0bdfbbb2fffd3237f9",
+    "sha256": "63c29ff7bedcf1ceb15ae3773945a4331f87802440912ef8bdd1237880af64e2",
+    "bytes": 493773,
     "line_endings": "LF",
     "authority": "git_blob_cat_file"
   }

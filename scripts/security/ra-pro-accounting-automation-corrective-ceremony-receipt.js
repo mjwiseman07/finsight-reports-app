@@ -165,6 +165,14 @@ function validateCeremonyReceiptSchema(receipt) {
       String(receipt.dry_run_authorization_publication_blob_oid || "").toLowerCase(),
       "CORRECTIVE_RECEIPT_DRY_RUN_BLOB",
     );
+    assertHex40(
+      String(receipt.executable_authority_publication_commit || "").toLowerCase(),
+      "CORRECTIVE_RECEIPT_EXECUTABLE_AUTHORITY_PUBLICATION",
+    );
+    assertHex40(
+      String(receipt.executable_authority_publication_blob_oid || "").toLowerCase(),
+      "CORRECTIVE_RECEIPT_EXECUTABLE_AUTHORITY_BLOB",
+    );
     if (!/^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/.test(String(receipt.dry_run_attempt_id || ""))) {
       return { ok: false, code: "CORRECTIVE_RECEIPT_DRY_RUN_ATTEMPT" };
     }
@@ -264,6 +272,12 @@ function sealCeremonyReceipt(measurements) {
     ).toLowerCase(),
     dry_run_authorization_publication_blob_oid: String(
       m.dry_run_authorization_publication_blob_oid || "",
+    ).toLowerCase(),
+    executable_authority_publication_commit: String(
+      m.executable_authority_publication_commit || "",
+    ).toLowerCase(),
+    executable_authority_publication_blob_oid: String(
+      m.executable_authority_publication_blob_oid || "",
     ).toLowerCase(),
     dry_run_attempt_id: String(m.dry_run_attempt_id || ""),
     ceremony_path: String(m.ceremony_path || ""),
