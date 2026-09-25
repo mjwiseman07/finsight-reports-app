@@ -1,0 +1,31 @@
+---
+description: Security rules — secrets, production data, auth, and human gates.
+alwaysApply: true
+---
+
+# Security
+
+## Secrets
+
+- Never commit `.env`, credentials, API keys, or tokens.
+- Never log secrets or include them in error messages returned to clients.
+- Do not store API keys in source; use environment variables and Vercel/Supabase dashboards.
+- Cursor automations must not embed secrets — see `docs/agent/CURSOR_AUTOMATION_SETUP.md`.
+
+## Production safety
+
+- Do not modify production Supabase, Stripe live mode, or production env vars during development.
+- Do not run destructive SQL against production.
+- Do not disable auth middleware, CSRF protections, or rate limits to "unblock" development.
+
+## Auth and authorization
+
+- Preserve existing auth flows (Supabase Auth, session handling, MFA where enforced).
+- Never weaken authorization checks on API routes or server actions.
+- See `supabase-rls.mdc` for database tenant isolation.
+
+## Human gates
+
+- Merge to `main`: human approval required.
+- Production deploy: human approval required.
+- Security-sensitive changes: explicit human review required even if automated review passes.

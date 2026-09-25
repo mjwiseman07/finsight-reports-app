@@ -1,0 +1,37 @@
+---
+description: Testing and verification requirements for Advisacor changes.
+globs:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "tests/**"
+  - "scripts/**"
+  - "vitest*.ts"
+---
+
+# Testing and verification
+
+## Required validation (run what applies)
+
+| Command | When |
+|---------|------|
+| `npm run lint` | Always |
+| `npm run type-check` | TypeScript changes |
+| `npm test` | Logic, lib, component behavior |
+| `npm run test:integration` | API, auth, DB, cross-module flows |
+| `npm run build` | Pre-merge / release candidates |
+| `npm run brand:lint` | Marketing/app UI token changes |
+
+## Rules
+
+- Never skip, delete, or `.skip` tests to make CI pass without explicit approval.
+- Do not weaken assertions to hide regressions.
+- Distinguish pre-existing failures from newly introduced failures in reports.
+- Add tests when fixing bugs or adding non-trivial behavior (unless plan says otherwise).
+
+## Orchestrator plans
+
+Record validation evidence in plan status JSON when using the development orchestrator:
+
+```bash
+node scripts/orchestrator/record-implementation.js docs/plans/PLAN-ID.md --results '{"lint":"pass","tests":"pass"}'
+```

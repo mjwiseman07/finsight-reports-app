@@ -1,0 +1,43 @@
+---
+description: Advisacor engineering workflow — scope, quality gates, branch discipline, and orchestrator plan approval.
+alwaysApply: true
+---
+
+# Engineering workflow
+
+## Scope
+
+- Minimize diff size; solve only the requested or approved-plan problem.
+- Match existing conventions in the touched files.
+- Do not modify unrelated functionality.
+
+## Quality gates (required before completion)
+
+Run applicable commands and fix introduced failures:
+
+- `npm run lint`
+- `npm run type-check`
+- `npm test`
+- `npm run test:integration` (when integration surface changes)
+- `npm run build` (before merge-ready work)
+- `npm run brand:lint` (when editing marketing/app UI)
+
+Never disable tests or bypass lint/type/build to pass.
+
+## Branch and deployment
+
+- Work on feature branches; never commit directly to `main`.
+- Never auto-merge or auto-deploy production.
+- Human approval required before merge and production deploy.
+
+## Plan-driven work
+
+- Plans live in `docs/plans/`.
+- Read `docs/agent/PLAN_APPROVAL_RULE.md` before implementing any plan.
+- Implementation MUST NOT start unless plan STATUS is `APPROVED_FOR_IMPLEMENTATION`.
+- Use `node scripts/orchestrator/confirm-approval.js <plan.md>` to verify.
+
+## Documentation
+
+- Agent guides: `docs/agent/`
+- Engineering requirements: `AGENTS.md`

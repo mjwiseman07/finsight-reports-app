@@ -16,6 +16,8 @@ export default defineConfig({
     include: [
       "tests/**/*.test.ts",
       "tests/**/*.test.tsx",
+      "tests/**/*.test.js",
+      "tests/orchestrator/**/*.test.js",
       "lib/je-evidence/__tests__/**/*.test.ts",
       "lib/accruals/__tests__/**/*.test.ts",
       "lib/gap2/__tests__/**/*.test.ts",

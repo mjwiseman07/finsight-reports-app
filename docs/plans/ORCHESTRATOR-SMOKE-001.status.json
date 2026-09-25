@@ -1,0 +1,8 @@
+{
+  "planId": "ORCHESTRATOR-SMOKE-001",
+  "planPath": "docs/plans/ORCHESTRATOR-SMOKE-001.md",
+  "status": "DRAFT",
+  "phase": "planning",
+  "updatedAt": "2026-09-24T00:00:00.000Z",
+  "notes": "Intentionally DRAFT — smoke plan for future orchestrator validation only"
+}

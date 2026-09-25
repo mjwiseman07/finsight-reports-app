@@ -1,0 +1,31 @@
+---
+description: Hard gate — never implement a plan unless STATUS is APPROVED_FOR_IMPLEMENTATION.
+alwaysApply: true
+---
+
+# Plan execution gate (APPROVED_FOR_IMPLEMENTATION)
+
+## Hard stop
+
+**NEVER implement work from a plan in `docs/plans/` unless its STATUS is exactly `APPROVED_FOR_IMPLEMENTATION`.**
+
+If STATUS is `DRAFT`, `REVIEW_FAILED`, `READY_FOR_REVIEW`, or any other value, STOP and ask the human to approve the plan first.
+
+## Before coding from a plan
+
+1. Read the plan file completely.
+2. Run: `node scripts/orchestrator/validate-plan.js docs/plans/<PLAN-ID>.md`
+3. Run: `node scripts/orchestrator/confirm-approval.js docs/plans/<PLAN-ID>.md`
+4. Only proceed if confirm-approval exits 0.
+
+## During implementation
+
+- Stay within **Scope**; respect **Out of Scope**.
+- Follow `docs/agent/IMPLEMENTATION_AGENT.md`.
+- Record results: `node scripts/orchestrator/record-implementation.js <plan.md> --results '<json>'`
+
+## After implementation
+
+- Hand off to review via `docs/agent/REVIEW_AGENT.md` and `prepare-review.js`.
+- Do not merge or deploy — human approval required.
+- Never set `STATUS: COMPLETED` via scripts.
