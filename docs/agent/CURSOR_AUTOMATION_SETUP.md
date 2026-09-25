@@ -1,70 +1,134 @@
 # Cursor automation setup
 
-Guide for wiring Cursor Automations to the Advisacor Development Orchestrator V1 **without embedding secrets in source**.
+Guide for wiring Cursor Cloud Agents and Automations to the Advisacor Development Orchestrator **without embedding secrets in source**.
 
 ## Principles
 
-- **No API keys in repo** — use Cursor/ Vercel / Supabase dashboard secrets only.
-- **Fail closed** — automations call orchestrator scripts; non-zero exit stops the workflow.
+- **No API keys in repo** — use Cursor Dashboard / local `.env.local` / OS env only.
+- **Fail closed** — orchestrator scripts exit non-zero and do not advance state on API/auth failures.
 - **Human gates** — never auto-approve plans, merge, or deploy production.
+- **Isolated branches** — Cloud Agents always use `workOnCurrentBranch: false` (new `cursor/...` branch).
 
-## Suggested automation phases
+## 1. Create a Cursor API key
 
-### 1. Plan validation (on PR or schedule)
+1. Open [Cursor Dashboard → API Keys](https://cursor.com/dashboard?tab=integrations).
+2. Create a user or service-account API key with Cloud Agents access.
+3. Copy the key once — store it only in a secret store or local env file that is gitignored.
 
-Trigger: new/edited file under `docs/plans/*.md`
+## 2. Environment configuration (local)
 
-```bash
-node scripts/orchestrator/validate-plan.js docs/plans/<PLAN-ID>.md
-```
-
-### 2. Implementation (manual trigger only)
-
-Only after human sets `STATUS: APPROVED_FOR_IMPLEMENTATION`:
+Add to `.env.local` (gitignored) or your shell:
 
 ```bash
-node scripts/orchestrator/confirm-approval.js docs/plans/<PLAN-ID>.md
-node scripts/orchestrator/prepare-implementation.js docs/plans/<PLAN-ID>.md
+CURSOR_API_KEY=your_key_here
 ```
 
-Pass the JSON payload to an implementation agent prompt referencing `docs/agent/IMPLEMENTATION_AGENT.md`.
-
-### 3. Review (after implementation recorded)
+`.env.example` documents the empty placeholder:
 
 ```bash
-node scripts/orchestrator/prepare-review.js docs/plans/<PLAN-ID>.md
+CURSOR_API_KEY=
 ```
 
-Review agent uses `docs/agent/REVIEW_AGENT.md`.
+Never commit a real key. Never paste a real key into chat, plans, status JSON, or logs.
 
-### 4. Human summary
+Optional:
 
 ```bash
-node scripts/orchestrator/human-summary.js docs/plans/<PLAN-ID>.md
+CURSOR_API_BASE_URL=https://api.cursor.com
+CURSOR_API_TIMEOUT_MS=60000
 ```
 
-Post output to PR comment or Slack — human decides merge/deploy.
+Non-secret defaults live in `scripts/orchestrator/config.js`:
 
-## Cursor Automations MCP
+| Setting | Value |
+|---------|-------|
+| Repository | `https://github.com/mjwiseman07/finsight-reports-app` |
+| startingRef | `main` |
+| workOnCurrentBranch | `false` |
+| autoCreatePR | `true` |
+| skipReviewerRequest | `false` |
 
-Use `build_automation_prefill_url` (Cursor backend MCP) to draft workflows. Store secrets in Cursor automation secret UI, not in workflow JSON committed to git.
+## 3. GitHub repository connection
 
-## GitHub Actions
+1. Ensure the GitHub app / Cursor GitHub integration can access `mjwiseman07/finsight-reports-app`.
+2. Confirm Cloud Agents can clone the repo from Cursor’s Cloud Agents UI.
+3. Do not grant production Supabase/Stripe credentials to the Cloud Agent environment for builder V1.
 
-This repo has no `.github/workflows` yet. If added later:
+## 4. Cursor Cloud Agent repository access
 
-- Run validation scripts on plan changes
-- Do NOT auto-merge on green CI
-- Require environment protection rules for production deploy jobs
+- Connect the repo in Cursor Cloud Agents settings.
+- Confirm `.cursor/environment.json` is present (install: `npm ci`) so agents can install dependencies.
+- Builder V1 needs ordinary code/test/build ability only — **no** `SUPABASE_SERVICE_ROLE_KEY`, **no** Stripe live keys.
 
-## Environment variables
+## 5. Launch command
 
-| Variable | Where | Never in repo |
-|----------|-------|---------------|
-| Supabase keys | Vercel / local `.env` | yes |
-| Stripe keys | Vercel / Stripe dashboard | yes |
-| Cursor tokens | Cursor automation secrets | yes |
+Only after a human sets `STATUS: APPROVED_FOR_IMPLEMENTATION` (markdown + companion):
+
+```bash
+# Load CURSOR_API_KEY into the environment first
+npm run orchestrator:launch -- docs/plans/<PLAN-ID>.md
+```
+
+Order enforced by the launcher:
+
+1. Path safety + `docs/plans/` confinement  
+2. Plan validation + companion integrity  
+3. Exact `APPROVED_FOR_IMPLEMENTATION`  
+4. No existing `cursor_agent` association  
+5. `CURSOR_API_KEY` present  
+6. Prompt build + API create  
+7. **Only after successful create** → `IN_PROGRESS` + safe `cursor_agent` metadata  
+
+## 6. Dry-run command
+
+```bash
+npm run orchestrator:dry-run -- docs/plans/<PLAN-ID>.md --dry-run
+```
+
+(or `node scripts/orchestrator/launch-builder.js docs/plans/<PLAN-ID>.md --dry-run`)
+
+Dry-run validates path/plan/approval/state and constructs the API request. It does **not** call Cursor, create an agent, create a branch/PR, or change status. It never prints `CURSOR_API_KEY`.
+
+## 7. Status command
+
+```bash
+npm run orchestrator:status -- docs/plans/<PLAN-ID>.md
+```
+
+Polls Cursor for agent/run status, updates safe `cursor_agent` fields, and may advance `IN_PROGRESS` → `IMPLEMENTATION_COMPLETE` when the run is `FINISHED` **and** a `pr_url` exists.
+
+It will **never** set `REVIEW_PASSED`, `READY_FOR_HUMAN_APPROVAL`, or `COMPLETED`.
+
+## 8. Expected Cloud Agent branch behavior
+
+- `startingRef: main`
+- `workOnCurrentBranch: false`
+- Cursor creates an isolated `cursor/...` branch for the work
+
+## 9. Expected automatic PR behavior
+
+- `autoCreatePR: true`
+- When the builder finishes successfully, Cursor opens a PR against the base ref
+- Orchestrator records `pr_url` on status poll
+
+## 10. Security restrictions
+
+- No secrets in prompts, status JSON, or logs
+- No shell execution from plan content
+- Plans must live under `docs/plans/`
+- API failures leave plan status unchanged (not `IN_PROGRESS`)
+- Duplicate launch blocked when `cursor_agent.agent_id` already exists
+
+## 11. Human approval gates
+
+- Humans alone set `APPROVED_FOR_IMPLEMENTATION` and `COMPLETED`
+- Independent review is a separate phase after builder completion
+- Merge to `main` and production deploy remain human-only
+
+## Legacy / future automation phases
+
+Plan validation, prepare-review, and human-summary scripts remain available. Cursor Automations MCP may call these later; store secrets in Cursor automation secret UI, not in committed workflow JSON.
 
 ## Smoke plan
 
-`docs/plans/ORCHESTRATOR-SMOKE-001.md` is intentionally `DRAFT` — use it to test validation and approval gates without executing changes.
+`docs/plans/ORCHESTRATOR-SMOKE-001.md` remains `DRAFT` until a human explicitly approves a controlled smoke launch.

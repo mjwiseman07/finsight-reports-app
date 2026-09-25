@@ -523,6 +523,78 @@ function assertNoProductionAuthority(payload) {
   }
 }
 
+/**
+ * Ensure a plan path resolves inside docs/plans/ (or configured plans dir).
+ */
+function assertPlanInPlansDirectory(absolutePlanPath, plansDirRelative = "docs/plans") {
+  const root = getRepoRoot();
+  const plansRoot = path.resolve(root, plansDirRelative);
+  const absolute = path.resolve(absolutePlanPath);
+  const rel = path.relative(plansRoot, absolute);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(
+      `Plan path must be inside ${plansDirRelative}/: ${absolutePlanPath}`,
+    );
+  }
+  return absolute;
+}
+
+function toRepoRelative(absolutePath) {
+  const root = getRepoRoot();
+  const rel = path.relative(root, absolutePath);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`Path escapes repository root: ${absolutePath}`);
+  }
+  return rel.split(path.sep).join("/");
+}
+
+function hasActiveCursorAgent(companion) {
+  const agent = companion?.cursor_agent;
+  if (!agent || typeof agent !== "object") return false;
+  if (!agent.agent_id) return false;
+  const terminal = new Set([
+    "FINISHED",
+    "ERROR",
+    "CANCELLED",
+    "EXPIRED",
+    "ARCHIVED",
+  ]);
+  const runStatus = agent.run_status || agent.status;
+  if (runStatus && terminal.has(String(runStatus).toUpperCase())) {
+    // Finished association still blocks duplicate launch — agent already created.
+    return true;
+  }
+  return true;
+}
+
+function sanitizeCursorAgentRecord(record) {
+  if (!record || typeof record !== "object") return null;
+  const allowed = [
+    "agent_id",
+    "run_id",
+    "status",
+    "agent_status",
+    "run_status",
+    "branch",
+    "pr_url",
+    "agent_url",
+    "latest_run_id",
+    "launched_at",
+    "last_checked_at",
+    "result_summary",
+    "duration_ms",
+  ];
+  const out = {};
+  for (const key of allowed) {
+    if (record[key] !== undefined) out[key] = record[key];
+  }
+  // Never allow accidental secret fields through
+  delete out.api_key;
+  delete out.authorization;
+  delete out.CURSOR_API_KEY;
+  return out;
+}
+
 function fail(message, code = 1) {
   console.error(`[orchestrator] ERROR: ${message}`);
   process.exit(code);
@@ -559,6 +631,10 @@ module.exports = {
   assertCompanionIntegrity,
   assertImplementationResultValid,
   assertNoProductionAuthority,
+  assertPlanInPlansDirectory,
+  toRepoRelative,
+  hasActiveCursorAgent,
+  sanitizeCursorAgentRecord,
   extractSectionBody,
   updateMarkdownStatus,
   fail,
