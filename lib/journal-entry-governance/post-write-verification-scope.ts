@@ -7,8 +7,9 @@
  * trio, so JE-4 does not invent a subset reconciliation engine.
  *
  * bs_account_recon stays a live-provider kind (null baseline_sync_id). Its
- * post-write proof is the SUCCESS sync trial-balance balance, not
- * regenerate-run and not a synthetic sync baseline.
+ * post-write proof is the provider-backed GL detail ending in
+ * qbo_natural_sign, not the trial-balance comparison balance and not
+ * regenerate-run.
  */
 
 import type { JeExpectedEffect } from "./types";
@@ -25,13 +26,13 @@ const TRIO_REASON_UNCERTAIN =
   "Affected recon set is incomplete (exception clear, reclass, or missing source kinds). " +
   "Recompute uses the existing AR+AP+Inventory authoritative trio because that entrypoint " +
   "is not subset-selectable and Continuous Close OBSERVE requires the complete snapshot trio. " +
-  "BS GL proof uses the SUCCESS sync trial balance. Live regenerate-run is not invoked.";
+  "BS GL proof uses the provider-backed GL detail ending in qbo_natural_sign, not the trial-balance comparison balance. Live regenerate-run is not invoked.";
 
 const TRIO_REASON_RESOLVED =
   "Affected kinds come from proposal source recon kinds and expected effects. " +
   "Recompute still uses the authoritative trio: observation has no kind filter, and " +
   "OBSERVE persistence requires the complete trio. bs_account_recon remains live-provider " +
-  "(null baseline) and is proven from canonical GL, not a synthetic sync baseline. " +
+  "(null baseline) and is proven from the provider-backed GL detail ending in qbo_natural_sign, not a synthetic sync baseline and not the trial-balance comparison balance. " +
   "Live regenerate-run is not invoked.";
 
 export function selectPostWriteRecomputeScope(args: {

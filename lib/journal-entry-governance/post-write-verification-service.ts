@@ -29,6 +29,10 @@ import type { RunAndPersistAuthoritativeObserveResult } from "@/lib/continuous-c
 import type { JournalEntryExecutionRow } from "./execution-types";
 import type { JournalEntryProposalRow } from "./types";
 import { assertPostWriteVerificationCustody } from "./post-write-verification-custody";
+import {
+  applyPostWriteProofRows,
+  type PostWriteTieOutProofRow,
+} from "./post-write-verification-canonical";
 import { verifyPostWriteExpectedEffects } from "./post-write-verification-effects";
 import {
   hashJe4IdempotencyKey,
@@ -90,6 +94,18 @@ export type PostWriteVerificationDeps = {
     accountingSyncId: string;
     providerJournalId: string;
   }) => Promise<PostWriteCanonicalEvidence | null>;
+  /**
+   * Tie-out rows for effect proof. Engagement, period, sync, and run ids
+   * are taken from execution custody and the observation, never from the caller.
+   */
+  loadPostWriteProofRows: (args: {
+    engagementId: string;
+    periodEnd: string;
+    accountingSyncId: string;
+    verifiedAt: string;
+    syncBackedRunIds: readonly string[];
+    glAccountIds: readonly string[];
+  }) => Promise<PostWriteTieOutProofRow[]>;
   runObserve: (
     input: AuthoritativeObservationInput,
     executionContext: AuthoritativeObservationExecutionContext,
@@ -350,27 +366,6 @@ function syncTimingFailure(args: {
     };
   }
   return null;
-}
-
-function mergeReconEvidence(
-  canonical: PostWriteCanonicalEvidence,
-  slots: { ar: StoredSlot; ap: StoredSlot; inventory: StoredSlot },
-): PostWriteCanonicalEvidence {
-  const reconEvidence = { ...canonical.reconEvidence };
-  const pairs: Array<[string, StoredSlot]> = [
-    ["ar_aging", slots.ar],
-    ["ap_aging", slots.ap],
-    ["inventory", slots.inventory],
-  ];
-  for (const [kind, slot] of pairs) {
-    const prior = reconEvidence[kind];
-    reconEvidence[kind] = {
-      outcome: slot.totalsStatus ?? prior?.outcome ?? null,
-      residualDeltaCents: prior?.residualDeltaCents ?? null,
-      authoritative: slot.authoritative,
-    };
-  }
-  return { ...canonical, reconEvidence };
 }
 
 export async function runPostWriteVerification(
@@ -932,7 +927,44 @@ export async function runPostWriteVerification(
     });
   }
 
-  const merged = mergeReconEvidence(canonical, slots);
+  const glAccountIds = custody.expectedEffects
+    .filter((effect) => effect.type === "BS_ACCOUNT_GL_DELTA")
+    .map((effect) => effect.qboAccountId);
+  let proofRows: PostWriteTieOutProofRow[];
+  try {
+    proofRows = await deps.loadPostWriteProofRows({
+      engagementId: custody.engagementId,
+      periodEnd: custody.periodEnd,
+      accountingSyncId: syncId,
+      verifiedAt: custody.verifiedAt,
+      syncBackedRunIds: [slots.ar.runId, slots.ap.runId, slots.inventory.runId].filter(
+        (runId): runId is string => Boolean(runId),
+      ),
+      glAccountIds,
+    });
+  } catch (error) {
+    return persist({
+      status: "EFFECTS_INCOMPLETE",
+      retryable: false,
+      accounting_sync_id: syncId,
+      observation_id: observationId,
+      tie_out_run_ids: tieOut.tieOutRunIds,
+      continuous_close_run_id: observed.run.id,
+      failure_code: "je4_effect_proof_load_failed",
+      failure_message:
+        error instanceof Error ? error.message : "Post-write effect proof rows could not be loaded.",
+      evidence: { ...row.evidence, scope, reconciliations: slots },
+    });
+  }
+  const merged = applyPostWriteProofRows({
+    evidence: canonical,
+    accountingSyncId: syncId,
+    engagementId: custody.engagementId,
+    periodEnd: custody.periodEnd,
+    verifiedAt: custody.verifiedAt,
+    slots,
+    rows: proofRows,
+  });
   const effects = verifyPostWriteExpectedEffects({
     lines: custody.lines,
     totalDebitsCents: custody.totalDebitsCents,

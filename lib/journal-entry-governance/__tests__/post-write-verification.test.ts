@@ -14,7 +14,15 @@ import { PRODUCTION_JE_WORKFLOW_POLICY } from "../production-workflow-policy";
 import { assertGovernedProviderPostNotEnabled } from "../provider-attempt-service";
 import type { JournalEntryExecutionRow } from "../execution-types";
 import type { JournalEntryProposalRow, JeProposalLine } from "../types";
-import { extractPostWriteCanonicalEvidence } from "../post-write-verification-canonical";
+import {
+  normalizeQuickBooksReportEntities,
+  normalizeQuickBooksTrialBalance,
+} from "@/lib/integrations/quickbooks/provider";
+import { buildFirstRunEvidenceCoherentExpectedEffects } from "../je3d-first-run-evidence-coherence";
+import {
+  extractPostWriteCanonicalEvidence,
+  type PostWriteTieOutProofRow,
+} from "../post-write-verification-canonical";
 import { JE4_POST_WRITE_FEATURE_GATE } from "../post-write-verification-feature-gate";
 import { hashJe4IdempotencyKey, hashJe4Policy } from "../post-write-verification-hash";
 import { runProductionPostWriteVerification } from "../post-write-verification-production";
@@ -121,7 +129,7 @@ function execution(status: JournalEntryExecutionRow["status"] = "VERIFIED"): Jou
   };
 }
 
-function proposal(): JournalEntryProposalRow {
+function proposal(overrides: Partial<JournalEntryProposalRow> = {}): JournalEntryProposalRow {
   return {
     id: PROPOSAL,
     company_id: COMPANY,
@@ -141,7 +149,11 @@ function proposal(): JournalEntryProposalRow {
     total_credits_cents: 1000,
     expected_effects: [
       { type: "CC_EXCEPTION_CLEAR", exceptionCode: "cutoff_open" },
-      { type: "RECON_OUTCOME_TARGET", reconKind: "ar_aging", targetOutcome: "tie" },
+      {
+        type: "RECON_OUTCOME_TARGET",
+        reconKind: "ar_aging",
+        targetOutcome: "reconciled_exact",
+      },
     ],
     policy_snapshot: {},
     policy_hash: HASH,
@@ -150,6 +162,7 @@ function proposal(): JournalEntryProposalRow {
     proposed_by: "user-proposer",
     proposed_at: "2026-07-30T00:00:00.000Z",
     idempotency_key: HASH,
+    ...overrides,
   };
 }
 
@@ -223,14 +236,63 @@ function canonical(syncId: string, overrides: Partial<PostWriteCanonicalEvidence
     validationStatus: "SUCCESS",
     syncedAt: SYNCED_AT,
     partial: false,
+    journalLineRepresentation: "present",
     visibleJournalLines: lines.map((line) => ({
       accountId: line.accountId,
       debitCents: line.debitCents,
       creditCents: line.creditCents,
     })),
-    accountBalancesCents: { "liab-1": 5000 },
+    glDetailEndingCents: {},
     reconEvidence: {},
     ...overrides,
+  };
+}
+
+function proofRow(
+  overrides: Partial<PostWriteTieOutProofRow> & Pick<PostWriteTieOutProofRow, "id" | "tieOutKind">,
+): PostWriteTieOutProofRow {
+  return {
+    engagementId: ENGAGEMENT,
+    periodEnd: PERIOD,
+    status: "completed",
+    reconOutcome: null,
+    baselineSyncId: NEW_SYNC,
+    unidentifiedResidualCents: null,
+    totalsStatus: "tie",
+    totalsVarianceCents: 250,
+    subledgerTotalCents: null,
+    glTotalCents: null,
+    completedAt: SYNCED_AT,
+    qboAccountId: null,
+    endingBalanceCents: null,
+    glEndingBalanceCents: null,
+    ...overrides,
+  };
+}
+
+function defaultProofRows(syncId: string): PostWriteTieOutProofRow[] {
+  return [
+    proofRow({
+      id: "tie-ar",
+      tieOutKind: "ar_aging",
+      baselineSyncId: syncId,
+      reconOutcome: "reconciled_exact",
+      unidentifiedResidualCents: 0,
+      totalsStatus: "tie",
+      totalsVarianceCents: 250,
+    }),
+  ];
+}
+
+function qboReport(rows: string[][]) {
+  return {
+    data: {
+      Rows: {
+        Row: rows.map((cols) => ({
+          ColData: cols.map((value) => ({ value })),
+        })),
+      },
+    },
   };
 }
 
@@ -296,6 +358,8 @@ function harness(options?: {
   observation?: AuthoritativeObservationResult;
   observe?: RunAndPersistAuthoritativeObserveResult;
   observePolicy?: typeof DEFAULT_OBSERVE_POLICY | null;
+  proposal?: JournalEntryProposalRow;
+  proofRows?: PostWriteTieOutProofRow[] | ((syncId: string) => PostWriteTieOutProofRow[]);
 }) {
   const repo = new MemoryRepo();
   let observationCalls = 0;
@@ -308,7 +372,7 @@ function harness(options?: {
     loadExecution: async () => execution(options?.executionStatus),
     loadVerificationReceipt: async () => receipt(),
     loadPriorLedgerEvent: async () => null,
-    loadProposal: async () => proposal(),
+    loadProposal: async () => options?.proposal ?? proposal(),
     loadSourceReconKinds: async () => ["ar_aging"],
     loadObservePolicy: async () =>
       options && "observePolicy" in options ? options.observePolicy! : DEFAULT_OBSERVE_POLICY,
@@ -318,6 +382,12 @@ function harness(options?: {
       return options?.observation || observation(NEW_SYNC);
     },
     loadCanonicalEvidence: async () => options?.canonical || canonical(NEW_SYNC),
+    loadPostWriteProofRows: async ({ accountingSyncId }) => {
+      if (!options?.proofRows) return defaultProofRows(accountingSyncId);
+      return typeof options.proofRows === "function"
+        ? options.proofRows(accountingSyncId)
+        : options.proofRows;
+    },
     runObserve: async (input) => {
       observeCalls += 1;
       observeInputs.push(input as unknown as Record<string, unknown>);
@@ -533,6 +603,273 @@ describe("JE-4 post-write verification", () => {
     expect(denied.run?.retryable).toBe(false);
     expect(authAttempts).toBe(1);
   });
+
+  it("treats a QBO normalizer snapshot as an unrepresented journal", async () => {
+    const trialBalance = normalizeQuickBooksTrialBalance(
+      qboReport([["Accrued Liabilities", "50.00"]]),
+    );
+    const inventory = normalizeQuickBooksReportEntities(
+      "InventoryValuation",
+      qboReport([["Widget", "SKU-1", "2", "10.00", "5.00"]]),
+    );
+    expect(trialBalance[0]?.accountId).toMatch(/^quickbooks:TrialBalance:0:/);
+    const extracted = extractPostWriteCanonicalEvidence({
+      accountingSyncId: NEW_SYNC,
+      companyId: COMPANY,
+      connectionId: CONNECTION,
+      periodEnd: PERIOD,
+      validationStatus: "SUCCESS",
+      syncedAt: SYNCED_AT,
+      providerJournalId: "je-100",
+      normalizedPayload: {
+        normalizedTrialBalance: trialBalance,
+        normalizedTransactions: inventory,
+      },
+    });
+    expect(extracted.visibleJournalLines).toBeNull();
+    expect(extracted.journalLineRepresentation).toBe("absent");
+    const { deps } = harness({ canonical: extracted });
+    const result = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(result.ok).toBe(false);
+    expect(result.run?.status).toBe("EFFECTS_INCOMPLETE");
+    expect(result.run?.failure_code).toBe("je4_canonical_journal_unrepresented");
+    expect(result.run?.retryable).toBe(false);
+    expect(result.run?.effect_conclusion).not.toBe("VERIFIED");
+  });
+
+  it("verifies a first-run accrual reclass and rejects swapped debit and credit accounts", async () => {
+    const effects = buildFirstRunEvidenceCoherentExpectedEffects({
+      expenseAccountId: "exp-1",
+      accruedLiabilityAccountId: "liab-1",
+      amountCents: 1000,
+    });
+    const verified = harness({
+      proposal: proposal({ expected_effects: effects }),
+    });
+    const ok = await runPostWriteVerification({ executionId: EXEC }, verified.deps);
+    expect(ok.ok).toBe(true);
+    expect(ok.run?.status).toBe("EFFECTS_VERIFIED");
+
+    const swapped: JeProposalLine[] = [
+      { sequence: 1, accountId: "liab-1", debitCents: 1000, creditCents: 0 },
+      { sequence: 2, accountId: "exp-1", debitCents: 0, creditCents: 1000 },
+    ];
+    const mismatch = harness({
+      proposal: proposal({ lines: swapped, expected_effects: effects }),
+      canonical: canonical(NEW_SYNC, {
+        visibleJournalLines: swapped.map((line) => ({
+          accountId: line.accountId,
+          debitCents: line.debitCents,
+          creditCents: line.creditCents,
+        })),
+      }),
+    });
+    const failed = await runPostWriteVerification({ executionId: EXEC }, mismatch.deps);
+    expect(failed.ok).toBe(false);
+    expect(failed.run?.status).toBe("EFFECTS_MISMATCH");
+    expect(failed.run?.failure_code).toBe("je4_reclass_mismatch");
+  });
+
+  it("requires recon_outcome and ignores totals_status tie", async () => {
+    const openRow = proofRow({
+      id: "tie-ar",
+      tieOutKind: "ar_aging",
+      reconOutcome: null,
+      totalsStatus: "tie",
+      totalsVarianceCents: 0,
+    });
+    const open = harness({
+      proposal: proposal({
+        expected_effects: [
+          {
+            type: "RECON_OUTCOME_TARGET",
+            reconKind: "ar_aging",
+            targetOutcome: "reconciled_exact",
+          },
+        ],
+      }),
+      proofRows: [openRow],
+    });
+    const unproven = await runPostWriteVerification({ executionId: EXEC }, open.deps);
+    expect(unproven.run?.status).toBe("EFFECTS_INCOMPLETE");
+    expect(unproven.run?.failure_code).toBe("je4_recon_outcome_unproven");
+
+    const totalsWord = harness({
+      proposal: proposal({
+        expected_effects: [
+          { type: "RECON_OUTCOME_TARGET", reconKind: "ar_aging", targetOutcome: "tie" },
+        ],
+      }),
+      proofRows: [proofRow({ ...openRow, reconOutcome: "tie" })],
+    });
+    const word = await runPostWriteVerification({ executionId: EXEC }, totalsWord.deps);
+    expect(word.ok).toBe(false);
+    expect(word.run?.status).toBe("EFFECTS_INCOMPLETE");
+    expect(word.run?.failure_code).toBe("je4_recon_outcome_unproven");
+  });
+
+  it("does not substitute totals variance when unidentified residual is null", async () => {
+    const effect = {
+      type: "RESIDUAL_DELTA" as const,
+      reconKind: "ar_aging",
+      expectedDeltaCents: 250,
+    };
+    const missing = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        proofRow({
+          id: "tie-ar",
+          tieOutKind: "ar_aging",
+          reconOutcome: "reconciled_exact",
+          unidentifiedResidualCents: null,
+          totalsVarianceCents: 250,
+          totalsStatus: "tie",
+        }),
+      ],
+    });
+    const unproven = await runPostWriteVerification({ executionId: EXEC }, missing.deps);
+    expect(unproven.run?.status).toBe("EFFECTS_INCOMPLETE");
+    expect(unproven.run?.failure_code).toBe("je4_residual_not_observable");
+
+    const proven = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        proofRow({
+          id: "tie-ar",
+          tieOutKind: "ar_aging",
+          reconOutcome: "reconciled_exact",
+          unidentifiedResidualCents: 250,
+          totalsVarianceCents: 999,
+          totalsStatus: "review",
+        }),
+      ],
+    });
+    const ok = await runPostWriteVerification({ executionId: EXEC }, proven.deps);
+    expect(ok.ok).toBe(true);
+    expect(ok.run?.status).toBe("EFFECTS_VERIFIED");
+  });
+
+  it("proves BS GL delta from the GL detail ending, not the trial-balance comparison", async () => {
+    const effect = {
+      type: "BS_ACCOUNT_GL_DELTA" as const,
+      sourceKind: "bs_account_recon" as const,
+      sourceRunId: "bs-1",
+      qboAccountId: "liab-1",
+      classification: "Liability" as const,
+      baselineGlBalanceCents: 4000,
+      expectedDeltaCents: 1000,
+      expectedPostGlBalanceCents: 5000,
+      signConvention: "qbo_natural_sign" as const,
+    };
+    const glRow = (
+      overrides: Partial<PostWriteTieOutProofRow>,
+    ): PostWriteTieOutProofRow =>
+      proofRow({
+        id: "bs-1",
+        tieOutKind: "bs_account_recon",
+        baselineSyncId: null,
+        qboAccountId: "liab-1",
+        totalsStatus: "tie",
+        completedAt: SYNCED_AT,
+        reconOutcome: null,
+        endingBalanceCents: null,
+        subledgerTotalCents: null,
+        glEndingBalanceCents: 5000,
+        glTotalCents: 5000,
+        ...overrides,
+      });
+
+    const comparisonOnly = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({}),
+        proofRow({
+          id: "tb-row",
+          tieOutKind: "bs_account_recon",
+          baselineSyncId: null,
+          qboAccountId: "quickbooks:TrialBalance:0:Accrued Liabilities",
+          totalsStatus: "tie",
+          endingBalanceCents: 5000,
+          subledgerTotalCents: 5000,
+          glEndingBalanceCents: 5000,
+          glTotalCents: 5000,
+        }),
+      ],
+    });
+    const absent = await runPostWriteVerification({ executionId: EXEC }, comparisonOnly.deps);
+    expect(absent.run?.status).toBe("EFFECTS_INCOMPLETE");
+    expect(absent.run?.failure_code).toBe("je4_gl_balance_absent");
+
+    const wrongDetail = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({
+          endingBalanceCents: 4200,
+          subledgerTotalCents: 4200,
+          glEndingBalanceCents: 5000,
+          glTotalCents: 5000,
+        }),
+      ],
+    });
+    const mismatch = await runPostWriteVerification({ executionId: EXEC }, wrongDetail.deps);
+    expect(mismatch.run?.status).toBe("EFFECTS_MISMATCH");
+    expect(mismatch.run?.failure_code).toBe("je4_gl_balance_mismatch");
+
+    const detail = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({
+          endingBalanceCents: 5000,
+          subledgerTotalCents: 5000,
+          glEndingBalanceCents: 111,
+          glTotalCents: 111,
+        }),
+      ],
+    });
+    const verified = await runPostWriteVerification({ executionId: EXEC }, detail.deps);
+    expect(verified.ok).toBe(true);
+    expect(verified.run?.status).toBe("EFFECTS_VERIFIED");
+
+    const subledgerOnly = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({
+          endingBalanceCents: null,
+          subledgerTotalCents: 5000,
+          glEndingBalanceCents: 111,
+          glTotalCents: 111,
+        }),
+      ],
+    });
+    const fromRun = await runPostWriteVerification({ executionId: EXEC }, subledgerOnly.deps);
+    expect(fromRun.ok).toBe(true);
+
+    const stale = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({
+          endingBalanceCents: 5000,
+          subledgerTotalCents: 5000,
+          completedAt: "2026-07-01T00:00:00.000Z",
+        }),
+      ],
+    });
+    const beforeVerified = await runPostWriteVerification({ executionId: EXEC }, stale.deps);
+    expect(beforeVerified.run?.failure_code).toBe("je4_gl_balance_absent");
+
+    const synced = harness({
+      proposal: proposal({ expected_effects: [effect] }),
+      proofRows: [
+        glRow({
+          endingBalanceCents: 5000,
+          subledgerTotalCents: 5000,
+          baselineSyncId: NEW_SYNC,
+        }),
+      ],
+    });
+    const notLive = await runPostWriteVerification({ executionId: EXEC }, synced.deps);
+    expect(notLive.run?.failure_code).toBe("je4_gl_balance_absent");
+  });
 });
 
 describe("JE-4 pure helpers", () => {
@@ -593,8 +930,44 @@ describe("JE-4 pure helpers", () => {
     expect(resolved.reason).toContain("null baseline");
   });
 
-  it("extracts journal visibility and trial-balance cents without copying secrets", () => {
-    const visible = extractPostWriteCanonicalEvidence({
+  it("parses an explicit journal-line collection and ignores QBO report entities", () => {
+    const trialBalance = normalizeQuickBooksTrialBalance(
+      qboReport([["Accrued Liabilities", "25.50"]]),
+    );
+    const inventory = normalizeQuickBooksReportEntities(
+      "InventoryValuation",
+      qboReport([["Widget", "SKU-1", "2", "10.00", "5.00"]]),
+    );
+    expect(trialBalance[0]?.accountId).toMatch(/^quickbooks:TrialBalance:0:/);
+    expect(inventory[0]?.id).toMatch(/^quickbooks:InventoryValuation:0:/);
+
+    const reportOnly = extractPostWriteCanonicalEvidence({
+      accountingSyncId: NEW_SYNC,
+      companyId: COMPANY,
+      connectionId: CONNECTION,
+      periodEnd: PERIOD,
+      validationStatus: "SUCCESS",
+      syncedAt: SYNCED_AT,
+      providerJournalId: String(trialBalance[0]?.accountId),
+      normalizedPayload: {
+        access_token: "secret-token",
+        normalizedTrialBalance: trialBalance,
+        normalizedTransactions: inventory.map((entity) => ({
+          ...entity,
+          metadata: {
+            ...entity.metadata,
+            lines: [{ accountId: "exp-1", debitCents: 1000, creditCents: 0 }],
+          },
+        })),
+      },
+    });
+    expect(reportOnly.journalLineRepresentation).toBe("absent");
+    expect(reportOnly.visibleJournalLines).toBeNull();
+    expect(reportOnly.partial).toBe(false);
+    expect(reportOnly.glDetailEndingCents).toEqual({});
+    expect(JSON.stringify(reportOnly)).not.toMatch(/secret-token|access_token/);
+
+    const missingJournal = extractPostWriteCanonicalEvidence({
       accountingSyncId: NEW_SYNC,
       companyId: COMPANY,
       connectionId: CONNECTION,
@@ -603,41 +976,21 @@ describe("JE-4 pure helpers", () => {
       syncedAt: SYNCED_AT,
       providerJournalId: "je-100",
       normalizedPayload: {
-        normalizedTrialBalance: [{ accountId: "liab-1", netAmount: 25.5 }],
-        normalizedTransactions: [
+        normalizedTrialBalance: trialBalance,
+        normalizedTransactions: inventory,
+        journalEntries: [
           {
-            id: "je-100",
-            metadata: {
-              lines: [{ accountId: "exp-1", debitCents: 1000, creditCents: 0 }],
-            },
+            id: "je-other",
+            lines: [{ accountId: "exp-1", debitCents: 1000, creditCents: 0 }],
           },
         ],
       },
     });
-    expect(visible.accountBalancesCents["liab-1"]).toBe(2550);
-    expect(visible.visibleJournalLines).toEqual([
-      { accountId: "exp-1", debitCents: 1000, creditCents: 0 },
-    ]);
-    expect(visible.partial).toBe(false);
-    expect(JSON.stringify(visible)).not.toMatch(/access_token/);
+    expect(missingJournal.journalLineRepresentation).toBe("present");
+    expect(missingJournal.visibleJournalLines).toBeNull();
+    expect(missingJournal.partial).toBe(false);
 
-    const lagged = extractPostWriteCanonicalEvidence({
-      accountingSyncId: NEW_SYNC,
-      companyId: COMPANY,
-      connectionId: CONNECTION,
-      periodEnd: PERIOD,
-      validationStatus: "SUCCESS",
-      syncedAt: SYNCED_AT,
-      providerJournalId: "je-100",
-      normalizedPayload: {
-        normalizedTrialBalance: [{ accountId: "liab-1", netAmount: 1 }],
-        normalizedTransactions: [],
-      },
-    });
-    expect(lagged.visibleJournalLines).toBeNull();
-    expect(lagged.partial).toBe(false);
-
-    const partial = extractPostWriteCanonicalEvidence({
+    const matched = extractPostWriteCanonicalEvidence({
       accountingSyncId: NEW_SYNC,
       companyId: COMPANY,
       connectionId: CONNECTION,
@@ -645,10 +998,27 @@ describe("JE-4 pure helpers", () => {
       validationStatus: "SUCCESS",
       syncedAt: null,
       providerJournalId: "je-100",
-      normalizedPayload: { normalizedTrialBalance: [], normalizedTransactions: [] },
+      normalizedPayload: {
+        normalizedTrialBalance: [],
+        normalizedTransactions: [],
+        journalEntries: [
+          {
+            providerJournalId: "je-100",
+            lines: [
+              { accountId: "exp-1", debit: 10, credit: 0 },
+              { accountId: "liab-1", debitCents: 0, creditCents: 1000 },
+            ],
+          },
+        ],
+      },
     });
-    expect(partial.partial).toBe(true);
-    expect(partial.syncedAt).toBeNull();
+    expect(matched.journalLineRepresentation).toBe("present");
+    expect(matched.visibleJournalLines).toEqual([
+      { accountId: "exp-1", debitCents: 1000, creditCents: 0 },
+      { accountId: "liab-1", debitCents: 0, creditCents: 1000 },
+    ]);
+    expect(matched.partial).toBe(false);
+    expect(matched.syncedAt).toBeNull();
   });
 });
 

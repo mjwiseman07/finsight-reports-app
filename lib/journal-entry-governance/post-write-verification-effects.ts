@@ -226,19 +226,21 @@ function checkEffect(
       };
     }
     case "ACCOUNT_RECLASS": {
-      const credit = lines.some(
-        (line) =>
-          line.accountId === effect.fromAccountId &&
-          line.creditCents === effect.amountCents &&
-          line.debitCents === 0,
-      );
+      // First-run accrual: fromAccountId is the debited expense, toAccountId
+      // is the credited accrued liability.
       const debit = lines.some(
         (line) =>
-          line.accountId === effect.toAccountId &&
+          line.accountId === effect.fromAccountId &&
           line.debitCents === effect.amountCents &&
           line.creditCents === 0,
       );
-      if (!credit || !debit) {
+      const credit = lines.some(
+        (line) =>
+          line.accountId === effect.toAccountId &&
+          line.creditCents === effect.amountCents &&
+          line.debitCents === 0,
+      );
+      if (!debit || !credit) {
         return {
           ok: false,
           conclusion: "MISMATCH",
@@ -261,13 +263,13 @@ function checkEffect(
       };
     }
     case "BS_ACCOUNT_GL_DELTA": {
-      const balance = evidence.accountBalancesCents[effect.qboAccountId];
+      const balance = evidence.glDetailEndingCents[effect.qboAccountId];
       if (balance == null || !Number.isInteger(balance)) {
         return {
           ok: false,
           conclusion: "INCOMPLETE",
           code: "je4_gl_balance_absent",
-          message: `Post-write trial balance has no integer balance for ${effect.qboAccountId}.`,
+          message: `Post-write GL detail has no integer qbo_natural_sign ending for ${effect.qboAccountId}.`,
           check: {
             code: "bs_gl_delta",
             ok: false,
@@ -280,7 +282,7 @@ function checkEffect(
           ok: false,
           conclusion: "MISMATCH",
           code: "je4_gl_balance_mismatch",
-          message: `GL balance for ${effect.qboAccountId} does not match the expected post balance.`,
+          message: `GL detail ending for ${effect.qboAccountId} does not match the expected post balance.`,
           check: {
             code: "bs_gl_delta",
             ok: false,
@@ -357,6 +359,16 @@ export function verifyPostWriteExpectedEffects(args: {
           detail: args.evidence.validationStatus,
         },
       ],
+    });
+  }
+
+  if (args.evidence.journalLineRepresentation !== "present") {
+    return finish({
+      conclusion: "INCOMPLETE",
+      code: "je4_canonical_journal_unrepresented",
+      message:
+        "Canonical sync has no journal-line representation of the verified provider journal.",
+      checks: [{ code: "journal_representation", ok: false, detail: "absent" }],
     });
   }
 

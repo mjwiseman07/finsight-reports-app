@@ -72,12 +72,22 @@ export type PostWriteCanonicalEvidence = {
   syncedAt: string | null;
   partial: boolean;
   /**
-   * Lines attributed to the verified provider journal id.
-   * null means the journal is not visible yet (lag), which is not success.
+   * absent: the canonical payload has no journal-line collection.
+   * present: a journal-line collection exists. visibleJournalLines is null
+   * when the verified provider journal id is missing from that collection.
+   */
+  journalLineRepresentation: "absent" | "present";
+  /**
+   * Lines from the verified provider journal when a journal-line collection
+   * contains that id. null is lag only when journalLineRepresentation is present.
    */
   visibleJournalLines: PostWriteVisibleJournalLine[] | null;
-  /** Trial-balance natural-sign balances in cents, keyed by provider account id. */
-  accountBalancesCents: Record<string, number>;
+  /**
+   * Provider-backed GL detail endings in qbo_natural_sign, keyed by qbo account id.
+   * Filled from bs recon artifact ending_balance_cents or run subledger_total_cents.
+   * Trial-balance net amounts are not stored here.
+   */
+  glDetailEndingCents: Record<string, number>;
   reconEvidence: Record<string, PostWriteReconEvidence>;
 };
 
