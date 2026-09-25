@@ -12,8 +12,7 @@ Title: Add orchestrator smoke-test note to docs README
 
 ## Status
 
-STATUS: APPROVED_FOR_IMPLEMENTATION
-
+STATUS: IMPLEMENTATION_COMPLETE
 ## Objective
 
 Verify end-to-end orchestrator flow (validate → approve gate → Cloud Agent launch → implement → automatic PR → IMPLEMENTATION_COMPLETE) using a change so small it cannot affect production: a one-line note in documentation.
