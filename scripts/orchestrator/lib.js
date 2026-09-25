@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 
-/** Canonical V1 plan lifecycle statuses. */
+/** Canonical V1 plan lifecycle statuses (includes autonomous remediation). */
 const VALID_STATUSES = Object.freeze([
   "DRAFT",
   "READY_FOR_REVIEW",
@@ -21,28 +21,71 @@ const VALID_STATUSES = Object.freeze([
   "READY_FOR_HUMAN_APPROVAL",
   "COMPLETED",
   "BLOCKED",
+  "ANALYZING_BLOCKER",
+  "RESOLUTION_PROPOSED",
+  "REMEDIATION_IN_PROGRESS",
+  "REMEDIATION_COMPLETE",
+  "HUMAN_DECISION_REQUIRED",
 ]);
 
 /**
  * Allowed automated transitions (scripts may perform these).
  * Human-only targets must not be written by scripts.
+ * HUMAN_DECISION_REQUIRED: scripts never assume an answer; only BLOCKED/DRAFT
+ * escape hatches for explicit human unblock (no auto decision).
  */
 const ALLOWED_TRANSITIONS = Object.freeze({
   DRAFT: Object.freeze(["READY_FOR_REVIEW", "BLOCKED"]),
   READY_FOR_REVIEW: Object.freeze(["APPROVED_FOR_IMPLEMENTATION", "DRAFT", "BLOCKED"]),
   APPROVED_FOR_IMPLEMENTATION: Object.freeze(["IN_PROGRESS", "BLOCKED"]),
-  IN_PROGRESS: Object.freeze(["IMPLEMENTATION_COMPLETE", "BLOCKED"]),
+  IN_PROGRESS: Object.freeze([
+    "IMPLEMENTATION_COMPLETE",
+    "ANALYZING_BLOCKER",
+    "BLOCKED",
+  ]),
   IMPLEMENTATION_COMPLETE: Object.freeze([
     "REVIEW_PASSED",
     "REVIEW_FAILED",
     "IN_PROGRESS",
+    "ANALYZING_BLOCKER",
     "BLOCKED",
   ]),
-  REVIEW_FAILED: Object.freeze(["IN_PROGRESS", "BLOCKED"]),
+  REVIEW_FAILED: Object.freeze([
+    "IN_PROGRESS",
+    "ANALYZING_BLOCKER",
+    "HUMAN_DECISION_REQUIRED",
+    "BLOCKED",
+  ]),
   REVIEW_PASSED: Object.freeze(["READY_FOR_HUMAN_APPROVAL", "BLOCKED"]),
   READY_FOR_HUMAN_APPROVAL: Object.freeze(["BLOCKED"]),
   COMPLETED: Object.freeze([]),
-  BLOCKED: Object.freeze(["DRAFT", "READY_FOR_REVIEW"]),
+  BLOCKED: Object.freeze([
+    "DRAFT",
+    "READY_FOR_REVIEW",
+    "ANALYZING_BLOCKER",
+  ]),
+  ANALYZING_BLOCKER: Object.freeze([
+    "RESOLUTION_PROPOSED",
+    "HUMAN_DECISION_REQUIRED",
+    "BLOCKED",
+  ]),
+  RESOLUTION_PROPOSED: Object.freeze([
+    "REMEDIATION_IN_PROGRESS",
+    "HUMAN_DECISION_REQUIRED",
+    "BLOCKED",
+  ]),
+  REMEDIATION_IN_PROGRESS: Object.freeze([
+    "REMEDIATION_COMPLETE",
+    "ANALYZING_BLOCKER",
+    "HUMAN_DECISION_REQUIRED",
+    "BLOCKED",
+  ]),
+  REMEDIATION_COMPLETE: Object.freeze([
+    "IMPLEMENTATION_COMPLETE",
+    "ANALYZING_BLOCKER",
+    "BLOCKED",
+  ]),
+  HUMAN_DECISION_REQUIRED: Object.freeze(["BLOCKED", "DRAFT"]),
 });
 
 /** Statuses scripts must never write. */
@@ -284,13 +327,28 @@ function assertCompanionIntegrity(companion) {
     (status === "IMPLEMENTATION_COMPLETE" ||
       status === "REVIEW_PASSED" ||
       status === "REVIEW_FAILED" ||
-      status === "READY_FOR_HUMAN_APPROVAL") &&
+      status === "READY_FOR_HUMAN_APPROVAL" ||
+      status === "RESOLUTION_PROPOSED" ||
+      status === "REMEDIATION_IN_PROGRESS" ||
+      status === "REMEDIATION_COMPLETE") &&
     !companion.implementation
   ) {
     throw new Error(
       `Companion integrity: status ${status} requires implementation evidence`,
     );
   }
+  // ANALYZING_BLOCKER may follow early builder failure (no implementation yet)
+  // or a review failure. Require implementation only when review evidence exists.
+  if (
+    status === "ANALYZING_BLOCKER" &&
+    companion.review &&
+    !companion.implementation
+  ) {
+    throw new Error(
+      "Companion integrity: ANALYZING_BLOCKER with review evidence requires implementation",
+    );
+  }
+  // HUMAN_DECISION_REQUIRED keeps prior evidence; no new mandatory fields.
   if (
     (status === "REVIEW_PASSED" || status === "READY_FOR_HUMAN_APPROVAL") &&
     companion.review?.verdict !== "PASS"
@@ -562,6 +620,39 @@ function hasActiveReviewerAgent(companion) {
   return true;
 }
 
+function hasActiveResolverAgent(companion) {
+  const agent = companion?.cursor_resolver;
+  if (!agent || typeof agent !== "object") return false;
+  if (!agent.agent_id) return false;
+  const runStatus = String(agent.run_status || agent.status || "").toUpperCase();
+  // Finished/errored resolvers are not "active" for duplicate-launch purposes.
+  if (["FINISHED", "ERROR", "CANCELLED", "EXPIRED"].includes(runStatus)) {
+    return false;
+  }
+  return true;
+}
+
+function getRemediationCycle(companion) {
+  const n = companion?.remediation?.cycle_number;
+  if (n == null) return 0;
+  const num = Number(n);
+  return Number.isFinite(num) && num >= 0 ? num : 0;
+}
+
+function assertRemediationBudget(companion, maxCycles) {
+  const max = Number(maxCycles);
+  if (!Number.isFinite(max) || max < 1) {
+    throw new Error("Invalid max remediation cycles");
+  }
+  const cycle = getRemediationCycle(companion);
+  if (cycle >= max) {
+    throw new Error(
+      `Remediation budget exhausted: cycle_number=${cycle} >= max=${max}`,
+    );
+  }
+  return { cycle, max };
+}
+
 function sanitizeCursorAgentRecord(record) {
   if (!record || typeof record !== "object") return null;
   const allowed = [
@@ -629,6 +720,9 @@ module.exports = {
   toRepoRelative,
   hasActiveCursorAgent,
   hasActiveReviewerAgent,
+  hasActiveResolverAgent,
+  getRemediationCycle,
+  assertRemediationBudget,
   sanitizeCursorAgentRecord,
   extractSectionBody,
   updateMarkdownStatus,

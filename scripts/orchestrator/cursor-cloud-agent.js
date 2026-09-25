@@ -84,6 +84,93 @@ function buildCreateAgentRequest({
   return body;
 }
 
+const PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
+const PROTECTED_BRANCH_PATTERNS = [
+  /^main$/i,
+  /^master$/i,
+  /^production$/i,
+  /^prod$/i,
+  /^develop$/i,
+  /^release\//i,
+  /^hotfix\//i,
+];
+
+function isProtectedRemediationBranch(branch) {
+  const name = String(branch || "").trim();
+  if (!name) return true;
+  if (PROTECTED_BRANCHES.has(name.toLowerCase())) return true;
+  return PROTECTED_BRANCH_PATTERNS.some((re) => re.test(name));
+}
+
+/**
+ * Remediation builder request — attach to the existing builder PR branch.
+ * workOnCurrentBranch is allowed ONLY when caller sets verified:true after
+ * confirming branch !== main/master/protected, matches builder PR head,
+ * PR targets main, and head SHA validation passed.
+ *
+ * Why workOnCurrentBranch:true — remediation must push fixes onto the same
+ * isolated builder PR branch rather than opening a competing PR. This is
+ * gated behind verified===true and protected-branch rejection.
+ */
+function buildRemediationAgentRequest({
+  promptText,
+  name = undefined,
+  repositoryUrl = config.REPOSITORY_URL,
+  prUrl,
+  builderBranch,
+  builderHeadSha = null,
+  verified = false,
+} = {}) {
+  if (!promptText || String(promptText).trim().length < 32) {
+    throw new CursorCloudAgentError("prompt.text is required and must be substantive", {
+      code: "INVALID_PROMPT",
+    });
+  }
+  if (verified !== true) {
+    throw new CursorCloudAgentError(
+      "Remediation request requires verified:true after branch/PR safety checks",
+      { code: "UNVERIFIED_REMEDIATION" },
+    );
+  }
+  if (!prUrl || String(prUrl).trim() === "") {
+    throw new CursorCloudAgentError("Remediation requires builder prUrl", {
+      code: "MISSING_PR_URL",
+    });
+  }
+  if (!builderBranch || String(builderBranch).trim() === "") {
+    throw new CursorCloudAgentError("Remediation requires builderBranch", {
+      code: "MISSING_BRANCH",
+    });
+  }
+  const branch = String(builderBranch).trim();
+  if (isProtectedRemediationBranch(branch) || branch === config.STARTING_REF) {
+    throw new CursorCloudAgentError(
+      `Remediation refuses protected branch: ${branch}`,
+      { code: "PROTECTED_BRANCH" },
+    );
+  }
+
+  const body = {
+    prompt: { text: String(promptText) },
+    repos: [
+      {
+        url: repositoryUrl,
+        prUrl: String(prUrl),
+      },
+    ],
+    // Verified remediation only: push onto existing PR branch, never a new PR.
+    workOnCurrentBranch: true,
+    autoCreatePR: false,
+    skipReviewerRequest: true,
+  };
+  if (name) {
+    body.name = String(name).slice(0, 100);
+  }
+  // builderHeadSha is for caller audit/verification — not sent on API body.
+  void builderHeadSha;
+  return body;
+}
+
 function extractSafeAgentMetadata(apiResponse) {
   if (!apiResponse || typeof apiResponse !== "object") {
     throw new CursorCloudAgentError("Malformed Cursor API response", {
@@ -284,6 +371,7 @@ module.exports = {
   getApiKey,
   redactSecrets,
   buildCreateAgentRequest,
+  buildRemediationAgentRequest,
   extractSafeAgentMetadata,
   extractSafeRunMetadata,
   createCursorCloudClient,
