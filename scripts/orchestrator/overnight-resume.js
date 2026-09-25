@@ -11,6 +11,11 @@
 const { resumeOvernight, parseArgs } = require("./overnight-run");
 const { fail, ok, emitJson } = require("./lib");
 const { isTransientError } = require("./retry");
+const { loadEnvLocal } = require("./load-env-local");
+const {
+  assertWorkspaceSafeForOvernight,
+  InfrastructureBlockError,
+} = require("./worktree-guard");
 
 async function main() {
   const { planPath, dryRun, maxCycles } = parseArgs(process.argv);
@@ -20,16 +25,27 @@ async function main() {
     );
   }
   try {
+    loadEnvLocal();
+    assertWorkspaceSafeForOvernight({ env: process.env });
     const result = await resumeOvernight(planPath, { dryRun, maxCycles });
     ok(result.message || "Resume complete");
     emitJson({ ...result, resumed: true });
   } catch (err) {
-    emitJson({
-      ok: false,
-      resumed: true,
-      error: err.message,
-      transient: isTransientError(err),
-    });
+    const infra =
+      err instanceof InfrastructureBlockError ||
+      err?.code === "FATAL_INFRASTRUCTURE_BLOCK";
+    emitJson(
+      infra && typeof err.toJSON === "function"
+        ? { ...err.toJSON(), resumed: true }
+        : {
+            ok: false,
+            resumed: true,
+            error: err.message,
+            transient: isTransientError(err),
+            code: err?.code || undefined,
+            infrastructure_block: infra || undefined,
+          },
+    );
     fail(err.message);
   }
 }

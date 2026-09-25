@@ -42,6 +42,11 @@ const {
 const { buildMorningReport } = require("./morning-report");
 const { withBoundedRetry, isTransientError } = require("./retry");
 const { appendAuditEventInMemory } = require("./audit-trail");
+const { loadEnvLocal } = require("./load-env-local");
+const {
+  assertWorkspaceSafeForOvernight,
+  InfrastructureBlockError,
+} = require("./worktree-guard");
 
 const TERMINAL_STATES = new Set([
   "READY_FOR_HUMAN_APPROVAL",
@@ -502,15 +507,26 @@ async function mainRun() {
     fail("Usage: node scripts/orchestrator/overnight-run.js <plan.md> [--dry-run]");
   }
   try {
+    loadEnvLocal();
+    assertWorkspaceSafeForOvernight({ env: process.env });
     const result = await runOvernight(planPath, { dryRun, maxCycles });
     ok(result.message);
     emitJson(result);
   } catch (err) {
-    emitJson({
-      ok: false,
-      error: err.message,
-      transient: isTransientError(err),
-    });
+    const infra =
+      err instanceof InfrastructureBlockError ||
+      err?.code === "FATAL_INFRASTRUCTURE_BLOCK";
+    emitJson(
+      infra && typeof err.toJSON === "function"
+        ? err.toJSON()
+        : {
+            ok: false,
+            error: err.message,
+            transient: isTransientError(err),
+            code: err?.code || undefined,
+            infrastructure_block: infra || undefined,
+          },
+    );
     fail(err.message);
   }
 }
