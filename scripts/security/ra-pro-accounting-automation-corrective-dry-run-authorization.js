@@ -20,7 +20,7 @@ const {
   EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
   EVIDENCE_PIN_AUTHORITY_COMMIT,
   EXPECTED_PROJECT_REF,
-  IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+  REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
   STANDALONE_BUNDLE_BYTES,
   STANDALONE_BUNDLE_OID,
   STANDALONE_BUNDLE_PATH,
@@ -30,7 +30,7 @@ const {
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
 const {
   assertExecutableAuthorityBeforeCredentials,
-  IMMUTABLE_EXECUTABLE_COMMIT,
+  assertNotHistoricalExecutable,
 } = require("./ra-pro-accounting-automation-corrective-executable-authority");
 
 const PROTOCOL =
@@ -48,9 +48,18 @@ const BOOTSTRAP_REL =
 const CEREMONY_REL =
   "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
 
-const FROZEN_EXECUTABLE = String(
-  IMMUTABLE_EXECUTABLE_COMMIT || IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
-).toLowerCase();
+function assertDryRunPublicationAllowlist(inputs = {}) {
+  const cwd = inputs.cwd || process.cwd();
+  const executable = String(inputs.executable || inputs.executableCommit || "").toLowerCase();
+  const publication = String(
+    inputs.publication || inputs.publicationCommit || "",
+  ).toLowerCase();
+  if (!HEX40.test(executable) || !HEX40.test(publication)) {
+    throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "commit shape");
+  }
+  assertAllowlist(executable, publication, cwd);
+  return { ok: true, executable, publication };
+}
 
 const RECORD_KEYS = Object.freeze([
   "status",
@@ -118,7 +127,7 @@ function canonicalUnpublishedDryRunAuthorization() {
     executable_authority_publication_blob_oid: null,
     publication_role: "later_descendant_commit",
     note:
-      "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip — a validated production_executable_authority publication must bind tip 9f31c355… first. --executable-commit alone is never authority.",
+      "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip — a validated production_executable_authority publication must bind the clean executable first. Historical tip 9f31c355… is rejected. --executable-commit alone is never authority.",
   };
 }
 
@@ -174,9 +183,10 @@ function resolveBoundExecutableAuthority(inputs = {}) {
       throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable authority map blocked");
     }
     const executable = String(map.authorized_executable_commit || "").toLowerCase();
-    if (executable !== FROZEN_EXECUTABLE) {
-      throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
+    if (!HEX40.test(executable)) {
+      throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", "map missing executable");
     }
+    assertNotHistoricalExecutable(executable);
     return map;
   }
   const pub =
@@ -448,9 +458,7 @@ function recheckDryRunAuthorizationPin(inputs = {}) {
   if (!ATTEMPT_RE.test(expectAttempt)) {
     throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "attempt shape");
   }
-  if (expectExecutable !== FROZEN_EXECUTABLE) {
-    throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", expectExecutable);
-  }
+  assertNotHistoricalExecutable(expectExecutable);
   if (!HEX40.test(expectExecAuthCommit) || !HEX40.test(expectExecAuthOid)) {
     throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable-authority pin shape");
   }
@@ -595,9 +603,7 @@ function createDisposableDryRunPublicationCommit(inputs = {}) {
   const cwd = inputs.cwd || process.cwd();
   const executableAuthority = resolveBoundExecutableAuthority({ ...inputs, cwd });
   const executable = String(executableAuthority.authorized_executable_commit).toLowerCase();
-  if (executable !== FROZEN_EXECUTABLE) {
-    throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
-  }
+  assertNotHistoricalExecutable(executable);
   if (inputs.executableCommit != null) {
     const recheck = String(inputs.executableCommit).toLowerCase();
     if (recheck !== executable) {
@@ -710,11 +716,12 @@ module.exports = {
   BOOTSTRAP_REL,
   CEREMONY_REL,
   DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED,
-  FROZEN_EXECUTABLE,
   PROTOCOL,
   RECORD_KEY,
   RECORD_KEYS,
+  REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
   assertDryRunAuthorizedBeforeCredentials,
+  assertDryRunPublicationAllowlist,
   assertNotCircularPin,
   canonicalUnpublishedDryRunAuthorization,
   createDisposableDryRunPublicationCommit,

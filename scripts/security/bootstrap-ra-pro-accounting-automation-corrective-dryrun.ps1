@@ -49,7 +49,7 @@ $ProgressPreference = "SilentlyContinue"
 $AuthRel = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json"
 $CeremonyRel = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1"
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
-$ImmutableExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
+$HistoricalRejectedExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
 $script:MaterialRoot = $null
 
 try {
@@ -175,8 +175,11 @@ if ($null -eq $execRecord -or [string]$execRecord.status -ne "AUTHORIZED" -or -n
   throw "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED: production_executable_authority is UNPUBLISHED"
 }
 $executable = ([string]$execRecord.authorized_executable_commit).ToLowerInvariant()
-if ($executable -ne $ImmutableExecutable) {
-  throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must be $ImmutableExecutable"
+if ($executable -notmatch '^[0-9a-f]{40}$') {
+  throw "EXECUTABLE_AUTHORITY_SEAL_MISSING: authorized_executable_commit"
+}
+if ($executable -eq $HistoricalRejectedExecutable) {
+  throw "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED: historical executable 9f31c355… lacks remediated sealed protocol"
 }
 if ($executable -eq $ExecutableAuthorityPublication) { throw "EXECUTABLE_AUTHORITY_CIRCULAR_TIP" }
 git -C $RepoRoot merge-base --is-ancestor $executable $ExecutableAuthorityPublication
@@ -184,6 +187,22 @@ if ($LASTEXITCODE -ne 0) { throw "EXECUTABLE_AUTHORITY_ANCESTRY" }
 $execDelta = @(git -C $RepoRoot diff --name-only $executable $ExecutableAuthorityPublication)
 if ($execDelta.Count -ne 1 -or $execDelta[0] -ne $AuthRel) {
   throw ("EXECUTABLE_AUTHORITY_ALLOWLIST: " + ($execDelta -join ","))
+}
+# Semantic allowlist (identical to Node assertPublicationAllowlist) before materializing ceremony.
+$nodeExe = (Get-Command node.exe).Source
+$allowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js"
+$allowArgs = @(
+  "-e",
+  "require(process.argv[1]).assertPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+  $allowJs,
+  $executable,
+  $ExecutableAuthorityPublication,
+  $RepoRoot
+)
+$allow = Start-Process -FilePath $nodeExe -ArgumentList $allowArgs -Wait -PassThru -NoNewWindow `
+  -WorkingDirectory $RepoRoot -RedirectStandardError (Join-Path $env:TEMP ("ra-exeauth-allow-err-" + [guid]::NewGuid().ToString("N") + ".txt"))
+if ($allow.ExitCode -ne 0) {
+  throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta rejected before ceremony materialize"
 }
 
 # --- Dry-run authorization (must match executable tip) ---
@@ -209,6 +228,20 @@ if ($LASTEXITCODE -ne 0) { throw "DRY_RUN_AUTHORIZATION_ANCESTRY" }
 $names = @(git -C $RepoRoot diff --name-only $dryExecutable $publication)
 if ($names.Count -ne 1 -or $names[0] -ne $AuthRel) {
   throw ("DRY_RUN_AUTHORIZATION_ALLOWLIST: " + ($names -join ","))
+}
+$dryAllowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js"
+$dryAllowArgs = @(
+  "-e",
+  "require(process.argv[1]).assertDryRunPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+  $dryAllowJs,
+  $dryExecutable,
+  $publication,
+  $RepoRoot
+)
+$dryAllow = Start-Process -FilePath $nodeExe -ArgumentList $dryAllowArgs -Wait -PassThru -NoNewWindow `
+  -WorkingDirectory $RepoRoot -RedirectStandardError (Join-Path $env:TEMP ("ra-dry-allow-err-" + [guid]::NewGuid().ToString("N") + ".txt"))
+if ($dryAllow.ExitCode -ne 0) {
+  throw "DRY_RUN_AUTHORIZATION_ALLOWLIST: semantic delta rejected before ceremony materialize"
 }
 
 $evPin = $record.evidence_pin_authority

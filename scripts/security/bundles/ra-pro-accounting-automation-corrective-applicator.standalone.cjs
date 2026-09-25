@@ -64,7 +64,14 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       "ra_pro_month_end_review_packages"
     ]);
     var TOOLING_AUTHORIZATION_PATH = "docs/security/ra-pro-accounting-automation-corrective-apply/TOOLING_AUTHORIZATION.json";
-    var IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
+    var HISTORICAL_CORRECTIVE_EXECUTABLE_COMMIT_9F31 = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
+    var REJECTED_HISTORICAL_EXECUTABLE_COMMITS = Object.freeze([
+      HISTORICAL_CORRECTIVE_EXECUTABLE_COMMIT_9F31
+    ]);
+    var IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT = HISTORICAL_CORRECTIVE_EXECUTABLE_COMMIT_9F31;
+    var EXECUTABLE_AUTHORITY_MODULE_REL = "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js";
+    var EXECUTABLE_AUTHORITY_PROTOCOL_ID = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1";
+    var DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE = "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED";
     var EVIDENCE_PIN_AUTHORITY_COMMIT2 = "f550842cd6dd837671599ee8c65bb6ba3932aa62";
     var EVIDENCE_PIN_AUTHORITY_AUTH_OID = "5f3845b14f12b715019e785f40702814a1471b45";
     var EVIDENCE_PIN_AUTHORITY_AUTH_SHA256 = "1c94fea33c01d6ce4fae0e596abbcec81bb59bb55f77fd70207e78ff0940450e";
@@ -95,10 +102,15 @@ var require_ra_pro_accounting_automation_corrective_apply_constants = __commonJS
       EVIDENCE_PIN_AUTHORITY_AUTH_OID,
       EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
       EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
+      DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE,
+      EXECUTABLE_AUTHORITY_MODULE_REL,
+      EXECUTABLE_AUTHORITY_PROTOCOL_ID,
       EXPECTED_PROJECT_REF,
       EXPECTED_STANDALONE_BUNDLE_SHA256,
       FEATURE_FLAG_ENV,
+      HISTORICAL_CORRECTIVE_EXECUTABLE_COMMIT_9F31,
       IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+      REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       FORBIDDEN_DATABASE_URL_ENVS,
       MIGRATIONS,
       ORIGINAL_COMMITTED_MIGRATIONS,
@@ -6011,12 +6023,15 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
     var path = require("node:path");
     var { execFileSync } = require("node:child_process");
     var {
+      DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE,
       EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
       EVIDENCE_PIN_AUTHORITY_AUTH_OID,
       EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
       EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
+      EXECUTABLE_AUTHORITY_MODULE_REL,
+      EXECUTABLE_AUTHORITY_PROTOCOL_ID,
       EXPECTED_PROJECT_REF,
-      IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+      REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       STANDALONE_BUNDLE_BYTES,
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_PATH,
@@ -6024,10 +6039,12 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       TOOLING_AUTHORIZATION_PATH
     } = require_ra_pro_accounting_automation_corrective_apply_constants();
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
-    var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1";
+    var PROTOCOL = EXECUTABLE_AUTHORITY_PROTOCOL_ID;
     var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
     var RECORD_KEY = "production_executable_authority";
     var BLOCKED_UNPUBLISHED = "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED";
+    var HISTORICAL_REJECTED = "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED";
+    var PROTOCOL_MISSING = "EXECUTABLE_AUTHORITY_PROTOCOL_MISSING";
     var HEX40 = /^[0-9a-f]{40}$/;
     var HEX64 = /^[0-9a-f]{64}$/;
     var BOOTSTRAP_REL = "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
@@ -6131,6 +6148,59 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       if (!HEX40.test(String(executable || "")) || executable === publication || String(blobText || "").includes(publication)) {
         throw blocked("EXECUTABLE_AUTHORITY_CIRCULAR_TIP", "publication commit must not name itself");
       }
+    }
+    function assertNotHistoricalExecutable(executable) {
+      const tip = String(executable || "").toLowerCase();
+      if (REJECTED_HISTORICAL_EXECUTABLE_COMMITS.includes(tip)) {
+        throw blocked(
+          HISTORICAL_REJECTED,
+          "historical executable 9f31c355\u2026 lacks remediated sealed protocol"
+        );
+      }
+    }
+    function assertExecutableHasRemediatedProtocol(executable, cwd) {
+      const tip = String(executable || "").toLowerCase();
+      if (!HEX40.test(tip)) {
+        throw blocked(PROTOCOL_MISSING, "executable tip shape");
+      }
+      assertNotHistoricalExecutable(tip);
+      try {
+        gitText(["rev-parse", "--verify", `${tip}:${EXECUTABLE_AUTHORITY_MODULE_REL}`], cwd);
+      } catch {
+        throw blocked(PROTOCOL_MISSING, "executable-authority module absent from executable tip");
+      }
+      let bundleText = "";
+      try {
+        bundleText = execFileSync("git", ["cat-file", "blob", `${tip}:${STANDALONE_BUNDLE_PATH}`], {
+          cwd,
+          env: gitEnv(cwd),
+          encoding: "utf8",
+          maxBuffer: 32 * 1024 * 1024
+        });
+      } catch (err) {
+        throw blocked(
+          PROTOCOL_MISSING,
+          err && err.message ? err.message : "standalone bundle missing"
+        );
+      }
+      if (!bundleText.includes(PROTOCOL)) {
+        throw blocked(PROTOCOL_MISSING, "bundle missing executable-authority protocol id");
+      }
+      if (!bundleText.includes(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE)) {
+        throw blocked(PROTOCOL_MISSING, "bundle missing DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
+      }
+    }
+    function assertPublicationAllowlist(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const executable = String(inputs.executable || inputs.executableCommit || "").toLowerCase();
+      const publication = String(
+        inputs.publication || inputs.publicationCommit || ""
+      ).toLowerCase();
+      if (!HEX40.test(executable) || !HEX40.test(publication)) {
+        throw blocked("EXECUTABLE_AUTHORITY_ALLOWLIST", "commit shape");
+      }
+      assertAllowlist(executable, publication, cwd);
+      return { ok: true, executable, publication };
     }
     function priorIsUnpublished(prior) {
       if (prior == null) return true;
@@ -6265,12 +6335,11 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
         }
       }
       const executable = String(record.authorized_executable_commit || "").toLowerCase();
-      if (executable !== IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT) {
-        throw blocked(
-          "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH",
-          `authorized_executable_commit must be ${IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT}`
-        );
+      if (!HEX40.test(executable)) {
+        throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "authorized_executable_commit");
       }
+      assertNotHistoricalExecutable(executable);
+      assertExecutableHasRemediatedProtocol(executable, cwd);
       assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
       assertAllowlist(executable, publication, cwd);
       assertRecordSeals(record, executable, cwd);
@@ -6407,12 +6476,12 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
         throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
       }
       const cwd = inputs.cwd || process.cwd();
-      const executable = String(
-        inputs.executableCommit || IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT
-      ).toLowerCase();
-      if (executable !== IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT) {
-        throw blocked("EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH", executable);
+      const executable = String(inputs.executableCommit || "").toLowerCase();
+      if (!HEX40.test(executable)) {
+        throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "executableCommit required");
       }
+      assertNotHistoricalExecutable(executable);
+      assertExecutableHasRemediatedProtocol(executable, cwd);
       const { auth } = loadAuthFromGit(executable, cwd);
       if ((auth[RECORD_KEY] || {}).status === "AUTHORIZED") {
         throw blocked("EXECUTABLE_AUTHORITY_ALLOWLIST", "refusing to broaden an authorized record");
@@ -6466,12 +6535,17 @@ var require_ra_pro_accounting_automation_corrective_executable_authority = __com
       CEREMONY_REL,
       ENTRY_REL,
       FRAME_REL,
-      IMMUTABLE_EXECUTABLE_COMMIT: IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+      HISTORICAL_REJECTED,
       PROTOCOL,
+      PROTOCOL_MISSING,
       RECEIPT_REL,
       RECORD_KEY,
       RECORD_KEYS,
+      REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       assertExecutableAuthorityBeforeCredentials: assertExecutableAuthorityBeforeCredentials2,
+      assertExecutableHasRemediatedProtocol,
+      assertNotHistoricalExecutable,
+      assertPublicationAllowlist,
       canonicalUnpublishedExecutableAuthority,
       createDisposableExecutableAuthorityPublicationCommit,
       describeExecutableAuthorityMap,
@@ -6494,7 +6568,7 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
       EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
       EVIDENCE_PIN_AUTHORITY_COMMIT: EVIDENCE_PIN_AUTHORITY_COMMIT2,
       EXPECTED_PROJECT_REF,
-      IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+      REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       STANDALONE_BUNDLE_BYTES,
       STANDALONE_BUNDLE_OID,
       STANDALONE_BUNDLE_PATH,
@@ -6504,7 +6578,7 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
     var { loadAndVerifyGitBlob } = require_git_blob_authority();
     var {
       assertExecutableAuthorityBeforeCredentials: assertExecutableAuthorityBeforeCredentials2,
-      IMMUTABLE_EXECUTABLE_COMMIT
+      assertNotHistoricalExecutable
     } = require_ra_pro_accounting_automation_corrective_executable_authority();
     var PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_ONE_ATTEMPT_DRY_RUN_AUTHORIZATION_V1";
     var AUTH_REL = TOOLING_AUTHORIZATION_PATH;
@@ -6516,9 +6590,18 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
     var ATTEMPT_RE = /^corr-dryrun-[0-9a-f]{12}-[0-9a-f]{32}$/;
     var BOOTSTRAP_REL = "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1";
     var CEREMONY_REL = "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1";
-    var FROZEN_EXECUTABLE = String(
-      IMMUTABLE_EXECUTABLE_COMMIT || IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT
-    ).toLowerCase();
+    function assertDryRunPublicationAllowlist(inputs = {}) {
+      const cwd = inputs.cwd || process.cwd();
+      const executable = String(inputs.executable || inputs.executableCommit || "").toLowerCase();
+      const publication = String(
+        inputs.publication || inputs.publicationCommit || ""
+      ).toLowerCase();
+      if (!HEX40.test(executable) || !HEX40.test(publication)) {
+        throw blocked("DRY_RUN_AUTHORIZATION_ALLOWLIST", "commit shape");
+      }
+      assertAllowlist(executable, publication, cwd);
+      return { ok: true, executable, publication };
+    }
     var RECORD_KEYS = Object.freeze([
       "status",
       "protocol",
@@ -6579,7 +6662,7 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
         executable_authority_publication_commit: null,
         executable_authority_publication_blob_oid: null,
         publication_role: "later_descendant_commit",
-        note: "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip \u2014 a validated production_executable_authority publication must bind tip 9f31c355\u2026 first. --executable-commit alone is never authority."
+        note: "Corrective dry-run execution authorization is unpublished until a separate reviewed one-object publication names authorized_executable_commit and a unique attempt_id. The publication commit SHA is not stored here. Dry-run AUTH may not independently choose an executable tip \u2014 a validated production_executable_authority publication must bind the clean executable first. Historical tip 9f31c355\u2026 is rejected. --executable-commit alone is never authority."
       };
     }
     function loadAuthFromGit(commit, cwd) {
@@ -6622,9 +6705,10 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
           throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable authority map blocked");
         }
         const executable = String(map.authorized_executable_commit || "").toLowerCase();
-        if (executable !== FROZEN_EXECUTABLE) {
-          throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
+        if (!HEX40.test(executable)) {
+          throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", "map missing executable");
         }
+        assertNotHistoricalExecutable(executable);
         return map;
       }
       const pub = inputs.executableAuthorityPublication || inputs.executableAuthorityPublicationCommit || null;
@@ -6856,9 +6940,7 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
       if (!ATTEMPT_RE.test(expectAttempt)) {
         throw blocked("DRY_RUN_AUTHORIZATION_PIN_MISMATCH", "attempt shape");
       }
-      if (expectExecutable !== FROZEN_EXECUTABLE) {
-        throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", expectExecutable);
-      }
+      assertNotHistoricalExecutable(expectExecutable);
       if (!HEX40.test(expectExecAuthCommit) || !HEX40.test(expectExecAuthOid)) {
         throw blocked(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED, "executable-authority pin shape");
       }
@@ -6986,9 +7068,7 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
       const cwd = inputs.cwd || process.cwd();
       const executableAuthority = resolveBoundExecutableAuthority({ ...inputs, cwd });
       const executable = String(executableAuthority.authorized_executable_commit).toLowerCase();
-      if (executable !== FROZEN_EXECUTABLE) {
-        throw blocked("DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH", executable);
-      }
+      assertNotHistoricalExecutable(executable);
       if (inputs.executableCommit != null) {
         const recheck = String(inputs.executableCommit).toLowerCase();
         if (recheck !== executable) {
@@ -7089,11 +7169,12 @@ var require_ra_pro_accounting_automation_corrective_dry_run_authorization = __co
       BOOTSTRAP_REL,
       CEREMONY_REL,
       DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED,
-      FROZEN_EXECUTABLE,
       PROTOCOL,
       RECORD_KEY,
       RECORD_KEYS,
+      REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
       assertDryRunAuthorizedBeforeCredentials: assertDryRunAuthorizedBeforeCredentials2,
+      assertDryRunPublicationAllowlist,
       assertNotCircularPin,
       canonicalUnpublishedDryRunAuthorization,
       createDisposableDryRunPublicationCommit,

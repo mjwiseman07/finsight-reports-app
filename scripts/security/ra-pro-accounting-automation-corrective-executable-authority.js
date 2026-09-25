@@ -5,21 +5,26 @@
  * Non-circular corrective executable-authority publication.
  *
  * Tip AUTH keeps production_executable_authority UNPUBLISHED.
- * A later AUTH-only descendant may authorize exactly IMMUTABLE_EXECUTABLE_COMMIT
- * without storing the publication SHA in the AUTH blob.
+ * A later AUTH-only descendant may authorize a clean executable generation
+ * that contains the full remediated sealed chain, without storing the
+ * publication SHA in the AUTH blob.
  *
+ * Historical tip 9f31c355… is rejected: its sealed hops lack this protocol.
  * Dry-run authorization must bind a validated executable-authority map and may
  * not independently choose authorized_executable_commit.
  */
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const {
+  DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE,
   EVIDENCE_PIN_AUTHORITY_AUTH_BYTES,
   EVIDENCE_PIN_AUTHORITY_AUTH_OID,
   EVIDENCE_PIN_AUTHORITY_AUTH_SHA256,
   EVIDENCE_PIN_AUTHORITY_COMMIT,
+  EXECUTABLE_AUTHORITY_MODULE_REL,
+  EXECUTABLE_AUTHORITY_PROTOCOL_ID,
   EXPECTED_PROJECT_REF,
-  IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+  REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
   STANDALONE_BUNDLE_BYTES,
   STANDALONE_BUNDLE_OID,
   STANDALONE_BUNDLE_PATH,
@@ -28,10 +33,12 @@ const {
 } = require("./ra-pro-accounting-automation-corrective-apply-constants");
 const { loadAndVerifyGitBlob } = require("./git-blob-authority");
 
-const PROTOCOL = "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1";
+const PROTOCOL = EXECUTABLE_AUTHORITY_PROTOCOL_ID;
 const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
 const RECORD_KEY = "production_executable_authority";
 const BLOCKED_UNPUBLISHED = "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED";
+const HISTORICAL_REJECTED = "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED";
+const PROTOCOL_MISSING = "EXECUTABLE_AUTHORITY_PROTOCOL_MISSING";
 const HEX40 = /^[0-9a-f]{40}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -155,6 +162,65 @@ function assertNotCircularPin(publication, executable, blobText) {
   ) {
     throw blocked("EXECUTABLE_AUTHORITY_CIRCULAR_TIP", "publication commit must not name itself");
   }
+}
+
+function assertNotHistoricalExecutable(executable) {
+  const tip = String(executable || "").toLowerCase();
+  if (REJECTED_HISTORICAL_EXECUTABLE_COMMITS.includes(tip)) {
+    throw blocked(
+      HISTORICAL_REJECTED,
+      "historical executable 9f31c355… lacks remediated sealed protocol",
+    );
+  }
+}
+
+/**
+ * Executable tip must carry the remediated protocol throughout the sealed chain.
+ */
+function assertExecutableHasRemediatedProtocol(executable, cwd) {
+  const tip = String(executable || "").toLowerCase();
+  if (!HEX40.test(tip)) {
+    throw blocked(PROTOCOL_MISSING, "executable tip shape");
+  }
+  assertNotHistoricalExecutable(tip);
+  try {
+    gitText(["rev-parse", "--verify", `${tip}:${EXECUTABLE_AUTHORITY_MODULE_REL}`], cwd);
+  } catch {
+    throw blocked(PROTOCOL_MISSING, "executable-authority module absent from executable tip");
+  }
+  let bundleText = "";
+  try {
+    bundleText = execFileSync("git", ["cat-file", "blob", `${tip}:${STANDALONE_BUNDLE_PATH}`], {
+      cwd,
+      env: gitEnv(cwd),
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  } catch (err) {
+    throw blocked(
+      PROTOCOL_MISSING,
+      err && err.message ? err.message : "standalone bundle missing",
+    );
+  }
+  if (!bundleText.includes(PROTOCOL)) {
+    throw blocked(PROTOCOL_MISSING, "bundle missing executable-authority protocol id");
+  }
+  if (!bundleText.includes(DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED_CODE)) {
+    throw blocked(PROTOCOL_MISSING, "bundle missing DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
+  }
+}
+
+function assertPublicationAllowlist(inputs = {}) {
+  const cwd = inputs.cwd || process.cwd();
+  const executable = String(inputs.executable || inputs.executableCommit || "").toLowerCase();
+  const publication = String(
+    inputs.publication || inputs.publicationCommit || "",
+  ).toLowerCase();
+  if (!HEX40.test(executable) || !HEX40.test(publication)) {
+    throw blocked("EXECUTABLE_AUTHORITY_ALLOWLIST", "commit shape");
+  }
+  assertAllowlist(executable, publication, cwd);
+  return { ok: true, executable, publication };
 }
 
 function priorIsUnpublished(prior) {
@@ -309,12 +375,11 @@ function describeExecutableAuthorityMap(inputs = {}) {
     }
   }
   const executable = String(record.authorized_executable_commit || "").toLowerCase();
-  if (executable !== IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT) {
-    throw blocked(
-      "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH",
-      `authorized_executable_commit must be ${IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT}`,
-    );
+  if (!HEX40.test(executable)) {
+    throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "authorized_executable_commit");
   }
+  assertNotHistoricalExecutable(executable);
+  assertExecutableHasRemediatedProtocol(executable, cwd);
   assertNotCircularPin(publication, executable, loaded.buffer.toString("utf8"));
   assertAllowlist(executable, publication, cwd);
   assertRecordSeals(record, executable, cwd);
@@ -461,12 +526,12 @@ function createDisposableExecutableAuthorityPublicationCommit(inputs = {}) {
     throw blocked("HARNESS_CONTEXT_REQUIRED", "testOnlyHarnessContext required");
   }
   const cwd = inputs.cwd || process.cwd();
-  const executable = String(
-    inputs.executableCommit || IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
-  ).toLowerCase();
-  if (executable !== IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT) {
-    throw blocked("EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH", executable);
+  const executable = String(inputs.executableCommit || "").toLowerCase();
+  if (!HEX40.test(executable)) {
+    throw blocked("EXECUTABLE_AUTHORITY_SEAL_MISSING", "executableCommit required");
   }
+  assertNotHistoricalExecutable(executable);
+  assertExecutableHasRemediatedProtocol(executable, cwd);
   const { auth } = loadAuthFromGit(executable, cwd);
   if ((auth[RECORD_KEY] || {}).status === "AUTHORIZED") {
     throw blocked("EXECUTABLE_AUTHORITY_ALLOWLIST", "refusing to broaden an authorized record");
@@ -524,12 +589,17 @@ module.exports = {
   CEREMONY_REL,
   ENTRY_REL,
   FRAME_REL,
-  IMMUTABLE_EXECUTABLE_COMMIT: IMMUTABLE_CORRECTIVE_EXECUTABLE_COMMIT,
+  HISTORICAL_REJECTED,
   PROTOCOL,
+  PROTOCOL_MISSING,
   RECEIPT_REL,
   RECORD_KEY,
   RECORD_KEYS,
+  REJECTED_HISTORICAL_EXECUTABLE_COMMITS,
   assertExecutableAuthorityBeforeCredentials,
+  assertExecutableHasRemediatedProtocol,
+  assertNotHistoricalExecutable,
+  assertPublicationAllowlist,
   canonicalUnpublishedExecutableAuthority,
   createDisposableExecutableAuthorityPublicationCommit,
   describeExecutableAuthorityMap,

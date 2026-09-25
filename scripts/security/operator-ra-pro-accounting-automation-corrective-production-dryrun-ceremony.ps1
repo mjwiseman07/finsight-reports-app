@@ -54,7 +54,7 @@ $ExecutableAuthorityPublication = $ExecutableAuthorityPublication.ToLowerInvaria
 $ExpectExecutableAuthorityBlobOid = $ExpectExecutableAuthorityBlobOid.ToLowerInvariant()
 $EvidenceAuthorityCommit = $PinTip
 $ExpectedEvidenceAuthority = "f550842cd6dd837671599ee8c65bb6ba3932aa62"
-$ImmutableExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
+$HistoricalRejectedExecutable = "9f31c3552a2a06fc3b851bd722aad9311dde40f8"
 if ($EvidenceAuthorityCommit -ne $ExpectedEvidenceAuthority) {
   throw ("EVIDENCE_AUTHORITY_COMMIT_FORBIDDEN: expected " + $ExpectedEvidenceAuthority + " got " + $EvidenceAuthorityCommit)
 }
@@ -236,8 +236,11 @@ try {
     throw "EXECUTABLE_AUTHORITY_REMAINS_UNPUBLISHED: production_executable_authority is UNPUBLISHED"
   }
   $boundExecutable = ([string]$execRecord.authorized_executable_commit).ToLowerInvariant()
-  if ($boundExecutable -ne $ImmutableExecutable) {
-    throw "EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH: authorized_executable_commit must be $ImmutableExecutable"
+  if ($boundExecutable -notmatch '^[0-9a-f]{40}$') {
+    throw "EXECUTABLE_AUTHORITY_SEAL_MISSING: authorized_executable_commit"
+  }
+  if ($boundExecutable -eq $HistoricalRejectedExecutable) {
+    throw "EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED: historical executable 9f31c355… lacks remediated sealed protocol"
   }
   if ($boundExecutable -eq $ExecutableAuthorityPublication) { throw "EXECUTABLE_AUTHORITY_CIRCULAR_TIP" }
   git -C $RepoRoot merge-base --is-ancestor $boundExecutable $ExecutableAuthorityPublication
@@ -245,6 +248,19 @@ try {
   $execDelta = @(git -C $RepoRoot diff --name-only $boundExecutable $ExecutableAuthorityPublication)
   if ($execDelta.Count -ne 1 -or $execDelta[0] -ne $AuthRel) {
     throw ("EXECUTABLE_AUTHORITY_ALLOWLIST: " + ($execDelta -join ","))
+  }
+  $nodeExe = (Get-Command node.exe).Source
+  $allowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js"
+  $allowProbe = Start-Process -FilePath $nodeExe -ArgumentList @(
+    "-e",
+    "require(process.argv[1]).assertPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+    $allowJs,
+    $boundExecutable,
+    $ExecutableAuthorityPublication,
+    $RepoRoot
+  ) -Wait -PassThru -NoNewWindow -WorkingDirectory $RepoRoot
+  if ($allowProbe.ExitCode -ne 0) {
+    throw "EXECUTABLE_AUTHORITY_ALLOWLIST: semantic delta rejected before SecureString"
   }
 
   # Trust root 2: dry-run authorization publication (Git), bound to executable-authority.
@@ -274,6 +290,18 @@ try {
   $deltaNames = @(git -C $RepoRoot diff --name-only $ExecutableCommit $DryRunAuthorizationPublication)
   if ($deltaNames.Count -ne 1 -or $deltaNames[0] -ne $AuthRel) {
     throw ("DRY_RUN_AUTHORIZATION_ALLOWLIST: " + ($deltaNames -join ","))
+  }
+  $dryAllowJs = Join-Path $RepoRoot "scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js"
+  $dryAllowProbe = Start-Process -FilePath $nodeExe -ArgumentList @(
+    "-e",
+    "require(process.argv[1]).assertDryRunPublicationAllowlist({executable:process.argv[2],publication:process.argv[3],cwd:process.argv[4]})",
+    $dryAllowJs,
+    $ExecutableCommit,
+    $DryRunAuthorizationPublication,
+    $RepoRoot
+  ) -Wait -PassThru -NoNewWindow -WorkingDirectory $RepoRoot
+  if ($dryAllowProbe.ExitCode -ne 0) {
+    throw "DRY_RUN_AUTHORIZATION_ALLOWLIST: semantic delta rejected before SecureString"
   }
   $AuthorizationBlobOid = (Get-GitBlobOid "${DryRunAuthorizationPublication}:${AuthRel}").ToLowerInvariant()
   $ExpectedBundleOid = ([string]$dryRecord.bundle.oid).ToLowerInvariant()
