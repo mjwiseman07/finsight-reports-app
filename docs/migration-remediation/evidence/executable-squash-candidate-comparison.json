@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-09-07T06:00:08.813Z",
+  "method": "static",
+  "productionSchemaContractScope": "foundation_and_phase1_only (G1 PASS historically)",
+  "optionDEndState": "PASS_RUNTIME 151/151 — primary executable provenance for full app schema in this package",
+  "candidateVersusProductionContract": {
+    "status": "PARTIAL_COVERAGE_DOCUMENTED",
+    "note": "Foundation+phase1 contract covers 47 tables. Full production has broader surface (e.g. 424 policies). Candidate uses Option D PASS lineage as executable stand-in for full public app schema until authorized sealed pg_dump can replace module body bytes.",
+    "unexplainedDriftAllowedForMutation": false,
+    "requiresBeforeMutation": [
+      "Authorized read-only pg_dump --schema-only seal OR complete catalog DDL emit",
+      "Zero unexplained drift vs live prod schema"
+    ]
+  },
+  "candidatePlusForwardVersusMain": {
+    "forwardTailFiles": [
+      "20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+    ],
+    "gitOnlyByVersion": 110,
+    "gitOnlyNameAlsoInProdTimestampDrift": 101,
+    "gitOnlyNameNotInProd": 9,
+    "intentionalExclusions": [
+      "101 timestamp-drift git files whose bare names exist in production",
+      "tcp1 complimentary seed",
+      "accounting_canonical_connected_grant operational LOCK/RAISE/UPDATE",
+      "customer/auth/provider/custody/memory row data"
+    ]
+  },
+  "productionOnlyDataOperationsExcluded": [
+    "d6 unconditional fixture VALUES inserts (replaced by guarded)",
+    "tcp1 complimentary pilot_slots seed",
+    "accounting grant Demo Xero LOCK/RAISE/UPDATE path"
+  ],
+  "readyForIndependentSourceReview": true,
+  "readyForLocalReplay": false,
+  "readyForProductionMutation": false
+}

@@ -1,0 +1,315 @@
+{
+  "verdict": "PROVENANCE_DISPOSITION_COMPLETE",
+  "passSchemaSeal": false,
+  "completedAt": "2026-09-07T17:20:00.000Z",
+  "authorization": "read-only provenance recovery and disposition design for eight production-only objects; no candidate SQL changes; no credential rotation",
+  "pins": {
+    "pr314HeadAtStart": "99fc630446252f337871115dfcac74d36e95b24b",
+    "originMain": "9d8a01d37422179ddd68bbd181a8815d8a893577",
+    "projectRef": "jzmdgwwiestcmmeuhhkr",
+    "candidateAncestor": "c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6",
+    "candidateSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "packageBytes": 1191852,
+    "modules": 12,
+    "authoritativeDumpSha256": "0eee4dc3b803db3e632443ac7f45b740345279f4c9171ff25ad6f310592a6cd4",
+    "portableDumpSha256": "b745ecfc25965f70ffe19b8fd0b92c3257407eccd8ba02bc07e3e33078512b0c",
+    "schemaMigrationsCount": 185,
+    "sourceReviewVerdict": "PASS_SOURCE_REVIEW",
+    "schemaSealVerdict": "CHANGES_REQUIRED"
+  },
+  "credentialExposure": {
+    "classification": "EPHEMERAL_CLI_LOGIN_ROLE_PASSWORD",
+    "displayed": "temporary cli_login_postgres role password in local supabase db dump --dry-run helper script",
+    "notIndicated": ["persistent_project_database_password", "supabase_personal_access_token"],
+    "credentialRotationRequired": false,
+    "retainedInRepoFiles": false,
+    "retainedInEvidenceArtifacts": false,
+    "dryRunFilePresent": false,
+    "rawDumpSqlCount": 0,
+    "helperContainersMatching": 0,
+    "recommendation": "Clear local terminal/agent console history only. Do not rotate persistent project DB password for this event."
+  },
+  "objects": [
+    {
+      "identity": "public.pilot_lifecycle_coverage_downloads",
+      "kind": "table",
+      "classification": "internal_operational_audit",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "prodVersion": "20260805000533",
+        "prodName": "pilot_lifecycle_coverage_downloads",
+        "statementIndex": 1,
+        "statementUtf8Bytes": 2660,
+        "statementSha256": "7b194ec29cd4acdbe7d0a3f0ef4788091d0cc95aa39c53cde36dfc4032cf508e",
+        "statementMd5": "cbff9aba715df352a042412af8769ae1",
+        "gitCreateOnMain": false,
+        "featureGitCommit": "ac0d0352",
+        "featureGitPath": "supabase/migrations/20260805030000_pilot_lifecycle_coverage_downloads.sql"
+      },
+      "live": {
+        "owner": "postgres",
+        "rls": true,
+        "rlsForced": false,
+        "rowCount": 0,
+        "policies": ["pilot_lifecycle_coverage_downloads_partition_read"],
+        "acl": "{postgres=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "triggers": [],
+        "fksOutbound": ["audit_ready_engagements(id) via engagement_id"],
+        "fksInbound": []
+      },
+      "callersCurrentTree": [],
+      "securityBlockersIfExact": ["broad authenticated table ACL"],
+      "proposedModule": "recovered_prod_only_overlay after app slices / before or merged into security hardening",
+      "seed": "none",
+      "accountingEffect": "new recovered overlay (+1 table); OD 151 unchanged"
+    },
+    {
+      "identity": "public.pulse_je_submissions",
+      "kind": "table",
+      "classification": "active_compatibility_wbp",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "prodVersion": "20260808045712",
+        "prodName": "pulse_je_submissions",
+        "statementIndex": 1,
+        "statementUtf8Bytes": 3475,
+        "statementSha256": "698304e4d9de7a2ac2ab2759bccf7de993f11b4f46864c4c829606601d7bb6c5",
+        "statementMd5": "772c2a0d22e6f90a172947a7dc8fd324",
+        "gitCreateOnMain": false,
+        "featureGitCommit": "88c919a3",
+        "featureGitPath": "supabase/migrations/20260808050000_pulse_je_submissions.sql"
+      },
+      "live": {
+        "owner": "postgres",
+        "rls": true,
+        "rowCount": 0,
+        "policies": ["pulse_je_submissions_company_read", "pulse_je_submissions_service_write"],
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "triggers": [],
+        "fksOutbound": ["companies(id)", "accounting_connections(id)"]
+      },
+      "callersCurrentTree": [],
+      "supersedingOnMain": ["je_post_attempts", "journal_entry_*"],
+      "securityBlockersIfExact": ["anon table ACL", "policy roles include public"],
+      "seed": "none",
+      "accountingEffect": "new recovered overlay (+1 table)"
+    },
+    {
+      "identity": "public.qbo_accounts_cache",
+      "kind": "table",
+      "classification": "internal_operational_cache",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "prodVersion": "20260808065206",
+        "prodName": "wbp_w1a_accounts_cache_tables",
+        "statementIndex": 1,
+        "statementUtf8Bytes": 7840,
+        "statementSha256": "0fbe8002ea8419176a7f4629d9ee1244258a1faef397ac9518e1341fea751c87",
+        "statementMd5": "7baa13916c774d0d3508c8dd2b7ae2c0",
+        "sharedStatementWith": ["public.xero_accounts_cache"],
+        "gitCreateOnMain": false,
+        "featureGitCommit": "8a0f8480",
+        "featureGitPath": "supabase/migrations/20260808070000_wbp_w1a_accounts_cache_tables.sql"
+      },
+      "live": {
+        "owner": "postgres",
+        "rls": true,
+        "rowCount": 93,
+        "policies": ["qbo_accounts_cache_deny_writes", "qbo_accounts_cache_select"],
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "fksOutbound": ["accounting_connections(id)"]
+      },
+      "securityBlockersIfExact": ["anon table ACL"],
+      "seed": "none_rebuildable_cache",
+      "accountingEffect": "new recovered overlay (+1 table; pair with xero)"
+    },
+    {
+      "identity": "public.xero_accounts_cache",
+      "kind": "table",
+      "classification": "internal_operational_cache",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "prodVersion": "20260808065206",
+        "prodName": "wbp_w1a_accounts_cache_tables",
+        "statementIndex": 1,
+        "statementUtf8Bytes": 7840,
+        "statementSha256": "0fbe8002ea8419176a7f4629d9ee1244258a1faef397ac9518e1341fea751c87",
+        "statementMd5": "7baa13916c774d0d3508c8dd2b7ae2c0",
+        "sharedStatementWith": ["public.qbo_accounts_cache"],
+        "gitCreateOnMain": false,
+        "featureGitCommit": "8a0f8480"
+      },
+      "live": {
+        "owner": "postgres",
+        "rls": true,
+        "rowCount": 0,
+        "policies": ["xero_accounts_cache_deny_writes", "xero_accounts_cache_select"],
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "fksOutbound": ["accounting_connections(id)"]
+      },
+      "securityBlockersIfExact": ["anon table ACL"],
+      "seed": "none",
+      "accountingEffect": "new recovered overlay (+1 table; pair with qbo)"
+    },
+    {
+      "identity": "public.quickbooks_connections",
+      "kind": "table",
+      "classification": "superseded_but_required_compatibility",
+      "disposition": "block_pending_product_security_decision",
+      "dispositionCode": 5,
+      "provenance": {
+        "prodCreateInSchemaMigrations": false,
+        "gitCreateAnywhere": false,
+        "notes": "Pre-git/out-of-band legacy table. Active migrations only conditionally backfill FROM it into accounting_connections (20260531_*).",
+        "activeGitReferences": [
+          "supabase/migrations/20260531_create_accounting_connections.sql",
+          "supabase/migrations/20260531_backfill_accounting_connections_from_quickbooks.sql"
+        ]
+      },
+      "live": {
+        "owner": "postgres",
+        "rls": true,
+        "rowCount": 4,
+        "policies": ["Users can access own QB connection"],
+        "policyRoles": ["public"],
+        "policyCmd": "ALL",
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "secretBearingColumns": ["access_token", "refresh_token"],
+        "fksOutbound": ["auth.users(id) via user_id"]
+      },
+      "callersCurrentTree": [
+        "lib/erp/quickbooks/token-resolver.ts",
+        "lib/erp-adapters/quickbooks-adapter.js",
+        "lib/integrations/quickbooks/promote-legacy-grant-execute.ts",
+        "scripts/verify-accounting-connections.js",
+        "tests/integrations/quickbooks/promote-legacy-grant.test.ts"
+      ],
+      "superseding": ["erp_connections", "accounting_connections"],
+      "securityBlockersIfExact": [
+        "plaintext OAuth token columns",
+        "PUBLIC ALL policy",
+        "anon table ACL",
+        "must not seed customer tokens into baseline"
+      ],
+      "recommendedAfterDecision": "compatibility_restricted_access_without_plaintext_tokens_or_controlled_omit",
+      "accountingEffect": "blocked; no candidate body assigned this turn"
+    },
+    {
+      "identity": "public.platform_integrity_chain_status(p_firm_id uuid)",
+      "kind": "function",
+      "classification": "internal_operational",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "createVersion": "20260806042702",
+        "finalVersion": "20260806042857",
+        "finalName": "major_2_3_block_b_1_fix_chain_seq_column",
+        "finalStatementIndex": 1,
+        "finalStatementUtf8Bytes": 1451,
+        "finalStatementSha256": "72f726eec31c02c0e820a39d81853cc1aff96471b7e34b2288d996d0ce391bb8",
+        "finalStatementMd5": "482c98ceaf8566b259628e9e7eb1c5b2",
+        "gitCreateOnMain": false,
+        "featureGitCommit": "27572e64"
+      },
+      "live": {
+        "securityDefiner": false,
+        "searchPath": ["search_path=public"],
+        "volatility": "stable",
+        "owner": "postgres",
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodySha256": "b10b3ef67443de5e63384e48e4e05507faf37c69d1e667bf90fd96aca403a6b7",
+        "bodyBytes": 1215,
+        "result": "TABLE(chain_intact boolean, chain_gap_count integer, latest_seq bigint, latest_event_at timestamp with time zone)"
+      },
+      "securityBlockersIfExact": ["anon EXECUTE"],
+      "accountingEffect": "new recovered overlay (+1 function)"
+    },
+    {
+      "identity": "public.sp_write_pilot_slot_and_event(p_slot_op text, p_slot_payload jsonb, p_event jsonb)",
+      "kind": "function",
+      "classification": "internal_operational_mutator",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "createVersion": "20260804225750",
+        "finalVersion": "20260804234244",
+        "finalName": "sp_write_pilot_slot_event_only",
+        "finalStatementIndex": 1,
+        "finalStatementUtf8Bytes": 5518,
+        "finalStatementSha256": "ed50f2717f3060cdbd4f822bc599a2214519108be18b45206c6e28ebf7f5a607",
+        "finalStatementMd5": "35859500bb91e09d82b29977fc30d638",
+        "note": "Prod version name replaces body of sp_write_pilot_slot_and_event; no separate function symbol in git",
+        "gitCreateOnMain": false,
+        "featureGitCommit": "a2499f87"
+      },
+      "live": {
+        "securityDefiner": false,
+        "searchPath": ["search_path=public, pg_catalog"],
+        "volatility": "volatile",
+        "owner": "postgres",
+        "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "bodySha256": "86bca12572b13d4533862b1d31e21ce49d09f3f1e232cc459a8465ee6620e78b",
+        "bodyBytes": 5335,
+        "result": "jsonb"
+      },
+      "securityBlockersIfExact": ["anon EXECUTE on mutator"],
+      "accountingEffect": "new recovered overlay (+1 function)"
+    },
+    {
+      "identity": "public.v_platform_integrity_current",
+      "kind": "view",
+      "classification": "internal_operational",
+      "disposition": "include_security_hardened",
+      "dispositionCode": 2,
+      "provenance": {
+        "prodVersion": "20260806042702",
+        "prodName": "major_2_3_block_b_1_platform_integrity_view",
+        "statementIndex": 1,
+        "statementUtf8Bytes": 4140,
+        "statementSha256": "1ef3ec2f5282d5580c635a8d1d654aa45e5d894d7b1d73e89d7b7a8c850ce90a",
+        "statementMd5": "214ac4dd0107d431b603b4f09339ffc7",
+        "sharedStatementWith": ["platform_integrity_chain_status create"],
+        "gitCreateOnMain": false,
+        "featureGitCommit": "27572e64"
+      },
+      "live": {
+        "owner": "postgres",
+        "securityInvoker": true,
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "viewdefSha256": "77a8802a8e5fe50202b4ec2e16cd40e0707fa12f295b4f3a00df65cf7b25902d",
+        "viewdefBytes": 876
+      },
+      "securityBlockersIfExact": ["anon ACL on view"],
+      "accountingEffect": "new recovered overlay (+1 view)"
+    }
+  ],
+  "dispositionTotals": {
+    "includeExact": 0,
+    "includeSecurityHardened": 7,
+    "includeCompatibilityRestricted": 0,
+    "omitObsolete": 0,
+    "blockPendingDecision": 1
+  },
+  "schemaSealReevaluation": {
+    "passSchemaSeal": false,
+    "namedEightResolvedIfRemediated": false,
+    "blockedRemaining": ["public.quickbooks_connections"],
+    "parserBlindSpotsNoted": [
+      "RENAME TO (stripe_webhook_events_legacy)",
+      "dynamic EXECUTE CREATE VIEW (qbo_connections_unified)",
+      "policy undercount via DO-blocks"
+    ],
+    "forwardTailStillPass": true,
+    "unexplainedObjectDriftWouldRemain": true
+  },
+  "candidateImmutability": {
+    "sealVerified": true,
+    "activeMigrationsContainEsc": false,
+    "candidateSqlModifiedThisTurn": false
+  },
+  "nextAuthorization": "Authorize hardened candidate remediation for the seven include_security_hardened objects, plus an explicit product/security decision on quickbooks_connections. Local replay, production mutation, and credential rotation remain unauthorized."
+}

@@ -1,0 +1,1402 @@
+{
+  "reviewedAt": "2026-09-07T02:13:13.806Z",
+  "reviewedHead": "524ada4933c7d326e79cf69cb69bb88aed7a5c08",
+  "packageSealExpected": "ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28",
+  "packageSealObserved": "ae85b00270d3b89f6e8f57cb6851dec19aba2b860dd0de89126bc93643555d28",
+  "packageBytesExpected": 1132090,
+  "packageBytesObserved": 1132090,
+  "optionDManifestSha256": "9dc080cfd5a5600e33f1319d2079d250d7f16c866db16a60d6c24f61c61a6359",
+  "candidateSqlAndManifestByteIdentical": true,
+  "verdict": "CHANGES REQUIRED",
+  "hashResults": [
+    {
+      "order": 1,
+      "version": "20260907010000",
+      "name": "esc_platform_prerequisites_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010000_esc_platform_prerequisites_contract.sql",
+      "gitBlobId": "8b8f31992e2714fe3ee0ed9ec350138ceb65b926",
+      "sha256": "4b71d1a582fd81098535513af258354735eb9b85827b25c3ea5a7dc2318ebad0",
+      "md5": "b91ececa001dc264f1af6e952f0fa53c",
+      "utf8LfBytes": 1074,
+      "statementCountApprox": 5,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 2,
+      "version": "20260907010010",
+      "name": "esc_public_users_and_foundations_baseline",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010010_esc_public_users_and_foundations_baseline.sql",
+      "gitBlobId": "81d9069328d9579bbdd73f234f5510b49d26cda3",
+      "sha256": "5f622b6a244620ad5ee896555c6640a34adf8d5b4212ec7815a06ce6c786cc74",
+      "md5": "60875424b1b85d32bebd2f619d86040c",
+      "utf8LfBytes": 108827,
+      "statementCountApprox": 565,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 3,
+      "version": "20260907010020",
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010020_esc_phase1_subscriptions_rls_atomic.sql",
+      "gitBlobId": "d55a4911d99f85bc51a3d16a40fccc87c4c35ae0",
+      "sha256": "10a46c634df0bfd706244a504851ed58a4b14930094b41a3baab21a14c701bff",
+      "md5": "58e9b513cd4ebd455e67c7fcf66ebc11",
+      "utf8LfBytes": 19918,
+      "statementCountApprox": 63,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 4,
+      "version": "20260907010030",
+      "name": "esc_application_schema_lineage_body",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010030_esc_application_schema_lineage_body.sql",
+      "gitBlobId": "19568a79f7b4c00a32d944479515cac3b254b2b3",
+      "sha256": "0914af7983b980e0e7cc6b5915e8d164525d54076d9bf95e14ba4abba15a887b",
+      "md5": "86b8ee9ec6586117836b19b65df97ceb",
+      "utf8LfBytes": 906182,
+      "statementCountApprox": 4203,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 5,
+      "version": "20260907010040",
+      "name": "esc_security_rls_grants_hardening",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010040_esc_security_rls_grants_hardening.sql",
+      "gitBlobId": "2a1eda6cf4b0f407161b86192c23c7f54f92c194",
+      "sha256": "cfbb696265728d07bcdcd456f9ca305675abc11026d7e369c8e8cf0c2b2c09e0",
+      "md5": "f4c4905a07f41b53b088a09d348764c8",
+      "utf8LfBytes": 74387,
+      "statementCountApprox": 304,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 6,
+      "version": "20260907010050",
+      "name": "esc_reference_seed_allowlist_contract",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010050_esc_reference_seed_allowlist_contract.sql",
+      "gitBlobId": "50ec5cdacda573f980291f2029ec306e6b2ac818",
+      "sha256": "a47d687c1b6bc839b1f1e83e32939128eb06ec1c8d46517ebdfd4b2e2174bd1d",
+      "md5": "88a94bfeca84de0cb0fe783730619a00",
+      "utf8LfBytes": 1021,
+      "statementCountApprox": 3,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 7,
+      "version": "20260907010060",
+      "name": "esc_guarded_dataless_safe_initialization",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010060_esc_guarded_dataless_safe_initialization.sql",
+      "gitBlobId": "0a37933a27c2f56bf2bae17f53047dbf46cda79b",
+      "sha256": "affe5b9bd60ddae6beeaa27387e2416e2ba04e3f222d05bfe6ea3bd00384a8b8",
+      "md5": "abd3f151117fa575a484a229772aa088",
+      "utf8LfBytes": 15876,
+      "statementCountApprox": 50,
+      "manifestMatch": true,
+      "crlfPresent": false
+    },
+    {
+      "order": 8,
+      "version": "20260907010070",
+      "name": "esc_forward_tail_main_unapplied",
+      "path": "supabase/migrations-draft/executable-squash-candidate/modules/20260907010070_esc_forward_tail_main_unapplied.sql",
+      "gitBlobId": "91ac926848aeb839683cfcdc86822be9ea9f7c67",
+      "sha256": "e738091a7be0117684c8d6f40e4d5766f2a41cfcebead992a0a494cca384771b",
+      "md5": "64430c710b4794c52e05f499611667d3",
+      "utf8LfBytes": 4805,
+      "statementCountApprox": 21,
+      "manifestMatch": true,
+      "crlfPresent": false
+    }
+  ],
+  "sourceAccounting": {
+    "optionDEntries": 151,
+    "markedOrDispositionedUnique": 151,
+    "missingFromModulesCount": 0,
+    "missingSample": [],
+    "duplicatedCount": 1,
+    "duplicatedSample": [
+      {
+        "file": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+        "modules": [
+          4,
+          8
+        ]
+      }
+    ],
+    "skippedCoveredByBaseline": 34,
+    "substitutions": 7
+  },
+  "failureBoundaryMatrix": [
+    {
+      "afterModule": 1,
+      "name": "esc_platform_prerequisites_contract",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "inlineCreateEnableDetected": false
+    },
+    {
+      "afterModule": 2,
+      "name": "esc_public_users_and_foundations_baseline",
+      "tablesCreatedInModule": 43,
+      "rlsEnabledInModule": 43,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "inlineCreateEnableDetected": true
+    },
+    {
+      "afterModule": 3,
+      "name": "esc_phase1_subscriptions_rls_atomic",
+      "tablesCreatedInModule": 5,
+      "rlsEnabledInModule": 5,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 0,
+      "sampleCumulativeWithoutRls": [],
+      "inlineCreateEnableDetected": false
+    },
+    {
+      "afterModule": 4,
+      "name": "esc_application_schema_lineage_body",
+      "tablesCreatedInModule": 166,
+      "rlsEnabledInModule": 165,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [
+        "curated_rule_fires",
+        "gap2_purge_table_registry"
+      ],
+      "unsafeCreatesInModuleCount": 2,
+      "cumulativeTablesWithoutRlsYet": 2,
+      "sampleCumulativeWithoutRls": [
+        "curated_rule_fires",
+        "gap2_purge_table_registry"
+      ],
+      "inlineCreateEnableDetected": true
+    },
+    {
+      "afterModule": 5,
+      "name": "esc_security_rls_grants_hardening",
+      "tablesCreatedInModule": 5,
+      "rlsEnabledInModule": 6,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [
+        "engagement_posting_policy"
+      ],
+      "unsafeCreatesInModuleCount": 1,
+      "cumulativeTablesWithoutRlsYet": 1,
+      "sampleCumulativeWithoutRls": [
+        "gap2_purge_table_registry"
+      ],
+      "inlineCreateEnableDetected": true
+    },
+    {
+      "afterModule": 6,
+      "name": "esc_reference_seed_allowlist_contract",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 1,
+      "sampleCumulativeWithoutRls": [
+        "gap2_purge_table_registry"
+      ],
+      "inlineCreateEnableDetected": false
+    },
+    {
+      "afterModule": 7,
+      "name": "esc_guarded_dataless_safe_initialization",
+      "tablesCreatedInModule": 2,
+      "rlsEnabledInModule": 2,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 1,
+      "sampleCumulativeWithoutRls": [
+        "gap2_purge_table_registry"
+      ],
+      "inlineCreateEnableDetected": true
+    },
+    {
+      "afterModule": 8,
+      "name": "esc_forward_tail_main_unapplied",
+      "tablesCreatedInModule": 0,
+      "rlsEnabledInModule": 0,
+      "unsafeCreatesInModuleWithoutRlsSameModule": [],
+      "unsafeCreatesInModuleCount": 0,
+      "cumulativeTablesWithoutRlsYet": 1,
+      "sampleCumulativeWithoutRls": [
+        "gap2_purge_table_registry"
+      ],
+      "inlineCreateEnableDetected": false
+    }
+  ],
+  "dmlInventory": {
+    "count": 324,
+    "byKind": {
+      "INSERT": 110,
+      "UPDATE": 210,
+      "DELETE": 2,
+      "COPY": 1,
+      "SETVAL": 1
+    },
+    "sample": [
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "INSERT",
+        "target": "company_roles",
+        "line": 560,
+        "index": 21786
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "own",
+        "line": 47,
+        "index": 2091
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "own",
+        "line": 48,
+        "index": 2152
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "USING",
+        "line": 50,
+        "index": 2195
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 608,
+        "index": 24486
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 609,
+        "index": 24582
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "using",
+        "line": 610,
+        "index": 24658
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 701,
+        "index": 28061
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 702,
+        "index": 28165
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "using",
+        "line": 703,
+        "index": 28249
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 759,
+        "index": 30475
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "their",
+        "line": 760,
+        "index": 30567
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "using",
+        "line": 761,
+        "index": 30639
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "practice",
+        "line": 1068,
+        "index": 40968
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "practice",
+        "line": 1069,
+        "index": 41057
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "using",
+        "line": 1070,
+        "index": 41117
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "removed",
+        "line": 1413,
+        "index": 54233
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "removed",
+        "line": 1418,
+        "index": 54448
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2034,
+        "index": 79784
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2064,
+        "index": 80650
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2070,
+        "index": 80981
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2087,
+        "index": 81560
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2101,
+        "index": 81983
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2115,
+        "index": 82400
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2129,
+        "index": 82826
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2143,
+        "index": 83294
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "no",
+        "line": 2157,
+        "index": 83744
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2744,
+        "index": 105221
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2759,
+        "index": 105795
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2765,
+        "index": 106123
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2771,
+        "index": 106445
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2777,
+        "index": 106784
+      },
+      {
+        "module": "esc_public_users_and_foundations_baseline",
+        "kind": "UPDATE",
+        "target": "or",
+        "line": 2825,
+        "index": 108631
+      },
+      {
+        "module": "esc_phase1_subscriptions_rls_atomic",
+        "kind": "UPDATE",
+        "target": "ON",
+        "line": 220,
+        "index": 12068
+      },
+      {
+        "module": "esc_phase1_subscriptions_rls_atomic",
+        "kind": "UPDATE",
+        "target": "ON",
+        "line": 225,
+        "index": 12305
+      },
+      {
+        "module": "esc_phase1_subscriptions_rls_atomic",
+        "kind": "UPDATE",
+        "target": "ON",
+        "line": 230,
+        "index": 12547
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_templates",
+        "line": 467,
+        "index": 20080
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_template_items",
+        "line": 476,
+        "index": 20402
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_templates",
+        "line": 487,
+        "index": 22299
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_template_items",
+        "line": 496,
+        "index": 22599
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_templates",
+        "line": 511,
+        "index": 24811
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_template_items",
+        "line": 520,
+        "index": 25112
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_templates",
+        "line": 535,
+        "index": 27405
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "close_checklist_template_items",
+        "line": 544,
+        "index": 27737
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "curated_rules_registry",
+        "line": 1074,
+        "index": 53509
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ar_cash_app_config",
+        "line": 1296,
+        "index": 63192
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "firm_llm_config",
+        "line": 1444,
+        "index": 72731
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "storage.buckets",
+        "line": 2020,
+        "index": 99752
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "event_projections",
+        "line": 2378,
+        "index": 119797
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "stripe_webhook_events",
+        "line": 2615,
+        "index": 131218
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "entitlement_check_audit",
+        "line": 2696,
+        "index": 133997
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "firm_intake_settings",
+        "line": 2955,
+        "index": 144395
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "firm_intake_handlers",
+        "line": 2961,
+        "index": 144576
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "firm_intake_handlers",
+        "line": 2967,
+        "index": 144853
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "firm_intake_handlers",
+        "line": 2973,
+        "index": 145120
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "curated_rules_registry",
+        "line": 3672,
+        "index": 176919
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "assertions_catalog",
+        "line": 4014,
+        "index": 200941
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "assertion_relevance_matrix",
+        "line": 4106,
+        "index": 206385
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4308,
+        "index": 226983
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4316,
+        "index": 227880
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4323,
+        "index": 228695
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4331,
+        "index": 229574
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4339,
+        "index": 230491
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4346,
+        "index": 231321
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4353,
+        "index": 232099
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4360,
+        "index": 232875
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4367,
+        "index": 233632
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4375,
+        "index": 234527
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4383,
+        "index": 235416
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4390,
+        "index": 236167
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4398,
+        "index": 237123
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4406,
+        "index": 238048
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4413,
+        "index": 238791
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4420,
+        "index": 239535
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4428,
+        "index": 240393
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4435,
+        "index": 241127
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4442,
+        "index": 241830
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4450,
+        "index": 242710
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4457,
+        "index": 243384
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4464,
+        "index": 244116
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4471,
+        "index": 244876
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4478,
+        "index": 245660
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4486,
+        "index": 246543
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4493,
+        "index": 247291
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4500,
+        "index": 247970
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4507,
+        "index": 248664
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4515,
+        "index": 249560
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4522,
+        "index": 250292
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4530,
+        "index": 251252
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "rule_assertion_coverage",
+        "line": 4537,
+        "index": 252019
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "advisacor_flags",
+        "line": 4612,
+        "index": 256569
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "assertion_gap_root_causes",
+        "line": 4639,
+        "index": 258413
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "storage.buckets",
+        "line": 5205,
+        "index": 288930
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_assertion_registry",
+        "line": 5745,
+        "index": 310129
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_ledger_event_types",
+        "line": 5764,
+        "index": 310894
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_assertion_registry",
+        "line": 6004,
+        "index": 320381
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_ledger_event_types",
+        "line": 6015,
+        "index": 320842
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_assertion_registry",
+        "line": 6198,
+        "index": 330327
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_ledger_event_types",
+        "line": 6210,
+        "index": 331148
+      },
+      {
+        "module": "esc_application_schema_lineage_body",
+        "kind": "INSERT",
+        "target": "ap_intake_assertion_registry",
+        "line": 6333,
+        "index": 336209
+      }
+    ]
+  },
+  "schemaGaps": {
+    "productionContractScope": "foundation_and_phase1_only_47_tables",
+    "optionDFinalInventory": "PASS_RUNTIME_151_not_a_full_prod_object_dump",
+    "packageClaimsCompleteProdMatch": false,
+    "mandatoryFullPgDumpBeforeReplay": true,
+    "rationale": "Static Option D lineage + partial G1 contract cannot prove zero unexplained drift vs live production (e.g. 424 policies). Review cannot substitute for sealed pg_dump --schema-only.",
+    "gaps": [
+      "No full public table inventory seal in package vs live prod",
+      "No full policy/function/trigger inventory seal vs live prod",
+      "Module 4/5 split leaves mid-replay exposure window",
+      "Forward-tail completeness vs all merged-main semantic unapplied migrations not fully proven"
+    ]
+  },
+  "findings": [
+    {
+      "priority": "P0",
+      "code": "ANON_EXECUTE_GRANT",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "GRANT EXECUTE ON FUNCTION public.increment_share_token_access(uuid) TO anon",
+      "line": 767
+    },
+    {
+      "priority": "P0",
+      "code": "ANON_EXECUTE_GRANT",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "GRANT EXECUTE ON FUNCTION public.publish_ledger_event(text, text, integer, uuid, uuid, uuid, uuid, text, text, text, text, text, jsonb, jsonb, uuid, text) TO an",
+      "line": 768
+    },
+    {
+      "priority": "P0",
+      "code": "FINAL_PACKAGE_TABLES_WITHOUT_RLS",
+      "module": "package",
+      "detail": "Tables still without ENABLE RLS after all 8 modules: gap2_purge_table_registry",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "MODULE4_TABLES_WITHOUT_RLS_BEFORE_MODULE5",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "2 CREATE TABLE without ENABLE RLS in same module; sample: curated_rule_fires, gap2_purge_table_registry. Safe final state after module 5 is insufficient.",
+      "line": null
+    },
+    {
+      "priority": "P0",
+      "code": "SOURCE_DUPLICATED_ACROSS_MODULES",
+      "module": "package",
+      "detail": "[{\"file\":\"20260906184500_publish_ledger_event_extensions_digest_qualify.sql\",\"modules\":[4,8]}]",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "MODULE4_NESTED_TRANSACTION_MARKERS",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "BEGIN count=42 COMMIT count=42 — concatenation preserves nested txn markers; replay runner risk",
+      "line": null
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.gap2_audit_append_only",
+      "line": 9383
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.gap2_schedule_purge",
+      "line": 9499
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.gap2_cancel_purge",
+      "line": 9577
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.increment_pbc_request_count",
+      "line": 10165
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "audit_ready_latest_bs_kickout_lines",
+      "line": 11454
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "audit_ready_latest_pbc_kickout_runs",
+      "line": 11504
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.handle_new_auth_user",
+      "line": 11994
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12278
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12396
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12483
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12559
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 12796
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 12935
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.sp_write_anchor_batch",
+      "line": 13204
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.sp_list_public_columns",
+      "line": 13306
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.sp_list_public_columns",
+      "line": 13414
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.backfill_schema_drift_assertion_impact",
+      "line": 13697
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.backfill_schema_drift_assertion_impact",
+      "line": 14115
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.trg_ar_reconciling_items_stamp_run_identity",
+      "line": 14682
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_audit_ready_recon_bridge",
+      "line": 14724
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.clear_audit_ready_recon_bridge",
+      "line": 14886
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.trg_arte_stamp_run_identity",
+      "line": 15156
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.trg_arte_stamp_run_identity",
+      "line": 15279
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_continuous_close_observe_run",
+      "line": 15631
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_proposal",
+      "line": 15922
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_approval",
+      "line": 16204
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_execution_reservation",
+      "line": 16598
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_provider_attempt",
+      "line": 17103
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.patch_journal_entry_provider_attempt",
+      "line": 17304
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.patch_journal_entry_provider_attempt",
+      "line": 17545
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.apply_journal_entry_provider_not_found_confirmed",
+      "line": 17766
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.patch_journal_entry_provider_attempt",
+      "line": 17901
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_provider_attempt",
+      "line": 17997
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.patch_journal_entry_provider_attempt",
+      "line": 18217
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.apply_journal_entry_provider_dispatch_started",
+      "line": 18307
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.patch_journal_entry_provider_attempt",
+      "line": 19033
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.je_publish_posting_started_from_ready",
+      "line": 19653
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "public.persist_journal_entry_provider_attempt",
+      "line": 19737
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.is_active_company_member",
+      "line": 1007
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.has_active_company_role",
+      "line": 1023
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.is_company_admin",
+      "line": 1043
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.is_active_firm_member",
+      "line": 1054
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.has_active_firm_role",
+      "line": 1070
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.pilot_lifecycle_events_before_insert",
+      "line": 1485
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "public.pilot_lifecycle_events_verify_chain",
+      "line": 1561
+    },
+    {
+      "priority": "P1",
+      "code": "SECURITY_DEFINER_SEARCH_PATH_NOT_IN_CREATE_CHUNK",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "unknown",
+      "line": 1636
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION audit_ready_latest_bs_kickout_lines(uuid[]) TO authenticated",
+      "line": 11502
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION audit_ready_latest_pbc_kickout_runs(uuid[]) TO authenticated",
+      "line": 11565
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolutions(uuid, text, jsonb)\n  TO authenticated",
+      "line": 11854
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_application_schema_lineage_body",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.get_similar_kickout_resolution_counts(uuid[])\n  TO authenticated",
+      "line": 11918
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.is_active_company_member(uuid)      TO authenticated",
+      "line": 1097
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.has_active_company_role(uuid, text[]) TO authenticated",
+      "line": 1098
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.is_company_admin(uuid)              TO authenticated",
+      "line": 1099
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.is_active_firm_member(uuid)         TO authenticated",
+      "line": 1100
+    },
+    {
+      "priority": "P2",
+      "code": "AUTHENTICATED_EXECUTE_GRANT_REVIEW",
+      "module": "esc_security_rls_grants_hardening",
+      "detail": "Likely intentional product grant; confirm least-privilege: GRANT EXECUTE ON FUNCTION public.has_active_firm_role(uuid, text[])  TO authenticated",
+      "line": 1101
+    }
+  ],
+  "findingCounts": {
+    "P0": 5,
+    "P1": 47,
+    "P2": 9,
+    "P3": 0
+  },
+  "remediationAuthorizationNeeded": "Authorize candidate package remediation to eliminate mid-replay exposure (co-locate RLS/grants with CREATE in modules 2/4 or merge 4+5), complete forward-tail accounting, and obtain a read-only full production pg_dump --schema-only seal — still no local replay until those land and re-review PASSes"
+}

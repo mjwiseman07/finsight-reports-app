@@ -1,0 +1,183 @@
+{
+  "verdict": "CHANGES_REQUIRED",
+  "completedAt": "2026-09-07T17:05:00.000Z",
+  "authorization": "read-only production schema seal via supabase db dump (schema-only) + comparison; Docker limited to CLI pg_dump helper",
+  "pins": {
+    "projectRef": "jzmdgwwiestcmmeuhhkr",
+    "pr314Head": "f27bc7f01ba99cf5ff65465f14eb3aa82135c4da",
+    "candidateAncestorFromBlockedReport": "c386185f4e33a571a759fd6d57cb8e8c2d5bf6f6",
+    "candidateSeal": "170b7105b09acdb2fd1d5d1846e5242234b263528e18b8ee9180eab8cc2df48e",
+    "packageBytes": 1191852,
+    "modules": 12,
+    "sourceAccountingEquation": "144 unchanged + 6 overlays + 1 forward = 151",
+    "cliVersion": "2.116.0",
+    "originMainFetched": "9d8a01d37422179ddd68bbd181a8815d8a893577",
+    "rejectedAbbreviatedCandidateText": true,
+    "rejectedUserSealTypoFd1d5f": true
+  },
+  "tooling": {
+    "projectRefFlag": "--project-ref jzmdgwwiestcmmeuhhkr",
+    "workspaceLinkedFlagInProjectsList": false,
+    "dryRunConfirmedSchemaOnly": true,
+    "dataOnlyUsed": false,
+    "useCopyUsed": false,
+    "sessionReadOnlyTimeoutsViaCli": "not_supported_by_cli_dump_wrapper",
+    "dockerHelperOnly": true,
+    "localSupabaseStackStarted": false,
+    "candidateSqlModified": false,
+    "activeMigrationsModified": false,
+    "productionMutated": false,
+    "dryRunPasswordPrintedToConsole": true,
+    "dryRunArtifactDeleted": true,
+    "credentialRotationRecommended": false,
+    "credentialExposureClassification": "EPHEMERAL_CLI_LOGIN_ROLE_PASSWORD",
+    "credentialTriageSupersededBy": "docs/migration-remediation/executable-squash-candidate-eight-object-provenance-disposition-2026-09-07.md"
+  },
+  "dumps": {
+    "authoritativeSha256": "0eee4dc3b803db3e632443ac7f45b740345279f4c9171ff25ad6f310592a6cd4",
+    "portableSha256": "b745ecfc25965f70ffe19b8fd0b92c3257407eccd8ba02bc07e3e33078512b0c",
+    "authoritativeBytes": 904746,
+    "portableBytes": 786947,
+    "portableDerivation": "strip OWNER TO / GRANT / REVOKE / ALTER DEFAULT PRIVILEGES from authoritative CLI dump"
+  },
+  "noDataProof": {
+    "copy": 0,
+    "insertInto": 0,
+    "jwt": 0,
+    "privateKey": 0,
+    "connectionUri": 0
+  },
+  "platformCatalog": {
+    "serverVersion": "17.6",
+    "schemaMigrationsCount": 185,
+    "minVersion": "20260701043602",
+    "maxVersion": "20260827030454",
+    "publicTables": 226,
+    "publicPolicies": 424,
+    "publicRoutines": 96,
+    "authTables": 23,
+    "storageTables": 8,
+    "extensions": [
+      "pg_stat_statements",
+      "pgcrypto",
+      "plpgsql",
+      "supabase_vault",
+      "uuid-ossp",
+      "vector"
+    ],
+    "schemasPresent": [
+      "auth",
+      "extensions",
+      "graphql",
+      "graphql_public",
+      "realtime",
+      "storage",
+      "supabase_migrations",
+      "vault"
+    ],
+    "authStorageTableNames": [
+      "auth.audit_log_entries",
+      "auth.custom_oauth_providers",
+      "auth.flow_state",
+      "auth.identities",
+      "auth.instances",
+      "auth.mfa_amr_claims",
+      "auth.mfa_challenges",
+      "auth.mfa_factors",
+      "auth.oauth_authorizations",
+      "auth.oauth_client_states",
+      "auth.oauth_clients",
+      "auth.oauth_consents",
+      "auth.one_time_tokens",
+      "auth.refresh_tokens",
+      "auth.saml_providers",
+      "auth.saml_relay_states",
+      "auth.schema_migrations",
+      "auth.sessions",
+      "auth.sso_domains",
+      "auth.sso_providers",
+      "auth.users",
+      "auth.webauthn_challenges",
+      "auth.webauthn_credentials",
+      "storage.buckets",
+      "storage.buckets_analytics",
+      "storage.buckets_vectors",
+      "storage.migrations",
+      "storage.objects",
+      "storage.s3_multipart_uploads",
+      "storage.s3_multipart_uploads_parts",
+      "storage.vector_indexes"
+    ],
+    "platformContractSatisfied": true,
+    "authStorageDataDumped": false
+  },
+  "comparison": {
+    "tables": {
+      "production": 226,
+      "candidateCreateTable": 220,
+      "intersection": 220,
+      "productionOnlyTrueGaps": [
+        "pilot_lifecycle_coverage_downloads",
+        "pulse_je_submissions",
+        "qbo_accounts_cache",
+        "quickbooks_connections",
+        "xero_accounts_cache"
+      ],
+      "extractionFalseNegativesCoveredInCandidate": [
+        "stripe_webhook_events_legacy"
+      ]
+    },
+    "functions": {
+      "production": 96,
+      "candidate": 95,
+      "intersection": 94,
+      "productionOnly": [
+        "platform_integrity_chain_status",
+        "sp_write_pilot_slot_and_event"
+      ],
+      "candidateOnly": ["_d651_slugify_name"]
+    },
+    "views": {
+      "productionOnlyTrueGaps": ["v_platform_integrity_current"],
+      "extractionFalseNegativesCoveredInCandidate": ["qbo_connections_unified"]
+    },
+    "policies": {
+      "production": 424,
+      "candidateStaticExtract": 172,
+      "intersection": 169,
+      "note": "Large delta expected from DO-block/dynamic policy SQL and security overlays; not sole blocker"
+    },
+    "triggers": {
+      "productionOnly": [
+        "firm_intake_handlers_touch_updated_at",
+        "firm_intake_settings_touch_updated_at",
+        "intake_messages_touch_updated_at"
+      ],
+      "candidateOnly": ["on_auth_user_created"]
+    },
+    "forwardTail": {
+      "alignment": "PASS",
+      "candidateMarker": "20260906184500_publish_ledger_event_extensions_digest_qualify.sql",
+      "mainMigrationsAfterProdMax": [
+        "supabase/migrations/20260906184500_publish_ledger_event_extensions_digest_qualify.sql"
+      ],
+      "mainFileSha256": "4f9d11b7bb6efe66fc744f450057366c38294e8ff88cf7aff1da608b0d69c82e",
+      "mainFileBytes": 4048,
+      "productionHasExtensionsDigest": false,
+      "candidateForwardHasExtensionsDigest": true
+    }
+  },
+  "rawDumpDeletionProof": {
+    "tempDir": "%TEMP%\\esc-prod-schema-seal",
+    "deleted": [
+      "authoritative-schema.sql",
+      "portable-schema.sql"
+    ],
+    "rawSqlCommitted": false
+  },
+  "helperContainerCleanup": {
+    "postDumpMatchingContainers": 0,
+    "localStackStarted": false
+  },
+  "nextGate": "Remediate or explicitly waive production-only object gaps in ESC candidate; then re-compare. Disposable local replay remains unauthorized."
+}
