@@ -135,6 +135,7 @@
     "test:integration": "npx tsx scripts/integration-harness.ts",
     "orchestrator": "vitest run tests/orchestrator",
     "orchestrator:test": "vitest run tests/orchestrator",
+    "orchestrator:lint": "node scripts/orchestrator/lint-syntax.js",
     "orchestrator:validate-plan": "node scripts/orchestrator/validate-plan.js",
     "orchestrator:confirm-approval": "node scripts/orchestrator/confirm-approval.js",
     "orchestrator:human-summary": "node scripts/orchestrator/human-summary.js",
