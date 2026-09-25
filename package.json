@@ -133,6 +133,9 @@
     "test:resolver": "node scripts/run-resolver-tests.js",
     "test:cascade": "npx tsx scripts/cascade-runner.ts",
     "test:integration": "npx tsx scripts/integration-harness.ts",
+    "orchestrator:validate-plan": "node scripts/orchestrator/validate-plan.js",
+    "orchestrator:confirm-approval": "node scripts/orchestrator/confirm-approval.js",
+    "orchestrator:human-summary": "node scripts/orchestrator/human-summary.js",
     "stub:inventory": "npx tsx scripts/stub-inventory.ts",
     "g7v:verify": "npx tsx scripts/g7v/run-verification.ts",
     "validate:frameworks": "npx tsx scripts/validate-fixture-frameworks.ts"

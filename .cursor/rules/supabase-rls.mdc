@@ -1,0 +1,38 @@
+---
+description: Supabase RLS, tenant isolation, and migration rules for database and data-access code.
+globs:
+  - "supabase/**"
+  - "lib/**/supabase*.ts"
+  - "lib/**/db*.ts"
+  - "lib/**/database*.ts"
+  - "app/api/**"
+  - "**/*rls*"
+  - "**/*tenant*"
+---
+
+# Supabase RLS and tenant isolation
+
+## Non-negotiables
+
+- Never weaken Row Level Security policies or bypass RLS with service-role keys in user-facing paths.
+- Preserve tenant isolation: every query must scope by organization/tenant as the existing code does.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` or other secrets to client bundles or logs.
+
+## Schema changes
+
+- All schema changes require a new migration in `supabase/migrations/`.
+- New tables with tenant data MUST enable RLS and include policies consistent with existing patterns.
+- Security-sensitive policy changes require explicit human review before merge.
+
+## Development safety
+
+- Do not modify production Supabase data during development.
+- Prefer local Supabase (`supabase start`) or isolated test projects for destructive tests.
+- Read-only verification scripts are preferred for live schema checks.
+
+## Review checklist
+
+- [ ] RLS enabled on new/changed tables
+- [ ] Policies tested for cross-tenant denial
+- [ ] Server routes use appropriate client (user session vs service role)
+- [ ] Migration is reversible or rollback documented in plan
