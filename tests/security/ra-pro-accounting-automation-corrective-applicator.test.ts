@@ -29,10 +29,17 @@ import {
   assertAttemptNotConsumed,
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-authorization.js";
 import {
+  assertExecutableAuthorityBeforeCredentials,
+  createDisposableExecutableAuthorityPublicationCommit,
+} from "../../scripts/security/ra-pro-accounting-automation-corrective-executable-authority.js";
+import { createDisposableDryRunPublicationCommit } from "../../scripts/security/ra-pro-accounting-automation-corrective-dry-run-authorization.js";
+import {
   probeIdempotentPersistenceWithFixtures,
   verifyServiceRoleCatalogGrants,
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-schema-probes.js";
 import { stripOuterBeginCommit } from "../../scripts/security/git-blob-authority.js";
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CJS harness helper
+const { resolveCorrectiveCleanExecutable } = require("./ra-pro-accounting-automation-corrective-clean-executable-harness.js");
 
 type PgClient = {
   query: (text: string, values?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
@@ -45,6 +52,40 @@ const dockerOk =
   0;
 
 const ROOT = process.cwd();
+const CLEAN_EXECUTABLE = resolveCorrectiveCleanExecutable(ROOT);
+
+function makeHarnessDryRunAuth() {
+  const exeCreated = createDisposableExecutableAuthorityPublicationCommit({
+    cwd: ROOT,
+    executableCommit: CLEAN_EXECUTABLE,
+    allowDisposableExecutableAuthorityPublicationCommit: true,
+    testOnlyHarnessContext: true,
+  });
+  const exeMap = assertExecutableAuthorityBeforeCredentials({
+    cwd: ROOT,
+    publicationCommit: exeCreated.publicationCommit,
+    expectBlobOid: exeCreated.authorization_publication_blob_oid,
+    expectedExecutableCommit: CLEAN_EXECUTABLE,
+    testOnlyHarnessContext: true,
+    allowInProcessExpectedExecutable: true,
+  });
+  const attempt = `corr-dryrun-${CLEAN_EXECUTABLE.slice(0, 12)}-${randomBytes(16).toString("hex")}`;
+  const dryCreated = createDisposableDryRunPublicationCommit({
+    cwd: ROOT,
+    executableAuthorityMap: exeMap,
+    executableCommit: CLEAN_EXECUTABLE,
+    attemptId: attempt,
+    allowDisposableDryRunPublicationCommit: true,
+    testOnlyHarnessContext: true,
+  });
+  return {
+    executableAuthorityMap: exeMap,
+    dryRunAuthorizationPublication: dryCreated.publicationCommit,
+    expectedExecutableCommit: CLEAN_EXECUTABLE,
+    testOnlyHarnessContext: true,
+    allowInProcessExpectedExecutable: true,
+  };
+}
 
 function gitBlobByOid(oid: string) {
   const result = spawnSync(
@@ -107,7 +148,7 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
   it("blocks dry-run before credentials when dry-run authorization pin is missing", async () => {
     const result = await runDryRun({});
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(result.error_code).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
     expect(result.productionContact).not.toBe(true);
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
@@ -125,7 +166,7 @@ describe("RA Pro accounting-automation corrective applicator (unit)", () => {
       "APPLY_REMAINS_BLOCKED_BEFORE_CREDENTIALS",
       "CORRECTIVE_PRECONDITION_EXPIRED",
       "CORRECTIVE_PRE_APPLY_EXPIRED",
-      "DRY_RUN_AUTHORIZATION_REQUIRED",
+      "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
       "EXECUTABLE_COMMIT_REQUIRED",
     ]).toContain(result.error_code);
     expect(result.productionContact).not.toBe(true);
@@ -323,13 +364,18 @@ describe.skipIf(!dockerOk)("RA Pro accounting-automation corrective applicator (
   });
 
   it("dry-run is ready at history 190 with excess grants documented", async () => {
+    const auth = makeHarnessDryRunAuth();
     const result = await runApplicator({
       mode: "dry-run",
       allowDisposablePublicationCommit: true,
+      allowDisposableDryRunPublicationCommit: true,
       testOnlyHarnessContext: true,
       allowLocalhostForHarness: true,
-      testOnlyHarnessContext: true,
       allowWorktreeMigrationLoad: true,
+      executableAuthorityMap: auth.executableAuthorityMap,
+      publicationCommit: auth.dryRunAuthorizationPublication,
+      expectedExecutableCommit: auth.expectedExecutableCommit,
+      allowInProcessExpectedExecutable: true,
       env: { [DATABASE_URL_ENV]: url },
     });
     expect(result, JSON.stringify(result)).toMatchObject({

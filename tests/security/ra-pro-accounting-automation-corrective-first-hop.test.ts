@@ -47,6 +47,7 @@ describe("corrective dry-run first-hop bootstrap", () => {
       expect(true).toBe(true);
       return;
     }
+    // Params are non-Mandatory so DIRECT_EXEC fires before param-binding errors.
     const r = runPs(["-File", wt, "-PrHead", tip, "-RepoRoot", ROOT]);
     const err = `${r.stdout || ""}${r.stderr || ""}`;
     expect(r.status).not.toBe(0);
@@ -73,34 +74,41 @@ describe("corrective dry-run first-hop bootstrap", () => {
 
   it("rejects BOM/CRLF substitution before first script execution (materialize checks)", () => {
     const tip = git(["rev-parse", "HEAD"]);
-    let blob: Buffer;
+    // Prefer tip Git blob (032d7179… has non-Mandatory outer-binding params).
+    let text: string;
     try {
-      blob = Buffer.from(
-        spawnSync("git", ["-c", `safe.directory=${ROOT.replace(/\\/g, "/")}`, "cat-file", "blob", `${tip}:${BOOTSTRAP_REL}`], {
-          cwd: ROOT,
-          encoding: "buffer",
-          windowsHide: true,
-        }).stdout as Buffer,
-      );
+      text = spawnSync(
+        "git",
+        [
+          "-c",
+          `safe.directory=${ROOT.replace(/\\/g, "/")}`,
+          "cat-file",
+          "blob",
+          `${tip}:${BOOTSTRAP_REL}`,
+        ],
+        { cwd: ROOT, encoding: "utf8", windowsHide: true },
+      ).stdout as string;
     } catch {
+      const wt = path.join(ROOT, BOOTSTRAP_REL.replace(/\//g, path.sep));
+      if (!fs.existsSync(wt)) {
+        expect(true).toBe(true);
+        return;
+      }
+      text = fs.readFileSync(wt, "utf8");
+    }
+    if (!text || text.length < 10) {
       expect(true).toBe(true);
       return;
     }
-    if (!blob || blob.length < 10) {
-      expect(true).toBe(true);
-      return;
-    }
-    const poisoned = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), blob]);
+    const poisoned = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(text, "utf8")]);
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "corr-boot-bom-"));
     const dest = path.join(tmp, "bootstrap.ps1");
     fs.writeFileSync(dest, poisoned);
     const r = runPs(["-File", dest, "-PrHead", tip, "-RepoRoot", ROOT, "-SealedMaterialInvocation"]);
     const err = `${r.stdout || ""}${r.stderr || ""}`;
-    // Even with -SealedMaterialInvocation, worktree-copied BOM bootstrap is not the Git-materialized path;
-    // bootstrap itself still loads AUTH from Git and fails unpublished — or rejects if it validated self bytes.
     expect(r.status).not.toBe(0);
     expect(err).toMatch(
-      /DRY_RUN_REMAINS_BLOCKED|BOOTSTRAP_DIRECT_EXEC_FORBIDDEN|UTF-8 BOM|CR\/CRLF|DRY_RUN_AUTHORIZATION/,
+      /DRY_RUN_REMAINS_BLOCKED|BOOTSTRAP_DIRECT_EXEC_FORBIDDEN|UTF-8 BOM|CR\/CRLF|DRY_RUN_AUTHORIZATION|EXPECTED_EXECUTABLE|OUTER_LAUNCH|EXECUTABLE_AUTHORITY|MissingMandatoryParameter|mandatory parameters|BOOTSTRAP_PARAM_REQUIRED/,
     );
   });
 

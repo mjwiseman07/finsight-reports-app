@@ -74,14 +74,14 @@ describe("corrective runtime Git-object authority", () => {
   });
 
   it("rejects missing dry-run authorization before credentials", () => {
-    expectCode(() => resolveExecutableCommit({}), /DRY_RUN_AUTHORIZATION_REQUIRED/);
+    expectCode(() => resolveExecutableCommit({}), /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/);
   });
 
   it("rejects bare --executable-commit as authority", () => {
     const tip = git(["rev-parse", "HEAD"]);
     expectCode(
       () => resolveExecutableCommit({ executableCommit: tip }),
-      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
     );
   });
 
@@ -146,7 +146,7 @@ describe("corrective runtime Git-object authority", () => {
   it("fails dry-run without dry-run authorization publication before DB", async () => {
     const result = await runDryRun({ cwd: ROOT, env: {}, argv: ["node"] });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(result.error_code).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
@@ -159,7 +159,7 @@ describe("corrective runtime Git-object authority", () => {
       argv: ["node", "--executable-commit", tip],
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toBe("DRY_RUN_AUTHORIZATION_REQUIRED");
+    expect(result.error_code).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
@@ -189,7 +189,7 @@ describe("corrective runtime Git-object authority", () => {
       "CORRECTIVE_PRE_APPLY_EXPIRED",
       "BUNDLE_AUTHORITY_UNPUBLISHED",
       "BLOCKED_PIN_MISMATCH",
-      "DRY_RUN_AUTHORIZATION_REQUIRED",
+      "DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED",
     ]).toContain(result.error_code);
   });
 

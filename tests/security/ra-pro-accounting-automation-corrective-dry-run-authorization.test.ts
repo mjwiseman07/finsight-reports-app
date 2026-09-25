@@ -30,10 +30,12 @@ import {
   resolveExecutableCommit,
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-authorization.js";
 import { runDryRun } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-core.js";
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CJS harness helper
+const { resolveCorrectiveCleanExecutable } = require("./ra-pro-accounting-automation-corrective-clean-executable-harness.js");
 
 const ROOT = process.cwd();
 /** Clean remedial executable generation — future publication parent. */
-const IMMUTABLE_EXECUTABLE = "e1b79128bdcd2518bc609c1038b25b0aa062cf37";
+const IMMUTABLE_EXECUTABLE = resolveCorrectiveCleanExecutable(ROOT);
 const HISTORICAL_REJECTED = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
 /** Rejected notes-only review tip — never authorized_executable_commit / never baseline. */
 const REJECTED_NOTES_TIP = "98dfe61ee521a5177bfbda42be3e5ee0e6b6b082";
@@ -42,11 +44,6 @@ const REJECTED_NOTES_TIP = "98dfe61ee521a5177bfbda42be3e5ee0e6b6b082";
  * Tests-only descendants may exist after this tip; they are not the publication baseline.
  */
 const CLEAN_REVIEW_TIP = "b287fd85defa04b3c7895e2d1397d5cc69a33a04";
-/** Historical test-head tip referenced by remediation cases — never executable. */
-const HISTORICAL_TEST_HEAD = "820d784d7d04a83198f8941ac6989f3870635d2b";
-const EXEC_AUTH_OID = "0f64efc038f13459a2140d339c02794f934fa25f";
-const EXEC_AUTH_SHA = "25dac9806a4b45434d6a4e068a64328b90f383de000385f61b3be0c70b7199b8";
-const EXEC_AUTH_BYTES = 13022;
 const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
 
 function git(args: string[], input?: string) {
@@ -135,6 +132,9 @@ function makeExeAuth() {
     cwd: ROOT,
     publicationCommit: created.publicationCommit,
     expectBlobOid: created.authorization_publication_blob_oid,
+    expectedExecutableCommit: IMMUTABLE_EXECUTABLE,
+    testOnlyHarnessContext: true,
+    allowInProcessExpectedExecutable: true,
   });
   return { created, map };
 }
@@ -166,7 +166,25 @@ function sealCeremony(commit: string) {
 }
 
 function buildAuthorizedDryRunRecord(
-  auth: Record<string, any>,
+  auth: Record<string, unknown> & {
+    project_ref?: unknown;
+    standalone_bundle?: unknown;
+    evidence_pin_authority?: unknown;
+    precondition_publication?: {
+      evidence_path?: string;
+      evidence_source_commit?: string;
+      evidence_blob_oid?: string;
+      evidence_sha256?: string;
+      evidence_bytes?: number;
+    };
+    pre_apply_live_publication?: {
+      evidence_path?: string;
+      evidence_source_commit?: string;
+      evidence_blob_oid?: string;
+      evidence_sha256?: string;
+      evidence_bytes?: number;
+    };
+  },
   attempt: string,
   exe: ReturnType<typeof makeExeAuth>,
   executableCommit = IMMUTABLE_EXECUTABLE,
@@ -233,7 +251,7 @@ describe("corrective dry-run execution authorization", () => {
   it("rejects arbitrary --executable-commit alone", () => {
     expectCode(
       () => resolveExecutableCommit({ executableCommit: IMMUTABLE_EXECUTABLE }),
-      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
     );
   });
 
@@ -245,9 +263,7 @@ describe("corrective dry-run execution authorization", () => {
       argv: ["node"],
     });
     expect(result.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(result.error_code).toMatch(
-      /DRY_RUN_AUTHORIZATION_REQUIRED|DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
-    );
+    expect(result.error_code).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
     expect(result.databaseConnectionAttempts ?? 0).toBe(0);
   });
 
@@ -419,7 +435,7 @@ describe("corrective dry-run execution authorization", () => {
     expect(unpublished.dry_run_authorized).toBe(false);
     expectCode(
       () => resolveExecutableCommit({ executableCommit: CLEAN_REVIEW_TIP }),
-      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
     );
   });
 
@@ -484,7 +500,7 @@ describe("corrective dry-run execution authorization", () => {
     expect(unpublished.dry_run_authorized).toBe(false);
     expectCode(
       () => resolveExecutableCommit({ executableCommit: testHead }),
-      /DRY_RUN_AUTHORIZATION_REQUIRED/,
+      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
     );
   });
 
@@ -767,9 +783,7 @@ describe("corrective dry-run execution authorization", () => {
   it("unpublished dry-run and apply remain blocked before credentials/DB", async () => {
     const dry = await runDryRun({ cwd: ROOT, env: {}, argv: ["node"] });
     expect(dry.verdict).toBe("DRY_RUN_BLOCKED");
-    expect(dry.error_code).toMatch(
-      /DRY_RUN_AUTHORIZATION_REQUIRED|DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
-    );
+    expect(dry.error_code).toBe("DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED");
     expect(dry.databaseConnectionAttempts ?? 0).toBe(0);
     expectCode(
       () =>
