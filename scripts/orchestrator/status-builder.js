@@ -11,6 +11,8 @@
 
 "use strict";
 
+require("./load-env").loadOrchestratorEnv();
+
 const config = require("./config");
 const {
   validatePlanStructure,

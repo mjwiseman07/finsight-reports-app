@@ -17,11 +17,13 @@ Guide for wiring Cursor Cloud Agents and Automations to the Advisacor Developmen
 
 ## 2. Environment configuration (local)
 
-Add to `.env.local` (gitignored) or your shell:
+Add to `.env.local` (gitignored) in the repository root:
 
 ```bash
 CURSOR_API_KEY=your_key_here
 ```
+
+Orchestrator launch/status CLIs automatically load `.env.local` then `.env` (fill-only; existing process env wins).
 
 `.env.example` documents the empty placeholder:
 
