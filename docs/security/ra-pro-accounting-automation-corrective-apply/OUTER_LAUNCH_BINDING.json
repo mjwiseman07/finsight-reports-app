@@ -1,9 +1,52 @@
 {
   "protocol": "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_OUTER_LAUNCH_BINDING_V1",
-  "status": "UNBOUND",
-  "expected_executable_commit": null,
+  "status": "BOUND",
+  "expected_executable_commit": "032d717922ff69502829cd1081a363390b5838a7",
   "executable_authority_publication_commit": null,
   "executable_authority_blob": null,
-  "seals": null,
-  "note": "Outer launch binding remains UNBOUND on the clean executable tip. A separate reviewed launcher tip binds the expected executable and artifact seals after the executable SHA is known. The launcher tip is never an executable and never an authorization-publication parent."
+  "seals": {
+    "bootstrap": {
+      "path": "scripts/security/bootstrap-ra-pro-accounting-automation-corrective-dryrun.ps1",
+      "oid": "3140613cf45e1f2a35712513b0db30d811760e8c",
+      "sha256": "bf69f00f71481f22839e6c9c88d6c58c850bd7503f31a7d93022fbe1a6484458",
+      "bytes": 17704,
+      "line_endings": "LF"
+    },
+    "entry": {
+      "path": "scripts/security/apply-ra-pro-accounting-automation-corrective.js",
+      "oid": "9336d915886ed4deb2d6efce0d34e1f5ec1b9c09",
+      "sha256": "75d90e8afd4faad2b6434f2f0fa78242b19cf2690ced8c96c98c54b18f55726a",
+      "bytes": 11962,
+      "line_endings": "LF"
+    },
+    "ceremony": {
+      "path": "scripts/security/operator-ra-pro-accounting-automation-corrective-production-dryrun-ceremony.ps1",
+      "oid": "d0f076ab2d6b0a94c3e4512d9dc0e28e2c111c25",
+      "sha256": "1b5be0c08f7f29d173a90251e506ad9eaae5a1ea1b0e9406c7de64912887a86e",
+      "bytes": 36434,
+      "line_endings": "LF"
+    },
+    "bundle": {
+      "path": "scripts/security/bundles/ra-pro-accounting-automation-corrective-applicator.standalone.cjs",
+      "oid": "876b9a1592c0551919dadb3b91defdaa52a1a4fb",
+      "sha256": "2712d3ab666646a58f5725c29bdd5f66924b82fc47cec738ee7c17eeda330188",
+      "bytes": 521001,
+      "line_endings": "LF"
+    },
+    "frame": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-evidence.js",
+      "oid": "061de0d4b499fae719862c80cb49b7bdfa744cc7",
+      "sha256": "e5a2982d89659fb61432c072dfaf79bbeb6ed17218d53d8b4791803bbc680484",
+      "bytes": 27006,
+      "line_endings": "LF"
+    },
+    "receipt": {
+      "path": "scripts/security/ra-pro-accounting-automation-corrective-ceremony-receipt.js",
+      "oid": "af2ab8a7a623f1f26d70d9f34b56ee583aa305b1",
+      "sha256": "d04d754b15091ec54b5550681d4444187a1bc7f363b27281de752e3eb57df537",
+      "bytes": 19536,
+      "line_endings": "LF"
+    }
+  },
+  "note": "Reviewed outer-launch binding tip. Pins the clean executable and sealed artifact digests. This tip is never an executable and never an authorization-publication parent. Executable-authority publication remains a separate AUTH-only descendant of the clean executable."
 }
