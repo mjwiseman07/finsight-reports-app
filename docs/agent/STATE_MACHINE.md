@@ -8,17 +8,17 @@ stateDiagram-v2
   READY_FOR_REVIEW --> APPROVED_FOR_IMPLEMENTATION: human approves
   READY_FOR_REVIEW --> DRAFT: needs revision
   READY_FOR_REVIEW --> BLOCKED: blocked
-  APPROVED_FOR_IMPLEMENTATION --> IN_PROGRESS: prepare-implementation
+  APPROVED_FOR_IMPLEMENTATION --> IN_PROGRESS: launch-builder / prepare-implementation
   APPROVED_FOR_IMPLEMENTATION --> BLOCKED: blocked
-  IN_PROGRESS --> IMPLEMENTATION_COMPLETE: record-implementation
+  IN_PROGRESS --> IMPLEMENTATION_COMPLETE: status-builder / record-implementation
   IN_PROGRESS --> BLOCKED: blocked
-  IMPLEMENTATION_COMPLETE --> REVIEW_PASSED: record-review PASS
-  IMPLEMENTATION_COMPLETE --> REVIEW_FAILED: record-review NEEDS_CHANGES|BLOCKED
+  IMPLEMENTATION_COMPLETE --> REVIEW_PASSED: reviewer PASS (via status-reviewer)
+  IMPLEMENTATION_COMPLETE --> REVIEW_FAILED: reviewer NEEDS_CHANGES
+  IMPLEMENTATION_COMPLETE --> BLOCKED: reviewer BLOCKED
   IMPLEMENTATION_COMPLETE --> IN_PROGRESS: rework
-  IMPLEMENTATION_COMPLETE --> BLOCKED: blocked
   REVIEW_FAILED --> IN_PROGRESS: fix and re-implement
   REVIEW_FAILED --> BLOCKED: blocked
-  REVIEW_PASSED --> READY_FOR_HUMAN_APPROVAL: record-review --advance
+  REVIEW_PASSED --> READY_FOR_HUMAN_APPROVAL: status-reviewer advance
   REVIEW_PASSED --> BLOCKED: blocked
   READY_FOR_HUMAN_APPROVAL --> COMPLETED: human only
   READY_FOR_HUMAN_APPROVAL --> BLOCKED: blocked
@@ -30,17 +30,14 @@ stateDiagram-v2
 
 | From | To | Guard |
 |------|-----|-------|
-| DRAFT / READY_FOR_REVIEW | APPROVED_FOR_IMPLEMENTATION | **Human only** — sets STATUS in plan (+ companion) |
-| APPROVED_FOR_IMPLEMENTATION | IN_PROGRESS | `confirm-approval.js` exits 0; `prepare-implementation.js` |
-| IN_PROGRESS | IMPLEMENTATION_COMPLETE | `record-implementation.js` with valid results |
-| IMPLEMENTATION_COMPLETE | REVIEW_PASSED / REVIEW_FAILED | `record-review.js --verdict` |
-| REVIEW_PASSED | READY_FOR_HUMAN_APPROVAL | `record-review.js --advance` (**PASS only**) |
-| * | COMPLETED | **Human only** — scripts refuse |
-| DRAFT | IN_PROGRESS | **BLOCKED** |
-| DRAFT | READY_FOR_HUMAN_APPROVAL | **BLOCKED** |
-| APPROVED_FOR_IMPLEMENTATION | REVIEW_PASSED | **BLOCKED** |
+| DRAFT / READY_FOR_REVIEW | APPROVED_FOR_IMPLEMENTATION | **Human only** |
+| APPROVED_FOR_IMPLEMENTATION | IN_PROGRESS | `launch-builder` / `prepare-implementation` after approval gate |
+| IN_PROGRESS | IMPLEMENTATION_COMPLETE | Builder FINISHED + PR URL (`status-builder`) or `record-implementation` |
+| IMPLEMENTATION_COMPLETE | REVIEW_PASSED → READY_FOR_HUMAN_APPROVAL | Validated Cloud reviewer `PASS` (`status-reviewer`) |
+| IMPLEMENTATION_COMPLETE | REVIEW_FAILED | Validated `NEEDS_CHANGES` |
+| IMPLEMENTATION_COMPLETE | BLOCKED | Validated reviewer `BLOCKED` |
+| * | COMPLETED | **Human only** |
 | IMPLEMENTATION_COMPLETE | READY_FOR_HUMAN_APPROVAL | **BLOCKED** without REVIEW_PASSED |
-| REVIEW_FAILED | READY_FOR_HUMAN_APPROVAL | **BLOCKED** |
 
 ## CLI reference
 
@@ -48,11 +45,12 @@ stateDiagram-v2
 |--------|---------|
 | `validate-plan.js` | Structure + sections + companion integrity |
 | `confirm-approval.js` | APPROVED_FOR_IMPLEMENTATION gate |
-| `prepare-implementation.js` | Emit impl payload; → IN_PROGRESS |
-| `record-implementation.js` | → IMPLEMENTATION_COMPLETE |
-| `prepare-review.js` | Emit review payload (status stays IMPLEMENTATION_COMPLETE) |
-| `record-review.js` | Record PASS / NEEDS_CHANGES / BLOCKED; optional `--advance` |
-| `human-summary.js` | Human merge/deploy summary (no COMPLETED write) |
+| `launch-builder.js` | Cursor builder create → IN_PROGRESS |
+| `status-builder.js` | Poll builder; may → IMPLEMENTATION_COMPLETE |
+| `launch-reviewer.js` | Separate Cursor reviewer (status stays IMPLEMENTATION_COMPLETE) |
+| `status-reviewer.js` | Poll reviewer; ingest validated result; advance |
+| `prepare-review.js` / `record-review.js` | Local/manual review helpers |
+| `human-summary.js` | Human approval packet (no COMPLETED write) |
 
 ## Human-only transitions
 

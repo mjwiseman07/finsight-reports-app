@@ -33,6 +33,8 @@ Automated phase transitions update **both** the companion JSON and the markdown 
 | `implementation` | object | no | `{ completedAt, results }` — required for late statuses |
 | `review` | object | no | `{ completedAt, verdict, notes }` — verdict `PASS`\|`NEEDS_CHANGES`\|`BLOCKED` |
 | `cursor_agent` | object | no | Safe Cloud Agent builder metadata (see below) |
+| `cursor_reviewer` | object | no | Safe independent reviewer agent metadata (same shape as `cursor_agent`) |
+| `builder_head_sha` | string | no | Builder PR head SHA captured at reviewer launch |
 | `merge` | boolean | no | Must be `false` or absent |
 | `deploy` | boolean | no | Must be `false` or absent |
 
@@ -52,7 +54,11 @@ Automated phase transitions update **both** the companion JSON and the markdown 
 | `launched_at` | ISO-8601 | Set on successful create |
 | `last_checked_at` | ISO-8601 | Updated on status poll |
 
-Never store API keys, Authorization headers, or other secrets in this object.
+## `cursor_reviewer` fields
+
+Same safe fields as `cursor_agent`. Must use a **different** `agent_id` than the builder. Never stores secrets.
+
+Never store API keys, Authorization headers, or other secrets in these objects.
 
 ## Valid status values
 
