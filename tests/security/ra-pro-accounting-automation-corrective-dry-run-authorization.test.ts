@@ -32,8 +32,9 @@ import {
 import { runDryRun } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-core.js";
 
 const ROOT = process.cwd();
-/** Sole immutable dry-run executable tip (frozen by review). */
-const IMMUTABLE_EXECUTABLE = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
+/** Clean remedial executable generation — future publication parent. */
+const IMMUTABLE_EXECUTABLE = "e1b79128bdcd2518bc609c1038b25b0aa062cf37";
+const HISTORICAL_REJECTED = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
 /** Rejected notes-only review tip — never authorized_executable_commit / never baseline. */
 const REJECTED_NOTES_TIP = "98dfe61ee521a5177bfbda42be3e5ee0e6b6b082";
 /**
@@ -126,6 +127,7 @@ function commitAuthOnlyFromParent(parent: string, authObject: object) {
 function makeExeAuth() {
   const created = createDisposableExecutableAuthorityPublicationCommit({
     cwd: ROOT,
+    executableCommit: IMMUTABLE_EXECUTABLE,
     allowDisposableExecutableAuthorityPublicationCommit: true,
     testOnlyHarnessContext: true,
   });
@@ -279,117 +281,30 @@ describe("corrective dry-run execution authorization", () => {
     );
   });
 
-  it("clean review tip AUTH is byte-identical to immutable executable AUTH", () => {
-    expect(CLEAN_REVIEW_TIP).not.toBe(REJECTED_NOTES_TIP);
-    expect(CLEAN_REVIEW_TIP).not.toBe(IMMUTABLE_EXECUTABLE);
-    expect(git(["merge-base", "--is-ancestor", CLEAN_REVIEW_TIP, "HEAD"])).toBe("");
-    expect(git(["rev-parse", CLEAN_REVIEW_TIP + "^{tree}"])).toBe(
-      git(["rev-parse", IMMUTABLE_EXECUTABLE + "^{tree}"]),
-    );
-    const execOid = git(["rev-parse", `${IMMUTABLE_EXECUTABLE}:${AUTH_REL}`]);
-    const cleanOid = git(["rev-parse", `${CLEAN_REVIEW_TIP}:${AUTH_REL}`]);
-    expect(execOid).toBe(EXEC_AUTH_OID);
-    expect(cleanOid).toBe(EXEC_AUTH_OID);
-    const execBuf = gitBuf(["cat-file", "blob", `${IMMUTABLE_EXECUTABLE}:${AUTH_REL}`]);
-    const cleanBuf = gitBuf(["cat-file", "blob", `${CLEAN_REVIEW_TIP}:${AUTH_REL}`]);
-    expect(execBuf.equals(cleanBuf)).toBe(true);
-    expect(execBuf.length).toBe(EXEC_AUTH_BYTES);
-    expect(createHash("sha256").update(execBuf).digest("hex")).toBe(EXEC_AUTH_SHA);
-    expect(createHash("sha256").update(cleanBuf).digest("hex")).toBe(EXEC_AUTH_SHA);
-    expect(execBuf.includes(0x0d)).toBe(false);
+  it("clean executable AUTH triad remains UNPUBLISHED", () => {
+    const auth = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT).auth;
+    expect(auth.production_executable_authority.status).toBe("UNPUBLISHED");
+    expect(auth.production_dry_run_authorization.status).toBe("UNPUBLISHED");
+    expect(auth.production_apply_authorization.status).toBe("UNPUBLISHED");
+    expect(IMMUTABLE_EXECUTABLE).not.toBe(HISTORICAL_REJECTED);
   });
 
-  it("rejected notes tip AUTH differs from executable; cannot be publication baseline", () => {
-    const rejectedOid = git(["rev-parse", `${REJECTED_NOTES_TIP}:${AUTH_REL}`]);
-    expect(rejectedOid).not.toBe(EXEC_AUTH_OID);
-    const execAuth = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT).auth;
-    const rejectedAuth = loadAuthFromGit(REJECTED_NOTES_TIP, ROOT).auth;
-    expect(JSON.stringify(execAuth.notes)).not.toBe(JSON.stringify(rejectedAuth.notes));
-  });
-
-  it("rejects naming test tip or HEAD as executable (immutable + binding)", () => {
-    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
-    expect(testHead).not.toBe(IMMUTABLE_EXECUTABLE);
-    expect(HISTORICAL_TEST_HEAD).not.toBe(IMMUTABLE_EXECUTABLE);
-
+  it("historical 9f31 tip is rejected as executable for remediated protocol", () => {
     expectCode(
       () =>
         createDisposableExecutableAuthorityPublicationCommit({
           cwd: ROOT,
-          executableCommit: testHead,
+          executableCommit: HISTORICAL_REJECTED,
           allowDisposableExecutableAuthorityPublicationCommit: true,
           testOnlyHarnessContext: true,
         }),
-      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
-    );
-    expectCode(
-      () =>
-        createDisposableExecutableAuthorityPublicationCommit({
-          cwd: ROOT,
-          executableCommit: HISTORICAL_TEST_HEAD,
-          allowDisposableExecutableAuthorityPublicationCommit: true,
-          testOnlyHarnessContext: true,
-        }),
-      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
-    );
-
-    // Dry-run AUTH alone cannot choose an executable tip without exe-auth binding.
-    const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
-    const base = loadAuthFromGit(IMMUTABLE_EXECUTABLE, ROOT).auth;
-    base.production_dry_run_authorization = {
-      status: "AUTHORIZED",
-      protocol: PROTOCOL,
-      dry_run_authorized: true,
-      authorized_executable_commit: HISTORICAL_TEST_HEAD,
-      attempt_id: attempt,
-      project_ref: base.project_ref,
-      bundle: base.standalone_bundle,
-      bootstrap: sealBootstrap(IMMUTABLE_EXECUTABLE),
-      ceremony: sealCeremony(IMMUTABLE_EXECUTABLE),
-      evidence_pin_authority: base.evidence_pin_authority,
-      precondition_evidence: {
-        path: base.precondition_publication.evidence_path,
-        source_commit: base.precondition_publication.evidence_source_commit,
-        oid: base.precondition_publication.evidence_blob_oid,
-        sha256: base.precondition_publication.evidence_sha256,
-        bytes: base.precondition_publication.evidence_bytes,
-      },
-      pre_apply_live_evidence: {
-        path: base.pre_apply_live_publication.evidence_path,
-        source_commit: base.pre_apply_live_publication.evidence_source_commit,
-        oid: base.pre_apply_live_publication.evidence_blob_oid,
-        sha256: base.pre_apply_live_publication.evidence_sha256,
-        bytes: base.pre_apply_live_publication.evidence_bytes,
-      },
-      executable_authority_publication_commit: "a".repeat(40),
-      executable_authority_publication_blob_oid: "b".repeat(40),
-      publication_role: "later_descendant_commit",
-      note: "poison naming historical test head",
-    };
-    const poisoned = commitAuthOnlyFromParent(IMMUTABLE_EXECUTABLE, base);
-    expectCode(
-      () => describeDryRunArtifactMap({ cwd: ROOT, publicationCommit: poisoned }),
-      /DRY_RUN_EXECUTABLE_AUTHORITY_REQUIRED/,
-    );
-
-    const exe = makeExeAuth();
-    expectCode(
-      () =>
-        createDisposableDryRunPublicationCommit({
-          cwd: ROOT,
-          executableAuthorityMap: exe.map,
-          executableCommit: testHead,
-          attemptId: attemptFor(IMMUTABLE_EXECUTABLE),
-          allowDisposableDryRunPublicationCommit: true,
-          testOnlyHarnessContext: true,
-        }),
-      /DRY_RUN_EXECUTABLE_AUTHORITY_MISMATCH/,
+      /EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED/,
     );
   });
 
-  it("accepts AUTH-only publication descended from clean review tip naming immutable executable", () => {
+  it("accepts AUTH-only publication descended from clean executable naming itself", () => {
     const exe = makeExeAuth();
-    const cleanTip = CLEAN_REVIEW_TIP;
+    const cleanTip = IMMUTABLE_EXECUTABLE;
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
       cwd: ROOT,
@@ -399,7 +314,7 @@ describe("corrective dry-run execution authorization", () => {
       allowDisposableDryRunPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
-    // Re-parent style: build the same AUTH object as a child of the clean review tip.
+    // Re-parent style: build the same AUTH object as another AUTH-only child of the clean executable.
     const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
     const fromClean = commitAuthOnlyFromParent(cleanTip, auth);
     expect(git(["merge-base", "--is-ancestor", cleanTip, fromClean])).toBe("");
@@ -414,8 +329,8 @@ describe("corrective dry-run execution authorization", () => {
     expect(map.blocked).toBeNull();
     expect(map.dry_run_authorized).toBe(true);
     expect(map.authorized_executable_commit).toBe(IMMUTABLE_EXECUTABLE);
-    expect(map.authorized_executable_commit).not.toBe(cleanTip);
     expect(map.authorized_executable_commit).not.toBe(REJECTED_NOTES_TIP);
+    expect(map.authorized_executable_commit).not.toBe(HISTORICAL_REJECTED);
     expect(map.attempt_id).toBe(attempt);
     expect(map.evidence_pin_authority_commit).toBe(EVIDENCE_PIN_AUTHORITY_COMMIT);
     expect(map.executable_authority_publication_commit).toBe(exe.created.publicationCommit);
@@ -508,15 +423,22 @@ describe("corrective dry-run execution authorization", () => {
     );
   });
 
-  it("rejects AUTH-only publication parented on current test HEAD (extra files vs executable)", () => {
+  it("rejects AUTH-only publication parented on dirty test-only tip (extra files vs executable)", () => {
     const exe = makeExeAuth();
-    const testHead = git(["rev-parse", "HEAD"]);
-    expect(testHead).not.toBe(IMMUTABLE_EXECUTABLE);
-    expect(testHead).not.toBe(CLEAN_REVIEW_TIP);
-    const headDelta = git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, testHead])
-      .split(/\n/)
-      .filter(Boolean);
-    expect(headDelta.length).toBeGreaterThan(0);
+    const noteBlob = git(["hash-object", "-w", "--stdin"], "test-only dryrun parent\n");
+    const baseTree = git(["rev-parse", `${IMMUTABLE_EXECUTABLE}^{tree}`]);
+    const lines = git(["ls-tree", baseTree]).split(/\n/).filter(Boolean);
+    lines.push(`100644 blob ${noteBlob}\t.sealed-generation-test-only`);
+    const dirtyTree = mktree(lines);
+    const dirtyParent = git([
+      "commit-tree",
+      dirtyTree,
+      "-p",
+      IMMUTABLE_EXECUTABLE,
+      "-m",
+      "test-only dirty parent for dry-run allowlist",
+    ]);
+    expect(dirtyParent).not.toBe(IMMUTABLE_EXECUTABLE);
 
     const attempt = attemptFor(IMMUTABLE_EXECUTABLE);
     const created = createDisposableDryRunPublicationCommit({
@@ -532,9 +454,8 @@ describe("corrective dry-run execution authorization", () => {
       IMMUTABLE_EXECUTABLE,
     );
 
-    const fromTestHead = commitAuthOnlyFromParent(testHead, auth);
-    expect(git(["merge-base", "--is-ancestor", testHead, fromTestHead])).toBe("");
-    const delta = git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, fromTestHead])
+    const fromDirty = commitAuthOnlyFromParent(dirtyParent, auth);
+    const delta = git(["diff", "--name-only", IMMUTABLE_EXECUTABLE, fromDirty])
       .split(/\n/)
       .filter(Boolean);
     expect(delta).toContain(AUTH_REL);
@@ -544,7 +465,7 @@ describe("corrective dry-run execution authorization", () => {
       () =>
         describeDryRunArtifactMap({
           cwd: ROOT,
-          publicationCommit: fromTestHead,
+          publicationCommit: fromDirty,
           executableAuthorityMap: exe.map,
         }),
       /DRY_RUN_AUTHORIZATION_ALLOWLIST/,

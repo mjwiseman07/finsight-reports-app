@@ -11,7 +11,7 @@ import {
 } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-constants.js";
 import {
   BLOCKED_UNPUBLISHED,
-  IMMUTABLE_EXECUTABLE_COMMIT,
+  HISTORICAL_REJECTED,
   PROTOCOL,
   RECORD_KEY,
   assertExecutableAuthorityBeforeCredentials,
@@ -27,7 +27,10 @@ import {
 import { assertCorrectiveApplyAuthorized } from "../../scripts/security/ra-pro-accounting-automation-corrective-apply-authorization.js";
 
 const ROOT = process.cwd();
-const IMMUTABLE = IMMUTABLE_EXECUTABLE_COMMIT;
+/** Future publication parent — clean remedial executable generation. */
+const CLEAN_EXECUTABLE = "e1b79128bdcd2518bc609c1038b25b0aa062cf37";
+const HISTORICAL = "9f31c3552a2a06fc3b851bd722aad9311dde40f8";
+const IMMUTABLE = CLEAN_EXECUTABLE;
 const AUTH_REL = TOOLING_AUTHORIZATION_PATH;
 
 function git(args: string[], input?: string) {
@@ -117,7 +120,9 @@ describe("corrective executable authority", () => {
     expect(PROTOCOL).toBe(
       "RA_PRO_ACCOUNTING_AUTOMATION_CORRECTIVE_EXECUTABLE_AUTHORITY_V1",
     );
-    expect(IMMUTABLE).toBe("9f31c3552a2a06fc3b851bd722aad9311dde40f8");
+    expect(IMMUTABLE).toBe(CLEAN_EXECUTABLE);
+    expect(HISTORICAL).toBe("9f31c3552a2a06fc3b851bd722aad9311dde40f8");
+    expect(HISTORICAL_REJECTED).toBe("EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED");
   });
 
   it("unpublished tip blocks before credentials", () => {
@@ -127,27 +132,41 @@ describe("corrective executable authority", () => {
     expect(map.executable_authorized).toBe(false);
   });
 
-  it("rejects current test HEAD named as authorized_executable_commit (immutable mismatch)", () => {
-    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
-    expect(testHead).not.toBe(IMMUTABLE);
+  it("rejects historical tip and non-clean tips named as authorized_executable_commit", () => {
+    expect(HISTORICAL_REJECTED).toBe("EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED");
     expectCode(
       () =>
         createDisposableExecutableAuthorityPublicationCommit({
           cwd: ROOT,
-          executableCommit: testHead,
+          executableCommit: HISTORICAL,
           allowDisposableExecutableAuthorityPublicationCommit: true,
           testOnlyHarnessContext: true,
         }),
-      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+      /EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED/,
     );
+
+    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
+    if (testHead !== IMMUTABLE) {
+      expectCode(
+        () =>
+          createDisposableExecutableAuthorityPublicationCommit({
+            cwd: ROOT,
+            executableCommit: testHead,
+            allowDisposableExecutableAuthorityPublicationCommit: true,
+            testOnlyHarnessContext: true,
+          }),
+        /EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED|EXECUTABLE_AUTHORITY_PROTOCOL_MISSING|EXECUTABLE_AUTHORITY_ALLOWLIST/,
+      );
+    }
 
     const { auth } = loadAuthFromGit(IMMUTABLE, ROOT);
     const bundle = auth.standalone_bundle;
+    const poisonTip = testHead === IMMUTABLE ? HISTORICAL : testHead;
     auth[RECORD_KEY] = {
       status: "AUTHORIZED",
       protocol: PROTOCOL,
       executable_authorized: true,
-      authorized_executable_commit: testHead,
+      authorized_executable_commit: poisonTip,
       project_ref: auth.project_ref,
       bundle: {
         path: bundle.path,
@@ -174,37 +193,46 @@ describe("corrective executable authority", () => {
       ),
       evidence_pin_authority: auth.evidence_pin_authority,
       publication_role: "later_descendant_commit",
-      note: "poison: names test HEAD as executable",
+      note: "poison: names non-clean tip as executable",
     };
     const poisoned = commitAuthOnlyFromParent(IMMUTABLE, auth);
     expectCode(
       () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: poisoned }),
-      /EXECUTABLE_AUTHORITY_IMMUTABLE_MISMATCH/,
+      /EXECUTABLE_AUTHORITY_HISTORICAL_REJECTED|EXECUTABLE_AUTHORITY_PROTOCOL_MISSING|EXECUTABLE_AUTHORITY_ALLOWLIST|EXECUTABLE_AUTHORITY_SEAL/,
     );
   });
 
-  it("rejects AUTH-only child of test HEAD via allowlist (extra files in delta)", () => {
-    const testHead = git(["rev-parse", "HEAD"]).toLowerCase();
-    expect(testHead).not.toBe(IMMUTABLE);
-    const delta = git(["diff", "--name-only", IMMUTABLE, testHead])
-      .split(/\n/)
-      .filter(Boolean);
-    expect(delta.length).toBeGreaterThan(0);
+  it("rejects AUTH-only child of dirty test-only parent via allowlist (extra files in delta)", () => {
+    const noteBlob = git(["hash-object", "-w", "--stdin"], "test-only exeauth parent\n");
+    const baseTree = git(["rev-parse", `${IMMUTABLE}^{tree}`]);
+    const lines = git(["ls-tree", baseTree]).split(/\n/).filter(Boolean);
+    lines.push(`100644 blob ${noteBlob}\t.sealed-generation-test-only`);
+    const dirtyTree = mktree(lines);
+    const dirtyParent = git([
+      "commit-tree",
+      dirtyTree,
+      "-p",
+      IMMUTABLE,
+      "-m",
+      "test-only dirty parent for exe-auth allowlist",
+    ]);
+    expect(dirtyParent).not.toBe(IMMUTABLE);
 
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
     const { auth } = loadAuthFromGit(created.publicationCommit, ROOT);
-    const fromTestHead = commitAuthOnlyFromParent(testHead, auth);
-    const pubDelta = git(["diff", "--name-only", IMMUTABLE, fromTestHead])
+    const fromDirty = commitAuthOnlyFromParent(dirtyParent, auth);
+    const pubDelta = git(["diff", "--name-only", IMMUTABLE, fromDirty])
       .split(/\n/)
       .filter(Boolean);
     expect(pubDelta).toContain(AUTH_REL);
     expect(pubDelta.length).toBeGreaterThan(1);
     expectCode(
-      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: fromTestHead }),
+      () => describeExecutableAuthorityMap({ cwd: ROOT, publicationCommit: fromDirty }),
       /EXECUTABLE_AUTHORITY_ALLOWLIST/,
     );
   });
@@ -212,6 +240,7 @@ describe("corrective executable authority", () => {
   it("rejects substituted executable-authority publication or blob pin", () => {
     const first = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -254,6 +283,7 @@ describe("corrective executable authority", () => {
   it("rejects worktree AUTH poison (WORKTREE_SUBSTITUTE)", () => {
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -272,6 +302,7 @@ describe("corrective executable authority", () => {
   it("rejects live ref swap after preflight", () => {
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -295,6 +326,7 @@ describe("corrective executable authority", () => {
   it("rejects non-authorization JSON changes and extra record fields", () => {
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -318,6 +350,7 @@ describe("corrective executable authority", () => {
   it("executable authority alone cannot authorize dry-run or apply", () => {
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -354,6 +387,7 @@ describe("corrective executable authority", () => {
     const before = git(["rev-parse", "HEAD"]);
     const created = createDisposableExecutableAuthorityPublicationCommit({
       cwd: ROOT,
+      executableCommit: IMMUTABLE,
       allowDisposableExecutableAuthorityPublicationCommit: true,
       testOnlyHarnessContext: true,
     });
@@ -388,6 +422,7 @@ describe("corrective executable authority", () => {
       () =>
         createDisposableExecutableAuthorityPublicationCommit({
           cwd: ROOT,
+          executableCommit: IMMUTABLE,
           allowDisposableExecutableAuthorityPublicationCommit: true,
         }),
       /HARNESS_CONTEXT_REQUIRED/,
