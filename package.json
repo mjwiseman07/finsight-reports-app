@@ -141,6 +141,9 @@
     "orchestrator:launch": "node scripts/orchestrator/launch-builder.js",
     "orchestrator:status": "node scripts/orchestrator/status-builder.js",
     "orchestrator:dry-run": "node scripts/orchestrator/launch-builder.js",
+    "orchestrator:launch-reviewer": "node scripts/orchestrator/launch-reviewer.js",
+    "orchestrator:status-reviewer": "node scripts/orchestrator/status-reviewer.js",
+    "orchestrator:dry-run-reviewer": "node scripts/orchestrator/launch-reviewer.js",
     "stub:inventory": "npx tsx scripts/stub-inventory.ts",
     "g7v:verify": "npx tsx scripts/g7v/run-verification.ts",
     "validate:frameworks": "npx tsx scripts/validate-fixture-frameworks.ts"

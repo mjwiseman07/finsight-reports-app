@@ -2,15 +2,30 @@
 
 Use this guide after implementation is recorded (`STATUS: IMPLEMENTATION_COMPLETE`).
 
-## Preconditions
+Prefer the **independent Cloud Agent reviewer** for automation. Local CLI recording remains available for manual/emergency use.
+
+## Cloud Agent reviewer (preferred)
+
+```bash
+npm run orchestrator:launch-reviewer -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:status-reviewer -- docs/plans/<PLAN-ID>.md
+```
+
+Dry-run (no network mutation):
+
+```bash
+npm run orchestrator:dry-run-reviewer -- docs/plans/<PLAN-ID>.md --dry-run
+```
+
+See `docs/agent/CLOUD_AGENT_REVIEWER.md`.
+
+## Local prepare payload (optional)
 
 ```bash
 node scripts/orchestrator/prepare-review.js docs/plans/<PLAN-ID>.md
 ```
 
-Review the emitted payload: plan scope, implementation notes, and changed files.
-
-`prepare-review.js` does **not** advance status; it stays `IMPLEMENTATION_COMPLETE` until a verdict is recorded.
+`prepare-review.js` does **not** advance status.
 
 ## Review checklist
 
@@ -35,27 +50,22 @@ Review the emitted payload: plan scope, implementation notes, and changed files.
 ### Process
 
 - [ ] Plan STATUS was `APPROVED_FOR_IMPLEMENTATION` before work started
-- [ ] Branch is feature branch, not `main`
+- [ ] Builder branch is isolated (`cursor/...`), not `main`
+- [ ] Reviewer agent is distinct from builder agent
 
-## Record verdict
+## Record verdict (manual CLI)
 
 Verdicts: `PASS` | `NEEDS_CHANGES` | `BLOCKED`
-
-Pass (and optionally advance to human approval):
 
 ```bash
 node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
   --verdict PASS --advance --notes "Scope OK; validation evidence attached"
 ```
 
-Needs changes:
-
 ```bash
 node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
   --verdict NEEDS_CHANGES --notes "Describe required fixes"
 ```
-
-Blocked:
 
 ```bash
 node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
@@ -64,17 +74,16 @@ node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
 
 Rules:
 
-- `PASS` → `REVIEW_PASSED`; with `--advance` → `READY_FOR_HUMAN_APPROVAL`
-- `NEEDS_CHANGES` or `BLOCKED` → `REVIEW_FAILED`; `--advance` MUST exit non-zero
-- Mismatched `--plan-id` MUST exit non-zero
-- Missing / malformed verdict MUST exit non-zero
+- Cloud/manual PASS → `REVIEW_PASSED`; with advance → `READY_FOR_HUMAN_APPROVAL`
+- `NEEDS_CHANGES` → `REVIEW_FAILED`
+- `BLOCKED` → `BLOCKED` (Cloud ingest) or `REVIEW_FAILED` (legacy CLI without advance)
+- Never set `COMPLETED`
+- Never merge or deploy
 
-## After PASS + advance
-
-Human summary for merge decision:
+## After PASS
 
 ```bash
-node scripts/orchestrator/human-summary.js docs/plans/<PLAN-ID>.md
+npm run orchestrator:human-summary -- docs/plans/<PLAN-ID>.md
 ```
 
-Human approval is still required before merge and production deploy. Scripts never set `COMPLETED`.
+Human approval is still required before merge and production deploy.

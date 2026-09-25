@@ -95,9 +95,22 @@ Dry-run validates path/plan/approval/state and constructs the API request. It do
 npm run orchestrator:status -- docs/plans/<PLAN-ID>.md
 ```
 
-Polls Cursor for agent/run status, updates safe `cursor_agent` fields, and may advance `IN_PROGRESS` → `IMPLEMENTATION_COMPLETE` when the run is `FINISHED` **and** a `pr_url` exists.
+Polls Cursor for builder agent/run status, updates safe `cursor_agent` fields, and may advance `IN_PROGRESS` → `IMPLEMENTATION_COMPLETE` when the run is `FINISHED` **and** a `pr_url` exists.
 
 It will **never** set `REVIEW_PASSED`, `READY_FOR_HUMAN_APPROVAL`, or `COMPLETED`.
+
+## 7b. Independent reviewer commands
+
+After `IMPLEMENTATION_COMPLETE` with builder PR metadata:
+
+```bash
+npm run orchestrator:dry-run-reviewer -- docs/plans/<PLAN-ID>.md --dry-run
+npm run orchestrator:launch-reviewer -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:status-reviewer -- docs/plans/<PLAN-ID>.md
+npm run orchestrator:human-summary -- docs/plans/<PLAN-ID>.md
+```
+
+Reviewer uses a **separate** Cloud Agent (`autoCreatePR: false`, `repos[].prUrl` = builder PR). Validated `PASS` advances to `READY_FOR_HUMAN_APPROVAL`. See `docs/agent/CLOUD_AGENT_REVIEWER.md`.
 
 ## 8. Expected Cloud Agent branch behavior
 

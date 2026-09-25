@@ -47,6 +47,7 @@ function buildCreateAgentRequest({
   name = undefined,
   repositoryUrl = config.REPOSITORY_URL,
   startingRef = config.STARTING_REF,
+  prUrl = undefined,
   workOnCurrentBranch = config.WORK_ON_CURRENT_BRANCH,
   autoCreatePR = config.AUTO_CREATE_PR,
   skipReviewerRequest = config.SKIP_REVIEWER_REQUEST,
@@ -63,14 +64,16 @@ function buildCreateAgentRequest({
     );
   }
 
+  const repoEntry = { url: repositoryUrl };
+  if (prUrl) {
+    repoEntry.prUrl = String(prUrl);
+  } else {
+    repoEntry.startingRef = startingRef;
+  }
+
   const body = {
     prompt: { text: String(promptText) },
-    repos: [
-      {
-        url: repositoryUrl,
-        startingRef,
-      },
-    ],
+    repos: [repoEntry],
     workOnCurrentBranch: false,
     autoCreatePR: Boolean(autoCreatePR),
     skipReviewerRequest: Boolean(skipReviewerRequest),

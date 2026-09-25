@@ -552,18 +552,13 @@ function hasActiveCursorAgent(companion) {
   const agent = companion?.cursor_agent;
   if (!agent || typeof agent !== "object") return false;
   if (!agent.agent_id) return false;
-  const terminal = new Set([
-    "FINISHED",
-    "ERROR",
-    "CANCELLED",
-    "EXPIRED",
-    "ARCHIVED",
-  ]);
-  const runStatus = agent.run_status || agent.status;
-  if (runStatus && terminal.has(String(runStatus).toUpperCase())) {
-    // Finished association still blocks duplicate launch — agent already created.
-    return true;
-  }
+  return true;
+}
+
+function hasActiveReviewerAgent(companion) {
+  const agent = companion?.cursor_reviewer;
+  if (!agent || typeof agent !== "object") return false;
+  if (!agent.agent_id) return false;
   return true;
 }
 
@@ -588,7 +583,6 @@ function sanitizeCursorAgentRecord(record) {
   for (const key of allowed) {
     if (record[key] !== undefined) out[key] = record[key];
   }
-  // Never allow accidental secret fields through
   delete out.api_key;
   delete out.authorization;
   delete out.CURSOR_API_KEY;
@@ -634,6 +628,7 @@ module.exports = {
   assertPlanInPlansDirectory,
   toRepoRelative,
   hasActiveCursorAgent,
+  hasActiveReviewerAgent,
   sanitizeCursorAgentRecord,
   extractSectionBody,
   updateMarkdownStatus,
