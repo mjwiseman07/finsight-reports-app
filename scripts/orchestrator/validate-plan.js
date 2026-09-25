@@ -3,16 +3,28 @@
  * Validate plan document structure and required sections.
  * Usage: node scripts/orchestrator/validate-plan.js <plan.md>
  */
+"use strict";
 
-const path = require("path");
-const { validatePlanStructure, fail, ok, emitJson } = require("./lib");
+const {
+  validatePlanStructure,
+  resolveSafeRepoPath,
+  fail,
+  ok,
+  emitJson,
+} = require("./lib");
 
 const planPath = process.argv[2];
 if (!planPath) {
   fail("Usage: node scripts/orchestrator/validate-plan.js <plan.md>");
 }
 
-const absolute = path.resolve(planPath);
+let absolute;
+try {
+  absolute = resolveSafeRepoPath(planPath);
+} catch (err) {
+  fail(err.message);
+}
+
 const result = validatePlanStructure(absolute);
 
 if (!result.ok) {
@@ -25,5 +37,6 @@ emitJson({
   ok: true,
   planPath: absolute,
   status: result.status,
+  planId: result.planId,
   sections: result.headers,
 });

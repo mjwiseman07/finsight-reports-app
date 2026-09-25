@@ -3,11 +3,12 @@
  * STOP unless plan STATUS is APPROVED_FOR_IMPLEMENTATION.
  * Usage: node scripts/orchestrator/confirm-approval.js <plan.md>
  */
+"use strict";
 
-const path = require("path");
 const {
   validatePlanStructure,
   resolveEffectiveStatus,
+  resolveSafeRepoPath,
   fail,
   ok,
   emitJson,
@@ -20,7 +21,13 @@ if (!planPath) {
   fail("Usage: node scripts/orchestrator/confirm-approval.js <plan.md>");
 }
 
-const absolute = path.resolve(planPath);
+let absolute;
+try {
+  absolute = resolveSafeRepoPath(planPath);
+} catch (err) {
+  fail(err.message);
+}
+
 const validation = validatePlanStructure(absolute);
 if (!validation.ok) {
   emitJson({ ok: false, planPath: absolute, errors: validation.errors });
@@ -43,7 +50,7 @@ if (status !== APPROVED) {
     message: "Implementation blocked: human approval required.",
   });
   fail(
-    `Unsafe transition blocked: STATUS is ${status}, required ${APPROVED}`,
+    `Unsafe transition blocked: STATUS is ${status || "MISSING"}, required ${APPROVED}`,
   );
 }
 

@@ -9,7 +9,7 @@ alwaysApply: true
 
 **NEVER implement work from a plan in `docs/plans/` unless its STATUS is exactly `APPROVED_FOR_IMPLEMENTATION`.**
 
-If STATUS is `DRAFT`, `REVIEW_FAIL`, or any other value, STOP and ask the human to approve the plan first.
+If STATUS is `DRAFT`, `REVIEW_FAILED`, `READY_FOR_REVIEW`, or any other value, STOP and ask the human to approve the plan first.
 
 ## Before coding from a plan
 
@@ -22,9 +22,10 @@ If STATUS is `DRAFT`, `REVIEW_FAIL`, or any other value, STOP and ask the human 
 
 - Stay within **Scope**; respect **Out of Scope**.
 - Follow `docs/agent/IMPLEMENTATION_AGENT.md`.
-- Record results: `node scripts/orchestrator/record-implementation.js <plan.md>`
+- Record results: `node scripts/orchestrator/record-implementation.js <plan.md> --results '<json>'`
 
 ## After implementation
 
 - Hand off to review via `docs/agent/REVIEW_AGENT.md` and `prepare-review.js`.
 - Do not merge or deploy — human approval required.
+- Never set `STATUS: COMPLETED` via scripts.

@@ -1,6 +1,6 @@
 # Review agent guide
 
-Use this guide after implementation is recorded (`IMPLEMENTATION_COMPLETE` or `IN_REVIEW`).
+Use this guide after implementation is recorded (`STATUS: IMPLEMENTATION_COMPLETE`).
 
 ## Preconditions
 
@@ -9,6 +9,8 @@ node scripts/orchestrator/prepare-review.js docs/plans/<PLAN-ID>.md
 ```
 
 Review the emitted payload: plan scope, implementation notes, and changed files.
+
+`prepare-review.js` does **not** advance status; it stays `IMPLEMENTATION_COMPLETE` until a verdict is recorded.
 
 ## Review checklist
 
@@ -37,21 +39,35 @@ Review the emitted payload: plan scope, implementation notes, and changed files.
 
 ## Record verdict
 
-Pass:
+Verdicts: `PASS` | `NEEDS_CHANGES` | `BLOCKED`
+
+Pass (and optionally advance to human approval):
 
 ```bash
 node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
   --verdict PASS --advance --notes "Scope OK; validation evidence attached"
 ```
 
-Fail:
+Needs changes:
 
 ```bash
 node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
-  --verdict FAIL --notes "Describe blocking issues"
+  --verdict NEEDS_CHANGES --notes "Describe required fixes"
 ```
 
-`--advance` with `--verdict FAIL` MUST exit non-zero (unsafe transition blocked).
+Blocked:
+
+```bash
+node scripts/orchestrator/record-review.js docs/plans/<PLAN-ID>.md \
+  --verdict BLOCKED --notes "Describe blocking issues"
+```
+
+Rules:
+
+- `PASS` → `REVIEW_PASSED`; with `--advance` → `READY_FOR_HUMAN_APPROVAL`
+- `NEEDS_CHANGES` or `BLOCKED` → `REVIEW_FAILED`; `--advance` MUST exit non-zero
+- Mismatched `--plan-id` MUST exit non-zero
+- Missing / malformed verdict MUST exit non-zero
 
 ## After PASS + advance
 
@@ -61,4 +77,4 @@ Human summary for merge decision:
 node scripts/orchestrator/human-summary.js docs/plans/<PLAN-ID>.md
 ```
 
-Human approval is still required before merge and production deploy.
+Human approval is still required before merge and production deploy. Scripts never set `COMPLETED`.

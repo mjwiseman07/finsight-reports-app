@@ -12,13 +12,15 @@ node scripts/orchestrator/prepare-implementation.js docs/plans/<PLAN-ID>.md
 
 If `confirm-approval.js` fails, STOP — do not implement.
 
+`prepare-implementation.js` advances STATUS to `IN_PROGRESS` (markdown + companion).
+
 ## Implementation rules
 
 1. **Scope only** — Implement what is listed under Scope; ignore unrelated improvements.
 2. **Architecture** — Follow existing patterns in touched directories.
 3. **Security** — Never weaken auth, RLS, or tenant isolation. No secrets in source.
 4. **Data** — No production data changes. Migrations only when the plan requires schema changes.
-5. **Quality** — Run validation commands from the plan's Validation Plan section.
+5. **Quality** — Run validation commands from the plan's Validation Commands section.
 
 ## During work
 
@@ -28,11 +30,11 @@ If `confirm-approval.js` fails, STOP — do not implement.
 
 ## Completion
 
-Run validation and record results:
+Run validation and record results (STATUS must already be `IN_PROGRESS`):
 
 ```bash
 node scripts/orchestrator/record-implementation.js docs/plans/<PLAN-ID>.md \
-  --results '{"lint":"pass","typeCheck":"pass","tests":"pass","notes":"..."}'
+  --results '{"planId":"<PLAN-ID>","lint":"pass","typecheck":"pass","tests":"pass","build":"pass","success":true}'
 ```
 
 Then hand off to review:
@@ -43,7 +45,10 @@ node scripts/orchestrator/prepare-review.js docs/plans/<PLAN-ID>.md
 
 ## Forbidden
 
-- Implementing from `DRAFT` plans
+- Implementing from `DRAFT` or any non-approved status
+- Recording implementation without `prepare-implementation` first
+- Claiming success when lint/typecheck/tests/build failed
 - Disabling tests or lint rules to pass
 - Auto-deploying or auto-merging
+- Setting `STATUS: COMPLETED`
 - Modifying production Supabase/Stripe without explicit human instruction

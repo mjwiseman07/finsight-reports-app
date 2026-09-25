@@ -7,20 +7,21 @@ Copy this file to `docs/plans/<PLAN-ID>.md` and fill every section.
 | STATUS | Meaning |
 |--------|---------|
 | `DRAFT` | Plan being written; implementation forbidden |
+| `READY_FOR_REVIEW` | Plan ready for human review before approval |
 | `APPROVED_FOR_IMPLEMENTATION` | Human approved; agents may implement |
-| `IN_IMPLEMENTATION` | Implementation in progress |
-| `IMPLEMENTATION_COMPLETE` | Code complete; ready for review |
-| `IN_REVIEW` | Automated or agent review in progress |
-| `REVIEW_PASS` | Review passed |
-| `REVIEW_FAIL` | Review failed; return to implementation |
-| `READY_FOR_HUMAN_REVIEW` | Summary ready for human merge/deploy decision |
-| `APPROVED_FOR_MERGE` | Human approved merge (not auto-merge) |
-| `REJECTED` | Plan rejected; do not implement |
-| `CANCELLED` | Plan cancelled |
+| `IN_PROGRESS` | Implementation in progress |
+| `IMPLEMENTATION_COMPLETE` | Code complete; ready for independent review |
+| `REVIEW_FAILED` | Review failed (`NEEDS_CHANGES` or `BLOCKED`); return to implementation |
+| `REVIEW_PASSED` | Independent review passed (`PASS`) |
+| `READY_FOR_HUMAN_APPROVAL` | Summary ready for human merge/deploy decision |
+| `COMPLETED` | Human marked complete (human-only; never set by scripts) |
+| `BLOCKED` | Work blocked; do not continue until unblocked |
 
 Set STATUS in the **Status** section as: `STATUS: <VALUE>`
 
 Companion JSON (optional): `docs/plans/<PLAN-ID>.status.json` — see `docs/agent/STATUS_SCHEMA.md`.
+
+Markdown `STATUS:` and companion `status` **must match** or scripts fail closed.
 
 ---
 
@@ -48,26 +49,41 @@ What problem does this plan solve? One paragraph.
 
 - Explicit exclusions to prevent scope creep.
 
-## Risks and Constraints
+## Security Requirements
 
-- Security, RLS, tenant isolation, migration, or rollout risks.
-- Dependencies on external systems.
+- Auth, secrets, and production-safety constraints for this plan.
 
-## Validation Plan
+## Tenant Isolation Requirements
 
-Commands and manual checks to prove success:
+- Tenant / RLS isolation requirements (or N/A with justification).
+
+## Acceptance Criteria
+
+- At least one concrete, testable bullet criterion.
+- Additional criteria as needed.
+
+## Required Tests
+
+- Unit / integration / smoke tests that must pass before review.
+
+## Validation Commands
+
+Commands to prove success (examples):
 
 - `npm run lint`
 - `npm run type-check`
 - `npm test`
-- `npm run test:integration` (if applicable)
 - `npm run build` (if merge-ready)
 
-## Rollback Plan
+## Prohibited Changes
+
+- Explicit list of files/areas agents must not touch.
+
+## Rollback Considerations
 
 How to revert if the change causes problems (git revert, migration down, feature flag, etc.).
 
-## Approval
+## Human Approval Gate
 
 | Field | Value |
 |-------|-------|
@@ -78,3 +94,4 @@ How to revert if the change causes problems (git revert, migration down, feature
 | Branch | `feature/...` |
 
 Human sets `STATUS: APPROVED_FOR_IMPLEMENTATION` only after reviewing this plan.
+Scripts never write `APPROVED_FOR_IMPLEMENTATION` or `COMPLETED`.

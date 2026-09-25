@@ -1,28 +1,36 @@
 #!/usr/bin/env node
 /**
- * Emit implementation task payload JSON (requires APPROVED_FOR_IMPLEMENTATION).
+ * Emit implementation task payload (requires APPROVED_FOR_IMPLEMENTATION).
  * Usage: node scripts/orchestrator/prepare-implementation.js <plan.md>
  */
+"use strict";
 
-const path = require("path");
 const {
   validatePlanStructure,
   resolveEffectiveStatus,
   parsePlanMetadata,
   writeStatusJson,
+  resolveSafeRepoPath,
+  assertNoProductionAuthority,
   fail,
   emitJson,
 } = require("./lib");
 
 const APPROVED = "APPROVED_FOR_IMPLEMENTATION";
-const IN_IMPL = "IN_IMPLEMENTATION";
+const IN_PROGRESS = "IN_PROGRESS";
 
 const planPath = process.argv[2];
 if (!planPath) {
   fail("Usage: node scripts/orchestrator/prepare-implementation.js <plan.md>");
 }
 
-const absolute = path.resolve(planPath);
+let absolute;
+try {
+  absolute = resolveSafeRepoPath(planPath);
+} catch (err) {
+  fail(err.message);
+}
+
 const validation = validatePlanStructure(absolute);
 if (!validation.ok) {
   fail(`Plan structure invalid: ${validation.errors.join("; ")}`);
@@ -36,17 +44,27 @@ try {
 }
 
 if (status !== APPROVED) {
-  fail(`Cannot prepare implementation: STATUS is ${status}, required ${APPROVED}`);
+  fail(
+    `Cannot prepare implementation: STATUS is ${status || "MISSING"}, required ${APPROVED}`,
+  );
 }
 
 const meta = parsePlanMetadata(validation.markdown);
-writeStatusJson(absolute, {
-  planId: meta.planId,
-  planPath: absolute,
-  status: IN_IMPL,
-  phase: "implementation",
-  startedAt: new Date().toISOString(),
-});
+try {
+  writeStatusJson(
+    absolute,
+    {
+      planId: meta.planId,
+      planPath: absolute,
+      status: IN_PROGRESS,
+      phase: "implementation",
+      startedAt: new Date().toISOString(),
+    },
+    { fromStatus: APPROVED },
+  );
+} catch (err) {
+  fail(err.message);
+}
 
 const payload = {
   task: "implementation",
@@ -57,15 +75,25 @@ const payload = {
   objective: meta.objective,
   scope: meta.scope,
   outOfScope: meta.outOfScope,
-  validationPlan: meta.validationPlan,
-  status: IN_IMPL,
+  acceptanceCriteria: meta.acceptanceCriteria,
+  validationCommands: meta.validationCommands,
+  status: IN_PROGRESS,
   agentGuide: "docs/agent/IMPLEMENTATION_AGENT.md",
+  merge: false,
+  deploy: false,
   constraints: [
     "Minimize scope to plan only",
     "Never weaken auth, RLS, or tenant isolation",
     "Never expose secrets or modify production data",
     "Run validation commands before marking complete",
+    "Never merge or deploy",
   ],
 };
+
+try {
+  assertNoProductionAuthority(payload);
+} catch (err) {
+  fail(err.message);
+}
 
 emitJson(payload);
