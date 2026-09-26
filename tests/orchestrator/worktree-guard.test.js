@@ -72,7 +72,26 @@ describe("worktree-guard", () => {
     ]);
   });
 
-  it("refuses dirty tracked worktree without interactive stash/discard", () => {
+  it("allows dirty orchestrator-owned docs/plans STATUS companions", () => {
+    const result = assertWorkspaceSafeForOvernight({
+      cwd: "/tmp/fake",
+      env: {},
+      execGit: () => ({
+        status: 0,
+        stdout:
+          " M docs/plans/JE-4-POST-WRITE-VERIFICATION.md\n M docs/plans/JE-4-POST-WRITE-VERIFICATION.status.json\n",
+        stderr: "",
+        error: null,
+      }),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.ignoredOrchestratorDirty).toEqual([
+      "docs/plans/JE-4-POST-WRITE-VERIFICATION.md",
+      "docs/plans/JE-4-POST-WRITE-VERIFICATION.status.json",
+    ]);
+  });
+
+  it("still refuses dirty tracked files outside docs/plans", () => {
     const env = {};
     expect(() =>
       assertWorkspaceSafeForOvernight({
@@ -80,7 +99,7 @@ describe("worktree-guard", () => {
         env,
         execGit: () => ({
           status: 0,
-          stdout: " M docs/plans/JE-4-POST-WRITE-VERIFICATION.md\n",
+          stdout: " M package.json\n",
           stderr: "",
           error: null,
         }),
@@ -93,7 +112,7 @@ describe("worktree-guard", () => {
         env: {},
         execGit: () => ({
           status: 0,
-          stdout: " M docs/plans/JE-4-POST-WRITE-VERIFICATION.md\n",
+          stdout: " M package.json\n",
           stderr: "",
           error: null,
         }),
