@@ -99,7 +99,7 @@ function quickBooksEntity(sourceReport: string, row: { label: string; amount: nu
   };
 }
 
-function normalizeQuickBooksReportEntities(sourceReport: string, report: unknown, externalEntityId?: string): AdvisacorNormalizedEntity[] {
+export function normalizeQuickBooksReportEntities(sourceReport: string, report: unknown, externalEntityId?: string): AdvisacorNormalizedEntity[] {
   const rows = (((report as Record<string, unknown> | undefined)?.data as Record<string, unknown> | undefined)?.Rows as Record<string, unknown> | undefined)?.Row || [];
   return flattenQuickBooksReportRows(Array.isArray(rows) ? rows : []).map((row, index) => quickBooksEntity(sourceReport, row, externalEntityId, index));
 }
@@ -109,7 +109,7 @@ function firstAvailableReport(reports: Record<string, { ok?: boolean; data?: unk
   return key ? { key, report: reports[key] } : null;
 }
 
-function normalizeQuickBooksTrialBalance(report: unknown, externalEntityId?: string): CanonicalTrialBalanceRow[] {
+export function normalizeQuickBooksTrialBalance(report: unknown, externalEntityId?: string): CanonicalTrialBalanceRow[] {
   return normalizeQuickBooksReportEntities("TrialBalance", report, externalEntityId)
     .filter((row) => !/^total\b/i.test(row.name))
     .map((row) => {
