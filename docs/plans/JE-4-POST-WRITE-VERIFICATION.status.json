@@ -1,19 +1,640 @@
 {
   "planId": "JE-4-POST-WRITE-VERIFICATION",
-  "planPath": "/workspace/docs/plans/JE-4-POST-WRITE-VERIFICATION.md",
-  "status": "IMPLEMENTATION_COMPLETE",
-  "phase": "implementation",
+  "planPath": "docs/plans/JE-4-POST-WRITE-VERIFICATION.md",
+  "status": "READY_FOR_HUMAN_APPROVAL",
+  "phase": "human_approval",
+  "startedAt": "2026-09-25T21:44:01.793Z",
+  "cursor_agent": {
+    "agent_id": "bc-49cad366-0c3e-44c4-9d5b-5b5360e0374c",
+    "run_id": "run-864d0620-a804-4ac9-80b3-c495cd7c0b35",
+    "status": "FINISHED",
+    "agent_status": "IDLE",
+    "run_status": "FINISHED",
+    "branch": "cursor/advisacor-je-4-post-write-verification-4847",
+    "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "agent_url": "https://cursor.com/agents/bc-49cad366-0c3e-44c4-9d5b-5b5360e0374c",
+    "latest_run_id": "run-864d0620-a804-4ac9-80b3-c495cd7c0b35",
+    "launched_at": "2026-09-25T21:44:01.793Z",
+    "last_checked_at": "2026-09-25T22:02:30.689Z",
+    "result_summary": "JE-4 post-write verification is in place and ready for independent review. It runs only after a governed journal entry is `VERIFIED`, and it does not enable journal-entry create or verify.\n\nThe pipeline loads company, connection, period, and expected effects from execution custody, refreshes a new successful accounting sync, checks snapshot-backed tie-out, reruns Continuous Close OBSERVE on that sync, and proves expected effects before storing readiness. Lag, mismatch, stale or partial syncs, an",
+    "duration_ms": 1105315
+  },
   "implementation": {
-    "completedAt": "2026-09-25T22:01:51.113Z",
+    "completedAt": "2026-09-25T22:02:30.689Z",
     "results": {
       "planId": "JE-4-POST-WRITE-VERIFICATION",
-      "lint": "pass",
-      "typecheck": "pass",
-      "tests": "pass",
-      "build": "blocked_missing_env",
       "success": true,
-      "notes": "JE-4 files have no tsc errors. npx tsc --noEmit still exits 1 on pre-existing test errors outside this change. npm run build compiled and finished TypeScript, then failed collecting page data for /api/admin/refunds/[id]/decide because STRIPE_SECRET_KEY is unset. Journal-entry governance tests: 717 passed, 21 skipped. Orchestrator tests 131 passed. Brand lint passed."
+      "source": "cursor_cloud_agent",
+      "agent_id": "bc-49cad366-0c3e-44c4-9d5b-5b5360e0374c",
+      "run_id": "run-864d0620-a804-4ac9-80b3-c495cd7c0b35",
+      "branch": "cursor/advisacor-je-4-post-write-verification-4847",
+      "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "notes": "Builder run FINISHED with PR URL. Independent review still required. Do not treat as REVIEW_PASSED."
     }
   },
-  "updatedAt": "2026-09-25T22:01:51.113Z"
+  "merge": false,
+  "deploy": false,
+  "updatedAt": "2026-09-26T16:22:42.936Z",
+  "remediation": {
+    "reviewer_attempts": 3,
+    "resolver_attempts": 2,
+    "cycle_number": 2,
+    "max_cycles": 5,
+    "attempts": [
+      {
+        "cycle": 1,
+        "agent_id": "bc-6c39d6e0-dddf-4511-a82c-b4d0d7920e1e",
+        "run_id": "run-625cdad0-55b6-4c53-8a01-bc28412d322b",
+        "launched_at": "2026-09-25T22:16:43.077Z",
+        "head_sha_before": "1c6b9e933f36146cf43622315c335a6cfddbbd02"
+      },
+      {
+        "cycle": 2,
+        "agent_id": "bc-644115f4-c700-4632-aa85-f91c467ac198",
+        "run_id": "run-3c2c327a-be93-42b5-9404-ed35a0a33fe0",
+        "launched_at": "2026-09-26T02:35:47.252Z",
+        "head_sha_before": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753"
+      }
+    ],
+    "builder_attempts": 2,
+    "last_completed_at": "2026-09-26T02:43:42.479Z",
+    "last_head_sha": "f97f3ba03b090489a13c6ea4207fd5746d95fd9d"
+  },
+  "builder_head_sha": "f97f3ba03b090489a13c6ea4207fd5746d95fd9d",
+  "cursor_resolver": {
+    "agent_id": "bc-3b9e2474-375f-4396-b408-955fa0f8c036",
+    "run_id": "run-cf18b4b1-32d7-4538-9fb9-452e059ca8d2",
+    "status": "FINISHED",
+    "agent_status": "IDLE",
+    "run_status": "FINISHED",
+    "branch": "cursor/advisacor-resolve-je-4-post-write-verification-afb4",
+    "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "agent_url": "https://cursor.com/agents/bc-3b9e2474-375f-4396-b408-955fa0f8c036",
+    "latest_run_id": "run-cf18b4b1-32d7-4538-9fb9-452e059ca8d2",
+    "launched_at": "2026-09-26T02:30:28.538Z",
+    "last_checked_at": "2026-09-26T02:35:44.828Z",
+    "result_summary": "The review findings are valid, and the correction is already on the builder pull request. Reviewed commit `1c6b9e93` proved expected effects with the wrong predicates: `ACCOUNT_RECLASS` credited `fromAccountId` and debited `toAccountId`, which is the reverse of the locked first-run accrual (debit the expense, credit the accrued liability). Canonical proof also treated QuickBooks report rows as journals, trial-balance comparison amounts as the GL ending, and `totals_status` as `recon_outcome`.\n\nP",
+    "duration_ms": 314160,
+    "completed_at": "2026-09-26T02:35:44.828Z",
+    "resolver_result": {
+      "plan_id": "JE-4-POST-WRITE-VERIFICATION",
+      "classification": "AUTONOMOUSLY_RESOLVABLE",
+      "root_cause": "Reviewed SHA 1c6b9e93 verified expected effects against predicates that contradict locked JE custody. ACCOUNT_RECLASS required a credit on fromAccountId and a debit on toAccountId, while the first-run accrual debits the expense account (fromAccountId) and credits the accrued-liability account (toAccountId). Canonical extraction treated QBO normalizedTransactions and trial-balance netAmount as the provider journal and the GL ending, and copied tie-out totals_status into the recon outcome, so a real SUCCESS sync never proved the journal and a totals-status word could pass without recon_outcome or unidentified_residual_cents.",
+      "evidence": [
+        "At 1c6b9e93, lib/journal-entry-governance/post-write-verification-effects.ts ACCOUNT_RECLASS matched creditCents on fromAccountId and debitCents on toAccountId.",
+        "lib/journal-entry-governance/je3d-first-run-evidence-coherence.ts buildFirstRunEvidenceCoherentExpectedEffects sets fromAccountId to the expense account and toAccountId to the accrued-liability account.",
+        "lib/journal-entry-governance/je3d-first-run-execution-authority.ts requires the sequence-sorted lines to debit the approved expense account and credit the approved accrued-liability account.",
+        "lib/integrations/quickbooks/provider.ts stores normalizedTransactions through normalizeQuickBooksReportEntities with ids quickbooks:${sourceReport}:${index}:${label}. normalizeQuickBooksTrialBalance copies that synthetic id into accountId and the report amount into netAmount. Those entities do not carry journal lines.",
+        "lib/journal-entry-governance/je3d-bs-account-source-authority-contract.ts locks BS_ACCOUNT_GL_DELTA to the provider-backed GL detail ending in qbo_natural_sign: ending_balance_cents / subledger_total_cents. gl_ending_balance_cents / gl_total_cents are the trial-balance comparison side.",
+        "lib/journal-entry-governance/source-custody.ts requires recon_outcome for sync-backed runs. For live_provider bs_account_recon it states the resolver does not stamp recon_outcome and totals_status is the custody signal. lib/continuous-close/persistence/authoritative-urm-mapper.ts forbids synthesizing recon_outcome from totalsStatus. Residual authority is unidentified_residual_cents on the tie-out run bound to the sync.",
+        "PR 335 head is 5f8f1d884c839abc1d18a75eaa5c4ff97bb47753, after reviewed SHA 1c6b9e93. That commit implements both review remediations. npx vitest run lib/journal-entry-governance/__tests__/post-write-verification.test.ts at that SHA passed 27 tests."
+      ],
+      "recommended_resolution": "Stay on cursor/advisacor-je-4-post-write-verification-4847 at 5f8f1d88 or a later commit on that branch. That head already contains the required proof correction. Confirm every invariant below and edit only an invariant that is missing. The next review must cover this head, not 1c6b9e93.",
+      "files_likely_affected": [
+        "lib/journal-entry-governance/post-write-verification-effects.ts",
+        "lib/journal-entry-governance/post-write-verification-canonical.ts",
+        "lib/journal-entry-governance/post-write-verification-production.ts",
+        "lib/journal-entry-governance/post-write-verification-service.ts",
+        "lib/journal-entry-governance/post-write-verification-types.ts",
+        "lib/journal-entry-governance/post-write-verification-scope.ts",
+        "lib/journal-entry-governance/__tests__/post-write-verification.test.ts",
+        "lib/integrations/quickbooks/provider.ts"
+      ],
+      "tests_required": [
+        "lib/journal-entry-governance/__tests__/post-write-verification.test.ts: verifies a first-run accrual reclass via buildFirstRunEvidenceCoherentExpectedEffects and expects EFFECTS_VERIFIED, and EFFECTS_MISMATCH with je4_reclass_mismatch when the debit and credit accounts are swapped",
+        "Same file: a payload built with normalizeQuickBooksTrialBalance and normalizeQuickBooksReportEntities yields journalLineRepresentation absent, glDetailEndingCents empty, and failure code je4_canonical_journal_unrepresented. metadata.lines on those report entities stay unrepresented.",
+        "Same file: RECON_OUTCOME_TARGET with totals_status tie and a null or tie recon_outcome is je4_recon_outcome_unproven. reconciled_exact on the post-write sync run verifies. A null unidentified_residual_cents stays je4_residual_not_observable even when totals_variance_cents equals the expected delta.",
+        "Same file: BS_ACCOUNT_GL_DELTA verifies only when ending_balance_cents and subledger_total_cents agree on the provider qbo account id under qbo_natural_sign and equal expectedPostGlBalanceCents. gl_ending_balance_cents, gl_total_cents, a quickbooks:TrialBalance synthetic id, a pre-VERIFIED completed_at, and a non-null baseline_sync_id leave the proof je4_gl_balance_absent or je4_gl_balance_mismatch."
+      ],
+      "security_implications": "Fail-closed proof only. Company, sync, and run identity stay on execution custody. The production proof query reads tie-out columns for that engagement and period and does not select trial-balance comparison balances as the GL ending. Create, verify, and production kill switches stay hard-disabled. No RLS weakening, no live journal create, no secrets in evidence.",
+      "scope_implications": "none — stay in approved scope",
+      "confidence": 0.93,
+      "human_decision_required": false,
+      "human_question": null,
+      "remediation_plan": {
+        "summary": "Preserve 5f8f1d88 on the existing JE-4 PR branch. It already matches the locked accrual direction and the real sync, recon, and GL contracts. Confirm the invariants; patch only a gap. Leave JE-3B2, JE-3C, JE-3D, and production activation files unchanged.",
+        "steps": [
+          "Check out cursor/advisacor-je-4-post-write-verification-4847 at 5f8f1d88 or later. Keep that commit. The reviewed tree at 1c6b9e93 is the defective baseline.",
+          "ACCOUNT_RECLASS: fromAccountId is the debited account and toAccountId is the credited account, each for amountCents with the opposite side at 0. A coherent buildFirstRunEvidenceCoherentExpectedEffects journal reaches EFFECTS_VERIFIED. Swapping those debit and credit accounts yields EFFECTS_MISMATCH and je4_reclass_mismatch.",
+          "Canonical journal: parse accounting_syncs.normalized_payload with the QBO normalizer shape. Report-entity keys, including normalizedTransactions and normalizedTrialBalance, are not journals. No journal-line collection returns journalLineRepresentation absent and verifyPostWriteExpectedEffects returns INCOMPLETE with je4_canonical_journal_unrepresented. PENDING_PROVIDER_VISIBILITY applies only when a journal-line collection exists and the verified provider journal id is missing from it.",
+          "BS_ACCOUNT_GL_DELTA: prove expectedPostGlBalanceCents from the GL detail ending keyed by the provider qbo account id in qbo_natural_sign. Authority is audit_ready_bs_recon_artifacts.ending_balance_cents and the matching run subledger_total_cents on a completed live_provider bs_account_recon (baseline_sync_id null, totals_status present, completed_at at or after verified_at). Ignore gl_ending_balance_cents, gl_total_cents, and synthetic quickbooks:TrialBalance row ids. Disagreeing detail endings or a missing ending stay INCOMPLETE.",
+          "Sync-backed AR, AP, and inventory: load recon_outcome and unidentified_residual_cents from the completed tie-out run whose id is the post-write observation slot and whose baseline_sync_id is the post-write accounting sync. Accept recon outcomes such as reconciled_exact. Treat tie, auto_reconcile, review, and kickout as totals_status only, and use totals_status as the custody signal solely for bs_account_recon, which does not stamp recon_outcome. A missing unidentified_residual_cents stays INCOMPLETE for RESIDUAL_DELTA. Do not substitute totals_variance_cents.",
+          "Keep fixtures on normalizeQuickBooksReportEntities, normalizeQuickBooksTrialBalance, and tie-out proof rows. Exporting those two existing normalizers for the fixture is in scope. Do not call regenerate-run, provider-qbo-create-transport, or change feature gates, RLS, or plan STATUS."
+        ],
+        "validation": [
+          "npx vitest run lib/journal-entry-governance/__tests__/post-write-verification.test.ts",
+          "npm run orchestrator:test"
+        ]
+      },
+      "merge": false,
+      "deploy": false
+    }
+  },
+  "blocker": {
+    "schema": "advisacor.blocker_packet.v1",
+    "plan_id": "JE-4-POST-WRITE-VERIFICATION",
+    "current_state": "REVIEW_FAILED",
+    "approved_plan_path": "docs/plans/JE-4-POST-WRITE-VERIFICATION.md",
+    "approved_plan_commit": null,
+    "builder_agent_id": "bc-49cad366-0c3e-44c4-9d5b-5b5360e0374c",
+    "builder_run_id": "run-864d0620-a804-4ac9-80b3-c495cd7c0b35",
+    "builder_branch": "cursor/advisacor-je-4-post-write-verification-4847",
+    "builder_pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "builder_head_sha": "1c6b9e933f36146cf43622315c335a6cfddbbd02",
+    "reviewer_agent_id": "bc-7ef02e19-8d93-431d-b585-5b522b062c60",
+    "reviewer_run_id": "run-375b7230-a0f5-48e8-8e80-6132e4531bf9",
+    "review_result": "NEEDS_CHANGES",
+    "review_findings": [
+      {
+        "severity": "HIGH",
+        "requirement": "Expected-effect verification must prove proposal economics. First-run accrual lines debit the expense account and credit the accrued-liability account; ACCOUNT_RECLASS fromAccountId is the expense account and toAccountId is the liability account.",
+        "file": "lib/journal-entry-governance/post-write-verification-effects.ts",
+        "location": "checkEffect ACCOUNT_RECLASS",
+        "explanation": "The verifier requires a credit on fromAccountId and a debit on toAccountId. buildFirstRunEvidenceCoherentExpectedEffects and je3d-first-run-execution-authority require the opposite: debit expense, credit accrued liability. A coherent accrual therefore fails je4_reclass_mismatch, and a reversed journal would satisfy the effect check.",
+        "remediation": "Treat fromAccountId as the debited account and toAccountId as the credited account for this effect, matching the first-run lines. Add a test that uses buildFirstRunEvidenceCoherentExpectedEffects with those lines and expects EFFECTS_VERIFIED, and expects MISMATCH when the debit and credit accounts are swapped."
+      },
+      {
+        "severity": "HIGH",
+        "requirement": "Verify expected effects against refreshed canonical state and authoritative recon outcomes. Sync-backed JE sources require recon_outcome. BS_ACCOUNT_GL_DELTA authority is the provider-backed GL detail ending in natural sign, not the trial-balance comparison balance.",
+        "file": "lib/journal-entry-governance/post-write-verification-canonical.ts",
+        "location": "extractPostWriteCanonicalEvidence and mergeReconEvidence",
+        "explanation": "Production loadCanonicalEvidence reads accounting_syncs.normalized_payload, but QBO normalizedTransactions are report entities whose ids look like quickbooks:TrialBalance:index:label and do not carry metadata.lines. A real snapshot therefore never shows the provider journal and is reported as PENDING_PROVIDER_VISIBILITY. Trial-balance accountId is that synthetic row id and netAmount is the report amount, so a lookup by qboAccountId cannot prove expectedPostGlBalanceCents. mergeReconEvidence stores slot.totalsStatus (tie, auto_reconcile, review, kickout) as recon outcome. Source custody for sync-backed runs requires recon_outcome values such as reconciled_exact. The happy-path test sets targetOutcome to tie and treats that as verified, so a totals-status word can pass while recon_outcome is…[truncated 21 chars]",
+        "remediation": "Parse the actual normalized sync shape. If the canonical payload has no journal-line representation, return an explicit incomplete code rather than provider lag. Prove BS_ACCOUNT_GL_DELTA from the GL detail ending keyed by the provider account id under qbo_natural_sign. Load recon_outcome for sync-backed runs and totals_status only where source custody already says the BS resolver has no recon_outcome. Load residual cents from the tie-out run on the post-write sync, and keep INCOMPLETE when that amount is absent. Add fixtures built from the QBO normalizer and from tie-out run rows, not from hand-built metadata.lines."
+      }
+    ],
+    "failed_acceptance_criteria": [
+      {
+        "criterion": "Post-write path performs or clearly stages provider/canonical refresh, affected recon/URM, snapshot-backed Tie-Out, Continuous Close OBSERVE on the new sync, expected-effect verification, readiness from that OBSERVE run, and evidence persistence.",
+        "status": "FAIL",
+        "notes": "The stage order is present and pre-write sync and pre-write CC runs are rejected. Canonical evidence is not read from the persisted sync contract: normalizedTransactions are report entities, not journal lines, and trial-balance account ids are synthetic report row ids. Residual cents are never loaded. Recon outcome is taken from totalsStatus."
+      },
+      {
+        "criterion": "Expected-effect verification fails closed on mismatch, stale, partial, or lag-without-evidence, and does not report VERIFIED when the proof predicate is wrong or incomplete.",
+        "status": "FAIL",
+        "notes": "Stale, partial, missing SUCCESS, live tie-out, and line mismatch return non-success statuses. ACCOUNT_RECLASS credits fromAccountId and debits toAccountId, which is the reverse of the locked DR expense / CR accrued-liability accrual. RECON_OUTCOME_TARGET is compared to totalsStatus values such as tie, not recon_outcome. A missing journal in a real sync is labeled PENDING_PROVIDER_VISIBILITY."
+      }
+    ],
+    "validation_failures": null,
+    "test_failures": null,
+    "lint_failures": null,
+    "typecheck_failures": null,
+    "build_failures": null,
+    "relevant_changed_files": [],
+    "git_diff_summary": null,
+    "recent_agent_attempts": [],
+    "previous_resolutions": [],
+    "current_error_messages": [],
+    "security_context": {
+      "merge": false,
+      "deploy": false,
+      "notes": "- Documentation and code must not introduce secrets, credentials, or production system access beyond existing JE test harness patterns.\r\n- Do not read or print environment secrets in logs, status JSON, evidence payloads, or Cloud Agent output.\r\n- Do not modify authentication, authorization, RLS policies (weaken), Stripe, billing, or production data.\r\n- JE-3B2/3C/3D write/verify gates and kill swit…[truncated 231 chars]"
+    },
+    "database_context": null,
+    "scope_constraints": {
+      "scope": "- Implement JE-4 post-write verification orchestration and types under `lib/journal-entry-governance/`\r\n- Expected-effect verification against refreshed canonical/URM state derived from JE proposal `expected_effects` / line economics (as represented in existing proposal/execution types)\r\n- Affected-scope selection: prefer targeted recomputation from proposal source recon ids + expected effects; if…[truncated 907 chars]",
+      "out_of_scope": "- Enabling JE-3B2 / JE-3C / JE-3D create or verify capabilities\r\n- Releasing sandbox or production dispatch kill switches\r\n- Executing any real JE or first sandbox JE\r\n- Production Supabase writes outside normal local/test harness patterns already used by JE tests\r\n- Stripe / billing / auth / RLS policy weakening\r\n- Automatic merge or deploy\r\n- Setting plan STATUS to COMPLETED\r\n- Broad competitor-…[truncated 141 chars]"
+    },
+    "prohibited_changes": "- `lib/journal-entry-governance/je3b2-feature-gate.ts`\r\n- `lib/journal-entry-governance/je3c-feature-gate.ts`\r\n- `lib/journal-entry-governance/je3d-activation-policy.ts` (capability defaults)\r\n- `lib/journal-entry-governance/je3d-first-controlled-create-activation.ts`\r\n- `lib/journal-entry-governance/production-activation-policy.ts`\r\n- `lib/journal-entry-governance/production-workflow-policy.ts`\r\n- Calling or wiring `provider-qbo-create-transport` / live create for JE-4\r\n- Weakening RLS on `journal_entry_*` / `continuous_close_runs`\r\n- Changing `assertGovernedProviderPostNotEnabled` to allow posts\r\n- Expanding Demo A / company allowlists via env for this plan\r\n- Merge to main / production deploy / setting COMPLETED by automation\r\n- AuthN/AuthZ weakenings; Stripe/billing changes; production…[truncated 21 chars]",
+    "retry_count": 0,
+    "maximum_retry_count": 5,
+    "agents": {
+      "builder": {
+        "agent_id": "bc-49cad366-0c3e-44c4-9d5b-5b5360e0374c",
+        "run_id": "run-864d0620-a804-4ac9-80b3-c495cd7c0b35",
+        "status": "FINISHED",
+        "branch": "cursor/advisacor-je-4-post-write-verification-4847",
+        "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335"
+      },
+      "reviewer": {
+        "agent_id": "bc-7ef02e19-8d93-431d-b585-5b522b062c60",
+        "run_id": "run-375b7230-a0f5-48e8-8e80-6132e4531bf9",
+        "status": "FINISHED",
+        "branch": "cursor/advisacor-review-je-4-post-write-verification-a855",
+        "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335"
+      },
+      "resolver": null
+    },
+    "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "sha": "1c6b9e933f36146cf43622315c335a6cfddbbd02",
+    "created_at": "2026-09-25T22:07:39.114Z",
+    "merge": false,
+    "deploy": false,
+    "updated_at": "2026-09-25T22:07:39.114Z"
+  },
+  "audit_trail": [
+    {
+      "timestamp": "2026-09-25T22:08:37.679Z",
+      "fromStatus": "REVIEW_FAILED",
+      "toStatus": "ANALYZING_BLOCKER",
+      "actor": "resolver",
+      "agentId": "bc-8bca45ce-b69b-4ae2-8c7c-eed1cc3828c0",
+      "runId": "run-0f0e2e09-f36d-46ff-8211-4b10864016f2",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "1c6b9e933f36146cf43622315c335a6cfddbbd02",
+      "result": "LAUNCHED",
+      "reason": "Resolver Cloud Agent launched"
+    },
+    {
+      "timestamp": "2026-09-25T22:16:40.514Z",
+      "fromStatus": "ANALYZING_BLOCKER",
+      "toStatus": "RESOLUTION_PROPOSED",
+      "actor": "resolver",
+      "agentId": "bc-8bca45ce-b69b-4ae2-8c7c-eed1cc3828c0",
+      "runId": "run-0f0e2e09-f36d-46ff-8211-4b10864016f2",
+      "result": "AUTONOMOUSLY_RESOLVABLE",
+      "reason": "JE-4 effect proof uses inverted ACCOUNT_RECLASS debit/credit direction and reads the wrong persisted facts: QBO report entities are treated as provider journals, trial-balance synthetic row ids are treated as qbo account balances, and observation totalsStatus is treated as recon_outcome. Locked first-run economics, the BS GL-detail contract, and sync-backed source custody already define the correct predicates."
+    },
+    {
+      "timestamp": "2026-09-25T22:16:43.077Z",
+      "fromStatus": "RESOLUTION_PROPOSED",
+      "toStatus": "REMEDIATION_IN_PROGRESS",
+      "actor": "remediation_builder",
+      "agentId": "bc-6c39d6e0-dddf-4511-a82c-b4d0d7920e1e",
+      "runId": "run-625cdad0-55b6-4c53-8a01-bc28412d322b",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "1c6b9e933f36146cf43622315c335a6cfddbbd02",
+      "result": "LAUNCHED",
+      "reason": "Remediation cycle 1"
+    },
+    {
+      "timestamp": "2026-09-25T22:27:31.708Z",
+      "fromStatus": "REMEDIATION_IN_PROGRESS",
+      "toStatus": "REMEDIATION_COMPLETE",
+      "actor": "remediation_builder",
+      "agentId": "bc-6c39d6e0-dddf-4511-a82c-b4d0d7920e1e",
+      "runId": "run-625cdad0-55b6-4c53-8a01-bc28412d322b",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753",
+      "result": "FINISHED",
+      "reason": "Remediation complete; preparing re-review"
+    },
+    {
+      "timestamp": "2026-09-25T22:27:31.708Z",
+      "fromStatus": "REMEDIATION_COMPLETE",
+      "toStatus": "IMPLEMENTATION_COMPLETE",
+      "actor": "orchestrator",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753",
+      "result": "READY_FOR_RE_REVIEW",
+      "reason": "Cleared prior review; new reviewer required for new head SHA"
+    },
+    {
+      "timestamp": "2026-09-26T02:30:28.538Z",
+      "fromStatus": "REVIEW_FAILED",
+      "toStatus": "ANALYZING_BLOCKER",
+      "actor": "resolver",
+      "agentId": "bc-3b9e2474-375f-4396-b408-955fa0f8c036",
+      "runId": "run-cf18b4b1-32d7-4538-9fb9-452e059ca8d2",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753",
+      "result": "LAUNCHED",
+      "reason": "Resolver Cloud Agent launched"
+    },
+    {
+      "timestamp": "2026-09-26T02:35:44.828Z",
+      "fromStatus": "ANALYZING_BLOCKER",
+      "toStatus": "RESOLUTION_PROPOSED",
+      "actor": "resolver",
+      "agentId": "bc-3b9e2474-375f-4396-b408-955fa0f8c036",
+      "runId": "run-cf18b4b1-32d7-4538-9fb9-452e059ca8d2",
+      "result": "AUTONOMOUSLY_RESOLVABLE",
+      "reason": "Reviewed SHA 1c6b9e93 verified expected effects against predicates that contradict locked JE custody. ACCOUNT_RECLASS required a credit on fromAccountId and a debit on toAccountId, while the first-run accrual debits the expense account (fromAccountId) and credits the accrued-liability account (toAccountId). Canonical extraction treated QBO normalizedTransactions and trial-balance netAmount as the provider journal and the GL ending, and copied tie-out totals_status into the recon outcome, so a real SUCCESS sync never proved the journal and a totals-status word could pass without recon_outcome or unidentified_residual_cents."
+    },
+    {
+      "timestamp": "2026-09-26T02:35:47.252Z",
+      "fromStatus": "RESOLUTION_PROPOSED",
+      "toStatus": "REMEDIATION_IN_PROGRESS",
+      "actor": "remediation_builder",
+      "agentId": "bc-644115f4-c700-4632-aa85-f91c467ac198",
+      "runId": "run-3c2c327a-be93-42b5-9404-ed35a0a33fe0",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753",
+      "result": "LAUNCHED",
+      "reason": "Remediation cycle 2"
+    },
+    {
+      "timestamp": "2026-09-26T02:43:42.479Z",
+      "fromStatus": "REMEDIATION_IN_PROGRESS",
+      "toStatus": "REMEDIATION_COMPLETE",
+      "actor": "remediation_builder",
+      "agentId": "bc-644115f4-c700-4632-aa85-f91c467ac198",
+      "runId": "run-3c2c327a-be93-42b5-9404-ed35a0a33fe0",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "f97f3ba03b090489a13c6ea4207fd5746d95fd9d",
+      "result": "FINISHED",
+      "reason": "Remediation complete; preparing re-review"
+    },
+    {
+      "timestamp": "2026-09-26T02:43:42.479Z",
+      "fromStatus": "REMEDIATION_COMPLETE",
+      "toStatus": "IMPLEMENTATION_COMPLETE",
+      "actor": "orchestrator",
+      "pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "commitSha": "f97f3ba03b090489a13c6ea4207fd5746d95fd9d",
+      "result": "READY_FOR_RE_REVIEW",
+      "reason": "Cleared prior review; new reviewer required for new head SHA"
+    }
+  ],
+  "resolver": {
+    "completedAt": "2026-09-26T02:35:44.828Z",
+    "classification": "AUTONOMOUSLY_RESOLVABLE",
+    "result": {
+      "plan_id": "JE-4-POST-WRITE-VERIFICATION",
+      "classification": "AUTONOMOUSLY_RESOLVABLE",
+      "root_cause": "Reviewed SHA 1c6b9e93 verified expected effects against predicates that contradict locked JE custody. ACCOUNT_RECLASS required a credit on fromAccountId and a debit on toAccountId, while the first-run accrual debits the expense account (fromAccountId) and credits the accrued-liability account (toAccountId). Canonical extraction treated QBO normalizedTransactions and trial-balance netAmount as the provider journal and the GL ending, and copied tie-out totals_status into the recon outcome, so a real SUCCESS sync never proved the journal and a totals-status word could pass without recon_outcome or unidentified_residual_cents.",
+      "evidence": [
+        "At 1c6b9e93, lib/journal-entry-governance/post-write-verification-effects.ts ACCOUNT_RECLASS matched creditCents on fromAccountId and debitCents on toAccountId.",
+        "lib/journal-entry-governance/je3d-first-run-evidence-coherence.ts buildFirstRunEvidenceCoherentExpectedEffects sets fromAccountId to the expense account and toAccountId to the accrued-liability account.",
+        "lib/journal-entry-governance/je3d-first-run-execution-authority.ts requires the sequence-sorted lines to debit the approved expense account and credit the approved accrued-liability account.",
+        "lib/integrations/quickbooks/provider.ts stores normalizedTransactions through normalizeQuickBooksReportEntities with ids quickbooks:${sourceReport}:${index}:${label}. normalizeQuickBooksTrialBalance copies that synthetic id into accountId and the report amount into netAmount. Those entities do not carry journal lines.",
+        "lib/journal-entry-governance/je3d-bs-account-source-authority-contract.ts locks BS_ACCOUNT_GL_DELTA to the provider-backed GL detail ending in qbo_natural_sign: ending_balance_cents / subledger_total_cents. gl_ending_balance_cents / gl_total_cents are the trial-balance comparison side.",
+        "lib/journal-entry-governance/source-custody.ts requires recon_outcome for sync-backed runs. For live_provider bs_account_recon it states the resolver does not stamp recon_outcome and totals_status is the custody signal. lib/continuous-close/persistence/authoritative-urm-mapper.ts forbids synthesizing recon_outcome from totalsStatus. Residual authority is unidentified_residual_cents on the tie-out run bound to the sync.",
+        "PR 335 head is 5f8f1d884c839abc1d18a75eaa5c4ff97bb47753, after reviewed SHA 1c6b9e93. That commit implements both review remediations. npx vitest run lib/journal-entry-governance/__tests__/post-write-verification.test.ts at that SHA passed 27 tests."
+      ],
+      "recommended_resolution": "Stay on cursor/advisacor-je-4-post-write-verification-4847 at 5f8f1d88 or a later commit on that branch. That head already contains the required proof correction. Confirm every invariant below and edit only an invariant that is missing. The next review must cover this head, not 1c6b9e93.",
+      "files_likely_affected": [
+        "lib/journal-entry-governance/post-write-verification-effects.ts",
+        "lib/journal-entry-governance/post-write-verification-canonical.ts",
+        "lib/journal-entry-governance/post-write-verification-production.ts",
+        "lib/journal-entry-governance/post-write-verification-service.ts",
+        "lib/journal-entry-governance/post-write-verification-types.ts",
+        "lib/journal-entry-governance/post-write-verification-scope.ts",
+        "lib/journal-entry-governance/__tests__/post-write-verification.test.ts",
+        "lib/integrations/quickbooks/provider.ts"
+      ],
+      "tests_required": [
+        "lib/journal-entry-governance/__tests__/post-write-verification.test.ts: verifies a first-run accrual reclass via buildFirstRunEvidenceCoherentExpectedEffects and expects EFFECTS_VERIFIED, and EFFECTS_MISMATCH with je4_reclass_mismatch when the debit and credit accounts are swapped",
+        "Same file: a payload built with normalizeQuickBooksTrialBalance and normalizeQuickBooksReportEntities yields journalLineRepresentation absent, glDetailEndingCents empty, and failure code je4_canonical_journal_unrepresented. metadata.lines on those report entities stay unrepresented.",
+        "Same file: RECON_OUTCOME_TARGET with totals_status tie and a null or tie recon_outcome is je4_recon_outcome_unproven. reconciled_exact on the post-write sync run verifies. A null unidentified_residual_cents stays je4_residual_not_observable even when totals_variance_cents equals the expected delta.",
+        "Same file: BS_ACCOUNT_GL_DELTA verifies only when ending_balance_cents and subledger_total_cents agree on the provider qbo account id under qbo_natural_sign and equal expectedPostGlBalanceCents. gl_ending_balance_cents, gl_total_cents, a quickbooks:TrialBalance synthetic id, a pre-VERIFIED completed_at, and a non-null baseline_sync_id leave the proof je4_gl_balance_absent or je4_gl_balance_mismatch."
+      ],
+      "security_implications": "Fail-closed proof only. Company, sync, and run identity stay on execution custody. The production proof query reads tie-out columns for that engagement and period and does not select trial-balance comparison balances as the GL ending. Create, verify, and production kill switches stay hard-disabled. No RLS weakening, no live journal create, no secrets in evidence.",
+      "scope_implications": "none — stay in approved scope",
+      "confidence": 0.93,
+      "human_decision_required": false,
+      "human_question": null,
+      "remediation_plan": {
+        "summary": "Preserve 5f8f1d88 on the existing JE-4 PR branch. It already matches the locked accrual direction and the real sync, recon, and GL contracts. Confirm the invariants; patch only a gap. Leave JE-3B2, JE-3C, JE-3D, and production activation files unchanged.",
+        "steps": [
+          "Check out cursor/advisacor-je-4-post-write-verification-4847 at 5f8f1d88 or later. Keep that commit. The reviewed tree at 1c6b9e93 is the defective baseline.",
+          "ACCOUNT_RECLASS: fromAccountId is the debited account and toAccountId is the credited account, each for amountCents with the opposite side at 0. A coherent buildFirstRunEvidenceCoherentExpectedEffects journal reaches EFFECTS_VERIFIED. Swapping those debit and credit accounts yields EFFECTS_MISMATCH and je4_reclass_mismatch.",
+          "Canonical journal: parse accounting_syncs.normalized_payload with the QBO normalizer shape. Report-entity keys, including normalizedTransactions and normalizedTrialBalance, are not journals. No journal-line collection returns journalLineRepresentation absent and verifyPostWriteExpectedEffects returns INCOMPLETE with je4_canonical_journal_unrepresented. PENDING_PROVIDER_VISIBILITY applies only when a journal-line collection exists and the verified provider journal id is missing from it.",
+          "BS_ACCOUNT_GL_DELTA: prove expectedPostGlBalanceCents from the GL detail ending keyed by the provider qbo account id in qbo_natural_sign. Authority is audit_ready_bs_recon_artifacts.ending_balance_cents and the matching run subledger_total_cents on a completed live_provider bs_account_recon (baseline_sync_id null, totals_status present, completed_at at or after verified_at). Ignore gl_ending_balance_cents, gl_total_cents, and synthetic quickbooks:TrialBalance row ids. Disagreeing detail endings or a missing ending stay INCOMPLETE.",
+          "Sync-backed AR, AP, and inventory: load recon_outcome and unidentified_residual_cents from the completed tie-out run whose id is the post-write observation slot and whose baseline_sync_id is the post-write accounting sync. Accept recon outcomes such as reconciled_exact. Treat tie, auto_reconcile, review, and kickout as totals_status only, and use totals_status as the custody signal solely for bs_account_recon, which does not stamp recon_outcome. A missing unidentified_residual_cents stays INCOMPLETE for RESIDUAL_DELTA. Do not substitute totals_variance_cents.",
+          "Keep fixtures on normalizeQuickBooksReportEntities, normalizeQuickBooksTrialBalance, and tie-out proof rows. Exporting those two existing normalizers for the fixture is in scope. Do not call regenerate-run, provider-qbo-create-transport, or change feature gates, RLS, or plan STATUS."
+        ],
+        "validation": [
+          "npx vitest run lib/journal-entry-governance/__tests__/post-write-verification.test.ts",
+          "npm run orchestrator:test"
+        ]
+      },
+      "merge": false,
+      "deploy": false
+    },
+    "source": "cursor_cloud_resolver"
+  },
+  "resolution": {
+    "proposedAt": "2026-09-26T02:35:44.828Z",
+    "remediation_plan": {
+      "summary": "Preserve 5f8f1d88 on the existing JE-4 PR branch. It already matches the locked accrual direction and the real sync, recon, and GL contracts. Confirm the invariants; patch only a gap. Leave JE-3B2, JE-3C, JE-3D, and production activation files unchanged.",
+      "steps": [
+        "Check out cursor/advisacor-je-4-post-write-verification-4847 at 5f8f1d88 or later. Keep that commit. The reviewed tree at 1c6b9e93 is the defective baseline.",
+        "ACCOUNT_RECLASS: fromAccountId is the debited account and toAccountId is the credited account, each for amountCents with the opposite side at 0. A coherent buildFirstRunEvidenceCoherentExpectedEffects journal reaches EFFECTS_VERIFIED. Swapping those debit and credit accounts yields EFFECTS_MISMATCH and je4_reclass_mismatch.",
+        "Canonical journal: parse accounting_syncs.normalized_payload with the QBO normalizer shape. Report-entity keys, including normalizedTransactions and normalizedTrialBalance, are not journals. No journal-line collection returns journalLineRepresentation absent and verifyPostWriteExpectedEffects returns INCOMPLETE with je4_canonical_journal_unrepresented. PENDING_PROVIDER_VISIBILITY applies only when a journal-line collection exists and the verified provider journal id is missing from it.",
+        "BS_ACCOUNT_GL_DELTA: prove expectedPostGlBalanceCents from the GL detail ending keyed by the provider qbo account id in qbo_natural_sign. Authority is audit_ready_bs_recon_artifacts.ending_balance_cents and the matching run subledger_total_cents on a completed live_provider bs_account_recon (baseline_sync_id null, totals_status present, completed_at at or after verified_at). Ignore gl_ending_balance_cents, gl_total_cents, and synthetic quickbooks:TrialBalance row ids. Disagreeing detail endings or a missing ending stay INCOMPLETE.",
+        "Sync-backed AR, AP, and inventory: load recon_outcome and unidentified_residual_cents from the completed tie-out run whose id is the post-write observation slot and whose baseline_sync_id is the post-write accounting sync. Accept recon outcomes such as reconciled_exact. Treat tie, auto_reconcile, review, and kickout as totals_status only, and use totals_status as the custody signal solely for bs_account_recon, which does not stamp recon_outcome. A missing unidentified_residual_cents stays INCOMPLETE for RESIDUAL_DELTA. Do not substitute totals_variance_cents.",
+        "Keep fixtures on normalizeQuickBooksReportEntities, normalizeQuickBooksTrialBalance, and tie-out proof rows. Exporting those two existing normalizers for the fixture is in scope. Do not call regenerate-run, provider-qbo-create-transport, or change feature gates, RLS, or plan STATUS."
+      ],
+      "validation": [
+        "npx vitest run lib/journal-entry-governance/__tests__/post-write-verification.test.ts",
+        "npm run orchestrator:test"
+      ]
+    },
+    "root_cause": "Reviewed SHA 1c6b9e93 verified expected effects against predicates that contradict locked JE custody. ACCOUNT_RECLASS required a credit on fromAccountId and a debit on toAccountId, while the first-run accrual debits the expense account (fromAccountId) and credits the accrued-liability account (toAccountId). Canonical extraction treated QBO normalizedTransactions and trial-balance netAmount as the provider journal and the GL ending, and copied tie-out totals_status into the recon outcome, so a real SUCCESS sync never proved the journal and a totals-status word could pass without recon_outcome or unidentified_residual_cents.",
+    "confidence": 0.93
+  },
+  "cursor_remediation": {
+    "agent_id": "bc-644115f4-c700-4632-aa85-f91c467ac198",
+    "run_id": "run-3c2c327a-be93-42b5-9404-ed35a0a33fe0",
+    "status": "FINISHED",
+    "agent_status": "IDLE",
+    "run_status": "FINISHED",
+    "branch": "cursor/advisacor-je-4-post-write-verification-4847",
+    "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "agent_url": "https://cursor.com/agents/bc-644115f4-c700-4632-aa85-f91c467ac198",
+    "latest_run_id": "run-3c2c327a-be93-42b5-9404-ed35a0a33fe0",
+    "launched_at": "2026-09-26T02:35:47.252Z",
+    "last_checked_at": "2026-09-26T02:43:42.479Z",
+    "result_summary": "The JE-4 proof contracts on this branch were already correct. I fixed the two remaining review blockers on the same pull request.\n\n- An open `IN_PROGRESS` row is now single-flighted. A second caller returns that row and does not start another capture or Continuous Close observe unless it wins a compare-and-set claim. Only a stale claim can be reclaimed after a crash.\n- If saving the verification row fails, the result returns the last persisted row. It no longer reports an unsaved `EFFECTS_VERIFI",
+    "duration_ms": 460182,
+    "completed_at": "2026-09-26T02:43:42.479Z"
+  },
+  "previous_review": {
+    "completedAt": "2026-09-26T02:28:39.095Z",
+    "verdict": "NEEDS_CHANGES",
+    "notes": "JE-4 is execution-bound, fail-closed, and gate-disabled, with fixture coverage for the happy path, mismatch, sequential replay, and partial failure. In-progress re-entry does not reuse the open row and can run a second FRESH_CAPTURE and Continuous Close OBSERVE for the same execution and policy.",
+    "result": {
+      "plan_id": "JE-4-POST-WRITE-VERIFICATION",
+      "review_result": "NEEDS_CHANGES",
+      "summary": "JE-4 is execution-bound, fail-closed, and gate-disabled, with fixture coverage for the happy path, mismatch, sequential replay, and partial failure. In-progress re-entry does not reuse the open row and can run a second FRESH_CAPTURE and Continuous Close OBSERVE for the same execution and policy.",
+      "acceptance_criteria": [
+        {
+          "criterion": "JE-4 orchestration module exists and is execution-bound to VERIFIED custody (or a fixture path that simulates VERIFIED without enabling gates).",
+          "status": "PASS",
+          "notes": "runPostWriteVerification loads execution, proposal, and ledger receipt and rejects non-VERIFIED custody. Company, connection, and sync identity come from that custody. Caller company and sync keys are rejected before refresh. The production entry stays behind a hardcoded-off JE-4 gate."
+        },
+        {
+          "criterion": "Post-write path performs or clearly stages provider/canonical refresh, affected recon/URM, Tie-Out where required, CC OBSERVE, expected-effect verification, readiness refresh, and evidence persistence.",
+          "status": "PASS",
+          "notes": "The orchestrator calls FRESH_CAPTURE without a caller sync id, requires a new SUCCESS sync at-or-after VERIFIED, checks snapshot-backed AR/AP/inventory baselines, replays OBSERVE on that sync, composes readiness, verifies effects, and persists journal_entry_post_write_verifications. Real QBO report entities without an explicit journal-line collection conclude EFFECTS_INCOMPLETE rather than VERIFIED."
+        },
+        {
+          "criterion": "Expected-effect verification fails closed on mismatch, stale, partial, or lag-without-evidence.",
+          "status": "PASS",
+          "notes": "Mismatch, stale sync, partial lines, absent journal representation, and pending visibility are distinct non-success conclusions. EFFECTS_VERIFIED requires a new sync, a new CC run, and readiness. Trial-balance comparison balances are not used as GL proof."
+        },
+        {
+          "criterion": "Idempotent re-entry does not duplicate material CC/recon corruption.",
+          "status": "FAIL",
+          "notes": "A finished row is reused and that sequential path is tested. An IN_PROGRESS row is not reused. A concurrent caller or retry adopts it and runs FRESH_CAPTURE and/or OBSERVE again, which can mint another sync and another Continuous Close run for the same execution and policy."
+        },
+        {
+          "criterion": "Partial failures produce explicit non-success statuses.",
+          "status": "PASS",
+          "notes": "Refresh, canonical, tie-out, observe, and effect failures persist REFRESH_FAILED, CANONICAL_INCOMPLETE, TIE_OUT_FAILED, OBSERVE_FAILED, EFFECTS_MISMATCH, EFFECTS_INCOMPLETE, or PENDING_PROVIDER_VISIBILITY. The verified-alignment check forbids a VERIFIED conclusion unless status is EFFECTS_VERIFIED."
+        },
+        {
+          "criterion": "Unit/integration tests cover happy path (fixture), effect mismatch, idempotent replay, and at least one partial-failure path.",
+          "status": "PASS",
+          "notes": "post-write-verification.test.ts covers those cases with injected deps, including reclass direction, recon_outcome versus totals_status, and GL detail versus trial balance. Independent run on the reviewed SHA: 27 passed. The missing case is concurrent in-progress re-entry."
+        },
+        {
+          "criterion": "Existing JE hard-disable / kill-switch / production activation tests still pass; gate files unchanged.",
+          "status": "PASS",
+          "notes": "Prohibited gate files have no diff against main. The new test asserts create, verify, and dispatch switches stay disabled. Independent rerun of provider-create-je3b2, provider-activation-je3d, and provider-attempt-je3b1: 85 passed."
+        },
+        {
+          "criterion": "No live JE execution performed by this work.",
+          "status": "PASS",
+          "notes": "JE-4 modules do not import provider-qbo-create-transport or tie-out regenerate-run. The HTTP route is GET-only and returns 403. runProductionPostWriteVerification throws while the JE-4 trigger is off."
+        },
+        {
+          "criterion": "PR targets main, remains unmerged by automation; plan may reach READY_FOR_HUMAN_APPROVAL only after independent reviewer PASS.",
+          "status": "PASS",
+          "notes": "PR 335 is open, draft, and mergeable against main on the expected head SHA. Plan status is IMPLEMENTATION_COMPLETE. This review does not merge, deploy, or set COMPLETED."
+        }
+      ],
+      "scope_compliance": {
+        "status": "PASS",
+        "notes": "Changes are the JE-4 modules, tests, a select-only additive migration, a disabled GET route, orchestrator status, and export of the existing QuickBooks report normalizers used to prove report entities are not journals. Out-of-scope JE write enablement, billing, auth, and hourly-refresh redesign were not changed."
+      },
+      "security_review": {
+        "status": "PASS",
+        "notes": "No secrets in the diff. New table enables RLS, revokes anon/authenticated writes, and grants authenticated SELECT through the same active company_users or firm_memberships engagement predicate as journal_entry_executions. Mutations are service_role. Authority fields are loaded from VERIFIED custody. JE-3B2/3C/3D and production kill switches stay hard-disabled."
+      },
+      "test_review": {
+        "status": "PASS",
+        "notes": "No new it.skip or it.only. Reviewed-SHA vitest: 27/27 JE-4 tests and 85/85 existing gate tests passed. Recorded status JSON predates the effect-proof commit and still says typecheck pass while noting pre-existing tsc failures; that record was not treated as proof of the head SHA. Full-repo lint, tsc, and build were not re-run in this review."
+      },
+      "prohibited_changes_review": {
+        "status": "PASS",
+        "notes": "je3b2-feature-gate, je3c-feature-gate, je3d activation files, production-activation-policy, and production-workflow-policy are unchanged. assertGovernedProviderPostNotEnabled still throws. No create transport, RLS weakening, allowlist expansion, Stripe, or auth changes."
+      },
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "requirement": "Idempotent re-entry must reuse the prior JE-4 row and must not duplicate material Continuous Close or reconciliation effects under polling, retries, or overlapping requests.",
+          "file": "lib/journal-entry-governance/post-write-verification-service.ts",
+          "location": "selectPostWriteReuseRow (lines 166-176); IN_PROGRESS adoption (lines 532-537 and 576-592); observation continues at line 684",
+          "explanation": "selectPostWriteReuseRow ignores IN_PROGRESS rows, so a second call does not reuse the open run. It adopts that row and continues the pipeline. Before a sync checkpoint this starts another FRESH_CAPTURE. After the checkpoint it skips capture and still calls Continuous Close OBSERVE again. Both paths can persist an extra accounting sync and an extra close run for one execution and policy. Sequential reuse after a terminal row is implemented and tested; overlapping in-progress re-entry is not.",
+          "remediation": "Single-flight the open row. If an IN_PROGRESS row already exists, return it without starting another FRESH_CAPTURE or OBSERVE unless this worker holds a compare-and-set claim. Crash resume should reclaim only a stale claim. Add a test where a second call arrives while the first row is still IN_PROGRESS and assert observation and observe each run once."
+        },
+        {
+          "severity": "LOW",
+          "requirement": "Do not report effect VERIFIED when the verification row was not persisted.",
+          "file": "lib/journal-entry-governance/post-write-verification-service.ts",
+          "location": "persist update catch (lines 657-664)",
+          "explanation": "If the repository update throws, failureResult returns ok false with code je4_run_update_failed, but the attached run is the unsaved in-memory row. When that attempted status is EFFECTS_VERIFIED, run.status still says verified even though the database write failed.",
+          "remediation": "On update failure, return the last persisted row or run null. Do not return an unpersisted EFFECTS_VERIFIED snapshot."
+        }
+      ],
+      "reviewed_pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "reviewed_commit": "5f8f1d884c839abc1d18a75eaa5c4ff97bb47753",
+      "reviewed_at": "2026-09-25T22:34:00.000Z",
+      "merge": false,
+      "deploy": false
+    },
+    "source": "cursor_cloud_reviewer"
+  },
+  "previous_cursor_reviewer": {
+    "agent_id": "bc-8b059ecb-4f57-43f8-a61e-ff6cf4808ade",
+    "run_id": "run-2079cd98-ecd5-4451-9221-9ddce4b3ed34",
+    "status": "FINISHED",
+    "agent_status": "IDLE",
+    "run_status": "FINISHED",
+    "branch": "cursor/advisacor-review-je-4-post-write-verification-893f",
+    "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "agent_url": "https://cursor.com/agents/bc-8b059ecb-4f57-43f8-a61e-ff6cf4808ade",
+    "latest_run_id": "run-2079cd98-ecd5-4451-9221-9ddce4b3ed34",
+    "launched_at": "2026-09-25T22:27:35.422Z",
+    "last_checked_at": "2026-09-26T02:28:39.095Z",
+    "result_summary": "Independent review of PR 335 at `5f8f1d884c839abc1d18a75eaa5c4ff97bb47753` is complete. Sequential replay and the hard-disable gates hold, and the JE-4 tests passed on that commit. In-progress re-entry still starts a second refresh and Continuous Close run.\n\n===ORCHESTRATOR_REVIEW_RESULT===\n{\n  \"plan_id\": \"JE-4-POST-WRITE-VERIFICATION\",\n  \"review_result\": \"NEEDS_CHANGES\",\n  \"summary\": \"JE-4 is execution-bound, fail-closed, and gate-disabled, with fixture coverage for the happy path, mismatch, se",
+    "duration_ms": 358841
+  },
+  "cursor_reviewer": {
+    "agent_id": "bc-d22561bc-2f4b-4201-a1fb-7fd86e7e5156",
+    "run_id": "run-3536314c-2416-4194-bd8b-b3b47e556b48",
+    "status": "FINISHED",
+    "agent_status": "IDLE",
+    "run_status": "FINISHED",
+    "branch": "cursor/advisacor-review-je-4-post-write-verification-f698",
+    "pr_url": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+    "agent_url": "https://cursor.com/agents/bc-d22561bc-2f4b-4201-a1fb-7fd86e7e5156",
+    "latest_run_id": "run-3536314c-2416-4194-bd8b-b3b47e556b48",
+    "launched_at": "2026-09-26T02:43:46.055Z",
+    "last_checked_at": "2026-09-26T02:48:31.639Z",
+    "result_summary": "Independent review of PR 335 at `f97f3ba03b090489a13c6ea4207fd5746d95fd9d` is complete. The JE-4 pipeline, migration, and gate locks match the approved plan. I re-ran the new suite (30 passed) and the existing create, verify, and activation gate tests (101 passed).\n\n===ORCHESTRATOR_REVIEW_RESULT===\n{\n  \"plan_id\": \"JE-4-POST-WRITE-VERIFICATION\",\n  \"review_result\": \"PASS\",\n  \"summary\": \"JE-4 adds an execution-bound post-VERIFIED pipeline that refreshes via FRESH_CAPTURE, requires a new SUCCESS syn",
+    "duration_ms": 276029
+  },
+  "review": {
+    "completedAt": "2026-09-26T02:48:31.639Z",
+    "verdict": "PASS",
+    "notes": "JE-4 adds an execution-bound post-VERIFIED pipeline that refreshes via FRESH_CAPTURE, requires a new SUCCESS sync at-or-after verification, checks snapshot-backed tie-out, replays Continuous Close OBSERVE on that sync, and fails closed on incomplete or mismatched effects. Idempotency and single-flight claims are enforced. Create, verify, and production kill switches are unchanged and remain disabled. Authenticated access to the new table is SELECT-only.",
+    "result": {
+      "plan_id": "JE-4-POST-WRITE-VERIFICATION",
+      "review_result": "PASS",
+      "summary": "JE-4 adds an execution-bound post-VERIFIED pipeline that refreshes via FRESH_CAPTURE, requires a new SUCCESS sync at-or-after verification, checks snapshot-backed tie-out, replays Continuous Close OBSERVE on that sync, and fails closed on incomplete or mismatched effects. Idempotency and single-flight claims are enforced. Create, verify, and production kill switches are unchanged and remain disabled. Authenticated access to the new table is SELECT-only.",
+      "acceptance_criteria": [
+        {
+          "criterion": "JE-4 orchestration module exists and is execution-bound to VERIFIED custody (or a fixture path that simulates VERIFIED without enabling gates).",
+          "status": "PASS",
+          "notes": "runPostWriteVerification loads execution, proposal, and ledger receipt, rejects non-VERIFIED custody, and rejects caller-supplied company or sync ids. Tests inject VERIFIED fixtures. Production entry and the HTTP route stay disabled."
+        },
+        {
+          "criterion": "Post-write path performs or clearly stages provider/canonical refresh, affected recon/URM, Tie-Out where required, CC OBSERVE, expected-effect verification, readiness refresh, and evidence persistence.",
+          "status": "PASS",
+          "notes": "Service order is FRESH_CAPTURE, SUCCESS sync checks, snapshot-backed AR/AP/inventory tie-out, REPLAY_EXISTING_SYNC observe, effect proof, composeContinuousCloseReadiness, then a persisted run row. BS GL proof is a documented read of live-provider GL detail endings, not regenerate-run."
+        },
+        {
+          "criterion": "Expected-effect verification fails closed on mismatch, stale, partial, or lag-without-evidence.",
+          "status": "PASS",
+          "notes": "Mismatch, stale sync, partial canonical payload, missing journal representation, and absent journal id map to EFFECTS_MISMATCH, CANONICAL_INCOMPLETE, EFFECTS_INCOMPLETE, or PENDING_PROVIDER_VISIBILITY. EFFECTS_VERIFIED requires a new sync, a distinct CC run, and readiness."
+        },
+        {
+          "criterion": "Idempotent re-entry does not duplicate material CC/recon corruption.",
+          "status": "PASS",
+          "notes": "Unique idempotency key plus (execution_id, accounting_sync_id, policy_hash). A verified row is reused. An IN_PROGRESS row is single-flighted with compare-and-set; only a stale claim can be reclaimed. A failed final update returns the last persisted row."
+        },
+        {
+          "criterion": "Partial failures produce explicit non-success statuses.",
+          "status": "PASS",
+          "notes": "Refresh, recon, tie-out, canonical, observe, mismatch, incomplete, and pending-visibility outcomes are distinct statuses. Observe is skipped after refresh, tie-out, or stale-sync failure. Verified lineage checks reject a pre-write CC run."
+        },
+        {
+          "criterion": "Unit/integration tests cover happy path, effect mismatch, idempotent replay, and at least one partial-failure path.",
+          "status": "PASS",
+          "notes": "Independent rerun of post-write-verification.test.ts: 30 passed, including happy path, mismatch, replay, refresh failure, live tie-out rejection, pending visibility, and single-flight."
+        },
+        {
+          "criterion": "Existing JE hard-disable, kill-switch, and production activation tests still pass; gate files unchanged.",
+          "status": "PASS",
+          "notes": "Prohibited gate files have an empty diff. Independent rerun of provider-activation-je3d, provider-create-je3b2, and provider-verification-je3c: 101 passed. The new suite asserts those gates stay false."
+        },
+        {
+          "criterion": "No live JE execution performed by this work.",
+          "status": "PASS",
+          "notes": "JE-4 modules do not import provider-qbo-create-transport or regenerate-run. The route is GET-only and returns 403. runProductionPostWriteVerification throws while the JE-4 trigger is false."
+        },
+        {
+          "criterion": "PR targets main, remains unmerged, and plan status is not COMPLETED.",
+          "status": "PASS",
+          "notes": "PR 335 is open, draft, and MERGEABLE against main at f97f3ba03b090489a13c6ea4207fd5746d95fd9d. Plan status is IMPLEMENTATION_COMPLETE. Reviewer did not merge, deploy, or set COMPLETED."
+        }
+      ],
+      "scope_compliance": {
+        "status": "PASS",
+        "notes": "Changes are new JE-4 modules and tests, a GET inspection route, an additive migration, plan status recording, and export of two existing QuickBooks normalizers so tests can prove report entities are not journals. Out-of-scope gate, billing, auth, and hourly-refresh redesign files were not modified."
+      },
+      "security_review": {
+        "status": "PASS",
+        "notes": "No secrets in the diff. Company, connection, period, and sync identity come from execution custody. The new table enables RLS, revokes anon/authenticated writes, and grants authenticated SELECT through the same active company_users or firm_memberships engagement check used by journal_entry_executions. Mutations are service_role only. Proof and observe-policy loads are engagement-scoped."
+      },
+      "test_review": {
+        "status": "PASS",
+        "notes": "No tests were skipped or weakened to pass. Reviewer reran the JE-4 file (30 passed) and three existing gate files (101 passed). Orchestrator CI on the PR merge ref passed orchestrator tests (142), orchestrator lint, and brand lint. Builder notes disclose pre-existing tsc failures outside JE-4 and a build stop on unset STRIPE_SECRET_KEY; those are outside this diff."
+      },
+      "prohibited_changes_review": {
+        "status": "PASS",
+        "notes": "je3b2-feature-gate, je3c-feature-gate, je3d activation defaults, production-activation-policy, and production-workflow-policy are unchanged. assertGovernedProviderPostNotEnabled still throws. No RLS weakening, allowlist expansion, Stripe or auth changes, merge, or production deploy."
+      },
+      "findings": [],
+      "reviewed_pr": "https://github.com/mjwiseman07/finsight-reports-app/pull/335",
+      "reviewed_commit": "f97f3ba03b090489a13c6ea4207fd5746d95fd9d",
+      "reviewed_at": "2026-09-26T02:48:05Z",
+      "merge": false,
+      "deploy": false
+    },
+    "source": "cursor_cloud_reviewer",
+    "advancedToHumanApprovalAt": "2026-09-26T02:48:31.639Z"
+  }
 }
