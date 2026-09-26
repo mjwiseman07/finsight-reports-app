@@ -62,29 +62,58 @@ const lines: JeProposalLine[] = [
   { sequence: 2, accountId: "liab-1", debitCents: 0, creditCents: 1000 },
 ];
 
+function cloneRun(row: Je4RunRow): Je4RunRow {
+  return {
+    ...row,
+    tie_out_run_ids: [...row.tie_out_run_ids],
+    evidence: JSON.parse(JSON.stringify(row.evidence)) as Record<string, unknown>,
+  };
+}
+
 class MemoryRepo implements PostWriteVerificationRepository {
   rows: Je4RunRow[] = [];
 
   async listByExecutionPolicy(args: { executionId: string; policyHash: string }) {
-    return this.rows.filter(
-      (row) =>
-        row.execution_id === args.executionId && row.policy_hash === args.policyHash,
-    );
+    return this.rows
+      .filter(
+        (row) =>
+          row.execution_id === args.executionId && row.policy_hash === args.policyHash,
+      )
+      .map(cloneRun);
   }
 
   async insert(row: Je4RunRow) {
     if (this.rows.some((item) => item.idempotency_key === row.idempotency_key)) {
       throw new PostWriteVerificationError("je4_idempotency_conflict", "conflict");
     }
-    this.rows.push({ ...row, evidence: { ...row.evidence } });
-    return { ...row, evidence: { ...row.evidence } };
+    const stored = cloneRun(row);
+    this.rows.push(stored);
+    return cloneRun(stored);
   }
 
   async update(row: Je4RunRow) {
     const index = this.rows.findIndex((item) => item.id === row.id);
     if (index < 0) throw new Error("missing row");
-    this.rows[index] = { ...row, evidence: { ...row.evidence } };
-    return { ...this.rows[index] };
+    this.rows[index] = cloneRun(row);
+    return cloneRun(this.rows[index]);
+  }
+
+  async compareAndSwap(args: {
+    id: string;
+    executionId: string;
+    expectedUpdatedAt: string;
+    expectedStatus?: Je4RunRow["status"];
+    next: Je4RunRow;
+  }) {
+    const index = this.rows.findIndex(
+      (item) => item.id === args.id && item.execution_id === args.executionId,
+    );
+    if (index < 0) return null;
+    const current = this.rows[index];
+    if (current.updated_at !== args.expectedUpdatedAt) return null;
+    if (args.expectedStatus && current.status !== args.expectedStatus) return null;
+    this.rows[index] = cloneRun(args.next);
+    return cloneRun(this.rows[index]);
   }
 }
 
@@ -455,6 +484,91 @@ describe("JE-4 post-write verification", () => {
     expect(second.run?.id).toBe(first.run?.id);
     expect(counts().observationCalls).toBe(1);
     expect(counts().observeCalls).toBe(1);
+  });
+
+  it("does not capture or observe again while a row is still IN_PROGRESS", async () => {
+    const { deps, repo, counts } = harness();
+    let releaseFirst!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const originalObservation = deps.runObservation;
+    let observationEntries = 0;
+    deps.runObservation = async (input, executionContext) => {
+      observationEntries += 1;
+      if (observationEntries === 1) await gate;
+      return originalObservation(input, executionContext);
+    };
+    const first = runPostWriteVerification({ executionId: EXEC }, deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(repo.rows.some((row) => row.status === "IN_PROGRESS")).toBe(true);
+    const second = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(second.reused).toBe(true);
+    expect(second.run?.status).toBe("IN_PROGRESS");
+    expect(second.run?.effect_conclusion).not.toBe("VERIFIED");
+    expect(counts().observationCalls).toBe(0);
+    expect(counts().observeCalls).toBe(0);
+    releaseFirst();
+    const finished = await first;
+    expect(finished.run?.status).toBe("EFFECTS_VERIFIED");
+    expect(finished.run?.id).toBe(second.run?.id);
+    expect(counts().observationCalls).toBe(1);
+    expect(counts().observeCalls).toBe(1);
+    expect(repo.rows).toHaveLength(1);
+  });
+
+  it("reclaims a stale in-progress claim and does not reuse a fresh one", async () => {
+    const { deps, repo, counts } = harness();
+    const originalSwap = repo.compareAndSwap.bind(repo);
+    let swaps = 0;
+    repo.compareAndSwap = async (args) => {
+      swaps += 1;
+      if (swaps === 1) throw new Error("checkpoint lost");
+      return originalSwap(args);
+    };
+    const failed = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(failed.ok).toBe(false);
+    expect(failed.code).toBe("je4_run_update_failed");
+    expect(failed.run?.status).toBe("IN_PROGRESS");
+    expect(failed.run?.status).not.toBe("EFFECTS_VERIFIED");
+    expect(counts().observationCalls).toBe(1);
+    expect(counts().observeCalls).toBe(0);
+
+    const busy = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(busy.reused).toBe(true);
+    expect(busy.run?.status).toBe("IN_PROGRESS");
+    expect(counts().observationCalls).toBe(1);
+    expect(counts().observeCalls).toBe(0);
+
+    repo.rows[0].evidence = {
+      ...repo.rows[0].evidence,
+      flight_claim: { token: "expired-claim", expires_at: "2000-01-01T00:00:00.000Z" },
+    };
+    const resumed = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(resumed.ok).toBe(true);
+    expect(resumed.run?.status).toBe("EFFECTS_VERIFIED");
+    expect(resumed.run?.id).toBe(failed.run?.id);
+    expect(counts().observationCalls).toBe(2);
+    expect(counts().observeCalls).toBe(1);
+    expect(repo.rows).toHaveLength(1);
+  });
+
+  it("does not report EFFECTS_VERIFIED when the verification update is not persisted", async () => {
+    const { deps, repo } = harness();
+    const originalSwap = repo.compareAndSwap.bind(repo);
+    repo.compareAndSwap = async (args) => {
+      if (args.next.status === "EFFECTS_VERIFIED") {
+        throw new Error("update failed");
+      }
+      return originalSwap(args);
+    };
+    const result = await runPostWriteVerification({ executionId: EXEC }, deps);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("je4_run_update_failed");
+    expect(result.run?.status).toBe("IN_PROGRESS");
+    expect(result.run?.effect_conclusion).not.toBe("VERIFIED");
+    expect(repo.rows[0]?.status).toBe("IN_PROGRESS");
+    expect(repo.rows[0]?.effect_conclusion).not.toBe("VERIFIED");
   });
 
   it("records provider refresh failure without observing", async () => {

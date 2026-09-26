@@ -19,6 +19,17 @@ export type PostWriteVerificationRepository = {
   }): Promise<Je4RunRow[]>;
   insert(row: Je4RunRow): Promise<Je4RunRow>;
   update(row: Je4RunRow): Promise<Je4RunRow>;
+  /**
+   * Write `next` only when the stored row still has `expectedUpdatedAt`.
+   * Returns null when another worker already changed the row.
+   */
+  compareAndSwap(args: {
+    id: string;
+    executionId: string;
+    expectedUpdatedAt: string;
+    expectedStatus?: Je4RunStatus;
+    next: Je4RunRow;
+  }): Promise<Je4RunRow | null>;
 };
 
 const COLUMNS = [
@@ -188,6 +199,24 @@ export function createSupabasePostWriteVerificationRepository(): PostWriteVerifi
           "Post-write verification update returned no row.",
         );
       }
+      return asRow(data as unknown as Record<string, unknown>);
+    },
+    async compareAndSwap(args) {
+      const supabase = getSupabaseAdmin();
+      const filter = supabase
+        .from("journal_entry_post_write_verifications")
+        .update(toDb(args.next))
+        .eq("id", args.id)
+        .eq("execution_id", args.executionId)
+        .eq("updated_at", args.expectedUpdatedAt);
+      const scoped = args.expectedStatus
+        ? filter.eq("status", args.expectedStatus)
+        : filter;
+      const { data, error } = await scoped.select(COLUMNS).maybeSingle();
+      if (error) {
+        throw new PostWriteVerificationError("je4_run_update_failed", error.message);
+      }
+      if (!data) return null;
       return asRow(data as unknown as Record<string, unknown>);
     },
   };

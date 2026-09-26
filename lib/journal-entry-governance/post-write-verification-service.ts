@@ -14,6 +14,9 @@
  * Memory is not close proof. Pre-write sync and pre-write CC runs are rejected.
  * Identical replay reuses the prior row. retry=true re-enters only retryable
  * conclusions and still refuses to duplicate an EFFECTS_VERIFIED row.
+ * An IN_PROGRESS row is single-flighted. A second caller returns that row
+ * unless it wins a compare-and-set claim, and only a stale claim can be
+ * reclaimed after a crash.
  */
 
 import { composeContinuousCloseReadiness } from "@/lib/continuous-close/readiness";
@@ -61,6 +64,59 @@ const SECRET_JSON_RE =
 
 const NON_RETRYABLE_CODE =
   /auth|permission|forbidden|gate|disabled|credential|safety/i;
+
+/**
+ * An open row stays owned while this claim is in the future. Crash resume
+ * may reclaim it only after the claim expires.
+ */
+export const JE4_FLIGHT_CLAIM_TTL_MS = 15 * 60 * 1000;
+
+type FlightClaim = {
+  token: string;
+  expires_at: string;
+};
+
+function readFlightClaim(evidence: Record<string, unknown>): FlightClaim | null {
+  const raw = evidence.flight_claim;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const token = (raw as { token?: unknown }).token;
+  const expiresAt = (raw as { expires_at?: unknown }).expires_at;
+  if (typeof token !== "string" || token.length === 0) return null;
+  if (typeof expiresAt !== "string" || Number.isNaN(Date.parse(expiresAt))) return null;
+  return { token, expires_at: expiresAt };
+}
+
+function flightClaimExpiresAt(nowIso: string): string {
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return nowIso;
+  return new Date(nowMs + JE4_FLIGHT_CLAIM_TTL_MS).toISOString();
+}
+
+function claimIsFresh(claim: FlightClaim | null, nowIso: string): boolean {
+  if (!claim) return false;
+  const expiresMs = Date.parse(claim.expires_at);
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) return false;
+  return expiresMs > nowMs;
+}
+
+function withFlightClaim(
+  evidence: Record<string, unknown>,
+  token: string,
+  expiresAt: string,
+): Record<string, unknown> {
+  return {
+    ...evidence,
+    flight_claim: { token, expires_at: expiresAt },
+  };
+}
+
+function withoutFlightClaim(evidence: Record<string, unknown>): Record<string, unknown> {
+  if (!("flight_claim" in evidence)) return evidence;
+  const next = { ...evidence };
+  delete next.flight_claim;
+  return next;
+}
 
 export type RunPostWriteVerificationInput = {
   executionId: string;
@@ -533,9 +589,71 @@ export async function runPostWriteVerification(
   if (reuse) return resultFromRow(reuse, true);
 
   const now = deps.nowIso();
-  let row =
-    existing.find((item) => item.status === "IN_PROGRESS") ||
-    ({
+  let heldClaimToken: string | null = null;
+
+  async function readPersistedRun(id: string): Promise<Je4RunRow | null> {
+    try {
+      const rows = await deps.repository.listByExecutionPolicy({
+        executionId: custody.executionId,
+        policyHash,
+      });
+      return rows.find((item) => item.id === id) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function acquireOpenRow(
+    open: Je4RunRow,
+  ): Promise<
+    | { action: "return"; row: Je4RunRow }
+    | { action: "held"; row: Je4RunRow; token: string }
+  > {
+    const observedAt = deps.nowIso();
+    if (claimIsFresh(readFlightClaim(open.evidence), observedAt)) {
+      return { action: "return", row: open };
+    }
+    const token = deps.newId();
+    const next: Je4RunRow = {
+      ...open,
+      evidence: withFlightClaim(open.evidence, token, flightClaimExpiresAt(observedAt)),
+      updated_at: observedAt,
+    };
+    try {
+      const swapped = await deps.repository.compareAndSwap({
+        id: open.id,
+        executionId: open.execution_id,
+        expectedUpdatedAt: open.updated_at,
+        expectedStatus: "IN_PROGRESS",
+        next,
+      });
+      if (swapped) return { action: "held", row: swapped, token };
+    } catch {
+      return { action: "return", row: open };
+    }
+    const latest = await readPersistedRun(open.id);
+    if (latest) return { action: "return", row: latest };
+    const again = await deps.repository.listByExecutionPolicy({
+      executionId: custody.executionId,
+      policyHash,
+    });
+    const settled = selectPostWriteReuseRow(again, retry);
+    if (settled) return { action: "return", row: settled };
+    const stillOpen = newest(again.filter((item) => item.status === "IN_PROGRESS"));
+    return { action: "return", row: stillOpen ?? open };
+  }
+
+  let row: Je4RunRow;
+  const open = newest(existing.filter((item) => item.status === "IN_PROGRESS"));
+  if (open) {
+    const acquired = await acquireOpenRow(open);
+    if (acquired.action === "return") return resultFromRow(acquired.row, true);
+    row = acquired.row;
+    heldClaimToken = acquired.token;
+  } else {
+    const claimToken = deps.newId();
+    heldClaimToken = claimToken;
+    row = {
       id: deps.newId(),
       execution_id: custody.executionId,
       company_id: custody.companyId,
@@ -562,18 +680,20 @@ export async function runPostWriteVerification(
       effect_conclusion: "NOT_EVALUATED",
       retryable: false,
       readiness: null,
-      evidence: {
-        authority: "JE4_POST_WRITE_VERIFICATION",
-        scope,
-        memory_used_as_close_proof: false,
-      },
+      evidence: withFlightClaim(
+        {
+          authority: "JE4_POST_WRITE_VERIFICATION",
+          scope,
+          memory_used_as_close_proof: false,
+        },
+        claimToken,
+        flightClaimExpiresAt(now),
+      ),
       failure_code: null,
       failure_message: null,
       created_at: now,
       updated_at: now,
-    } satisfies Je4RunRow);
-
-  if (!existing.some((item) => item.id === row.id)) {
+    };
     try {
       row = await deps.repository.insert(row);
     } catch (error) {
@@ -587,9 +707,12 @@ export async function runPostWriteVerification(
         });
         const raced = selectPostWriteReuseRow(again, retry);
         if (raced) return resultFromRow(raced, true);
-        const inProgress = again.find((item) => item.status === "IN_PROGRESS");
+        const inProgress = newest(again.filter((item) => item.status === "IN_PROGRESS"));
         if (!inProgress) return failureResult(error.code, error.message);
-        row = inProgress;
+        const acquired = await acquireOpenRow(inProgress);
+        if (acquired.action === "return") return resultFromRow(acquired.row, true);
+        row = acquired.row;
+        heldClaimToken = acquired.token;
       } else {
         return failureResult(
           "je4_run_insert_failed",
@@ -628,6 +751,7 @@ export async function runPostWriteVerification(
     if (status !== "EFFECTS_VERIFIED" && effectConclusion === "VERIFIED") {
       effectConclusion = "INCOMPLETE";
     }
+    const updatedAt = deps.nowIso();
     const updated: Je4RunRow = {
       ...row,
       ...patch,
@@ -637,9 +761,9 @@ export async function runPostWriteVerification(
       failure_code: status === "EFFECTS_VERIFIED" ? null : failureCode,
       failure_message: status === "EFFECTS_VERIFIED" ? null : failureMessage,
       retryable: status === "EFFECTS_VERIFIED" ? false : Boolean(patch.retryable),
-      updated_at: deps.nowIso(),
+      updated_at: updatedAt,
     };
-    if (status === "EFFECTS_VERIFIED") {
+    if (updated.status === "EFFECTS_VERIFIED") {
       if (
         !updated.accounting_sync_id ||
         !updated.continuous_close_run_id ||
@@ -654,17 +778,69 @@ export async function runPostWriteVerification(
         updated.retryable = false;
       }
     }
+    if (updated.status === "IN_PROGRESS") {
+      if (!heldClaimToken) {
+        return failureResult(
+          "je4_run_update_failed",
+          "In-progress post-write verification has no flight claim.",
+          await readPersistedRun(row.id),
+        );
+      }
+      updated.evidence = withFlightClaim(
+        updated.evidence,
+        heldClaimToken,
+        flightClaimExpiresAt(updatedAt),
+      );
+    } else {
+      updated.evidence = withoutFlightClaim(updated.evidence);
+    }
+    const expectedUpdatedAt = row.updated_at;
     try {
-      row = await deps.repository.update(updated);
+      const saved = await deps.repository.compareAndSwap({
+        id: row.id,
+        executionId: row.execution_id,
+        expectedUpdatedAt,
+        next: updated,
+      });
+      if (!saved) {
+        return failureResult(
+          "je4_run_update_failed",
+          "Post-write verification update lost the compare-and-set claim.",
+          await readPersistedRun(row.id),
+        );
+      }
+      row = saved;
     } catch (error) {
       return failureResult(
         "je4_run_update_failed",
         error instanceof Error ? error.message : "Run update failed.",
-        updated,
+        await readPersistedRun(row.id),
       );
     }
     return resultFromRow(row, false);
   };
+
+  async function lostClaimResult(): Promise<PostWriteVerificationResult | null> {
+    const current = await readPersistedRun(row.id);
+    const claim = current ? readFlightClaim(current.evidence) : null;
+    if (
+      current &&
+      current.status === "IN_PROGRESS" &&
+      claim &&
+      claim.token === heldClaimToken &&
+      claimIsFresh(claim, deps.nowIso())
+    ) {
+      return null;
+    }
+    if (!current) {
+      return failureResult(
+        "je4_run_update_failed",
+        "Post-write verification row is no longer persisted.",
+        null,
+      );
+    }
+    return resultFromRow(current, true);
+  }
 
   let slots = readStoredSlots(row.evidence);
   let syncId = row.accounting_sync_id;
@@ -682,6 +858,8 @@ export async function runPostWriteVerification(
   }
 
   if (!syncId || !slots || !observationId) {
+    const lostBeforeCapture = await lostClaimResult();
+    if (lostBeforeCapture) return lostBeforeCapture;
     let observation: AuthoritativeObservationResult;
     try {
       observation = await withTransientRetries(() =>
@@ -848,6 +1026,9 @@ export async function runPostWriteVerification(
       evidence: { ...row.evidence, scope, reconciliations: slots },
     });
   }
+
+  const lostBeforeObserve = await lostClaimResult();
+  if (lostBeforeObserve) return lostBeforeObserve;
 
   const observed = await deps.runObserve(
     {
