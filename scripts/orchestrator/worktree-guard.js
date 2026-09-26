@@ -121,16 +121,35 @@ function recommendPlanWorktreePath(planId, {
 }
 
 /**
+ * Paths the overnight controller is expected to mutate (STATUS + companion JSON).
+ * These must not trip DIRTY_TRACKED_WORKTREE.
+ */
+function isOrchestratorOwnedDirtyPath(relPath) {
+  const normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "");
+  if (!normalized.startsWith("docs/plans/")) return false;
+  // Plan markdown STATUS line, companion status, audit jsonl, human decision packets
+  if (/\.status\.json$/i.test(normalized)) return true;
+  if (/\.audit\.jsonl$/i.test(normalized)) return true;
+  if (/\.human-decision\.json$/i.test(normalized)) return true;
+  if (/\.blocker\.json$/i.test(normalized)) return true;
+  if (/\.md$/i.test(normalized)) return true;
+  return false;
+}
+
+/**
  * Assert controller workspace is safe for overnight (no interactive Git).
  *
  * Policy:
  * - Apply non-interactive Git env
- * - Refuse if tracked files are dirty (would trigger stash/checkout UI)
+ * - Refuse if tracked files are dirty (would trigger stash/checkout UI),
+ *   except orchestrator-owned docs/plans/* STATUS/companion artifacts
  * - Untracked files are allowed (e.g. local helpers) unless forbidden
  * - Never auto-stash / discard / checkout
  * - If message matches "Local changes detected before checking out…", throw FATAL
  *
- * @returns {{ ok: true, trackedDirty: [], untracked: string[] }}
+ * @returns {{ ok: true, trackedDirty: [], untracked: string[], ignoredOrchestratorDirty?: string[] }}
  */
 function assertWorkspaceSafeForOvernight({
   cwd = getRepoRoot(),
@@ -187,13 +206,24 @@ function assertWorkspaceSafeForOvernight({
   }
 
   const parsed = parsePorcelainStatus(result.stdout);
-  if (parsed.trackedDirty.length > 0) {
+  const ignoredOrchestratorDirty = [];
+  const blockingDirty = [];
+  for (const file of parsed.trackedDirty) {
+    if (isOrchestratorOwnedDirtyPath(file)) {
+      ignoredOrchestratorDirty.push(file);
+    } else {
+      blockingDirty.push(file);
+    }
+  }
+
+  if (blockingDirty.length > 0) {
     throw new InfrastructureBlockError(
       "FATAL_INFRASTRUCTURE_BLOCK: dirty tracked files in controller workspace — refusing branch switch / stash / discard interaction",
       {
         reason: "DIRTY_TRACKED_WORKTREE",
         cwd,
-        trackedDirty: parsed.trackedDirty.slice(0, 50),
+        trackedDirty: blockingDirty.slice(0, 50),
+        ignoredOrchestratorDirty: ignoredOrchestratorDirty.slice(0, 50),
         hint:
           "Create or reuse a dedicated clean worktree from origin/main for this plan. Do not auto-discard user changes.",
         recommended_worktree: recommendPlanWorktreePath(
@@ -218,6 +248,7 @@ function assertWorkspaceSafeForOvernight({
     ok: true,
     trackedDirty: [],
     untracked: parsed.untracked,
+    ignoredOrchestratorDirty,
   };
 }
 
@@ -266,6 +297,7 @@ module.exports = {
   InfrastructureBlockError,
   nonInteractiveGitEnv,
   isLocalChangesCheckoutBlock,
+  isOrchestratorOwnedDirtyPath,
   parsePorcelainStatus,
   recommendPlanWorktreePath,
   assertWorkspaceSafeForOvernight,
